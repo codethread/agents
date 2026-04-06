@@ -1,7 +1,7 @@
 {
 	"name": "@codethread/agents",
 	"version": "0.1.0",
-	"description": "Codethread's Pi extensions, agents, prompts, and themes",
+	"description": "codethread's Pi extensions, agents, prompts, and themes",
 	"type": "module",
 	"keywords": [
 		"pi-package",
@@ -11,17 +11,14 @@
 		"pi-agent"
 	],
 	"files": [
-		"pi-extensions",
-		"AGENTS.md",
-		"README.md"
+		"pi-extensions"
 	],
 	"scripts": {
 		"format": "prettier --write .",
-		"format:check": "prettier --check .",
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
 		"typecheck": "tsc --noEmit",
-		"check": "npm run format:check && npm run lint && npm run typecheck"
+		"check": "npm run lint && npm run typecheck && npm run format"
 	},
 	"pi": {
 		"extensions": [
