@@ -52,7 +52,7 @@
 		"muted": "muted",
 		"dim": "subtleDark1",
 		"text": "text",
-		"thinkingText": "loveLight1",
+		"thinkingText": "muted",
 		"selectedBg": "loveDark1",
 		"userMessageBg": "surfaceLight1",
 		"userMessageText": "roseLight1",
