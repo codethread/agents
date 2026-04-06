@@ -1,0 +1,39 @@
+# agents
+
+Pi-specific agent tooling extracted from my dotfiles repo.
+
+## Contents
+
+- `pi-extensions/extensions/` — Pi extensions
+- `pi-extensions/agents/` — bundled subagents used by the `subagent` extension
+- `pi-extensions/prompts/` — prompt templates
+- `pi-extensions/themes/` — Pi themes
+
+## Install as a Pi package
+
+From a local checkout:
+
+```bash
+pi install /absolute/path/to/agents
+```
+
+From git later:
+
+```bash
+pi install git:github.com/<you>/agents
+```
+
+Pi loads the package's extensions, prompts, and themes through `package.json#pi`.
+The bundled agents are discovered by the `subagent` extension from `pi-extensions/agents/`, so they travel with the package too.
+
+## Development
+
+```bash
+npm install
+npm run format
+npm run lint
+npm run typecheck
+npm run check
+```
+
+Running `pi` from this repo works for local testing because `.pi/settings.json` points Pi at the package root.
