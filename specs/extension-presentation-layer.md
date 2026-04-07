@@ -188,9 +188,11 @@ Registered in `pi-extensions/extensions/current-context-footer.ts`:
 
 ```ts
 pi.on("session_start", (_event, ctx) => installFooter(ctx));
-(pi as ExtensionAPI & {
-	on(event: "session_switch", handler: (_event: unknown, ctx: ExtensionContext) => void): void;
-}).on("session_switch", (_event, ctx) => installFooter(ctx));
+(
+	pi as ExtensionAPI & {
+		on(event: "session_switch", handler: (_event: unknown, ctx: ExtensionContext) => void): void;
+	}
+).on("session_switch", (_event, ctx) => installFooter(ctx));
 ```
 
 `installFooter(ctx)` calls `ctx.ui.setFooter(...)` and returns a footer object implementing:

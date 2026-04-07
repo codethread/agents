@@ -26,7 +26,11 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
-import { formatContextDisplay, formatCost, formatModelDisplay } from "../usage-format.js";
+import {
+	formatContextDisplay,
+	formatCost,
+	formatModelDisplay,
+} from "../current-context-footer/usage-format.js";
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
 
 const MAX_PARALLEL_TASKS = 8;

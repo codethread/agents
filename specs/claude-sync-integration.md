@@ -53,7 +53,7 @@ The extension treats Claude resources differently depending on their shape:
 
 - **`skills/`** → linked as `skills` directory
 - **`agents/`** → linked as `agents` directory
-- **`commands/**/*.md`** → linked one file at a time into `prompts/*.md`
+- **`commands/**/_.md`** → linked one file at a time into `prompts/_.md`
 
 Commands are not linked as a directory because Claude command naming uses nested paths, while Pi prompt discovery expects prompt files in a `prompts/` directory. The bridge therefore flattens nested command paths into colon-delimited filenames.
 
