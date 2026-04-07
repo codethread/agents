@@ -6,8 +6,8 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 
 ## Shared Notes
 
-| Spec                           | Purpose                                                                                                                  | Code                                                               |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Spec                           | Purpose                                                                                                                  | Code                 |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | -------------------- |
 | [discovery.md](./discovery.md) | Living cross-cutting notes and implementation discoveries that should be checked when creating or updating future specs. | `specs/discovery.md` |
 
 ## Subagent Extension

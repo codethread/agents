@@ -5,11 +5,16 @@
  * Multiple questions: tab bar navigation between questions
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { spawnSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { type ExtensionAPI, getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import {
 	Editor,
 	type EditorTheme,
 	Key,
+	Markdown,
 	matchesKey,
 	Text,
 	truncateToWidth,
@@ -29,6 +34,7 @@ interface Question {
 	id: string;
 	label: string;
 	prompt: string;
+	context?: string;
 	options: QuestionOption[];
 	allowOther: boolean;
 }
@@ -65,14 +71,34 @@ const QuestionSchema = Type.Object({
 		}),
 	),
 	prompt: Type.String({ description: "The full question text to display" }),
-	options: Type.Array(QuestionOptionSchema, { description: "Available options to choose from" }),
+	context: Type.Optional(
+		Type.String({
+			description:
+				"Per-question context shown when this tab is active. Brief relevant detail, file refs in vim-style (path:line)",
+		}),
+	),
+	options: Type.Array(QuestionOptionSchema, {
+		minItems: 1,
+		description:
+			"Required list of predefined options to choose from. At least one option must be provided. Each needs a value and label.",
+	}),
 	allowOther: Type.Optional(
 		Type.Boolean({ description: "Allow 'Type something' option (default: true)" }),
 	),
 });
 
 const QuestionnaireParams = Type.Object({
-	questions: Type.Array(QuestionSchema, { description: "Questions to ask the user" }),
+	context: Type.Optional(
+		Type.String({
+			description:
+				"Top-level overview briefing shown above all questions. Problem statement, key constraints, and file refs (vim-style path:line). Max ~10 lines.",
+		}),
+	),
+	questions: Type.Array(QuestionSchema, {
+		minItems: 1,
+		description:
+			"Questions to ask the user. Each question MUST include an options array with at least one predefined choice.",
+	}),
 });
 
 function errorResult(
@@ -90,7 +116,7 @@ export default function questionnaire(pi: ExtensionAPI) {
 		name: "questionnaire",
 		label: "Questionnaire",
 		description:
-			"Ask the user one or more questions. Use for clarifying requirements, getting preferences, or confirming decisions. For single questions, shows a simple option list. For multiple questions, shows a tab-based interface.",
+			"Ask the user one or more questions. Use for clarifying requirements, getting preferences, or confirming decisions. For single questions, shows a simple option list. For multiple questions, shows a tab-based interface. Supports optional context briefings at two levels: a top-level overview (always visible) and per-question detail (visible on active tab). Use context to share relevant background, constraints, and file references (vim-style path:line) so the user can make informed decisions.",
 		parameters: QuestionnaireParams,
 
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
@@ -102,16 +128,19 @@ export default function questionnaire(pi: ExtensionAPI) {
 			}
 
 			// Normalize questions with defaults
+			const topContext = params.context;
 			const questions: Question[] = params.questions.map((q, i) => ({
 				...q,
 				label: q.label || `Q${i + 1}`,
+				context: q.context,
 				allowOther: q.allowOther !== false,
 			}));
 
 			const isMulti = questions.length > 1;
 			const totalTabs = questions.length + 1; // questions + Submit
+			const hasExternalEditor = !!(process.env.VISUAL || process.env.EDITOR);
 
-			const result = await ctx.ui.custom<QuestionnaireResult>((tui, theme, _kb, done) => {
+			const result = await ctx.ui.custom<QuestionnaireResult>((tui, theme, kb, done) => {
 				// State
 				let currentTab = 0;
 				let optionIndex = 0;
@@ -119,6 +148,23 @@ export default function questionnaire(pi: ExtensionAPI) {
 				let inputQuestionId: string | null = null;
 				let cachedLines: string[] | undefined;
 				const answers = new Map<string, Answer>();
+
+				// Markdown rendering for context blocks
+				const mdTheme = getMarkdownTheme();
+
+				function renderContextMarkdown(text: string, width: number, indent: number): string[] {
+					const md = new Markdown(text, 0, 0, mdTheme, {
+						color: (t) => theme.fg("muted", t),
+					});
+					const rendered = md.render(width - indent);
+					const pad = " ".repeat(indent);
+					const result = rendered.map((line) => `${pad}${line}`);
+					// Append ANSI reset to prevent style bleed into subsequent sections
+					if (result.length > 0) {
+						result[result.length - 1] += "\x1b[0m";
+					}
+					return result;
+				}
 
 				// Editor for "Type something" option
 				const editorTheme: EditorTheme = {
@@ -185,6 +231,37 @@ export default function questionnaire(pi: ExtensionAPI) {
 					answers.set(questionId, { id: questionId, value, label, wasCustom, index });
 				}
 
+				// External editor support
+				function openExternalEditor() {
+					const editorCmd = process.env.VISUAL || process.env.EDITOR;
+					if (!editorCmd) return;
+
+					const currentText = editor.getText();
+					const tmpFile = path.join(os.tmpdir(), `pi-questionnaire-editor-${Date.now()}.md`);
+					try {
+						fs.writeFileSync(tmpFile, currentText, "utf-8");
+						tui.stop();
+						const [cmd, ...args] = editorCmd.split(" ");
+						const result = spawnSync(cmd, [...args, tmpFile], {
+							stdio: "inherit",
+							shell: process.platform === "win32",
+						});
+						if (result.status === 0) {
+							const newContent = fs.readFileSync(tmpFile, "utf-8").replace(/\n$/, "");
+							editor.setText(newContent);
+						}
+					} finally {
+						try {
+							fs.unlinkSync(tmpFile);
+						} catch {
+							// Ignore cleanup errors
+						}
+						tui.start();
+						refresh();
+						tui.requestRender(true);
+					}
+				}
+
 				// Editor submit callback
 				editor.onSubmit = (value) => {
 					if (!inputQuestionId) return;
@@ -204,6 +281,11 @@ export default function questionnaire(pi: ExtensionAPI) {
 							inputQuestionId = null;
 							editor.setText("");
 							refresh();
+							return;
+						}
+						// External editor (Ctrl+G)
+						if (kb.matches(data, "app.editor.external")) {
+							openExternalEditor();
 							return;
 						}
 						editor.handleInput(data);
@@ -285,6 +367,15 @@ export default function questionnaire(pi: ExtensionAPI) {
 
 					add(theme.fg("accent", "─".repeat(width)));
 
+					// Top-level context (always visible when provided)
+					if (topContext) {
+						add(theme.fg("dim", " CONTEXT"));
+						for (const line of renderContextMarkdown(topContext, width, 1)) {
+							lines.push(line);
+						}
+						lines.push("");
+					}
+
 					// Tab bar (multi-question only)
 					if (isMulti) {
 						const tabs: string[] = ["← "];
@@ -335,6 +426,13 @@ export default function questionnaire(pi: ExtensionAPI) {
 					if (inputMode && q) {
 						add(theme.fg("text", ` ${q.prompt}`));
 						lines.push("");
+						// Per-question context in input mode too
+						if (q.context) {
+							for (const line of renderContextMarkdown(q.context, width, 3)) {
+								lines.push(line);
+							}
+							lines.push("");
+						}
 						// Show options for reference
 						renderOptions();
 						lines.push("");
@@ -343,7 +441,13 @@ export default function questionnaire(pi: ExtensionAPI) {
 							add(` ${line}`);
 						}
 						lines.push("");
-						add(theme.fg("dim", " Enter to submit • Esc to cancel"));
+						add(
+							theme.fg(
+								"dim",
+								" Enter to submit • Esc to cancel" +
+									(hasExternalEditor ? " • Ctrl+G external editor" : ""),
+							),
+						);
 					} else if (currentTab === questions.length) {
 						add(theme.fg("accent", theme.bold(" Ready to submit")));
 						lines.push("");
@@ -369,6 +473,13 @@ export default function questionnaire(pi: ExtensionAPI) {
 					} else if (q) {
 						add(theme.fg("text", ` ${q.prompt}`));
 						lines.push("");
+						// Per-question context (only for active question)
+						if (q.context) {
+							for (const line of renderContextMarkdown(q.context, width, 3)) {
+								lines.push(line);
+							}
+							lines.push("");
+						}
 						renderOptions();
 					}
 
