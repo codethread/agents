@@ -37,14 +37,14 @@ Persistent status display for workspace context.
 
 - **API/Contract:** Uses `ctx.ui.setFooter()` to render current git branch, token usage, and active model status in the TUI.
 
+### `copilot-questions`
+
+Adds Copilot-specific autonomy guidance to the system prompt.
+
+- **API/Contract:** On `before_agent_start`, if the active model provider is `github-copilot`, appends guidance telling the agent to investigate ambiguity proactively and use the `questionnaire` tool when clarification or new work is needed.
+
 ### `questionnaire`
 
 Ask the user one or more structured questions through a custom TUI flow.
 
 - **API/Contract:** Provides the `questionnaire` tool with `{ questions: [...] }` input. Supports single-question option lists, multi-question tab navigation, optional custom freeform answers via `allowOther`, and returns structured `details` containing normalized questions, collected answers, and cancellation state.
-
-### `mini-only-tool`
-
-Demo extension showing model-dependent tool registration.
-
-- **API/Contract:** Registers `mini_model_probe` only after a session has an active model whose model id contains `mini` (for example `gpt-5.4-mini`). The tool is disabled again when switching to a non-mini model.

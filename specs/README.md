@@ -8,7 +8,7 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 
 | Spec                           | Purpose                                                                                                                  | Code                                                               |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| [discovery.md](./discovery.md) | Living cross-cutting notes and implementation discoveries that should be checked when creating or updating future specs. | `specs/discovery.md`, `pi-extensions/extensions/mini-only-tool.ts` |
+| [discovery.md](./discovery.md) | Living cross-cutting notes and implementation discoveries that should be checked when creating or updating future specs. | `specs/discovery.md` |
 
 ## Subagent Extension
 
