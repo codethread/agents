@@ -1,0 +1,234 @@
+# Agent Discovery and Configuration Specification
+
+**Status:** Implemented
+**Last Updated:** 2026-04-06
+
+## 1. Overview
+
+### Purpose
+
+The subagent extension needs a stable way to find agent definitions, normalize them into Pi-ready runtime configuration, and expose enough metadata for both execution and debugging. This domain covers how markdown-backed agent definitions are discovered from package, user, and project locations; how frontmatter fields are parsed into `AgentConfig`; how tool and model metadata are normalized; and how the resulting catalog is handed to the subagent runtime.
+
+### Goals
+
+- Discover agents from bundled package content plus optional user and project directories.
+- Return a uniform `AgentConfig` shape regardless of source file location.
+- Normalize Claude-flavored tool names into Pi's built-in tool set.
+- Resolve lightweight model aliases into enabled OpenAI-backed models when local settings make that possible.
+- Apply deterministic source precedence so agent name collisions resolve predictably.
+- Expose enough information for runtime execution and debugging, including source and file path.
+
+### Non-Goals
+
+- Executing agent tasks or managing agent process lifecycle. That belongs to the subagent runtime in `pi-extensions/extensions/subagent/index.ts`.
+- Validating rich agent schemas beyond the required frontmatter fields. Discovery assumes frontmatter is parseable and that `tools`, when present, behaves like a string.
+- Merging multiple definitions of the same agent across sources. Collisions are resolved by replacement, not composition.
+- Supporting arbitrary external tool names or provider-agnostic model aliasing. Normalization is intentionally narrow and conservative.
+
+## 2. Architecture
+
+Agent discovery is implemented in `pi-extensions/extensions/subagent/agents.ts` and consumed by the subagent runtime in `pi-extensions/extensions/subagent/index.ts`.
+
+### Discovery pipeline
+
+1. `discoverAgents(cwd, scope)` derives three candidate roots:
+   - bundled package agents from `findBundledAgentsDir()`
+   - user agents from `path.join(getAgentDir(), "agents")`
+   - project agents from the nearest ancestor `.pi/agents` directory via `findNearestProjectAgentsDir(cwd)`
+2. The same call also resolves settings with `findNearestSettingsFile(cwd)`, preferring the nearest ancestor `.pi/settings.json` and falling back to the user settings file under `getAgentDir()`.
+3. Each selected directory is loaded through `loadAgentsFromDir(dir, source, settings)`.
+4. Each markdown file is parsed with `parseFrontmatter(...)`.
+5. Required frontmatter fields are projected into `AgentConfig`, while the markdown body becomes `systemPrompt`.
+6. `normalizeTools(...)` maps the optional `tools` list into Pi tool names.
+7. `resolveModelAlias(...)` optionally rewrites lightweight model aliases using enabled models from settings.
+8. A `Map<string, AgentConfig>` applies source precedence by agent name and produces the final `agents` array.
+
+### Source locations and precedence
+
+Discovery supports three sources:
+
+- **package** — bundled agents under `pi-extensions/agents/`
+- **user** — agents under `~/.pi/agent/agents`
+- **project** — agents under the nearest ancestor `.pi/agents`
+
+Precedence is name-based and deterministic:
+
+- package agents are inserted first
+- in `user` scope, user agents overwrite package agents with the same name
+- in `project` scope, project agents overwrite package agents with the same name
+- in `both` scope, user agents overwrite package agents, then project agents overwrite both
+
+There is no field-by-field merge. The later source replaces the earlier `AgentConfig` for the same `name`.
+
+### Settings and model resolution
+
+Settings are not loaded per source directory. A single nearest settings file is chosen for the current working directory, then applied to every discovered agent during that discovery pass.
+
+Model alias resolution is intentionally opportunistic:
+
+- fully qualified models containing `/` are left unchanged
+- blank or missing model values become `undefined`
+- if no enabled `openai/` or `openai-codex/` models are configured, aliases are left unchanged
+- `haiku`-like aliases prefer a model containing `mini`
+- `sonnet`, `opus`, and `claude*` aliases prefer a non-`mini` enabled OpenAI model
+- the configured default provider/model is preferred only when it is both fully qualified and present in `enabledModels`
+
+### Runtime integration boundary
+
+The subagent runtime uses discovery results in two places:
+
+- `debug-agents` renders discovered agents, their source, file path, resolved model, and normalized tools for each scope.
+- `subagent` execution resolves the active scope, optionally confirms project-local agents in UI mode, and passes normalized `model`, `tools`, and `systemPrompt` into a child `pi` process.
+
+This means discovery is the configuration boundary; runtime execution trusts the normalized `AgentConfig` it receives.
+
+## 3. Data Model
+
+Core exported types from `pi-extensions/extensions/subagent/agents.ts`:
+
+```ts
+export type AgentScope = "user" | "project" | "both";
+
+export interface AgentConfig {
+	name: string;
+	description: string;
+	tools?: string[];
+	model?: string;
+	systemPrompt: string;
+	source: "package" | "user" | "project";
+	filePath: string;
+}
+
+export interface AgentDiscoveryResult {
+	agents: AgentConfig[];
+	projectAgentsDir: string | null;
+}
+```
+
+Settings shape used during discovery:
+
+```ts
+interface PiSettings {
+	defaultProvider?: string;
+	defaultModel?: string;
+	enabledModels?: string[];
+}
+```
+
+Supported built-in tools and Claude-to-Pi normalization table:
+
+```ts
+const PI_BUILTIN_TOOLS = new Set(["read", "bash", "edit", "write", "grep", "find", "ls"]);
+
+const CLAUDE_TOOL_MAP: Record<string, string | null> = {
+	read: "read",
+	bash: "bash",
+	edit: "edit",
+	write: "write",
+	grep: "grep",
+	glob: "find",
+	ls: "ls",
+	multiedit: "edit",
+	notebookedit: "edit",
+	task: null,
+	websearch: null,
+	webfetch: null,
+	skill: null,
+};
+```
+
+Bundled agents in this repo demonstrate the file format discovery expects:
+
+- `pi-extensions/agents/explorer.md`
+- `pi-extensions/agents/shell.md`
+- `pi-extensions/agents/worker.md`
+
+These files use YAML frontmatter for `name`, `description`, and optional `tools` / `model`, followed by a markdown prompt body that becomes `systemPrompt`.
+
+## 4. Interfaces
+
+### Exported discovery API
+
+#### `discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryResult`
+
+Returns the resolved agent catalog for a working directory and scope.
+
+Behavioral contract:
+
+- bundled package agents are always considered
+- user agents are skipped when `scope === "project"`
+- project agents are skipped when `scope === "user"`
+- `projectAgentsDir` reports the nearest project agent directory even when no project agents are ultimately loaded
+- unreadable directories, unreadable files, and invalid JSON settings fail closed by omission rather than throwing
+- agent frontmatter is expected to be parseable, and `tools` is expected to be string-like when present; parse/type errors in those paths are not isolated per file by the current implementation
+
+#### `formatAgentList(agents: AgentConfig[], maxItems: number): { text: string; remaining: number }`
+
+Formats a short human-readable list such as `name (source): description` and reports how many items were omitted.
+
+### Accepted agent frontmatter
+
+Discovery relies on these frontmatter fields:
+
+- `name` — required; files without it are skipped
+- `description` — required; files without it are skipped
+- `tools` — optional comma-separated string
+- `model` — optional string, possibly an alias
+
+All remaining markdown body content is passed through as the agent system prompt.
+
+### Runtime-facing `AgentConfig` fields
+
+`pi-extensions/extensions/subagent/index.ts` consumes discovery results as follows:
+
+- `name` selects the requested agent in single, parallel, and chain modes
+- `source` drives project-agent confirmation and debug output
+- `filePath` appears in debug output
+- `model` is passed to child `pi` invocations via `--model`
+- `tools` is passed via `--tools` as a comma-separated list; omitted means default toolset
+- `systemPrompt` is written to a temporary file and appended with `--append-system-prompt`
+
+If the requested agent name is missing, runtime returns an error containing the list of available agent names.
+
+## 5. Design Decisions
+
+- **Decision:** Agents are defined as markdown files with frontmatter and prompt body.
+  - **Rationale:** A single file can carry both metadata and the system prompt, matching how bundled agents in `pi-extensions/agents/*.md` are authored.
+
+- **Decision:** Discovery is best-effort for filesystem and JSON access, but not for all frontmatter shape errors.
+  - **Rationale:** `readJsonFile`, directory reads, and file reads are wrapped defensively, but `parseFrontmatter(...)` and `frontmatter.tools?.split(",")` are not guarded per file. In practice, unreadable files are skipped, while malformed frontmatter or unexpected `tools` types can still abort discovery.
+
+- **Decision:** Source precedence is implemented with a name-keyed `Map`.
+  - **Rationale:** Replacement semantics are simple and deterministic, and they let user or project agents override bundled defaults without extra merge rules.
+
+- **Decision:** Tool normalization is intentionally lossy.
+  - **Rationale:** Only Pi built-ins are preserved. Unsupported Claude tools such as `task`, `websearch`, `webfetch`, and `skill` are dropped so child Pi invocations only receive tools this package can actually expose.
+
+- **Decision:** Claude-family model aliases are rewritten only when local OpenAI-backed models are enabled.
+  - **Rationale:** This preserves author intent for portable agent files while still allowing bundled agents authored with Claude-style names like `sonnet` or `haiku` to run in Pi environments backed by OpenAI/OpenAI Codex models.
+
+- **Decision:** Settings lookup is based on the caller's working directory, not the agent file's location.
+  - **Rationale:** Discovery behaves like the rest of Pi configuration resolution: the active workspace determines settings for the whole run.
+
+## 6. Testing
+
+There are currently no automated tests in this repo covering `pi-extensions/extensions/subagent/agents.ts` or its integration points.
+
+Current verification is code-level and runtime-level:
+
+- `debug-agents` exposes discovery results for manual inspection across `user`, `project`, and `both` scopes.
+- The `subagent` tool exercises the discovered configuration by spawning child `pi` processes with the resolved model, tool set, and prompt.
+- Repo-wide checks (`npm run lint`, `npm run typecheck`) provide static validation but do not assert discovery behavior.
+
+## 7. Open Questions
+
+- Should the frontmatter schema eventually support structured tool arrays instead of a comma-separated string?
+- Should `formatAgentList` remain part of the public module surface if it is only a presentation helper?
+- Should model alias resolution grow beyond OpenAI/OpenAI Codex-backed environments, or is conservative pass-through the intended long-term behavior?
+
+## Code Locations
+
+- `pi-extensions/extensions/subagent/agents.ts`
+- `pi-extensions/extensions/subagent/index.ts`
+- `pi-extensions/agents/*.md`
+- `.pi/settings.json` (local development example affecting nearest-settings resolution in this repo)

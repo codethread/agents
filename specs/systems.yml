@@ -11,13 +11,13 @@ systems:
       - "pi-extensions/extensions/subagent/agents.ts"
     target: "pi-extensions/extensions/subagent/agents.ts"
     spec: "specs/agent-discovery-and-config.md"
-    status: "pending"
+    status: "done"
     action: "create"
     code:
       - "pi-extensions/extensions/subagent/agents.ts"
       - "pi-extensions/agents/*.md"
     rationale: "Agent loading sources, precedence, frontmatter parsing, tool normalization, and model alias resolution form a durable contract that will likely grow as agents can spawn other agents."
-    notes: ""
+    notes: "Spec created and aligned on 2026-04-06."
 
   - id: "002"
     domain: "subagent-orchestration"
@@ -27,12 +27,12 @@ systems:
       - "pi-extensions/extensions/subagent/index.ts"
     target: "pi-extensions/extensions/subagent/index.ts"
     spec: "specs/subagent-orchestration.md"
-    status: "pending"
+    status: "done"
     action: "create"
     code:
       - "pi-extensions/extensions/subagent/index.ts"
     rationale: "The subagent tool is the core runtime system for isolated execution, single/parallel/chain modes, streaming updates, confirmation flow, and future nested delegation semantics."
-    notes: ""
+    notes: "Spec created and aligned on 2026-04-06."
 
   - id: "003"
     domain: "claude-sync-integration"
@@ -42,12 +42,12 @@ systems:
       - "pi-extensions/extensions/claude-sync.ts"
     target: "pi-extensions/extensions/claude-sync.ts"
     spec: "specs/claude-sync-integration.md"
-    status: "pending"
+    status: "done"
     action: "create"
     code:
       - "pi-extensions/extensions/claude-sync.ts"
     rationale: "Claude-to-Pi syncing is a separate integration boundary with path discovery, symlink policy, command-name translation, and lifecycle hooks."
-    notes: ""
+    notes: "Reverse-specced 2026-04-06. Alignment review passed; no duplicate internal docs found to consolidate."
 
   - id: "004"
     domain: "extension-presentation-layer"
@@ -57,7 +57,7 @@ systems:
       - "theme"
     target: "the extension presentation layer"
     spec: "specs/extension-presentation-layer.md"
-    status: "pending"
+    status: "done"
     action: "create"
     code:
       - "pi-extensions/extensions/bash-compact.ts"
@@ -66,6 +66,6 @@ systems:
       - "pi-extensions/extensions/usage-format.ts"
       - "pi-extensions/themes/rose-pine.json"
     rationale: "Tool rendering, footer status, usage formatting, and theme tokens together define a stable UI/presentation contract for this package."
-    notes: ""
+    notes: "Reverse-specced 2026-04-06. Shared formatting helpers were documented as part of the same presentation domain."
 
 covered: []
