@@ -45,6 +45,6 @@ Adds Copilot-specific autonomy guidance to the system prompt.
 
 ### `questionnaire`
 
-Ask the user one or more structured questions through a custom TUI flow.
+Ask the user one or more structured questions through an external-editor markdown form.
 
-- **API/Contract:** Provides the `questionnaire` tool with `{ context?: string, questions: [...] }` input. Supports single-question option lists, multi-question tab navigation, optional custom freeform answers via `allowOther`, optional top-level and per-question context briefings, and returns structured `details` containing normalized questions, collected answers, and cancellation state.
+- **API/Contract:** Provides the `questionnaire` tool with `{ context?: string, questions: [...] }` input. The tool writes a temporary `.md` questionnaire, opens it in `$VISUAL` (fallback `$EDITOR`), parses `<user_response>` blocks after the editor exits, retries in-place with validation feedback when answers are invalid, and returns structured `details` containing normalized questions, collected answers, and cancellation state.
