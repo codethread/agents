@@ -1,0 +1,10 @@
+- Install deps: `npm install`
+- Format: automatic via `npm run check` after all work completed
+- Lint: `npm run lint` (eslint)
+- Test: `npm run test` (vitest run)
+- Typecheck: `npm run typecheck` (tsc)
+- Verify all checks: `npm run check` when work complete, runs `lint` -> `typecheck` -> `format` (via prettier).
+- When building extensions:
+  - always add `--debug-*` flags to allow you to verify results, see [dynamic-agents-md](./pi-extensions/extensions/dynamic-agents-md.ts) as an example
+  - For local Pi testing, run `pi` from this repo root;
+    - e.g: `pi --model openai/gpt-5.4-nano:off --print ping`

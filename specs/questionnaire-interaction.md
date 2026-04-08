@@ -63,10 +63,11 @@ The markdown document contains:
 
 A representative section looks like:
 
-```md
+````md
 ---
 
 <!-- questionnaire-question:architecture -->
+
 ## Q1 — Architecture
 
 Which structure should we use?
@@ -74,14 +75,19 @@ Which structure should we use?
 Relevant constraints and file references here.
 
 <user_response>
+
 - [ ] 1. Use a linked list
 - [ ] 2. Use a hashmap
 - [ ] 3. Other
 
 ```text
+
 ```
+````
+
 </user_response>
-```
+
+````
 
 The user edits the file in their editor, marks exactly one checkbox per question, optionally fills the fenced block when selecting `Other`, saves, and exits the editor.
 
@@ -153,7 +159,7 @@ interface QuestionnaireResult {
 	answers: Answer[];
 	cancelled: boolean;
 }
-```
+````
 
 Tool input schema:
 
@@ -218,8 +224,9 @@ The generated markdown document must follow these rules:
 
 Example:
 
-```md
+````md
 <user_response>
+
 - [ ] 1. First option
 - [ ] 2. Second option
 - [ ] 3. Other
@@ -227,7 +234,10 @@ Example:
 ```text
 custom response here
 ```
+````
+
 </user_response>
+
 ```
 
 ### Parsing contract
@@ -324,3 +334,4 @@ There are currently no automated tests for the questionnaire interaction flow.
 - `pi-extensions/extensions/questionnaire.ts`
 - `pi-extensions/extensions/README.md`
 - `package.json` (extension package exposure)
+```

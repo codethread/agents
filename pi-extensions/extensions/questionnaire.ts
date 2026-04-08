@@ -80,8 +80,7 @@ const QuestionSchema = Type.Object({
 	prompt: Type.String({ description: "The full question text to display" }),
 	context: Type.Optional(
 		Type.String({
-			description:
-				"Per-question context included in that question's markdown section",
+			description: "Per-question context included in that question's markdown section",
 		}),
 	),
 	options: Type.Array(QuestionOptionSchema, {
@@ -140,7 +139,10 @@ function getEditorCommand(): string | undefined {
 	return undefined;
 }
 
-function openExternalEditor(editorCommand: string, filePath: string): { ok: true } | { ok: false; message: string } {
+function openExternalEditor(
+	editorCommand: string,
+	filePath: string,
+): { ok: true } | { ok: false; message: string } {
 	const result = spawnSync(editorCommand, [filePath], {
 		shell: true,
 		stdio: "inherit",
@@ -170,7 +172,10 @@ function openExternalEditor(editorCommand: string, filePath: string): { ok: true
 	};
 }
 
-function renderQuestionnaireMarkdown(topContext: string | undefined, questions: Question[]): string {
+function renderQuestionnaireMarkdown(
+	topContext: string | undefined,
+	questions: Question[],
+): string {
 	const lines: string[] = [];
 
 	lines.push("# Questionnaire");
@@ -190,7 +195,8 @@ function renderQuestionnaireMarkdown(topContext: string | undefined, questions: 
 
 	for (const [index, question] of questions.entries()) {
 		const defaultLabel = `Q${index + 1}`;
-		const heading = question.label === defaultLabel ? question.label : `${defaultLabel} — ${question.label}`;
+		const heading =
+			question.label === defaultLabel ? question.label : `${defaultLabel} — ${question.label}`;
 
 		lines.push("");
 		lines.push("---");
@@ -246,8 +252,7 @@ function addValidationBanner(markdown: string, errors: ParseError[]): string {
 		"Please fix the items below, then save and exit again:",
 		"",
 		...errors.map(
-			(error) =>
-				`- **${error.questionLabel}** (\`${error.questionId}\`): ${error.message}`,
+			(error) => `- **${error.questionLabel}** (\`${error.questionId}\`): ${error.message}`,
 		),
 		"",
 		"To cancel, exit the editor with a non-zero status.",
@@ -442,10 +447,7 @@ export default function questionnaire(pi: ExtensionAPI) {
 				for (;;) {
 					const editorResult = openExternalEditor(editorCommand, formPath);
 					if (!editorResult.ok) {
-						return errorResult(
-							`Questionnaire cancelled: ${editorResult.message}`,
-							questions,
-						);
+						return errorResult(`Questionnaire cancelled: ${editorResult.message}`, questions);
 					}
 
 					markdown = await fs.promises.readFile(formPath, "utf-8");

@@ -37,11 +37,12 @@ Persistent status display for workspace context.
 
 - **API/Contract:** Uses `ctx.ui.setFooter()` to render current git branch, token usage, and active model status in the TUI.
 
-### `copilot-questions`
+### `dynamic-agents-md`
 
-Adds Copilot-specific autonomy guidance to the system prompt.
+Renders a repo-local `.pi/agent.njk` template into the system prompt, with access to model metadata and environment variables.
 
-- **API/Contract:** On `before_agent_start`, if the active model provider is `github-copilot`, appends guidance telling the agent to investigate ambiguity proactively and use the `questionnaire` tool when clarification or new work is needed.
+- **API/Contract:** Searches upward from `ctx.cwd` for the nearest `.pi/agent.njk`, `.pi/agent.md.njk`, or `.pi/agent.md`, renders it with [Nunjucks](https://mozilla.github.io/nunjucks/templating.html) using `{ provider, model, cwd, ...process.env }`, and appends the result to the system prompt.
+- **Command:** Adds `/debug-prompt`, which writes the current effective system prompt to a temp file so it can be inspected or reused in another Pi instance.
 
 ### `questionnaire`
 
