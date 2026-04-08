@@ -49,3 +49,10 @@ Renders a repo-local `.pi/agent.njk` template into the system prompt, with acces
 Ask the user one or more structured questions through an external-editor markdown form.
 
 - **API/Contract:** Provides the `questionnaire` tool with `{ context?: string, questions: [...] }` input. The tool writes a temporary `.md` questionnaire, opens it in `$VISUAL` (fallback `$EDITOR`), parses `<user_response>` blocks after the editor exits, retries in-place with validation feedback when answers are invalid, and returns structured `details` containing normalized questions, collected answers, and cancellation state.
+
+### `tldr`
+
+Generate a user-only catch-up summary for the current session.
+
+- **API/Contract:** Adds `/tldr`, which reads the current branch's user and assistant messages, strips tool-call and thinking blocks, sends the resulting transcript to a small available model, and shows the summary in transient UI without adding it to agent-visible session context.
+- **Debug flags:** `--debug-tldr` prints the generated summary and exits. `--debug-tldr-transcript` prints the extracted transcript and exits.
