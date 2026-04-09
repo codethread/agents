@@ -1,58 +1,176 @@
 # Pi Extensions
 
-This repository contains extensions for the Pi Coding Agent.
+Extensions for the [Pi Coding Agent](https://github.com/nichochar/pi-coding-agent), organized by type.
 
-## Included Extensions
+---
+
+## Tools
 
 ### `subagent`
 
-Delegate tasks to specialized subagents with isolated context.
+> Delegate tasks to specialized subagents with isolated context.
 
-- **API/Contract:** Provides the `subagent` tool. Supports three execution modes:
-  - **Single:** `{ agent, task, cwd }`
-  - **Parallel:** `{ tasks: [{ agent, task, cwd }] }`
-  - **Chain:** `{ chain: [{ agent, task, cwd }] }` (sequential, supports `{previous}` placeholder)
+The agent is aware of this tool and will use it when asked to delegate work, run tasks in parallel, or chain multiple steps together. You can guide it by describing the kind of work you want delegated.
 
-### `read-compact`
+**How to use it:**
 
-Reduce UI clutter when reading files.
+- _"Use the explorer agent to map out the folder structure"_
+- _"Run these three tasks in parallel: lint, typecheck, and test"_
+- _"First research the API with the api-researcher, then pass the findings to the dev agent to implement it"_
 
-- **API/Contract:** Replaces the default `read` tool with a version that renders truncated, compact output in the TUI.
+The agent can invoke subagents in three modes:
 
-### `bash-compact`
+| Mode         | When to use                                            | What happens                              |
+| ------------ | ------------------------------------------------------ | ----------------------------------------- |
+| **Single**   | One focused task                                       | Spawns one agent process                  |
+| **Parallel** | Independent tasks that can run at the same time        | Up to 8 tasks, 4 concurrent               |
+| **Chain**    | Sequential pipeline where each step builds on the last | Output flows via `{previous}` placeholder |
 
-Reduce UI clutter when executing shell commands.
+**Creating agents:**
 
-- **API/Contract:** Replaces the default `bash` tool with a version that renders compact execution summaries in the TUI.
+Agent files are markdown files with YAML frontmatter, placed in one of:
 
-### `claude-sync`
+- `~/.pi/agent/agents/` — user-scoped, always available
+- `.pi/agents/` — project-scoped, discovered from `cwd` upward
 
-Synchronize Claude project context with Pi.
+**Agent file format:**
 
-- **API/Contract:** Hooks into the `resources_discover` lifecycle event to automatically symlink Claude configuration/prompts to Pi equivalents on startup.
+```markdown
+---
+name: my-agent
+description: Short description of what this agent does
+tools: Read, Bash, Edit
+model: sonnet
+---
 
-### `current-context-footer`
+You are a specialist in [whatever]. Your job is to...
+```
 
-Persistent status display for workspace context.
+| Frontmatter field | Required | Description                                          |
+| ----------------- | -------- | ---------------------------------------------------- |
+| `name`            | ✅       | Agent identifier (used in tool calls)                |
+| `description`     | ✅       | Shown to the parent agent for delegation decisions   |
+| `tools`           |          | Comma-separated list of tools available to the agent |
+| `model`           |          | Model alias or full `provider/model` identifier      |
 
-- **API/Contract:** Uses `ctx.ui.setFooter()` to render current git branch, token usage, and active model status in the TUI.
+The markdown body below the frontmatter becomes the agent's system prompt.
 
-### `dynamic-agents-md`
-
-Renders a repo-local `.pi/agent.njk` template into the system prompt, with access to model metadata and environment variables.
-
-- **API/Contract:** Searches upward from `ctx.cwd` for the nearest `.pi/agent.njk`, `.pi/agent.md.njk`, or `.pi/agent.md`, renders it with [Nunjucks](https://mozilla.github.io/nunjucks/templating.html) using `{ provider, model, cwd, ...process.env }`, and appends the result to the system prompt.
-- **Command:** Adds `/debug-prompt`, which writes the current effective system prompt to a temp file so it can be inspected or reused in another Pi instance.
+---
 
 ### `questionnaire`
 
-Ask the user one or more structured questions through an external-editor markdown form.
+> Structured question forms opened in your external editor.
 
-- **API/Contract:** Provides the `questionnaire` tool with `{ context?: string, questions: [...] }` input. The tool writes a temporary `.md` questionnaire, opens it in `$VISUAL` (fallback `$EDITOR`), parses `<user_response>` blocks after the editor exits, retries in-place with validation feedback when answers are invalid, and returns structured `details` containing normalized questions, collected answers, and cancellation state.
+The agent uses this tool automatically whenever it needs your input — clarification, choices, or confirmation. You don't need to ask for it; it's the agent's primary way of communicating back to you.
+
+When invoked, a temporary `.md` file opens in `$VISUAL` (fallback `$EDITOR`). You answer by writing in the designated response blocks, then save and close. The agent receives your structured answers.
+
+If you leave invalid or missing answers, the form reopens with inline validation feedback.
+
+---
+
+## UI Extensions
+
+### `read-compact`
+
+> Compact file read display — transparent to the user.
+
+Replaces the default `read` tool renderer. File contents are hidden in the TUI (only the path is shown). Errors display simplified messages. The agent's behavior is unchanged — this is purely a display optimization.
+
+---
+
+### `bash-compact`
+
+> Compact shell output display — transparent to the user.
+
+Replaces the default `bash` tool renderer. Output is collapsed to 5 lines by default; press `Ctrl+o` to expand. Truncation notices are shown when output was clipped. The agent's behavior is unchanged.
+
+---
+
+### `current-context-footer`
+
+> Persistent status bar — transparent to the user.
+
+Renders a footer at the bottom of the TUI showing:
+
+- Context token usage (color-coded: >70% ⚠️, >90% 🔴)
+- Cumulative session cost
+- Working directory, git branch, session name
+- Active model and provider
+
+---
+
+## Lifecycle / Prompt Extensions
+
+### `claude-sync`
+
+> Synchronize Claude project context with Pi — transparent to the user.
+
+On startup, walks upward from `cwd` to find the nearest `.claude/` directory and symlinks any `.md` files into the equivalent `.pi/` location. This lets Pi reuse Claude-authored project context automatically.
+
+---
+
+### `dynamic-agents-md`
+
+> Render a Nunjucks template into the system prompt.
+
+Searches upward from `cwd` for a template file and appends the rendered result to the system prompt. This is how project-specific rules, conventions, and instructions get injected into every conversation.
+
+**Template locations (checked in order):**
+
+1. `.pi/agent.njk` — project-scoped (nearest ancestor)
+2. `~/.pi/agent/agent.njk` — global (user-scoped fallback)
+
+If both exist, both are rendered: global under a `# Global rules` heading, project under `# Project rules`.
+
+**Template variables:**
+
+| Variable            | Type     | Description                                          |
+| ------------------- | -------- | ---------------------------------------------------- |
+| `provider`          | `string` | Current AI provider (e.g. `"anthropic"`, `"openai"`) |
+| `model`             | `string` | Current model ID (e.g. `"claude-sonnet-4-20250514"`) |
+| `cwd`               | `string` | Current working directory                            |
+| `HOME`, `PATH`, ... | `string` | All environment variables are available              |
+
+**Nunjucks syntax examples:**
+
+```njk
+{# Conditionally include rules based on the model #}
+{% if provider == "anthropic" %}
+Prefer XML-style structured output.
+{% endif %}
+
+{# Vary instructions based on the working directory #}
+{% if cwd | regex_test("my-project") %}
+- Run `make test` before committing
+- Use conventional commits
+{% endif %}
+
+{# Use environment variables #}
+Project owner: {{ GIT_AUTHOR_NAME | default("unknown") }}
+```
+
+**Custom filter:** `regex_test(pattern)` — tests a string against a regex. Supports `~/` expansion.
+
+**Command:** `/debug-prompt` — opens the fully rendered system prompt in `$VISUAL`/`$EDITOR` for inspection.
+
+**Flag:** `--debug-prompt` — prints the system prompt and exits (useful for CI/scripting).
+
+---
+
+## Session Utilities
 
 ### `tldr`
 
-Generate a user-only catch-up summary for the current session.
+> Generate a catch-up summary of the current session.
 
-- **API/Contract:** Adds `/tldr`, which reads the current branch's user and assistant messages, strips tool-call and thinking blocks, sends the resulting transcript to a small available model, and shows the summary in transient UI without adding it to agent-visible session context.
-- **Debug flags:** `--debug-tldr` prints the generated summary and exits. `--debug-tldr-transcript` prints the extracted transcript and exits.
+Use `/tldr` when returning to a session and needing a quick recap. It reads the conversation, strips tool calls and thinking blocks, sends the transcript to a small model, and shows the summary in transient UI. The summary is **not** added to the agent's context.
+
+**Command:** `/tldr`
+
+**Debug flags:**
+
+| Flag                      | Description                             |
+| ------------------------- | --------------------------------------- |
+| `--debug-tldr`            | Print the generated summary and exit    |
+| `--debug-tldr-transcript` | Print the extracted transcript and exit |

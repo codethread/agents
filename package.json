@@ -11,7 +11,8 @@
 		"pi-agent"
 	],
 	"files": [
-		"pi-extensions"
+		"pi-extensions",
+		"skills"
 	],
 	"scripts": {
 		"format": "prettier --write .",
@@ -30,6 +31,9 @@
 		],
 		"themes": [
 			"./pi-extensions/themes"
+		],
+		"skills": [
+			"./skills"
 		]
 	},
 	"peerDependencies": {

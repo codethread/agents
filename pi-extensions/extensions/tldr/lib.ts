@@ -1,5 +1,6 @@
 import type { Model } from "@mariozechner/pi-ai";
 import { z } from "zod";
+import { buildConversationTranscript } from "../shared/session-transcript.js";
 
 type ModelLike = Pick<Model<any>, "provider" | "id" | "reasoning">;
 
@@ -26,26 +27,9 @@ const PREFERRED_SMALL_MODELS = [
 	{ provider: "openai-codex", id: "gpt-5.4-mini", thinkingLevel: "low" },
 ] as const;
 
-const knownSessionNonTextBlockTypes = new Set(["thinking", "toolCall", "image"]);
 const knownResponseNonTextBlockTypes = new Set(["thinking", "toolCall"]);
 
 const unknownArraySchema = z.array(z.unknown());
-
-const branchEntryBaseSchema = z
-	.object({
-		type: z.string(),
-	})
-	.passthrough();
-
-const branchMessageEntrySchema = z
-	.object({
-		type: z.literal("message"),
-		message: z.object({
-			role: z.string(),
-			content: z.unknown(),
-		}),
-	})
-	.passthrough();
 
 const contentBlockWithTypeSchema = z
 	.object({
@@ -70,10 +54,6 @@ const assistantResponseSchema = z
 	.passthrough();
 
 const stopReasonSchema = z.enum(["stop", "length", "toolUse", "error", "aborted"]);
-
-function emitDebug(options: ParseOptions, message: string) {
-	options.onDebug?.(message);
-}
 
 function formatZodError(error: z.ZodError): string {
 	return error.issues
@@ -112,8 +92,7 @@ function extractTextPartsFromContent(
 
 	const parsedContentArray = unknownArraySchema.safeParse(content);
 	if (!parsedContentArray.success) {
-		emitDebug(
-			options,
+		options.onDebug?.(
 			`${contextLabel}: expected string or content[] (${formatZodError(parsedContentArray.error)})`,
 		);
 		return [];
@@ -130,8 +109,7 @@ function extractTextPartsFromContent(
 
 		const parsedTypedBlock = contentBlockWithTypeSchema.safeParse(part);
 		if (!parsedTypedBlock.success) {
-			emitDebug(
-				options,
+			options.onDebug?.(
 				`${contextLabel}[${index}]: invalid content block (${formatZodError(parsedTypedBlock.error)}) value=${previewValue(part)}`,
 			);
 			continue;
@@ -139,16 +117,14 @@ function extractTextPartsFromContent(
 
 		const blockType = parsedTypedBlock.data.type;
 		if (blockType === "text") {
-			emitDebug(
-				options,
+			options.onDebug?.(
 				`${contextLabel}[${index}]: malformed text block (${formatZodError(parsedTextBlock.error)}) value=${previewValue(part)}`,
 			);
 			continue;
 		}
 
 		if (!nonTextTypes.has(blockType)) {
-			emitDebug(
-				options,
+			options.onDebug?.(
 				`${contextLabel}[${index}]: unexpected content block type "${blockType}" value=${previewValue(part)}`,
 			);
 		}
@@ -157,64 +133,10 @@ function extractTextPartsFromContent(
 	return textParts;
 }
 
+export { buildConversationTranscript };
+
 export function formatModelRef(model: Pick<ModelLike, "provider" | "id">): string {
 	return `${model.provider}/${model.id}`;
-}
-
-export function buildConversationTranscript(
-	entries: readonly unknown[],
-	options: ParseOptions = {},
-): string {
-	const sections: string[] = [];
-
-	const parsedEntries = unknownArraySchema.safeParse(entries);
-	if (!parsedEntries.success) {
-		emitDebug(options, `branch entries: ${formatZodError(parsedEntries.error)}`);
-		return "";
-	}
-
-	for (const [index, rawEntry] of parsedEntries.data.entries()) {
-		const baseEntry = branchEntryBaseSchema.safeParse(rawEntry);
-		if (!baseEntry.success) {
-			emitDebug(
-				options,
-				`branch[${index}]: invalid entry (${formatZodError(baseEntry.error)}) value=${previewValue(rawEntry)}`,
-			);
-			continue;
-		}
-
-		if (baseEntry.data.type !== "message") {
-			continue;
-		}
-
-		const parsedMessageEntry = branchMessageEntrySchema.safeParse(rawEntry);
-		if (!parsedMessageEntry.success) {
-			emitDebug(
-				options,
-				`branch[${index}]: malformed message entry (${formatZodError(parsedMessageEntry.error)}) value=${previewValue(rawEntry)}`,
-			);
-			continue;
-		}
-
-		const { role, content } = parsedMessageEntry.data.message;
-		if (role !== "user" && role !== "assistant") {
-			continue;
-		}
-
-		const text = extractTextPartsFromContent(
-			content,
-			`branch[${index}].message.content`,
-			knownSessionNonTextBlockTypes,
-			options,
-		)
-			.join("\n")
-			.trim();
-		if (!text) continue;
-
-		sections.push(`${role === "user" ? "User" : "Assistant"}: ${text}`);
-	}
-
-	return sections.join("\n\n").trim();
 }
 
 export function extractSummaryFromResponse(response: unknown): ResponseSummaryParseResult {

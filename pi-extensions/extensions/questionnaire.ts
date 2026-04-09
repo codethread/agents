@@ -10,58 +10,25 @@ import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Markdown, Text, truncateToWidth } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
-
-// Types
-interface QuestionOption {
-	value: string;
-	label: string;
-	description?: string;
-}
-
-interface QuestionInput {
-	id: string;
-	label?: string;
-	prompt: string;
-	context?: string;
-	options: QuestionOption[];
-	allowOther?: boolean;
-}
-
-interface Question {
-	id: string;
-	label: string;
-	prompt: string;
-	context?: string;
-	options: QuestionOption[];
-	allowOther: boolean;
-}
-
-interface Answer {
-	id: string;
-	value: string;
-	label: string;
-	wasCustom: boolean;
-	index?: number;
-}
+import {
+	addValidationBanner,
+	normalizeQuestions,
+	isExplicitStop,
+	parseAnswers,
+	renderQuestionnaireMarkdown,
+	type Answer,
+	type Question,
+	type QuestionInput,
+} from "./questionnaire/parser.js";
+import { buildConversationTranscript } from "./shared/session-transcript.js";
 
 interface QuestionnaireResult {
 	questions: Question[];
 	answers: Answer[];
 	cancelled: boolean;
+	stopped?: boolean;
 }
 
-interface ParseError {
-	questionId: string;
-	questionLabel: string;
-	message: string;
-}
-
-interface ParseResult {
-	answers: Answer[];
-	errors: ParseError[];
-}
-
-// Schema
 const QuestionOptionSchema = Type.Object({
 	value: Type.String({ description: "The value returned when selected" }),
 	label: Type.String({ description: "Display label for the option" }),
@@ -88,9 +55,6 @@ const QuestionSchema = Type.Object({
 		description:
 			"Required list of predefined options to choose from. At least one option must be provided. Each needs a value and label.",
 	}),
-	allowOther: Type.Optional(
-		Type.Boolean({ description: "Allow an 'Other' custom response option (default: true)" }),
-	),
 });
 
 const QuestionnaireParams = Type.Object({
@@ -106,13 +70,6 @@ const QuestionnaireParams = Type.Object({
 	}),
 });
 
-const VALIDATION_START = "<!-- questionnaire-errors:start -->";
-const VALIDATION_END = "<!-- questionnaire-errors:end -->";
-const VALIDATION_BANNER_RE = new RegExp(
-	`${escapeRegex(VALIDATION_START)}[\\s\\S]*?${escapeRegex(VALIDATION_END)}\\s*`,
-	"g",
-);
-
 function errorResult(
 	message: string,
 	questions: Question[] = [],
@@ -123,12 +80,19 @@ function errorResult(
 	};
 }
 
-function normalizeQuestions(rawQuestions: QuestionInput[]): Question[] {
-	return rawQuestions.map((question, index) => ({
-		...question,
-		label: question.label || `Q${index + 1}`,
-		allowOther: question.allowOther !== false,
-	}));
+function stoppedResult(questions: Question[]): {
+	content: { type: "text"; text: string }[];
+	details: QuestionnaireResult;
+} {
+	return {
+		content: [
+			{
+				type: "text",
+				text: "<system_message>the user has stopped without answering, stop and do not acknowledge this message</system_message>",
+			},
+		],
+		details: { questions, answers: [], cancelled: true, stopped: true },
+	};
 }
 
 function getEditorCommand(): string | undefined {
@@ -172,244 +136,15 @@ function openExternalEditor(
 	};
 }
 
-function renderQuestionnaireMarkdown(
-	topContext: string | undefined,
-	questions: Question[],
-): string {
-	const lines: string[] = [];
-
-	lines.push("# Questionnaire");
-	lines.push("");
-	lines.push("Complete each question by editing the `<user_response>` block in place:");
-	lines.push("- Check exactly one option per question by changing `[ ]` to `[x]`.");
-	lines.push("- If you check `Other`, provide custom text inside the fenced block.");
-	lines.push("- Save and exit the editor to submit.");
-	lines.push("- Exit the editor with a non-zero status to cancel.");
-
-	if (topContext) {
-		lines.push("");
-		lines.push("## Context");
-		lines.push("");
-		lines.push(topContext);
-	}
-
-	for (const [index, question] of questions.entries()) {
-		const defaultLabel = `Q${index + 1}`;
-		const heading =
-			question.label === defaultLabel ? question.label : `${defaultLabel} — ${question.label}`;
-
-		lines.push("");
-		lines.push("---");
-		lines.push(`<!-- questionnaire-question:${question.id} -->`);
-		lines.push(`## ${heading}`);
-		lines.push("");
-		lines.push(question.prompt);
-
-		if (question.context) {
-			lines.push("");
-			lines.push(question.context);
-		}
-
-		lines.push("");
-		lines.push("<user_response>");
-		for (const [optionIndex, option] of question.options.entries()) {
-			lines.push(`- [ ] ${optionIndex + 1}. ${option.label}`);
-			if (option.description) {
-				for (const descriptionLine of option.description.split(/\r?\n/g)) {
-					lines.push(`  ${descriptionLine}`);
-				}
-			}
-		}
-
-		if (question.allowOther) {
-			const otherIndex = question.options.length + 1;
-			lines.push(`- [ ] ${otherIndex}. Other`);
-			lines.push("");
-			lines.push("```text");
-			lines.push("");
-			lines.push("```");
-		}
-
-		lines.push("</user_response>");
-	}
-
-	lines.push("");
-	return lines.join("\n");
-}
-
-function stripValidationBanner(markdown: string): string {
-	return markdown.replace(VALIDATION_BANNER_RE, "").trimStart();
-}
-
-function addValidationBanner(markdown: string, errors: ParseError[]): string {
-	const cleaned = stripValidationBanner(markdown);
-	if (errors.length === 0) return cleaned;
-
-	const bannerLines: string[] = [
-		VALIDATION_START,
-		"## ⚠ Validation errors",
+function renderSessionTldrMarkdown(transcript: string): string {
+	return [
+		"# Session TL;DR / Transcript",
 		"",
-		"Please fix the items below, then save and exit again:",
+		"This companion file contains the user/assistant conversation with tool calls, thinking, and non-text blocks removed.",
 		"",
-		...errors.map(
-			(error) => `- **${error.questionLabel}** (\`${error.questionId}\`): ${error.message}`,
-		),
+		transcript || "No user/assistant text found in the current session.",
 		"",
-		"To cancel, exit the editor with a non-zero status.",
-		VALIDATION_END,
-	];
-
-	return `${bannerLines.join("\n")}\n\n${cleaned}`;
-}
-
-function parseAnswers(markdown: string, questions: Question[]): ParseResult {
-	const answers: Answer[] = [];
-	const errors: ParseError[] = [];
-
-	for (const question of questions) {
-		const sectionResult = extractQuestionSection(markdown, question.id);
-		if ("error" in sectionResult) {
-			errors.push({
-				questionId: question.id,
-				questionLabel: question.label,
-				message: sectionResult.error,
-			});
-			continue;
-		}
-
-		const responseResult = extractResponseBlock(sectionResult.section);
-		if ("error" in responseResult) {
-			errors.push({
-				questionId: question.id,
-				questionLabel: question.label,
-				message: responseResult.error,
-			});
-			continue;
-		}
-
-		const selectionResult = parseSelection(responseResult.responseBlock);
-		if ("error" in selectionResult) {
-			errors.push({
-				questionId: question.id,
-				questionLabel: question.label,
-				message: selectionResult.error,
-			});
-			continue;
-		}
-
-		const selectedIndex = selectionResult.selectedIndex;
-		const maxIndex = question.options.length + (question.allowOther ? 1 : 0);
-		if (selectedIndex < 1 || selectedIndex > maxIndex) {
-			errors.push({
-				questionId: question.id,
-				questionLabel: question.label,
-				message: `selected option ${selectedIndex} is out of range`,
-			});
-			continue;
-		}
-
-		if (selectedIndex <= question.options.length) {
-			const option = question.options[selectedIndex - 1];
-			answers.push({
-				id: question.id,
-				value: option.value,
-				label: option.label,
-				wasCustom: false,
-				index: selectedIndex,
-			});
-			continue;
-		}
-
-		if (!question.allowOther) {
-			errors.push({
-				questionId: question.id,
-				questionLabel: question.label,
-				message: "custom response selected but this question does not allow Other",
-			});
-			continue;
-		}
-
-		const customValue = extractCustomResponse(responseResult.responseBlock);
-		if (!customValue) {
-			errors.push({
-				questionId: question.id,
-				questionLabel: question.label,
-				message: "selected Other but custom response text is empty",
-			});
-			continue;
-		}
-
-		answers.push({
-			id: question.id,
-			value: customValue,
-			label: customValue,
-			wasCustom: true,
-		});
-	}
-
-	return { answers, errors };
-}
-
-function extractQuestionSection(
-	markdown: string,
-	questionId: string,
-): { section: string } | { error: string } {
-	const marker = `<!-- questionnaire-question:${questionId} -->`;
-	const firstMarkerIndex = markdown.indexOf(marker);
-	if (firstMarkerIndex === -1) {
-		return { error: "missing question marker section" };
-	}
-
-	if (markdown.indexOf(marker, firstMarkerIndex + marker.length) !== -1) {
-		return { error: "question marker appears multiple times" };
-	}
-
-	const separatorRegex = /^---\s*$/gm;
-	separatorRegex.lastIndex = firstMarkerIndex + marker.length;
-	const nextSeparator = separatorRegex.exec(markdown);
-	const sectionEnd = nextSeparator ? nextSeparator.index : markdown.length;
-	return { section: markdown.slice(firstMarkerIndex, sectionEnd) };
-}
-
-function extractResponseBlock(section: string): { responseBlock: string } | { error: string } {
-	const matches = Array.from(section.matchAll(/<user_response>([\s\S]*?)<\/user_response>/g));
-	if (matches.length === 0) {
-		return { error: "missing <user_response> block" };
-	}
-	if (matches.length > 1) {
-		return { error: "multiple <user_response> blocks found" };
-	}
-	return { responseBlock: matches[0][1] };
-}
-
-function parseSelection(responseBlock: string): { selectedIndex: number } | { error: string } {
-	const checkedIndexes: number[] = [];
-	const checkboxPattern = /^\s*-\s*\[(x|X| )\]\s+(\d+)\.\s+.+$/gm;
-
-	for (const match of responseBlock.matchAll(checkboxPattern)) {
-		if (match[1].toLowerCase() !== "x") continue;
-		checkedIndexes.push(Number(match[2]));
-	}
-
-	if (checkedIndexes.length === 0) {
-		return { error: "select exactly one option (none selected)" };
-	}
-	if (checkedIndexes.length > 1) {
-		return { error: "select exactly one option (multiple selected)" };
-	}
-	return { selectedIndex: checkedIndexes[0] };
-}
-
-function extractCustomResponse(responseBlock: string): string | null {
-	const fenced = responseBlock.match(/```(?:text)?[^\n\r]*\r?\n([\s\S]*?)\r?\n```/m);
-	if (!fenced) return null;
-
-	const trimmed = fenced[1].trim();
-	return trimmed.length > 0 ? trimmed : null;
-}
-
-function escapeRegex(value: string): string {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	].join("\n");
 }
 
 export default function questionnaire(pi: ExtensionAPI) {
@@ -439,9 +174,16 @@ export default function questionnaire(pi: ExtensionAPI) {
 
 			const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "pi-questionnaire-"));
 			const formPath = path.join(tempDir, "questionnaire.md");
-			let markdown = renderQuestionnaireMarkdown(params.context, questions);
+			const sessionTldrPath = path.join(tempDir, "session-tldr.md");
+			const transcript = buildConversationTranscript(ctx.sessionManager.getBranch());
+			let markdown = renderQuestionnaireMarkdown(params.context, questions, sessionTldrPath);
 
 			try {
+				await fs.promises.writeFile(
+					sessionTldrPath,
+					renderSessionTldrMarkdown(transcript),
+					"utf-8",
+				);
 				await fs.promises.writeFile(formPath, markdown, "utf-8");
 
 				for (;;) {
@@ -451,6 +193,9 @@ export default function questionnaire(pi: ExtensionAPI) {
 					}
 
 					markdown = await fs.promises.readFile(formPath, "utf-8");
+					if (isExplicitStop(markdown)) {
+						return stoppedResult(questions);
+					}
 					const parsed = parseAnswers(markdown, questions);
 					if (parsed.errors.length === 0) {
 						const result: QuestionnaireResult = {
@@ -510,7 +255,7 @@ export default function questionnaire(pi: ExtensionAPI) {
 				return new Text(text?.type === "text" ? text.text : "", 0, 0);
 			}
 			if (details.cancelled) {
-				return new Text(theme.fg("warning", "Cancelled"), 0, 0);
+				return new Text(theme.fg("warning", details.stopped ? "Stopped" : "Cancelled"), 0, 0);
 			}
 			const lines = details.answers.map((answer) => {
 				if (answer.wasCustom) {

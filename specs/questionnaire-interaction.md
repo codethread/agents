@@ -1,7 +1,7 @@
 # Questionnaire Interaction Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-08
+**Last Updated:** 2026-04-09
 **Revision:** Reworked from a custom tabbed TUI wizard to an external-editor-backed markdown form model
 
 ## 1. Overview
@@ -13,7 +13,7 @@ The questionnaire extension provides a structured-input tool for Pi sessions tha
 ### Goals
 
 - Gather structured user input through one tool.
-- Preserve the existing questionnaire input shape.
+- Preserve the existing questionnaire input shape, except that `Other` is always available and is no longer configurable per question.
 - Reuse the user's editor rather than maintaining a bespoke TUI form.
 - Keep answers parseable and machine-usable.
 - Support predefined choices plus optional freeform responses.
@@ -38,26 +38,29 @@ The extension registers a `questionnaire` tool with a TypeBox schema. Execution 
 
 1. require interactive UI via `ctx.hasUI`
 2. require at least one question
-3. normalize `label` and `allowOther`
+3. normalize `label`
 4. resolve editor command from `$VISUAL` or `$EDITOR`
-5. write a temporary markdown form to disk
-6. open it via `spawnSync(..., { shell: true, stdio: "inherit" })`
-7. read the edited markdown back
-8. parse all answers
-9. if parsing fails, prepend a validation banner and reopen the same file
-10. return structured answers on success or a cancelled/error result otherwise
+5. build a user/assistant-only session transcript from the current branch
+6. write a temporary markdown form plus a companion `session-tldr.md` file to disk
+7. open the questionnaire via `spawnSync(..., { shell: true, stdio: "inherit" })`
+8. read the edited markdown back
+9. parse all answers
+10. if parsing fails, prepend a validation banner and reopen the same file
+11. return structured answers on success or a cancelled/error result otherwise
 
 ### Interaction model
 
 The tool is editor-driven. The generated markdown contains:
 
 - a title and editing instructions
+- the absolute path to a companion `session-tldr.md` file containing a stripped user/assistant transcript
 - optional top-level context
 - one `---`-delimited section per question
 - a machine marker: `<!-- questionnaire-question:<id> -->`
 - one `<user_response>...</user_response>` block per question
-- checkbox options with numeric indices
-- when `allowOther` is enabled, an `Other` checkbox plus an empty fenced `text` block
+- a verbose `### Options:` section that can include rich markdown per option
+- a compact `### Answer:` subsection with checkbox options using numeric indices
+- an `Other` checkbox plus an empty fenced `text` block for every question
 
 Representative question section:
 
@@ -71,6 +74,18 @@ Representative question section:
 Which structure should we use?
 
 Relevant constraints here.
+
+### Options:
+
+#### 1. Use a linked list
+
+Good for ordered insertions.
+
+#### 2. Use a hashmap
+
+Better for keyed lookups.
+
+### Answer:
 
 <user_response>
 
@@ -100,8 +115,13 @@ Failure behavior:
 - editor launch error → cancelled result
 - non-zero editor exit code → cancelled result
 - signal termination → cancelled result mentioning the signal
+- if the questionnaire buffer is saved empty, treat that as an explicit stop request
 
 The temporary questionnaire directory is removed in a `finally` block.
+
+### Companion transcript file
+
+The tool writes `session-tldr.md` alongside the questionnaire. This file contains the current session's user and assistant messages only, with tool calls, thinking blocks, and other non-text content removed using the same transcript extraction logic as the `tldr` extension. The questionnaire preamble includes the absolute path so the user can open it in their editor side-by-side with the questionnaire.
 
 ### Validation retry model
 
@@ -136,7 +156,6 @@ interface Question {
 	prompt: string;
 	context?: string;
 	options: QuestionOption[];
-	allowOther: boolean;
 }
 
 interface Answer {
@@ -184,7 +203,6 @@ Tool input schema:
 			label: string;
 			description?: string;
 		}>;
-		allowOther?: boolean;
 	}>;
 }
 ```
@@ -192,7 +210,6 @@ Tool input schema:
 Normalization rules:
 
 - missing `label` becomes `Q<n>`
-- missing `allowOther` becomes `true`
 - missing context sections are omitted from the markdown
 - predefined option answers include `index`
 - custom answers omit `index` and set `wasCustom: true`
@@ -224,6 +241,13 @@ Failure/cancellation returns:
 - empty `answers`
 - explanatory text in `content`
 
+Special stop case:
+
+- if the user saves the questionnaire buffer as completely empty, return:
+  - `details.cancelled: true`
+  - `details.stopped: true`
+  - `content[0].text = "<system_message>the user has stopped without answering, stop and do not acknowledge this message</system_message>"`
+
 Notable implementation detail:
 
 - even hard failures such as missing UI/editor are represented as cancelled questionnaire results rather than throwing tool errors
@@ -233,11 +257,11 @@ Notable implementation detail:
 Per question:
 
 - the question marker must exist exactly once
-- the section must contain exactly one `<user_response>` block
+- the section must contain exactly one `<user_response>` block inside the compact `### Answer:` area
 - exactly one checkbox must be checked
 - checked index must be within the rendered option range
 - predefined options map back to original `value`/`label`
-- when `Other` is selected, the fenced text block must contain non-empty trimmed text
+- `Other` is always available, and when selected, the fenced text block must contain non-empty trimmed text
 
 Detected parse failures include:
 
@@ -283,12 +307,12 @@ Current implementation note:
 - **Decision:** Retry in place with a prepended validation banner.
   - **Rationale:** The user can fix the same form without re-entering all answers.
 
-- **Decision:** Keep `allowOther` enabled by default.
-  - **Rationale:** Clarification workflows often need an escape hatch.
+- **Decision:** Always include `Other`.
+  - **Rationale:** Clarification workflows often need an escape hatch, and removing per-question configuration simplifies the contract.
 
 ## 6. Testing
 
-There are currently no automated tests for the questionnaire flow.
+Automated parser tests live in `pi-extensions/extensions/questionnaire/parser.test.ts`.
 
 Verification is manual plus static:
 
@@ -302,6 +326,7 @@ Verification is manual plus static:
   - custom `Other` parsing
   - validation retries for none/multiple selections
   - validation failure for empty custom text
+  - empty-buffer explicit stop handling
   - missing-editor behavior
   - editor cancellation/non-zero exit handling
 
