@@ -139,7 +139,7 @@ The subagent tool owns both call rendering and result rendering.
 
 - `renderCall(...)` prints a compact preview of the chosen mode, scope, and first few tasks/steps.
 - `renderResult(...)` consumes `SubagentDetails` and chooses single, chain, or parallel rendering.
-- Shared usage strings come from `formatUsageStats(...)`, which delegates token/cost/model formatting to `pi-extensions/extensions/usage-format.ts`.
+- Shared usage strings come from `formatUsageStats(...)`, which delegates token/cost/model formatting to `pi-extensions/extensions/current-context-footer/usage-format.ts`.
 - Tool-call summaries come from `formatToolCall(...)`, which special-cases built-ins like `bash`, `read`, `write`, `edit`, `find`, and `grep`.
 
 Expanded views use `Container`, `Text`, `Spacer`, and `Markdown` components to show task text, tool-call summaries, markdown-rendered final output, and usage stats. Collapsed views show shorter previews and prompt the user to expand when content was truncated.
@@ -363,5 +363,5 @@ Current verification is manual and static:
 
 - `pi-extensions/extensions/subagent/index.ts`
 - `pi-extensions/extensions/subagent/agents.ts` (runtime input boundary only)
-- `pi-extensions/extensions/usage-format.ts` (shared usage-display helpers consumed by subagent rendering)
+- `pi-extensions/extensions/current-context-footer/usage-format.ts` (shared usage-display helpers consumed by subagent rendering)
 - `pi-extensions/agents/*.md` (bundled agent definitions executed by this runtime)

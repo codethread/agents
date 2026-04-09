@@ -57,19 +57,23 @@ When building model-dependent tool systems, prefer this pattern:
 When injecting dynamic context (e.g. project-specific instructions from an `AGENTS.md` file loaded mid-session), you face a tradeoff between LLM attention and API caching (Prompt Caching):
 
 **Option A: Modify the System Prompt**
+
 - **How:** Dynamically modify `event.systemPrompt` in the `before_agent_start` hook.
 - **Attention:** Perfect. The LLM always sees it clearly at the top of the context window.
 - **Cache impact:** **100% Cache Miss.** Because the very beginning of the API payload changes on every turn, providers (Anthropic, OpenAI) will discard their prefix cache and recalculate the entire conversation history from scratch. This is expensive and slow.
 
 **Option B: Inject as a User Message (Recommended)**
+
 - **How:** Inject the context once as a normal user message (e.g. wrapped in `<backend_context>...</backend_context>`).
 - **Attention:** Very High initially, but suffers from the "Lost in the Middle" problem as the conversation progresses and the message drifts backwards.
 - **Cache impact:** **Cache Hit.** Because you only append to the end of the `messages` array, the provider's cache for the system prompt and all previous turns remains completely valid.
 
 **Mitigating "Lost in the Middle" with Option B:**
-To maintain attention on the injected context without busting the cache, append a lightweight, explicit attention nudge to the *end* of the user's latest message on subsequent turns. For example:
+To maintain attention on the injected context without busting the cache, append a lightweight, explicit attention nudge to the _end_ of the user's latest message on subsequent turns. For example:
+
 > `[System note: Remember to follow the <backend_context> provided earlier.]`
-Anthropic research shows that explicitly directing the model's attention immediately before the task drastically improves recall of middle-context information.
+> Anthropic research shows that explicitly directing the model's attention immediately before the task drastically improves recall of middle-context information.
 
 ### Note on Mid-Session Model Changing
-Switching the LLM provider or model id mid-session (e.g. from `claude-3-5-sonnet` to `gpt-4o`) will completely invalidate the API prompt cache for the new provider. While this is obvious across different providers, even switching to a different model *within the same provider* (e.g. `sonnet` to `haiku`) will typically bust the cache, as cache state is strictly bound to the specific model version that originally processed the prefix. This must be a mindful tradeoff when managing session cost and latency.
+
+Switching the LLM provider or model id mid-session (e.g. from `claude-3-5-sonnet` to `gpt-4o`) will completely invalidate the API prompt cache for the new provider. While this is obvious across different providers, even switching to a different model _within the same provider_ (e.g. `sonnet` to `haiku`) will typically bust the cache, as cache state is strictly bound to the specific model version that originally processed the prefix. This must be a mindful tradeoff when managing session cost and latency.
