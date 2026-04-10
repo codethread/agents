@@ -255,3 +255,29 @@ export function formatAgentList(
 		remaining,
 	};
 }
+
+function escapeXml(str: string): string {
+	return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+export function formatAgentsForPrompt(agents: AgentConfig[]): string {
+	if (agents.length === 0) return "";
+
+	const lines = [
+		"",
+		"",
+		"These are the available subagents with their intended use.",
+		"",
+		"<available_subagents>",
+	];
+
+	for (const agent of agents) {
+		lines.push("  <subagent>");
+		lines.push(`    <name>${escapeXml(agent.name)}</name>`);
+		lines.push(`    <description>${escapeXml(agent.description)}</description>`);
+		lines.push("  </subagent>");
+	}
+
+	lines.push("</available_subagents>");
+	return lines.join("\n");
+}

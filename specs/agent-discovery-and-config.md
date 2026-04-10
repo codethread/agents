@@ -75,8 +75,9 @@ Model alias resolution is intentionally opportunistic:
 
 ### Runtime integration boundary
 
-The subagent runtime uses discovery results in two places:
+The subagent runtime uses discovery results in three places:
 
+- `before_agent_start` discovers agents with `scope === "both"` and injects a terse XML list of available subagent names and descriptions into the parent agent system prompt.
 - `debug-agents` renders discovered agents, their source, file path, resolved model, and normalized tools for each scope.
 - `subagent` execution resolves the active scope, optionally confirms project-local agents in UI mode, and passes normalized `model`, `tools`, and `systemPrompt` into a child `pi` process.
 
@@ -166,6 +167,14 @@ Behavioral contract:
 
 Formats a short human-readable list such as `name (source): description` and reports how many items were omitted.
 
+#### `formatAgentsForPrompt(agents: AgentConfig[]): string`
+
+Formats discovered subagents for system-prompt injection as:
+
+- a terse lead-in line: `These are the available subagents with their intended use.`
+- an XML list under `<available_subagents>`
+- one `<subagent>` entry per agent containing `<name>` and `<description>` only
+
 ### Accepted agent frontmatter
 
 Discovery relies on these frontmatter fields:
@@ -228,6 +237,7 @@ Current verification is code-level and runtime-level:
 
 ## Code Locations
 
+- `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/subagent/agents.ts`
 - `pi-extensions/extensions/subagent/index.ts`
 - `pi-extensions/agents/*.md`

@@ -10,6 +10,11 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | -------------------- |
 | [discovery.md](./discovery.md) | Living cross-cutting notes and implementation discoveries that should be checked when creating or updating future specs. | `specs/discovery.md` |
 
+## Reference READMEs
+
+- `README.md` — package overview and setup
+- `pi-extensions/extensions/README.md` — extension catalog and user-facing behavior summary
+
 ## Delegation and Resource Sync
 
 | Spec                                                             | Purpose                                                                                                                                     | Code                                                                                                                     |
@@ -23,6 +28,7 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 | Spec                                                                           | Purpose                                                                                                                                              | Code                                                                                                          |
 | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | [dynamic-agents-template-injection.md](./dynamic-agents-template-injection.md) | Defines global/project `agent.njk` discovery, Nunjucks rendering, prompt injection, and prompt-debug surfaces for the `dynamic-agents-md` extension. | `pi-extensions/extensions/dynamic-agents-md/index.ts`, `pi-extensions/extensions/dynamic-agents-md/parser.ts` |
+| [pi-extension-discovery.md](./pi-extension-discovery.md)                       | Defines discovery of enabled Pi extension entrypoints plus system-prompt/debug exposure of their source paths for the `pi-discovery` extension.      | `pi-extensions/extensions/pi-discovery/index.ts`, `pi-extensions/extensions/pi-discovery/lib.ts`              |
 
 ## Presentation and UX
 

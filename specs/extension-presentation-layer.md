@@ -315,6 +315,7 @@ Current verification is manual plus static:
 
 ## Code Locations
 
+- `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/bash-compact.ts`
 - `pi-extensions/extensions/read-compact.ts`
 - `pi-extensions/extensions/current-context-footer/index.ts`

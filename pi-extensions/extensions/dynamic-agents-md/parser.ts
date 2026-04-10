@@ -19,8 +19,6 @@ export type DynamicAgentsTemplateVars = Record<string, unknown>;
 export const LOCAL_TEMPLATE_FILE = ".pi/agent.njk";
 export const GLOBAL_TEMPLATE_FILE = "agent.njk";
 
-const nunjucksEnv = new nunjucks.Environment();
-
 function expandHomePrefix(input: string): string {
 	if (input === "~") return process.env.HOME ?? "~";
 	if (input.startsWith("~/")) {
@@ -31,10 +29,64 @@ function expandHomePrefix(input: string): string {
 	return input;
 }
 
-nunjucksEnv.addFilter("regex_test", (value: unknown, pattern: string) => {
-	if (typeof value !== "string") return false;
-	return new RegExp(expandHomePrefix(pattern)).test(value);
-});
+function normalizeToolName(value: string): string {
+	return value.trim().toLowerCase();
+}
+
+function parseRequiredTools(value: unknown): string[] | null {
+	if (typeof value === "string") {
+		const tool = normalizeToolName(value);
+		return tool ? [tool] : null;
+	}
+
+	if (!Array.isArray(value) || value.length === 0) return null;
+
+	const tools: string[] = [];
+	for (const entry of value) {
+		if (typeof entry !== "string") return null;
+		const tool = normalizeToolName(entry);
+		if (!tool) return null;
+		tools.push(tool);
+	}
+	return tools;
+}
+
+function getActiveToolSet(value: unknown): Set<string> {
+	if (!Array.isArray(value)) return new Set();
+	return new Set(
+		value
+			.filter((tool): tool is string => typeof tool === "string")
+			.map((tool) => normalizeToolName(tool))
+			.filter(Boolean),
+	);
+}
+
+function hasAllTools(activeToolsValue: unknown, requiredToolsValue: unknown): boolean {
+	const requiredTools = parseRequiredTools(requiredToolsValue);
+	if (!requiredTools) return false;
+
+	const activeTools = getActiveToolSet(activeToolsValue);
+	return requiredTools.every((tool) => activeTools.has(tool));
+}
+
+function createNunjucksEnv(vars: DynamicAgentsTemplateVars): nunjucks.Environment {
+	const env = new nunjucks.Environment();
+
+	env.addFilter("regex_test", (value: unknown, pattern: string) => {
+		if (typeof value !== "string") return false;
+		return new RegExp(expandHomePrefix(pattern)).test(value);
+	});
+
+	env.addFilter("has_tools", (value: unknown, requiredTools: unknown) => {
+		return hasAllTools(value, requiredTools);
+	});
+
+	env.addGlobal("has_tools", (requiredTools: unknown) => {
+		return hasAllTools(vars.tools, requiredTools);
+	});
+
+	return env;
+}
 
 export async function pathExists(filePath: string): Promise<boolean> {
 	try {
@@ -79,7 +131,7 @@ export async function findNearestTemplate(startCwd: string): Promise<TemplateMat
 }
 
 export function renderTemplate(source: string, vars: DynamicAgentsTemplateVars): string {
-	return nunjucksEnv.renderString(source, vars);
+	return createNunjucksEnv(vars).renderString(source, vars);
 }
 
 export { expandHomePrefix };

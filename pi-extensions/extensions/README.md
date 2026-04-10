@@ -10,7 +10,7 @@ Extensions for the [Pi Coding Agent](https://github.com/nichochar/pi-coding-agen
 
 > Delegate tasks to specialized subagents with isolated context.
 
-The agent is aware of this tool and will use it when asked to delegate work, run tasks in parallel, or chain multiple steps together. You can guide it by describing the kind of work you want delegated.
+The agent is aware of this tool and will use it when asked to delegate work, run tasks in parallel, or chain multiple steps together. It also injects the currently discovered subagents into the system prompt as an XML list of names and descriptions so the parent agent can choose among them. You can guide it by describing the kind of work you want delegated.
 
 **How to use it:**
 
@@ -125,16 +125,18 @@ If both exist, both are rendered: global under a `# Global rules` heading, proje
 
 **Template variables:**
 
-| Variable            | Type     | Description                                          |
-| ------------------- | -------- | ---------------------------------------------------- |
-| `provider`          | `string` | Current AI provider (e.g. `"anthropic"`, `"openai"`) |
-| `model`             | `string` | Current model ID (e.g. `"claude-sonnet-4-20250514"`) |
-| `cwd`               | `string` | Current working directory                            |
-| `HOME`, `PATH`, ... | `string` | All environment variables are available              |
+| Variable            | Type       | Description                                          |
+| ------------------- | ---------- | ---------------------------------------------------- |
+| `provider`          | `string`   | Current AI provider (e.g. `"anthropic"`, `"openai"`) |
+| `model`             | `string`   | Current model ID (e.g. `"claude-sonnet-4-20250514"`) |
+| `cwd`               | `string`   | Current working directory                            |
+| `hasUI`             | `boolean`  | Whether Pi has an interactive UI                     |
+| `tools`             | `string[]` | Currently active tool names                          |
+| `HOME`, `PATH`, ... | `string`   | All environment variables are available              |
 
 **Nunjucks syntax examples:**
 
-```njk
+```jinja
 {# Conditionally include rules based on the model #}
 {% if provider == "anthropic" %}
 Prefer XML-style structured output.
@@ -146,15 +148,52 @@ Prefer XML-style structured output.
 - Use conventional commits
 {% endif %}
 
+{# Only include instructions when all required tools are available #}
+{% if has_tools(["read", "write"]) %}
+Prefer read-then-write workflows over shell redirection.
+{% endif %}
+
+{# Filter form also works against the tools variable #}
+{% if tools | has_tools(["read", "edit", "write"]) %}
+You can safely propose direct file edits.
+{% endif %}
+
 {# Use environment variables #}
 Project owner: {{ GIT_AUTHOR_NAME | default("unknown") }}
 ```
 
-**Custom filter:** `regex_test(pattern)` — tests a string against a regex. Supports `~/` expansion.
+**Custom filters/helpers:**
+
+- `regex_test(pattern)` — tests a string against a regex. Supports `~/` expansion.
+- `has_tools(toolOrTools)` — returns `true` only when all requested tool names are currently active. Accepts a single string or an array of strings.
 
 **Command:** `/debug-prompt` — opens the fully rendered system prompt in `$VISUAL`/`$EDITOR` for inspection.
 
 **Flag:** `--debug-prompt` — prints the system prompt and exits (useful for CI/scripting).
+
+You can also pass a JSON object to override template vars for debug rendering only:
+
+```bash
+pi --debug-prompt '{"model":"claude-sonnet"}'
+```
+
+These overrides are applied on top of the normal vars (`provider`, `model`, `cwd`, `hasUI`, `tools`, env vars) only for the debug turn.
+
+---
+
+### `pi-discovery`
+
+> Inject discovered extension source paths into the system prompt.
+
+Makes Pi aware of the extension code currently available in the running environment. On each turn it appends a compact XML catalog of:
+
+- global/project Pi config paths relevant to extension discovery
+- enabled extension entrypoint files
+- extension provenance metadata (`scope`, `source`, `origin`, `baseDir`)
+
+This is useful when a user references an installed extension and wants Pi to inspect the implementation directly instead of guessing.
+
+**Command:** `/debug-extensions` — sends the current extension discovery report into the conversation.
 
 ---
 
@@ -174,3 +213,11 @@ Use `/tldr` when returning to a session and needing a quick recap. It reads the 
 | ------------------------- | --------------------------------------- |
 | `--debug-tldr`            | Print the generated summary and exit    |
 | `--debug-tldr-transcript` | Print the extracted transcript and exit |
+
+### `tmux-window-title`
+
+> Set the current tmux window title from the first user message.
+
+After the first user message in a session, this extension spawns a small child `pi` process, asks it for a terse 1-4 word label for the request, kebab-cases the result, and renames the tmux window captured at session start. This avoids retargeting the wrong window if you switch tmux windows before the child model returns. The derived title is persisted in session state and reapplied on reload/resume. When Pi is not running inside tmux, it still updates the client title bar via `ctx.ui.setTitle()`.
+
+**Debug flag:** `--debug-tmux-title` — prints generation details when the title is derived or restored.

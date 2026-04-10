@@ -279,6 +279,7 @@ Interactive command/UI behavior in `index.ts` is still verified manually.
 
 ## Code Locations
 
+- `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/tldr/index.ts`
 - `pi-extensions/extensions/tldr/lib.ts`
 - `pi-extensions/extensions/tldr/lib.test.ts`

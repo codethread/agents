@@ -3,7 +3,11 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { renderNearestTemplate, stripEmptyLines } from "./parser.js";
+import {
+	renderNearestTemplate,
+	stripEmptyLines,
+	type DynamicAgentsTemplateVars,
+} from "./parser.js";
 
 function getEditorCommand(): string | undefined {
 	const visual = process.env.VISUAL?.trim();
@@ -11,6 +15,84 @@ function getEditorCommand(): string | undefined {
 	const editor = process.env.EDITOR?.trim();
 	if (editor) return editor;
 	return undefined;
+}
+
+function isTemplateVarsObject(value: unknown): value is DynamicAgentsTemplateVars {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function parseDebugPromptOverrides(argv: string[]): {
+	overrides: DynamicAgentsTemplateVars | null;
+	error: string | null;
+} {
+	let rawValue: string | undefined;
+
+	for (let i = 0; i < argv.length; i++) {
+		const arg = argv[i];
+		if (arg === "--debug-prompt") {
+			const next = argv[i + 1];
+			if (next !== undefined && !next.startsWith("-") && !next.startsWith("@")) {
+				rawValue = next;
+				i++;
+			}
+			continue;
+		}
+
+		if (arg.startsWith("--debug-prompt=")) {
+			rawValue = arg.slice("--debug-prompt=".length);
+		}
+	}
+
+	if (rawValue === undefined) {
+		return { overrides: null, error: null };
+	}
+
+	const trimmedRawValue = rawValue.trim();
+	if (!trimmedRawValue.startsWith("{")) {
+		return { overrides: null, error: null };
+	}
+
+	try {
+		const parsed = JSON.parse(trimmedRawValue);
+		if (!isTemplateVarsObject(parsed)) {
+			return {
+				overrides: null,
+				error:
+					'--debug-prompt value must be a JSON object, e.g. --debug-prompt \'{"model":"claude-sonnet"}\'',
+			};
+		}
+
+		return { overrides: parsed, error: null };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return {
+			overrides: null,
+			error: `Invalid --debug-prompt JSON: ${message}`,
+		};
+	}
+}
+
+export function getTemplateVars(
+	ctx: {
+		cwd: string;
+		hasUI: boolean;
+		tools?: string[];
+		model?: {
+			provider?: string;
+			id?: string;
+		} | null;
+	},
+	overrides?: DynamicAgentsTemplateVars | null,
+): DynamicAgentsTemplateVars {
+	return {
+		provider: ctx.model?.provider,
+		model: ctx.model?.id,
+		cwd: ctx.cwd,
+		hasUI: ctx.hasUI,
+		...process.env,
+		tools: ctx.tools ?? [],
+		...overrides,
+	};
 }
 
 function openExternalEditor(
@@ -34,9 +116,11 @@ function openExternalEditor(
 export default function dynamicAgentsMdExtension(pi: ExtensionAPI) {
 	let printPromptOnNextTurn = false;
 	let debugPromptTriggered = false;
+	let debugPromptOverrides: DynamicAgentsTemplateVars | null = null;
 
 	pi.registerFlag("debug-prompt", {
-		description: "Print the current effective system prompt and exit",
+		description:
+			"Print the current effective system prompt and exit (optionally with a JSON override arg)",
 		type: "boolean",
 		default: false,
 	});
@@ -69,6 +153,14 @@ export default function dynamicAgentsMdExtension(pi: ExtensionAPI) {
 
 	pi.on("session_start", (_event, ctx) => {
 		if (pi.getFlag("debug-prompt")) {
+			const parsedOverrides = parseDebugPromptOverrides(process.argv.slice(2));
+			if (parsedOverrides.error) {
+				ctx.ui.notify(parsedOverrides.error, "error");
+				process.stderr.write(`${parsedOverrides.error}\n`);
+				process.exit(1);
+			}
+
+			debugPromptOverrides = parsedOverrides.overrides;
 			printPromptOnNextTurn = true;
 			if (!debugPromptTriggered) {
 				debugPromptTriggered = true;
@@ -87,12 +179,16 @@ export default function dynamicAgentsMdExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
-		const rendered = await renderNearestTemplate(ctx.cwd, {
-			provider: ctx.model?.provider,
-			model: ctx.model?.id,
-			cwd: ctx.cwd,
-			...process.env,
-		});
+		const rendered = await renderNearestTemplate(
+			ctx.cwd,
+			getTemplateVars(
+				{
+					...ctx,
+					tools: pi.getActiveTools(),
+				},
+				printPromptOnNextTurn ? debugPromptOverrides : null,
+			),
+		);
 		if (!rendered) return;
 
 		return {

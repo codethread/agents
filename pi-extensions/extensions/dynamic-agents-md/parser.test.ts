@@ -100,6 +100,49 @@ describe("renderTemplate", () => {
 		expect(rendered).toBe("match");
 	});
 
+	it("supports the has_tools filter against the tools template var", () => {
+		const rendered = renderTemplate(
+			'{% if tools | has_tools(["read", "write"]) %}match{% else %}miss{% endif %}',
+			{ tools: ["read", "bash", "write"] },
+		);
+
+		expect(rendered).toBe("match");
+	});
+
+	it("supports the has_tools global helper", () => {
+		const rendered = renderTemplate(
+			'{% if has_tools(["read", "write"]) %}match{% else %}miss{% endif %}',
+			{ tools: ["read", "bash", "write"] },
+		);
+
+		expect(rendered).toBe("match");
+	});
+
+	it("supports single-tool has_tools checks", () => {
+		const rendered = renderTemplate('{% if has_tools("read") %}match{% else %}miss{% endif %}', {
+			tools: ["read", "write"],
+		});
+
+		expect(rendered).toBe("match");
+	});
+
+	it("returns false when any required tool is missing", () => {
+		const rendered = renderTemplate(
+			'{% if has_tools(["read", "edit"]) %}match{% else %}miss{% endif %}',
+			{ tools: ["read", "write"] },
+		);
+
+		expect(rendered).toBe("miss");
+	});
+
+	it("can render hasUI-dependent template branches", () => {
+		const rendered = renderTemplate("{% if hasUI %}interactive{% else %}headless{% endif %}", {
+			hasUI: true,
+		});
+
+		expect(rendered).toBe("interactive");
+	});
+
 	it("expands ~/ in regex_test patterns", () => {
 		const cwd = path.join(os.homedir(), "dev", "projects", "agents");
 		const rendered = renderTemplate(

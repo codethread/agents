@@ -33,10 +33,11 @@ Subagent orchestration lives in `pi-extensions/extensions/subagent/index.ts` and
 
 ### Extension surface
 
-`export default function (pi: ExtensionAPI)` registers two entry points:
+`export default function (pi: ExtensionAPI)` registers three entry points:
 
-1. `debug-agents` command — snapshots discovered agents for each scope and sends a textual report into the conversation.
-2. `subagent` tool — validates parameters, resolves agents through discovery, executes the requested mode, and renders results in the Pi TUI.
+1. `before_agent_start` hook — snapshots discovered agents with `scope === "both"` and appends an XML `<available_subagents>` list of names/descriptions to the parent system prompt.
+2. `debug-agents` command — snapshots discovered agents for each scope and sends a textual report into the conversation.
+3. `subagent` tool — validates parameters, resolves agents through discovery, executes the requested mode, and renders results in the Pi TUI.
 
 ### Runtime pipeline
 
@@ -361,6 +362,7 @@ Current verification is manual and static:
 
 ## Code Locations
 
+- `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/subagent/index.ts`
 - `pi-extensions/extensions/subagent/agents.ts` (runtime input boundary only)
 - `pi-extensions/extensions/current-context-footer/usage-format.ts` (shared usage-display helpers consumed by subagent rendering)

@@ -70,11 +70,13 @@ The tool is editor-driven. The generated markdown contains:
 
 Representative question section:
 
-````md
+```md
 <!-- session-summary: /tmp/pi-questionnaire-abc123/session-tldr.md -->
+
 # Questionnaire
 
 ---
+
 ## Q1 — Architecture
 
 <!-- questionnaire-question:architecture -->
@@ -96,11 +98,12 @@ Better for keyed lookups.
 ### Answer:
 
 <user_response>
+
 - [ ] 1. Use a linked list
 - [ ] 2. Use a hashmap
 - [ ] 3. Other:
-</user_response>
-````
+     </user_response>
+```
 
 The user checks exactly one option. If `Other:` is selected, the user writes custom text directly below the checked `Other:` line and before `</user_response>`.
 

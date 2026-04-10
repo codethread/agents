@@ -282,6 +282,7 @@ Important runtime behaviors that are currently verified by inspection rather tha
 
 ## Code Locations
 
+- `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/claude-sync.ts`
 - `package.json` (extension export surface)
 - `.pi/settings.json` (local development configuration that causes Pi to load this package from the repo root)

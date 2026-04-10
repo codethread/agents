@@ -1,7 +1,7 @@
 # Dynamic Agents Template Injection Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-08
+**Last Updated:** 2026-04-10
 
 ## 1. Overview
 
@@ -12,7 +12,7 @@ The `dynamic-agents-md` extension appends dynamically rendered prompt text to Pi
 ### Goals
 
 - Discover prompt templates from stable global and project locations.
-- Render templates with runtime model/provider metadata plus environment variables.
+- Render templates with runtime model/provider metadata, active tool names, plus environment variables.
 - Support both global and project rules in the same prompt when both exist.
 - Strip blank lines so rendered prompt fragments stay compact.
 - Provide a CLI flag and a command for debugging the effective system prompt.
@@ -56,16 +56,20 @@ Discovery behavior:
 
 Rendering uses a shared Nunjucks environment in `parser.ts`.
 
-Input vars passed from `before_agent_start` are:
+Input vars passed from `before_agent_start` are normally:
 
 ```ts
 {
 	provider: ctx.model?.provider,
 	model: ctx.model?.id,
 	cwd: ctx.cwd,
+	hasUI: ctx.hasUI,
 	...process.env,
+	tools: pi.getActiveTools(),
 }
 ```
+
+When `--debug-prompt` is invoked with a JSON object string, those key/value pairs are merged last and therefore override the machine-derived vars for debug rendering only.
 
 Key rendering helpers:
 
@@ -90,19 +94,39 @@ When only one template renders non-empty output, the extension injects just that
 
 ### Nunjucks helpers
 
-`parser.ts` adds one custom filter:
+`parser.ts` adds two custom filters plus one matching global helper:
 
 ```ts
 regex_test(value, pattern);
+has_tools(value, toolOrTools);
+has_tools(toolOrTools);
 ```
 
 Behavior:
 
-- returns `false` unless `value` is a string
-- expands `~` or `~/...` inside the regex pattern via `expandHomePrefix(...)`
-- runs `new RegExp(expandedPattern).test(value)`
+- `regex_test(...)`
+  - returns `false` unless `value` is a string
+  - expands `~` or `~/...` inside the regex pattern via `expandHomePrefix(...)`
+  - runs `new RegExp(expandedPattern).test(value)`
+- `has_tools(...)`
+  - accepts either a single tool name string or an array of tool name strings
+  - lowercases and trims tool names before comparison
+  - returns `true` only when **all** requested tool names are present in the current `tools` template var
+  - returns `false` for invalid or empty input
 
-This makes repo- or path-sensitive template rules easy to express.
+Typical usage:
+
+```jinja
+{% if has_tools(["read", "write"]) %}
+Use direct file writes when appropriate.
+{% endif %}
+
+{% if tools | has_tools(["read", "edit", "write"]) %}
+Prefer exact in-place edits over shell-based rewrites.
+{% endif %}
+```
+
+These helpers make repo-, path-, and tool-sensitive template rules easy to express.
 
 ### Prompt injection lifecycle
 
@@ -124,15 +148,32 @@ Important runtime behavior:
 
 #### `--debug-prompt` flag
 
-The extension registers a boolean CLI flag named `debug-prompt`.
+The extension registers a CLI flag named `debug-prompt`.
+
+Accepted forms:
+
+```bash
+pi --debug-prompt
+pi --debug-prompt '{"model":"claude-sonnet"}'
+pi --debug-prompt='{"model":"claude-sonnet"}'
+```
+
+Behavior:
+
+- bare `--debug-prompt` keeps the normal runtime template vars
+- when a JSON object string is provided, its keys override the normal template vars for the debug turn only
+- values that do not look like a JSON object (do not start with `{`) are ignored so legacy bare-flag invocations like `pi --debug-prompt ping` still behave like plain debug mode
+- invalid object-shaped JSON causes the process to print an error and exit `1`
 
 Flow:
 
-1. on `session_start`, if the flag is enabled, set an internal one-shot latch
-2. send a synthetic `ping` user message once so a turn starts and the fully materialized prompt exists
-3. show a UI notification describing debug-prompt mode
-4. on the next `agent_start`, print `ctx.getSystemPrompt()` after `stripEmptyLines(...)` to stdout
-5. exit the process with code `0`
+1. on `session_start`, if the flag is enabled, parse any optional JSON override from `process.argv`
+2. set an internal one-shot latch
+3. send a synthetic `ping` user message once so a turn starts and the fully materialized prompt exists
+4. show a UI notification describing debug-prompt mode
+5. during `before_agent_start`, render templates with the normal vars plus any debug-only overrides
+6. on the next `agent_start`, print `ctx.getSystemPrompt()` after `stripEmptyLines(...)` to stdout
+7. exit the process with code `0`
 
 This debug path is for non-interactive inspection and intentionally terminates the session process after printing.
 
@@ -185,9 +226,10 @@ Internal extension state in `index.ts`:
 ```ts
 let printPromptOnNextTurn = false;
 let debugPromptTriggered = false;
+let debugPromptOverrides: DynamicAgentsTemplateVars | null = null;
 ```
 
-These booleans prevent repeated synthetic `ping` injection for `--debug-prompt` and ensure prompt printing happens exactly once.
+These fields prevent repeated synthetic `ping` injection for `--debug-prompt`, ensure prompt printing happens exactly once, and carry any debug-only template var overrides into the render step.
 
 ## 4. Interfaces
 
@@ -222,7 +264,7 @@ Return contract:
 
 Registered by `index.ts`:
 
-- flag: `--debug-prompt`
+- flag: `--debug-prompt` (bare or with a JSON object string)
 - command: `/debug-prompt`
 - lifecycle hooks:
   - `session_start`
@@ -250,9 +292,10 @@ No tools are registered.
 
 ## 6. Testing
 
-Automated tests exist for parser behavior in:
+Automated tests exist in:
 
 - `pi-extensions/extensions/dynamic-agents-md/parser.test.ts`
+- `pi-extensions/extensions/dynamic-agents-md/index.test.ts`
 
 Covered behaviors include:
 
@@ -260,20 +303,27 @@ Covered behaviors include:
 - global template discovery via `PI_CODING_AGENT_DIR`
 - local-over-global preference for nearest-template lookup
 - `regex_test` behavior, including `~/...` expansion
+- `has_tools` behavior for single-tool and multi-tool checks
+- `has_tools` false result when any required tool is missing
 - blank-line stripping
 - global+project merge ordering and headings
 - null return when rendered output is empty
+- `--debug-prompt` override parsing from both `--flag value` and `--flag=value`
+- ignoring non-JSON-looking trailing values to preserve legacy bare-flag behavior
+- rejection of invalid object-shaped JSON override payloads
+- debug-only override precedence over machine-derived template vars
 
-Extension-level lifecycle behavior in `index.ts` is still verified manually.
+Full extension lifecycle behavior in `index.ts` still has some manual verification coverage.
 
 ## 7. Open Questions
 
 - Should `/debug-prompt` clean up its temp file after the editor exits, or is persistence useful for debugging?
-- Should template rendering eventually expose additional structured vars beyond provider/model/cwd/env?
+- Should template rendering eventually expose additional structured vars beyond provider/model/cwd/hasUI/tools/env?
 - Should system-prompt injection remain the long-term strategy despite prompt-cache tradeoffs noted in `specs/discovery.md`?
 
 ## Code Locations
 
+- `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/dynamic-agents-md/index.ts`
 - `pi-extensions/extensions/dynamic-agents-md/parser.ts`
 - `pi-extensions/extensions/dynamic-agents-md/parser.test.ts`

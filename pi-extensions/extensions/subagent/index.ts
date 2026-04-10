@@ -31,7 +31,12 @@ import {
 	formatCost,
 	formatModelDisplay,
 } from "../current-context-footer/usage-format.js";
-import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
+import {
+	type AgentConfig,
+	type AgentScope,
+	discoverAgents,
+	formatAgentsForPrompt,
+} from "./agents.js";
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
@@ -511,6 +516,15 @@ const SubagentParams = Type.Object({
 });
 
 export default function (pi: ExtensionAPI) {
+	pi.on("before_agent_start", (event, ctx) => {
+		const discovery = discoverAgents(ctx.cwd, "both");
+		const promptAddon = formatAgentsForPrompt(discovery.agents);
+		if (!promptAddon) return;
+		return {
+			systemPrompt: `${event.systemPrompt}${promptAddon}`,
+		};
+	});
+
 	pi.registerCommand("debug-agents", {
 		description: "Send discovered subagent information into the conversation",
 		handler: async (_args, ctx) => {
