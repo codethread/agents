@@ -169,7 +169,7 @@ export function buildConversationTranscript(
 			.trim();
 		if (!text) continue;
 
-		sections.push(`${role === "user" ? "User" : "Assistant"}: ${text}`);
+		sections.push(`# ${role === "user" ? "User" : "Assistant"}\n\n${text}`);
 	}
 
 	return sections.join("\n\n").trim();

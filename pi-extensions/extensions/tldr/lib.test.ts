@@ -42,9 +42,10 @@ describe("buildConversationTranscript", () => {
 		]);
 
 		expect(transcript).toBe(
-			["User: Need a TL;DR for this session.", "Assistant: I'll build that extension."].join(
-				"\n\n",
-			),
+			[
+				"# User\n\nNeed a TL;DR for this session.",
+				"# Assistant\n\nI'll build that extension.",
+			].join("\n\n"),
 		);
 	});
 
@@ -56,7 +57,7 @@ describe("buildConversationTranscript", () => {
 			},
 		]);
 
-		expect(transcript).toBe("User: Summarize where this landed.");
+		expect(transcript).toBe("# User\n\nSummarize where this landed.");
 	});
 
 	it("surfaces debug notes for malformed text blocks", () => {

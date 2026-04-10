@@ -63,9 +63,9 @@ The markdown body below the frontmatter becomes the agent's system prompt.
 
 The agent uses this tool automatically whenever it needs your input — clarification, choices, or confirmation. You don't need to ask for it; it's the agent's primary way of communicating back to you.
 
-When invoked, a temporary `.md` file opens in `$VISUAL` (fallback `$EDITOR`). You answer by writing in the designated response blocks, then save and close. The agent receives your structured answers.
+When invoked, a temporary `.md` file opens in `$VISUAL` (fallback `$EDITOR`) alongside a companion `session-tldr.md` transcript file referenced by a first-line HTML comment (`<!-- session-summary: /abs/path -->`). Each question renders rich option details separately from a compact `<user_response>` block. You answer by checking exactly one option; if you choose `Other:`, you write freeform text directly below that line.
 
-If you leave invalid or missing answers, the form reopens with inline validation feedback.
+If you leave invalid or missing answers, the form reopens with validation feedback and instructions. Saving an empty questionnaire buffer is treated as an explicit stop.
 
 ---
 

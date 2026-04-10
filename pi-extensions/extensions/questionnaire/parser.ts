@@ -60,16 +60,10 @@ export function renderQuestionnaireMarkdown(
 ): string {
 	const lines: string[] = [];
 
-	lines.push("# Questionnaire");
-	lines.push("");
-	lines.push("Complete each question by editing the `<user_response>` block in place:");
-	lines.push("- Check exactly one option per question by changing `[ ]` to `[x]`.");
-	lines.push("- If you check `Other`, provide custom text inside the fenced block.");
-	lines.push("- Save and exit the editor to submit.");
-	lines.push("- Exit the editor with a non-zero status to cancel.");
 	if (sessionTldrPath) {
-		lines.push(`- Session TL;DR/transcript: ${sessionTldrPath}`);
+		lines.push(`<!-- session-summary: ${sessionTldrPath} -->`);
 	}
+	lines.push("# Questionnaire");
 
 	if (topContext) {
 		lines.push("");
@@ -85,8 +79,9 @@ export function renderQuestionnaireMarkdown(
 
 		lines.push("");
 		lines.push("---");
-		lines.push(`<!-- questionnaire-question:${question.id} -->`);
 		lines.push(`## ${heading}`);
+		lines.push("");
+		lines.push(`<!-- questionnaire-question:${question.id} -->`);
 		lines.push("");
 		lines.push(question.prompt);
 
@@ -115,11 +110,7 @@ export function renderQuestionnaireMarkdown(
 		}
 
 		const otherIndex = question.options.length + 1;
-		lines.push(`- [ ] ${otherIndex}. Other`);
-		lines.push("");
-		lines.push("```text");
-		lines.push("");
-		lines.push("```");
+		lines.push(`- [ ] ${otherIndex}. Other:`);
 		lines.push("</user_response>");
 	}
 
@@ -144,6 +135,11 @@ export function addValidationBanner(markdown: string, errors: ParseError[]): str
 		"## ⚠ Validation errors",
 		"",
 		"Please fix the items below, then save and exit again:",
+		"",
+		"Instructions:",
+		"- Check exactly one option per question by changing `[ ]` to `[x]`.",
+		"- If you check `Other`, write your custom response directly below the `Other:` line.",
+		"- Save an empty buffer to stop without answering.",
 		"",
 		...errors.map(
 			(error) => `- **${error.questionLabel}** (\`${error.questionId}\`): ${error.message}`,
@@ -290,11 +286,18 @@ export function parseSelection(
 }
 
 export function extractCustomResponse(responseBlock: string): string | null {
-	const fenced = responseBlock.match(/```(?:text)?[^\n\r]*\r?\n([\s\S]*?)\r?\n```/m);
-	if (!fenced) return null;
+	const lines = responseBlock.split(/\r?\n/);
+	const otherLineIndex = lines.findIndex((line) =>
+		/^\s*-\s*\[(?:x|X)\]\s+\d+\.\s+Other:?\s*$/.test(line),
+	);
+	if (otherLineIndex === -1) return null;
 
-	const trimmed = fenced[1].trim();
-	return trimmed.length > 0 ? trimmed : null;
+	const customLines = lines.slice(otherLineIndex + 1);
+	const customValue = customLines
+		.join("\n")
+		.replace(/^\s*Other:\s*/i, "")
+		.trim();
+	return customValue.length > 0 ? customValue : null;
 }
 
 function escapeRegex(value: string): string {

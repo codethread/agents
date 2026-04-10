@@ -1,8 +1,8 @@
 # Questionnaire Interaction Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-09
-**Revision:** Reworked from a custom tabbed TUI wizard to an external-editor-backed markdown form model
+**Last Updated:** 2026-04-10
+**Revision:** External-editor markdown form with compact answer blocks, companion session transcript, and explicit stop handling
 
 ## 1. Overview
 
@@ -17,14 +17,15 @@ The questionnaire extension provides a structured-input tool for Pi sessions tha
 - Reuse the user's editor rather than maintaining a bespoke TUI form.
 - Keep answers parseable and machine-usable.
 - Support predefined choices plus optional freeform responses.
-- Make cancellation/editor/configuration failures explicit.
+- Make cancellation, stop, editor, and configuration failures explicit.
 - Keep relevant context inside the editable form.
+- Give the user access to session context from inside their editor.
 
 ### Non-Goals
 
 - Restoring the previous custom tabbed questionnaire UI.
 - Persisting questionnaire state across sessions.
-- Supporting conditional branching or rich form schemas.
+- Supporting conditional branching or rich form schemas beyond markdown-rendered option details.
 - Parsing arbitrary prose outside designated response blocks.
 - Falling back to Pi's inline input editor when no external editor is configured.
 
@@ -33,6 +34,8 @@ The questionnaire extension provides a structured-input tool for Pi sessions tha
 Implementation lives in:
 
 - `pi-extensions/extensions/questionnaire.ts`
+- `pi-extensions/extensions/questionnaire/parser.ts`
+- `pi-extensions/extensions/shared/session-transcript.ts`
 
 The extension registers a `questionnaire` tool with a TypeBox schema. Execution flow:
 
@@ -41,35 +44,40 @@ The extension registers a `questionnaire` tool with a TypeBox schema. Execution 
 3. normalize `label`
 4. resolve editor command from `$VISUAL` or `$EDITOR`
 5. build a user/assistant-only session transcript from the current branch
-6. write a temporary markdown form plus a companion `session-tldr.md` file to disk
+6. write a temporary markdown questionnaire plus companion `session-tldr.md`
 7. open the questionnaire via `spawnSync(..., { shell: true, stdio: "inherit" })`
 8. read the edited markdown back
-9. parse all answers
-10. if parsing fails, prepend a validation banner and reopen the same file
-11. return structured answers on success or a cancelled/error result otherwise
+9. if the file is empty, treat it as an explicit stop
+10. parse all answers from `<user_response>` blocks
+11. if parsing fails, prepend a validation banner and reopen the same file
+12. return structured answers on success or a cancelled/stopped result otherwise
 
 ### Interaction model
 
 The tool is editor-driven. The generated markdown contains:
 
-- a title and editing instructions
-- the absolute path to a companion `session-tldr.md` file containing a stripped user/assistant transcript
+- a first-line comment pointing to a companion transcript file:
+  - `<!-- session-summary: /absolute/path/to/session-tldr.md -->`
+- a title
 - optional top-level context
 - one `---`-delimited section per question
-- a machine marker: `<!-- questionnaire-question:<id> -->`
-- one `<user_response>...</user_response>` block per question
+- a heading per question
+- a machine marker placed immediately under the heading:
+  - `<!-- questionnaire-question:<id> -->`
 - a verbose `### Options:` section that can include rich markdown per option
-- a compact `### Answer:` subsection with checkbox options using numeric indices
-- an `Other` checkbox plus an empty fenced `text` block for every question
+- a compact `### Answer:` subsection containing one `<user_response>...</user_response>` block
+- predefined checkbox options plus a final `Other:` checkbox line
 
 Representative question section:
 
 ````md
+<!-- session-summary: /tmp/pi-questionnaire-abc123/session-tldr.md -->
+# Questionnaire
+
 ---
+## Q1 — Architecture
 
 <!-- questionnaire-question:architecture -->
-
-## Q1 — Architecture
 
 Which structure should we use?
 
@@ -88,19 +96,13 @@ Better for keyed lookups.
 ### Answer:
 
 <user_response>
-
 - [ ] 1. Use a linked list
 - [ ] 2. Use a hashmap
-- [ ] 3. Other
-
-```text
-
-```
-
+- [ ] 3. Other:
 </user_response>
 ````
 
-The user checks exactly one option. If `Other` is selected, the user fills the fenced block and exits the editor successfully.
+The user checks exactly one option. If `Other:` is selected, the user writes custom text directly below the checked `Other:` line and before `</user_response>`.
 
 ### Editor execution
 
@@ -121,7 +123,19 @@ The temporary questionnaire directory is removed in a `finally` block.
 
 ### Companion transcript file
 
-The tool writes `session-tldr.md` alongside the questionnaire. This file contains the current session's user and assistant messages only, with tool calls, thinking blocks, and other non-text content removed using the same transcript extraction logic as the `tldr` extension. The questionnaire preamble includes the absolute path so the user can open it in their editor side-by-side with the questionnaire.
+The tool writes `session-tldr.md` alongside the questionnaire. This file contains the current session's user and assistant messages only, with tool calls, thinking blocks, and other non-text content removed using the same transcript extraction logic as the `tldr` extension.
+
+The transcript is formatted as alternating H1 sections so it is easier to navigate in editors:
+
+```md
+# User
+
+Question from the user
+
+# Assistant
+
+Reply from the assistant
+```
 
 ### Validation retry model
 
@@ -138,6 +152,12 @@ Banner markers:
 ```
 
 Before adding a fresh banner, any older banner block is stripped. This keeps retries idempotent.
+
+Unlike the initial clean form, the validation banner includes brief instructions:
+
+- check exactly one option by changing `[ ]` to `[x]`
+- if selecting `Other`, write custom text directly below the `Other:` line
+- save an empty buffer to stop without answering
 
 ## 3. Data Model
 
@@ -170,6 +190,7 @@ interface QuestionnaireResult {
 	questions: Question[];
 	answers: Answer[];
 	cancelled: boolean;
+	stopped?: boolean;
 }
 ```
 
@@ -211,8 +232,11 @@ Normalization rules:
 
 - missing `label` becomes `Q<n>`
 - missing context sections are omitted from the markdown
+- `Other` is always rendered as the final answer choice
 - predefined option answers include `index`
 - custom answers omit `index` and set `wasCustom: true`
+- custom answers are parsed from all text after the checked `Other:` line up to `</user_response>`
+- if the custom text begins with `Other:`, that prefix is stripped before returning the value
 
 ## 4. Interfaces
 
@@ -261,7 +285,7 @@ Per question:
 - exactly one checkbox must be checked
 - checked index must be within the rendered option range
 - predefined options map back to original `value`/`label`
-- `Other` is always available, and when selected, the fenced text block must contain non-empty trimmed text
+- `Other` is always available, and when selected, custom text must be non-empty after trimming
 
 Detected parse failures include:
 
@@ -284,61 +308,68 @@ Detected parse failures include:
 
 - partial: render markdown when partial text exists, else `Updating...`
 - cancelled: render `Cancelled`
+- explicit stop: render `Stopped`
 - success: render one `✓` line per answer using answer ids
 
 Current implementation note:
 
-- cancelled rendering does **not** display the explanatory cancellation/error text from `content`; it only shows `Cancelled`
+- cancelled rendering does **not** display the explanatory cancellation/error text from `content`; it only shows `Cancelled` or `Stopped`
 
 ## 5. Design Decisions
 
 - **Decision:** Keep one tool for both single- and multi-question flows.
   - **Rationale:** Callers should not need separate tools when only count differs.
 
-- **Decision:** Preserve the existing input shape.
-  - **Rationale:** Existing prompts/extensions can keep using the tool without migration.
-
-- **Decision:** Move interaction to the user's external editor.
-  - **Rationale:** Markdown editing is familiar and avoids a large bespoke TUI state machine.
-
-- **Decision:** Use stable HTML comment markers and `<user_response>` tags.
-  - **Rationale:** Human-editable markdown remains parseable and retryable.
-
-- **Decision:** Retry in place with a prepended validation banner.
-  - **Rationale:** The user can fix the same form without re-entering all answers.
-
 - **Decision:** Always include `Other`.
   - **Rationale:** Clarification workflows often need an escape hatch, and removing per-question configuration simplifies the contract.
 
+- **Decision:** Separate verbose option rendering from compact answer parsing.
+  - **Rationale:** Agents can provide rich markdown descriptions without making the parser fragile.
+
+- **Decision:** Use a companion transcript file rather than embedding chat history in the questionnaire.
+  - **Rationale:** Users can navigate both files using normal editor workflows, especially in Vim-like editors.
+
+- **Decision:** Treat an empty saved questionnaire as explicit stop.
+  - **Rationale:** Clearing a buffer is often easier than finding a dedicated cancel control inside a text editor.
+
 ## 6. Testing
 
-Automated parser tests live in `pi-extensions/extensions/questionnaire/parser.test.ts`.
+Automated tests live in:
+
+- `pi-extensions/extensions/questionnaire/parser.test.ts`
+- `pi-extensions/extensions/tldr/lib.test.ts`
 
 Verification is manual plus static:
 
 - `npm run lint`
 - `npm run typecheck`
+- `npm run test`
 - runtime validation in Pi for:
   - single-question flow
   - multi-question flow
   - top-level and per-question context rendering
+  - verbose markdown option rendering
   - predefined option parsing
-  - custom `Other` parsing
+  - custom `Other:` parsing
+  - `Other:` parsing with duplicated `Other:` prefix in user text
   - validation retries for none/multiple selections
   - validation failure for empty custom text
   - empty-buffer explicit stop handling
   - missing-editor behavior
   - editor cancellation/non-zero exit handling
+  - companion transcript formatting and accessibility
 
 ## 7. Open Questions
 
 - Should cancelled rendering surface the underlying cancellation reason instead of only `Cancelled`?
 - Should validation errors eventually appear inline beside each question as well as in the top banner?
-- Should the parser tolerate more user edits outside the response blocks as long as the blocks remain valid?
+- Should the parser tolerate even more edits outside the response blocks as long as the blocks remain valid?
 - Should the tool preserve the temp file for debugging after repeated failures?
 
 ## Code Locations
 
 - `pi-extensions/extensions/questionnaire.ts`
+- `pi-extensions/extensions/questionnaire/parser.ts`
+- `pi-extensions/extensions/shared/session-transcript.ts`
 - `pi-extensions/extensions/README.md`
 - `package.json`

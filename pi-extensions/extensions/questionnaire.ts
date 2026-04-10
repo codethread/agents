@@ -137,14 +137,7 @@ function openExternalEditor(
 }
 
 function renderSessionTldrMarkdown(transcript: string): string {
-	return [
-		"# Session TL;DR / Transcript",
-		"",
-		"This companion file contains the user/assistant conversation with tool calls, thinking, and non-text blocks removed.",
-		"",
-		transcript || "No user/assistant text found in the current session.",
-		"",
-	].join("\n");
+	return transcript || "No user/assistant text found in the current session.\n";
 }
 
 export default function questionnaire(pi: ExtensionAPI) {

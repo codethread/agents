@@ -49,21 +49,23 @@ describe("questionnaire parser", () => {
 			"/tmp/pi-questionnaire/session-tldr.md",
 		);
 
-		expect(rendered).toContain("- Session TL;DR/transcript: /tmp/pi-questionnaire/session-tldr.md");
+		expect(rendered).toContain("<!-- session-summary: /tmp/pi-questionnaire/session-tldr.md -->");
 		expect(rendered).toContain("### Options:");
 		expect(rendered).toContain("#### 1. Option A: Structured table per extension");
 		expect(rendered).toContain("```ts\ntype Example = string;\n```");
 		expect(rendered).toContain("### Answer:");
 		expect(rendered).toContain(
-			"<user_response>\n- [ ] 1. Option A: Structured table per extension\n- [ ] 2. Other",
+			"<user_response>\n- [ ] 1. Option A: Structured table per extension\n- [ ] 2. Other:",
 		);
 	});
 
 	it("parses predefined and custom answers from rendered markdown", () => {
 		const markdown = renderQuestionnaireMarkdown("Top context", questions)
 			.replace("- [ ] 2. Python", "- [x] 2. Python")
-			.replace(/- \[ \] 2\. Other(?![\s\S]*- \[ \] 2\. Other)/, "- [x] 2. Other")
-			.replace(/```text\n\n```(?![\s\S]*```text\n\n```)/, "```text\nUse pnpm + turborepo\n```");
+			.replace(
+				/- \[ \] 2\. Other:(?![\s\S]*- \[ \] 2\. Other:)/,
+				"- [x] 2. Other:\nUse pnpm + turborepo",
+			);
 
 		const result = parseAnswers(markdown, questions);
 
@@ -120,8 +122,8 @@ describe("questionnaire parser", () => {
 
 	it("requires custom text when Other is selected", () => {
 		const markdown = renderQuestionnaireMarkdown(undefined, [questions[1]]).replace(
-			"- [ ] 2. Other",
-			"- [x] 2. Other",
+			"- [ ] 2. Other:",
+			"- [x] 2. Other:",
 		);
 
 		const result = parseAnswers(markdown, [questions[1]]);
@@ -143,9 +145,10 @@ describe("questionnaire parser", () => {
 	});
 
 	it("accepts Other for every question", () => {
-		const markdown = renderQuestionnaireMarkdown(undefined, [questions[0]])
-			.replace("- [ ] 3. Other", "- [x] 3. Other")
-			.replace("```text\n\n```", "```text\nSomething custom\n```");
+		const markdown = renderQuestionnaireMarkdown(undefined, [questions[0]]).replace(
+			"- [ ] 3. Other:",
+			"- [x] 3. Other:\nSomething custom",
+		);
 
 		const result = parseAnswers(markdown, [questions[0]]);
 
@@ -155,6 +158,25 @@ describe("questionnaire parser", () => {
 				id: "stack",
 				value: "Something custom",
 				label: "Something custom",
+				wasCustom: true,
+			},
+		]);
+	});
+
+	it("accepts custom text if user prefixes it with Other:", () => {
+		const markdown = renderQuestionnaireMarkdown(undefined, [questions[0]]).replace(
+			"- [ ] 3. Other:",
+			"- [x] 3. Other:\nOther: extra details here",
+		);
+
+		const result = parseAnswers(markdown, [questions[0]]);
+
+		expect(result.errors).toEqual([]);
+		expect(result.answers).toEqual([
+			{
+				id: "stack",
+				value: "extra details here",
+				label: "extra details here",
 				wasCustom: true,
 			},
 		]);
