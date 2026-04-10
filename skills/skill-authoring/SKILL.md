@@ -11,9 +11,7 @@ description: >
 
 # Skill Authoring Guide
 
-This skill teaches you how to write effective SKILL.md files using a structured taxonomy.
-Every skill encodes some combination of six concerns. Recognising which concerns are present
-— and separating them cleanly — is what makes a skill reliable and maintainable.
+This skill teaches you how to write effective SKILL.md files using a structured taxonomy. Every skill encodes some combination of six concerns. Recognising which concerns are present — and separating them cleanly — is what makes a skill reliable and maintainable.
 
 ## The Six Concerns
 
@@ -27,19 +25,15 @@ Every skill encodes some combination of six concerns. Recognising which concerns
 | Constraints   | What must the agent never do?                       | Recommended   |
 | Validation    | How does the agent know it succeeded?               | Recommended   |
 
-Not every skill needs all six. A pure knowledge skill (e.g. "how our API auth works") may
-only have Variables, Knowledge, and Constraints. A workflow skill will have most or all.
+Not every skill needs all six. A pure knowledge skill (e.g. "how our API auth works") may only have Variables, Knowledge, and Constraints. A workflow skill will have most or all.
 
-The rest of this guide explains each concern, its position in the document, and how to
-write it well.
+The rest of this guide explains each concern, its position in the document, and how to write it well.
 
 ---
 
 ## Document Order
 
-Skills should follow this order. The rationale: the agent reads top-to-bottom, so it needs
-context (variables, prerequisites) before instructions (procedures, decisions), and
-boundaries (constraints, validation) bookending the whole thing.
+Skills should follow this order. The rationale: the agent reads top-to-bottom, so it needs context (variables, prerequisites) before instructions (procedures, decisions), and boundaries (constraints, validation) bookending the whole thing.
 
 ```
 1. Variables          ← names, refs, config that may change
@@ -51,23 +45,17 @@ boundaries (constraints, validation) bookending the whole thing.
 7. Validation         ← success criteria, verification steps
 ```
 
-Note: Decisions comes before Procedures. The agent should see the full map of possible
-states before reading the detailed steps for each state. This prevents the model from
-charging down a happy path and losing track of branches.
+Note: Decisions comes before Procedures. The agent should see the full map of possible states before reading the detailed steps for each state. This prevents the model from charging down a happy path and losing track of branches.
 
 ---
 
 ## 1. Variables
 
-A lookup table of external references. Anything that could change independently of the
-skill's logic — agent names, tool names, repo paths, branch conventions, complementary
-skills — goes here. This avoids scattering references through prose where they fall out
-of sync.
+A lookup table of external references. Anything that could change independently of the skill's logic — agent names, tool names, repo paths, branch conventions, complementary skills — goes here. This avoids scattering references through prose where they fall out of sync.
 
 ### Format
 
-Use a simple key-value table. Keys should be UPPER_SNAKE_CASE so they stand out when
-referenced later in the document.
+Use a simple key-value table. Keys should be UPPER_SNAKE_CASE so they stand out when referenced later in the document.
 
 ### Good example
 
@@ -102,21 +90,17 @@ and then the sentinel agent will review it, or if you renamed it, whatever
 the review agent is called now.
 ```
 
-This buries references in prose. When the user renames "sentinel" to "guardian",
-they have to find-and-replace through the entire skill and hope they caught everything.
+This buries references in prose. When the user renames "sentinel" to "guardian", they have to find-and-replace through the entire skill and hope they caught everything.
 
 ### When to skip
 
-Very simple skills with no external references. If the skill is self-contained
-(e.g. "how to write a good commit message"), you probably don't need this section.
+Very simple skills with no external references. If the skill is self-contained (e.g. "how to write a good commit message"), you probably don't need this section.
 
 ---
 
 ## 2. Prerequisites
 
-Minimal checks the agent must perform before starting. These are conditions, not steps.
-Keep this section short — if it's longer than 5-6 lines, some of it probably belongs
-in Procedures or Knowledge.
+Minimal checks the agent must perform before starting. These are conditions, not steps. Keep this section short — if it's longer than 5-6 lines, some of it probably belongs in Procedures or Knowledge.
 
 ### Good example
 
@@ -139,16 +123,13 @@ in Procedures or Knowledge.
 - Then verify npm by running `npm --version` and check that...
 ```
 
-This is procedures disguised as prerequisites. Prerequisites state _what must be true_,
-not _how to check it_. The agent can figure out how to verify "npm is available on PATH".
+This is procedures disguised as prerequisites. Prerequisites state _what must be true_, not _how to check it_. The agent can figure out how to verify "npm is available on PATH".
 
 ---
 
 ## 3. Knowledge
 
-Facts, conventions, reference material, and domain context the agent needs but wouldn't
-know from training. This is _declarative_ — it tells the agent what things are, not what
-to do with them.
+Facts, conventions, reference material, and domain context the agent needs but wouldn't know from training. This is _declarative_ — it tells the agent what things are, not what to do with them.
 
 ### When to use
 
@@ -194,17 +175,13 @@ Conventional Commits is a specification for commit messages. You can read about 
 at conventionalcommits.org. It was created in 2017 and has gained wide adoption...
 ```
 
-Don't teach the model things it already knows. Focus on _your_ specific application
-of general concepts. The model knows what Conventional Commits is; it doesn't know
-which types your team allows or how you map them to version bumps.
+Don't teach the model things it already knows. Focus on _your_ specific application of general concepts. The model knows what Conventional Commits is; it doesn't know which types your team allows or how you map them to version bumps.
 
 ---
 
 ## 4. Decisions
 
-The state machine. This section provides the _map_ of all possible states and transitions
-before the agent reads any detailed procedures. Use XState-inspired prose — named states,
-explicit guards, and unambiguous transitions.
+The state machine. This section provides the _map_ of all possible states and transitions before the agent reads any detailed procedures. Use XState-inspired prose — named states, explicit guards, and unambiguous transitions.
 
 ### When to use
 
@@ -213,14 +190,11 @@ explicit guards, and unambiguous transitions.
 - There are error states or recovery paths
 - The workflow can loop back to earlier stages
 
-If your skill is purely linear (do A, then B, then C), skip this section and just
-use Procedures.
+If your skill is purely linear (do A, then B, then C), skip this section and just use Procedures.
 
 ### Format: XState-inspired prose
 
-Borrow XState's _concepts_ (states, guards, transitions) but write them in markdown
-the model can follow as instructions. Do not use actual XState JSON or mermaid — these
-are data formats, not instruction formats.
+Borrow XState's _concepts_ (states, guards, transitions) but write them in markdown the model can follow as instructions. Do not use actual XState JSON or mermaid — these are data formats, not instruction formats.
 
 #### Structure
 
@@ -279,12 +253,9 @@ Entry state: CHECK_WORKTREE
 
 ### Good patterns
 
-- **Every state has explicit exit paths.** No state should leave the agent guessing
-  what to do next.
-- **Guards are observable conditions**, not vibes. "build passes" = exit code 0.
-  "has unstaged changes" = `git status --porcelain` produces output.
-- **Cross-reference Procedures by name.** The decision map says _what_ to do and _when_;
-  the procedures section says _how_.
+- **Every state has explicit exit paths.** No state should leave the agent guessing what to do next.
+- **Guards are observable conditions**, not vibes. "build passes" = exit code 0. "has unstaged changes" = `git status --porcelain` produces output.
+- **Cross-reference Procedures by name.** The decision map says _what_ to do and _when_; the procedures section says _how_.
 - **Error states are explicit.** Don't assume the happy path. Name the failure modes.
 - **Entry state is declared.** The agent knows where to start.
 
@@ -293,32 +264,24 @@ Entry state: CHECK_WORKTREE
 ```markdown
 ## Workflow
 
-First check if the worktree is clean. If not, you should probably commit.
-Then bump the version. If that works, try building. If the build fails,
-you might want to revert. Then publish.
+First check if the worktree is clean. If not, you should probably commit. Then bump the version. If that works, try building. If the build fails, you might want to revert. Then publish.
 ```
 
-Problems: no named states, ambiguous transitions ("you should probably"), no explicit
-error handling, no entry point, "might want to" gives the model permission to skip
-critical steps.
+Problems: no named states, ambiguous transitions ("you should probably"), no explicit error handling, no entry point, "might want to" gives the model permission to skip critical steps.
 
 ### When the state machine is reused
 
-If multiple skills share the same decision logic (e.g. a release state machine used by
-both npm-release and pypi-release), extract it to `references/release-states.md` and
-have each skill reference it. But for single-skill use, keep it inline.
+If multiple skills share the same decision logic (e.g. a release state machine used by both npm-release and pypi-release), extract it to `references/release-states.md` and have each skill reference it. But for single-skill use, keep it inline.
 
 ---
 
 ## 5. Procedures
 
-Step-by-step instructions for each action referenced in the Decisions section. If there's
-no Decisions section, this is the main body of the skill.
+Step-by-step instructions for each action referenced in the Decisions section. If there's no Decisions section, this is the main body of the skill.
 
 ### Format
 
-Organise procedures under the state they belong to. Each procedure is a numbered list of
-imperative steps.
+Organise procedures under the state they belong to. Each procedure is a numbered list of imperative steps.
 
 ### Good example
 
@@ -358,8 +321,7 @@ imperative steps.
 7. If publish fails, also revert
 ```
 
-Problems: mixes decisions and procedures, steps are vague ("maybe commit"),
-no actual commands, conditional logic buried in a linear list.
+Problems: mixes decisions and procedures, steps are vague ("maybe commit"), no actual commands, conditional logic buried in a linear list.
 
 ### For linear skills (no Decisions section)
 
@@ -378,8 +340,7 @@ Just write numbered steps directly:
 
 ## 6. Constraints
 
-Things the agent must never do, always do, or invariants that must hold throughout
-execution. These are not steps — they're boundaries.
+Things the agent must never do, always do, or invariants that must hold throughout execution. These are not steps — they're boundaries.
 
 ### Good example
 
@@ -402,15 +363,13 @@ execution. These are not steps — they're boundaries.
 - It's generally a good idea to build before publishing
 ```
 
-"Try to" and "generally" give the model wiggle room to ignore constraints. Constraints
-should be absolute. If something is merely preferred, put it in Knowledge as a convention.
+"Try to" and "generally" give the model wiggle room to ignore constraints. Constraints should be absolute. If something is merely preferred, put it in Knowledge as a convention.
 
 ---
 
 ## 7. Validation
 
-How the agent confirms the skill executed successfully. This is the last thing the agent
-does — a checklist of observable conditions that prove success.
+How the agent confirms the skill executed successfully. This is the last thing the agent does — a checklist of observable conditions that prove success.
 
 ### Good example
 
@@ -434,8 +393,7 @@ Verify all of the following before reporting success:
 You're done! Let the user know everything went well.
 ```
 
-No verification, no observable conditions. The agent might report success even if
-the publish silently failed.
+No verification, no observable conditions. The agent might report success even if the publish silently failed.
 
 ---
 
@@ -581,32 +539,24 @@ Entry state: CHECK_WORKTREE
 
 ### Mixing decisions into procedures
 
-If you find yourself writing "if X then do Y, otherwise do Z" inside a numbered list,
-extract it into the Decisions section as a named state with guards.
+If you find yourself writing "if X then do Y, otherwise do Z" inside a numbered list, extract it into the Decisions section as a named state with guards.
 
 ### Omitting error paths
 
-Every guard in Decisions should account for failure. If bumping the version can fail,
-there must be a transition for that. The model will improvise if you leave gaps — and
-improvisation is exactly what skills are meant to prevent.
+Every guard in Decisions should account for failure. If bumping the version can fail, there must be a transition for that. The model will improvise if you leave gaps — and improvisation is exactly what skills are meant to prevent.
 
 ### Variables that aren't variable
 
-Don't put things in Variables that are intrinsic to the skill and would never change
-(e.g. `GIT_COMMAND = git`). Variables are for things the _user_ might customise.
+Don't put things in Variables that are intrinsic to the skill and would never change (e.g. `GIT_COMMAND = git`). Variables are for things the _user_ might customise.
 
 ### Knowledge the model already has
 
-Don't explain what git is, what npm does, or how semver works. Focus on _your_ specific
-conventions and choices. The model's training covers general knowledge; your skill covers
-what's specific to your team/project.
+Don't explain what git is, what npm does, or how semver works. Focus on _your_ specific conventions and choices. The model's training covers general knowledge; your skill covers what's specific to your team/project.
 
 ### Prose-heavy procedures
 
-Procedures should read like a recipe, not an essay. If a step takes more than two lines,
-it's either multiple steps or it belongs in Knowledge as context.
+Procedures should read like a recipe, not an essay. If a step takes more than two lines, it's either multiple steps or it belongs in Knowledge as context.
 
 ### Missing validation
 
-Without validation, the agent reports "done" based on vibes. Always include observable
-conditions that prove success.
+Without validation, the agent reports "done" based on vibes. Always include observable conditions that prove success.
