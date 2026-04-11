@@ -3,10 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+	appendContextNoteToText,
 	discoverPiExtensions,
-	formatExtensionDiscoveryForPrompt,
+	formatExtensionDiscoveryContextNote,
 	formatExtensionDiscoveryReport,
 	getExtensionNameFromPath,
+	hasStandalonePiTrigger,
 } from "./lib.js";
 
 const tempDirs: string[] = [];
@@ -41,6 +43,30 @@ describe("getExtensionNameFromPath", () => {
 
 	it("uses the file stem for single-file extensions", () => {
 		expect(getExtensionNameFromPath("/tmp/pi/extensions/bash-compact.ts")).toBe("bash-compact");
+	});
+});
+
+describe("hasStandalonePiTrigger", () => {
+	it("matches a standalone, case-sensitive Pi token", () => {
+		expect(hasStandalonePiTrigger("Tell me about Pi extensions")).toBe(true);
+		expect(hasStandalonePiTrigger("What does Pi do?")).toBe(true);
+		expect(hasStandalonePiTrigger("Pi's input hook")).toBe(true);
+	});
+
+	it("does not match lowercase or embedded substrings", () => {
+		expect(hasStandalonePiTrigger("tell me about pi extensions")).toBe(false);
+		expect(hasStandalonePiTrigger("pilot mode")).toBe(false);
+		expect(hasStandalonePiTrigger("API docs")).toBe(false);
+		expect(hasStandalonePiTrigger("Pi2 runtime")).toBe(false);
+		expect(hasStandalonePiTrigger("Piñata mode")).toBe(false);
+	});
+});
+
+describe("appendContextNoteToText", () => {
+	it("appends the note after a blank line", () => {
+		expect(appendContextNoteToText("Tell me about Pi", "[Context note]")).toBe(
+			"Tell me about Pi\n\n[Context note]",
+		);
 	});
 });
 
@@ -101,7 +127,7 @@ describe("discoverPiExtensions", () => {
 });
 
 describe("formatters", () => {
-	it("formats prompt and debug output with path metadata", () => {
+	it("formats context-note and debug output with path metadata", () => {
 		const discovery = {
 			agentDir: "/home/user/.pi/agent",
 			globalSettingsPath: "/home/user/.pi/agent/settings.json",
@@ -121,12 +147,13 @@ describe("formatters", () => {
 			],
 		};
 
-		const prompt = formatExtensionDiscoveryForPrompt(discovery);
-		expect(prompt).toContain("<pi_extension_discovery>");
-		expect(prompt).toContain('globalSettings="/home/user/.pi/agent/settings.json"');
-		expect(prompt).toContain('projectExtensionsDir="/repo/.pi/extensions"');
-		expect(prompt).toContain('name="dynamic-agents-md"');
-		expect(prompt).toContain('source="npm:@codethread/agents"');
+		const note = formatExtensionDiscoveryContextNote(discovery);
+		expect(note).toContain("[Context note: the user explicitly mentioned Pi.");
+		expect(note).toContain("<pi_extension_discovery>");
+		expect(note).toContain('globalSettings="/home/user/.pi/agent/settings.json"');
+		expect(note).toContain('projectExtensionsDir="/repo/.pi/extensions"');
+		expect(note).toContain('name="dynamic-agents-md"');
+		expect(note).toContain('source="npm:@codethread/agents"');
 
 		const report = formatExtensionDiscoveryReport(discovery);
 		expect(report).toContain("Agent dir: /home/user/.pi/agent");
@@ -155,8 +182,8 @@ describe("formatters", () => {
 			],
 		};
 
-		const prompt = formatExtensionDiscoveryForPrompt(discovery);
-		expect(prompt).not.toContain('source="/repo"');
+		const note = formatExtensionDiscoveryContextNote(discovery);
+		expect(note).not.toContain('source="/repo"');
 
 		const report = formatExtensionDiscoveryReport(discovery);
 		expect(report).not.toContain("  source: /repo");

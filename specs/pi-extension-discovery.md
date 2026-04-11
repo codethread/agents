@@ -1,13 +1,13 @@
 # Pi Extension Discovery Specification
 
-**Status:** Planned
+**Status:** Implemented
 **Last Updated:** 2026-04-11
 
 ## 1. Overview
 
 ### Purpose
 
-The `pi-discovery` extension tells Pi where its currently discovered extension source code lives, but only when that context is likely relevant. Instead of appending a compact extension catalog to every system prompt, it should watch raw user input and append a one-shot contextual note to the first user message whose text contains the standalone, case-sensitive token `Pi`. That note gives the agent enough extension-discovery context to inspect installed extension files directly when users reference Pi behavior, prompt variables, or package-provided runtime features.
+The `pi-discovery` extension tells Pi where its currently discovered extension source code lives, but only when that context is likely relevant. Instead of appending a compact extension catalog to every system prompt, it watches raw user input and appends a one-shot contextual note to the first user message whose text contains the standalone, case-sensitive token `Pi`. That note gives the agent enough extension-discovery context to inspect installed extension files directly when users reference Pi behavior, prompt variables, or package-provided runtime features.
 
 ### Goals
 
@@ -31,6 +31,7 @@ The `pi-discovery` extension tells Pi where its currently discovered extension s
 Implementation is split across:
 
 - `pi-extensions/extensions/pi-discovery/index.ts`
+- `pi-extensions/extensions/pi-discovery/runtime.ts`
 - `pi-extensions/extensions/pi-discovery/lib.ts`
 
 ### Discovery model
@@ -180,9 +181,10 @@ Sends a human-readable report into the conversation.
 
 Automated tests live in:
 
+- `pi-extensions/extensions/pi-discovery/runtime.test.ts`
 - `pi-extensions/extensions/pi-discovery/lib.test.ts`
 
-Covered behaviors should include:
+Covered behaviors include:
 
 - name inference for `index.ts` vs single-file extensions
 - mixed project/user/package discovery ordering
@@ -197,5 +199,7 @@ Covered behaviors should include:
 
 - `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/pi-discovery/index.ts`
+- `pi-extensions/extensions/pi-discovery/runtime.ts`
+- `pi-extensions/extensions/pi-discovery/runtime.test.ts`
 - `pi-extensions/extensions/pi-discovery/lib.ts`
 - `pi-extensions/extensions/pi-discovery/lib.test.ts`

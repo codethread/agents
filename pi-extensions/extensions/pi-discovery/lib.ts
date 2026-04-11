@@ -8,6 +8,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 
 const CONFIG_DIR_NAME = ".pi";
+const PI_TRIGGER_REGEX = /(^|[^\p{L}\p{N}_])Pi(?=$|[^\p{L}\p{N}_])/u;
 
 export interface PiExtensionRecord extends SourceInfo {
 	name: string;
@@ -80,6 +81,14 @@ function formatExtensionSource(extension: PiExtensionRecord): string | undefined
 	return extension.source === extension.baseDir ? undefined : extension.source;
 }
 
+export function hasStandalonePiTrigger(text: string): boolean {
+	return PI_TRIGGER_REGEX.test(text);
+}
+
+export function appendContextNoteToText(text: string, contextNote: string): string {
+	return `${text}\n\n${contextNote}`;
+}
+
 export async function discoverPiExtensions(
 	cwd: string,
 	agentDir = getAgentDir(),
@@ -121,11 +130,9 @@ export async function discoverPiExtensions(
 	};
 }
 
-export function formatExtensionDiscoveryForPrompt(discovery: PiExtensionDiscovery): string {
+export function formatExtensionDiscoveryContextNote(discovery: PiExtensionDiscovery): string {
 	const lines = [
-		"",
-		"",
-		"Pi can inspect the currently discovered extension source code on disk. If a user references an extension or asks about extension-specific behavior/template variables, read the matching source files before answering.",
+		"[Context note: the user explicitly mentioned Pi. If the request is about Pi behavior, installed extensions, prompt variables, or package-provided runtime features, inspect the matching extension source files before answering.]",
 		"",
 		"<pi_extension_discovery>",
 		`  <paths ${formatXmlAttributes({
@@ -164,6 +171,8 @@ export function formatExtensionDiscoveryForPrompt(discovery: PiExtensionDiscover
 	lines.push("</pi_extension_discovery>");
 	return lines.join("\n");
 }
+
+export const formatExtensionDiscoveryForPrompt = formatExtensionDiscoveryContextNote;
 
 export function formatExtensionDiscoveryReport(discovery: PiExtensionDiscovery): string {
 	const lines = [

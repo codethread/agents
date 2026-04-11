@@ -26,7 +26,7 @@ pi install git:github.com/<you>/agents
 ```
 
 Pi loads the package's extensions, prompts, and themes through `package.json#pi`.
-The bundled agents are discovered by the `subagent` extension from `pi-extensions/agents/`, so they travel with the package too. The package also includes a `pi-discovery` extension that injects currently discovered extension source paths into the system prompt, helping Pi inspect installed extension implementations directly when users reference them.
+The bundled agents are discovered by the `subagent` extension from `pi-extensions/agents/`, so they travel with the package too. The package also includes a `pi-discovery` extension that watches for explicit `Pi` mentions and appends currently discovered extension source paths as a one-shot contextual note on the triggering user message, helping Pi inspect installed extension implementations directly when users reference them.
 
 ## Development
 

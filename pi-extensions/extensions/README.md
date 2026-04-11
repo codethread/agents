@@ -184,9 +184,9 @@ These overrides are applied on top of the normal vars (`provider`, `model`, `cwd
 
 ### `pi-discovery`
 
-> Inject discovered extension source paths into the system prompt.
+> Append discovered extension source paths as a one-shot contextual note when the user explicitly mentions `Pi`.
 
-Makes Pi aware of the extension code currently available in the running environment. On each turn it appends a compact XML catalog of:
+Makes Pi aware of the extension code currently available in the running environment without injecting that catalog into every turn. On the first raw user message in an extension runtime that contains standalone, case-sensitive `Pi`, it appends a compact XML note containing:
 
 - global/project Pi config paths relevant to extension discovery
 - enabled extension entrypoint files
