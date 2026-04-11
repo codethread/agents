@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { registerPiDiscoveryExtension, type PiDiscoveryRuntimeDeps } from "./runtime.js";
+import { registerPiDiscoveryExtension, type PiDiscoveryContextNoteDeps } from "./context-note.js";
 
 interface TestContext {
 	cwd: string;
@@ -30,7 +30,7 @@ function makeContext(overrides: Partial<TestContext> = {}): TestContext {
 	};
 }
 
-function createDeps(): PiDiscoveryRuntimeDeps {
+function createDeps(): PiDiscoveryContextNoteDeps {
 	return {
 		discoverPiExtensions: vi.fn(),
 		formatExtensionDiscoveryContextNote: vi.fn().mockReturnValue("<pi_extension_discovery />"),
@@ -41,7 +41,7 @@ function createDeps(): PiDiscoveryRuntimeDeps {
 	};
 }
 
-function setupExtension(deps: PiDiscoveryRuntimeDeps) {
+function setupExtension(deps: PiDiscoveryContextNoteDeps) {
 	const handlers = new Map<string, EventHandler>();
 	const commands = new Map<string, RegisteredCommand>();
 	const sendUserMessage = vi.fn();
@@ -68,7 +68,7 @@ function setupExtension(deps: PiDiscoveryRuntimeDeps) {
 }
 
 describe("registerPiDiscoveryExtension", () => {
-	let deps: PiDiscoveryRuntimeDeps;
+	let deps: PiDiscoveryContextNoteDeps;
 
 	beforeEach(() => {
 		deps = createDeps();

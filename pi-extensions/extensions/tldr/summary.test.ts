@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildConversationTranscript, extractSummaryFromResponse, pickTldrModel } from "./lib.js";
+import {
+	buildConversationTranscript,
+	extractSummaryFromResponse,
+	pickTldrModel,
+} from "./summary.js";
 
 describe("buildConversationTranscript", () => {
 	it("includes only user and assistant text, skipping tool calls, thinking, and tool results", () => {

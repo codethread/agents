@@ -30,7 +30,7 @@ The Claude sync extension gives Pi a compatibility bridge for Claude-oriented pr
 
 ## 2. Architecture
 
-The integration is implemented entirely in `pi-extensions/extensions/claude-sync.ts` as a self-contained Pi extension.
+The integration is implemented entirely in `pi-extensions/extensions/claude-sync/`.
 
 ### High-level flow
 
@@ -258,7 +258,7 @@ The extension does not publish synced paths directly through the hook return val
 
 ## 6. Testing
 
-There are currently no automated tests in this repo covering `pi-extensions/extensions/claude-sync.ts`.
+There are currently no automated tests in this repo covering `pi-extensions/extensions/claude-sync/`.
 
 Current validation is manual and static:
 
@@ -283,6 +283,6 @@ Important runtime behaviors that are currently verified by inspection rather tha
 ## Code Locations
 
 - `pi-extensions/extensions/README.md`
-- `pi-extensions/extensions/claude-sync.ts`
+- `pi-extensions/extensions/claude-sync/`
 - `package.json` (extension export surface)
 - `.pi/settings.json` (local development configuration that causes Pi to load this package from the repo root)

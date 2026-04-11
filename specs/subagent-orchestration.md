@@ -7,7 +7,7 @@
 
 ### Purpose
 
-The subagent extension provides a stable runtime for delegating work to isolated Pi subprocesses while preserving enough structure for streaming progress, confirmation, UI rendering, and post-run inspection. This domain covers the `subagent` tool and the `debug-agents` command in `pi-extensions/extensions/subagent/index.ts`.
+The subagent extension provides a stable runtime for delegating work to isolated Pi subprocesses while preserving enough structure for streaming progress, confirmation, UI rendering, and post-run inspection. This domain covers the `subagent` tool and the `debug-agents` command in `pi-extensions/extensions/subagent/`.
 
 ### Goals
 
@@ -29,7 +29,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 
 ## 2. Architecture
 
-Subagent orchestration lives in `pi-extensions/extensions/subagent/index.ts` and sits directly on top of the discovery/config layer from `./agents.js`.
+Subagent orchestration lives in `pi-extensions/extensions/subagent/` and sits directly on top of the discovery/config layer from `./agents.js`.
 
 ### Extension surface
 
@@ -134,7 +134,7 @@ Expanded views use `Container`, `Text`, `Spacer`, and `Markdown` components to s
 
 ## 3. Data Model
 
-Core runtime shapes defined in `pi-extensions/extensions/subagent/index.ts`:
+Core runtime shapes defined in the subagent runtime:
 
 ```ts
 interface UsageStats {
@@ -313,7 +313,7 @@ Failure model:
 
 ## 6. Testing
 
-There are currently no automated tests in this repo for `pi-extensions/extensions/subagent/index.ts`.
+There are currently no automated tests in this repo for `pi-extensions/extensions/subagent/`.
 
 Current verification is manual and static:
 
@@ -331,7 +331,7 @@ Current verification is manual and static:
 ## Code Locations
 
 - `pi-extensions/extensions/README.md`
-- `pi-extensions/extensions/subagent/index.ts`
+- `pi-extensions/extensions/subagent/`
 - `pi-extensions/extensions/subagent/agents.ts` (runtime input boundary only)
 - `pi-extensions/extensions/current-context-footer/usage-format.ts` (shared usage-display helpers consumed by subagent rendering)
 - `pi-extensions/agents/*.md` (bundled agent definitions executed by this runtime)

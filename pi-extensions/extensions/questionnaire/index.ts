@@ -19,8 +19,8 @@ import {
 	type Answer,
 	type Question,
 	type QuestionInput,
-} from "./questionnaire/parser.js";
-import { buildConversationTranscript } from "./shared/session-transcript.js";
+} from "./parser.js";
+import { buildConversationTranscript } from "../shared/session-transcript.js";
 
 interface QuestionnaireResult {
 	questions: Question[];

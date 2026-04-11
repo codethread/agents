@@ -13,7 +13,7 @@ import {
 	normalizeWindowTitle,
 	parseTmuxWindowId,
 	pickWindowTitleModel,
-} from "./lib.js";
+} from "./window-title.js";
 
 type TitleState = "idle" | "running" | "done" | "skipped";
 

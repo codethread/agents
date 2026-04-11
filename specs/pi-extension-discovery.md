@@ -30,9 +30,9 @@ The `pi-discovery` extension tells Pi where its currently discovered extension s
 
 Implementation is split across:
 
-- `pi-extensions/extensions/pi-discovery/index.ts`
-- `pi-extensions/extensions/pi-discovery/runtime.ts`
-- `pi-extensions/extensions/pi-discovery/lib.ts`
+- `pi-extensions/extensions/pi-discovery/`
+- `pi-extensions/extensions/pi-discovery/context-note.ts`
+- `pi-extensions/extensions/pi-discovery/extension-discovery.ts`
 
 ### Discovery model
 
@@ -181,8 +181,8 @@ Sends a human-readable report into the conversation.
 
 Automated tests live in:
 
-- `pi-extensions/extensions/pi-discovery/runtime.test.ts`
-- `pi-extensions/extensions/pi-discovery/lib.test.ts`
+- `pi-extensions/extensions/pi-discovery/context-note.test.ts`
+- `pi-extensions/extensions/pi-discovery/extension-discovery.test.ts`
 
 Covered behaviors include:
 
@@ -198,8 +198,8 @@ Covered behaviors include:
 ## Code Locations
 
 - `pi-extensions/extensions/README.md`
-- `pi-extensions/extensions/pi-discovery/index.ts`
-- `pi-extensions/extensions/pi-discovery/runtime.ts`
-- `pi-extensions/extensions/pi-discovery/runtime.test.ts`
-- `pi-extensions/extensions/pi-discovery/lib.ts`
-- `pi-extensions/extensions/pi-discovery/lib.test.ts`
+- `pi-extensions/extensions/pi-discovery/`
+- `pi-extensions/extensions/pi-discovery/context-note.ts`
+- `pi-extensions/extensions/pi-discovery/context-note.test.ts`
+- `pi-extensions/extensions/pi-discovery/extension-discovery.ts`
+- `pi-extensions/extensions/pi-discovery/extension-discovery.test.ts`

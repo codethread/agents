@@ -29,11 +29,11 @@ This package ships a small presentation layer on top of Pi's extension APIs: com
 The presentation layer is split across five pieces:
 
 1. **Compact bash renderer**
-   - `pi-extensions/extensions/bash-compact.ts`
+   - `pi-extensions/extensions/bash-compact/`
 2. **Compact read renderer**
-   - `pi-extensions/extensions/read-compact.ts`
+   - `pi-extensions/extensions/read-compact/`
 3. **Session footer extension**
-   - `pi-extensions/extensions/current-context-footer/index.ts`
+   - `pi-extensions/extensions/current-context-footer/`
 4. **Shared formatting helpers**
    - `pi-extensions/extensions/current-context-footer/usage-format.ts`
 5. **Theme token mapping**
@@ -43,8 +43,8 @@ The presentation layer is split across five pieces:
 
 Both compact tool extensions wrap Pi built-ins and re-register them under the canonical tool names:
 
-- `bash-compact.ts` uses `createBashTool(process.cwd())`
-- `read-compact.ts` uses `createReadTool(process.cwd())`
+- `bash-compact/` uses `createBashTool(process.cwd())`
+- `read-compact/` uses `createReadTool(process.cwd())`
 
 Execution semantics stay with the built-ins. Only `renderCall(...)` and `renderResult(...)` are customized.
 
@@ -82,7 +82,7 @@ Renderer code requests semantic roles like `toolTitle`, `muted`, `warning`, or `
 
 ### Bash compact renderer
 
-`bash-compact.ts` behavior:
+`bash-compact/` behavior:
 
 - call view renders `$ <command>`
 - optional timeout renders as `(timeout: <n>s)`
@@ -98,7 +98,7 @@ Renderer code requests semantic roles like `toolTitle`, `muted`, `warning`, or `
 
 ### Read compact renderer
 
-`read-compact.ts` behavior:
+`read-compact/` behavior:
 
 - call view renders `read <path>`
 - successful results render an empty `Container`, hiding file contents in the TUI
@@ -208,7 +208,7 @@ function shortenHome(path: string): string;
 
 ### `bash` tool override
 
-Registered by `pi-extensions/extensions/bash-compact.ts`.
+Registered by `pi-extensions/extensions/bash-compact/`.
 
 Contract:
 
@@ -218,7 +218,7 @@ Contract:
 
 ### `read` tool override
 
-Registered by `pi-extensions/extensions/read-compact.ts`.
+Registered by `pi-extensions/extensions/read-compact/`.
 
 Contract:
 
@@ -229,7 +229,7 @@ Contract:
 
 ### Footer lifecycle hooks
 
-Registered by `pi-extensions/extensions/current-context-footer/index.ts`:
+Registered by `pi-extensions/extensions/current-context-footer/`:
 
 ```ts
 pi.on("session_start", (_event, ctx) => installFooter(ctx));
@@ -250,8 +250,8 @@ pi.on("session_start", (_event, ctx) => installFooter(ctx));
 
 Exported from `pi-extensions/extensions/current-context-footer/usage-format.ts` and consumed by:
 
-- `pi-extensions/extensions/current-context-footer/index.ts`
-- `pi-extensions/extensions/subagent/index.ts`
+- `pi-extensions/extensions/current-context-footer/`
+- `pi-extensions/extensions/subagent/`
 
 Behavioral contract:
 
@@ -316,9 +316,9 @@ Current verification is manual plus static:
 ## Code Locations
 
 - `pi-extensions/extensions/README.md`
-- `pi-extensions/extensions/bash-compact.ts`
-- `pi-extensions/extensions/read-compact.ts`
-- `pi-extensions/extensions/current-context-footer/index.ts`
+- `pi-extensions/extensions/bash-compact/`
+- `pi-extensions/extensions/read-compact/`
+- `pi-extensions/extensions/current-context-footer/`
 - `pi-extensions/extensions/current-context-footer/usage-format.ts`
 - `pi-extensions/themes/rose-pine.json`
 - `package.json`

@@ -33,7 +33,7 @@ The questionnaire extension provides a structured-input tool for Pi sessions tha
 
 Implementation lives in:
 
-- `pi-extensions/extensions/questionnaire.ts`
+- `pi-extensions/extensions/questionnaire/`
 - `pi-extensions/extensions/questionnaire/parser.ts`
 - `pi-extensions/extensions/shared/session-transcript.ts`
 
@@ -340,7 +340,7 @@ Current implementation note:
 Automated tests live in:
 
 - `pi-extensions/extensions/questionnaire/parser.test.ts`
-- `pi-extensions/extensions/tldr/lib.test.ts`
+- `pi-extensions/extensions/tldr/summary.test.ts`
 
 Verification is manual plus static:
 
@@ -371,7 +371,7 @@ Verification is manual plus static:
 
 ## Code Locations
 
-- `pi-extensions/extensions/questionnaire.ts`
+- `pi-extensions/extensions/questionnaire/`
 - `pi-extensions/extensions/questionnaire/parser.ts`
 - `pi-extensions/extensions/shared/session-transcript.ts`
 - `pi-extensions/extensions/README.md`

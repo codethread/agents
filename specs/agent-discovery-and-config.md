@@ -21,7 +21,7 @@ The subagent extension needs a stable way to find agent definitions, normalize t
 
 ### Non-Goals
 
-- Executing agent tasks or managing agent process lifecycle. That belongs to the subagent runtime in `pi-extensions/extensions/subagent/index.ts`.
+- Executing agent tasks or managing agent process lifecycle. That belongs to the subagent runtime in `pi-extensions/extensions/subagent/`.
 - Validating rich agent schemas beyond the required frontmatter fields. Discovery assumes frontmatter is parseable and that `tools`, when present, behaves like a string.
 - Merging multiple definitions of the same agent across sources. Collisions are resolved by replacement, not composition.
 - Supporting arbitrary external tool names or provider-agnostic model aliasing. Normalization is intentionally narrow and conservative.
@@ -29,7 +29,7 @@ The subagent extension needs a stable way to find agent definitions, normalize t
 
 ## 2. Architecture
 
-Agent discovery is implemented in `pi-extensions/extensions/subagent/agents.ts` and consumed by the subagent runtime in `pi-extensions/extensions/subagent/index.ts`.
+Agent discovery is implemented in `pi-extensions/extensions/subagent/agents.ts` and consumed by the subagent runtime in `pi-extensions/extensions/subagent/`.
 
 ### Discovery pipeline
 
@@ -201,7 +201,7 @@ All remaining markdown body content is passed through as the agent system prompt
 
 ### Runtime-facing `AgentConfig` fields
 
-`pi-extensions/extensions/subagent/index.ts` consumes discovery results as follows:
+The subagent runtime consumes discovery results as follows:
 
 - `name` selects the requested agent in single and parallel modes
 - `source` drives project-agent confirmation and debug output
@@ -257,7 +257,7 @@ Current verification is code-level and runtime-level:
 ## Code Locations
 
 - `pi-extensions/extensions/README.md`
+- `pi-extensions/extensions/subagent/`
 - `pi-extensions/extensions/subagent/agents.ts`
-- `pi-extensions/extensions/subagent/index.ts`
 - `pi-extensions/agents/*.md`
 - `.pi/settings.json` (local development example affecting nearest-settings resolution in this repo)

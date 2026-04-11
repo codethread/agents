@@ -29,7 +29,7 @@ The `dynamic-agents-md` extension appends dynamically rendered prompt text to Pi
 
 Implementation is split across:
 
-- `pi-extensions/extensions/dynamic-agents-md/index.ts`
+- `pi-extensions/extensions/dynamic-agents-md/`
 - `pi-extensions/extensions/dynamic-agents-md/parser.ts`
 
 ### Template discovery model
@@ -262,7 +262,7 @@ Return contract:
 
 ### Extension API surface
 
-Registered by `index.ts`:
+Registered by the `pi-extensions/extensions/dynamic-agents-md/` extension:
 
 - flag: `--debug-prompt` (bare or with a JSON object string)
 - command: `/debug-prompt`
@@ -324,6 +324,6 @@ Full extension lifecycle behavior in `index.ts` still has some manual verificati
 ## Code Locations
 
 - `pi-extensions/extensions/README.md`
-- `pi-extensions/extensions/dynamic-agents-md/index.ts`
+- `pi-extensions/extensions/dynamic-agents-md/`
 - `pi-extensions/extensions/dynamic-agents-md/parser.ts`
 - `pi-extensions/extensions/dynamic-agents-md/parser.test.ts`

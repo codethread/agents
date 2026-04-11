@@ -9,7 +9,7 @@ import {
 	formatExtensionDiscoveryReport,
 	getExtensionNameFromPath,
 	hasStandalonePiTrigger,
-} from "./lib.js";
+} from "./extension-discovery.js";
 
 const tempDirs: string[] = [];
 
@@ -173,7 +173,7 @@ describe("formatters", () => {
 			extensions: [
 				{
 					name: "bash-compact",
-					path: "/repo/pi-extensions/extensions/bash-compact.ts",
+					path: "/repo/pi-extensions/extensions/bash-compact/index.ts",
 					scope: "project" as const,
 					source: "/repo",
 					origin: "package" as const,

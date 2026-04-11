@@ -12,7 +12,7 @@ import {
 	extractSummaryFromResponse,
 	formatModelRef,
 	pickTldrModel,
-} from "./lib.js";
+} from "./summary.js";
 
 type TldrResult = {
 	transcript: string;

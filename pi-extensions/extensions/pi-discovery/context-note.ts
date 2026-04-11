@@ -6,9 +6,9 @@ import {
 	formatExtensionDiscoveryReport,
 	hasStandalonePiTrigger,
 	type PiExtensionDiscovery,
-} from "./lib.js";
+} from "./extension-discovery.js";
 
-export interface PiDiscoveryRuntimeDeps {
+export interface PiDiscoveryContextNoteDeps {
 	discoverPiExtensions: (cwd: string) => Promise<PiExtensionDiscovery>;
 	formatExtensionDiscoveryContextNote: (discovery: PiExtensionDiscovery) => string;
 	formatExtensionDiscoveryReport: (discovery: PiExtensionDiscovery) => string;
@@ -16,7 +16,7 @@ export interface PiDiscoveryRuntimeDeps {
 	appendContextNoteToText: (text: string, contextNote: string) => string;
 }
 
-const defaultDeps: PiDiscoveryRuntimeDeps = {
+const defaultContextNoteDeps: PiDiscoveryContextNoteDeps = {
 	discoverPiExtensions,
 	formatExtensionDiscoveryContextNote,
 	formatExtensionDiscoveryReport,
@@ -26,7 +26,7 @@ const defaultDeps: PiDiscoveryRuntimeDeps = {
 
 export function registerPiDiscoveryExtension(
 	pi: ExtensionAPI,
-	deps: PiDiscoveryRuntimeDeps = defaultDeps,
+	deps: PiDiscoveryContextNoteDeps = defaultContextNoteDeps,
 ) {
 	let cachedCwd: string | null = null;
 	let cachedDiscoveryPromise: Promise<PiExtensionDiscovery> | null = null;

@@ -5,7 +5,7 @@ import {
 	normalizeWindowTitle,
 	parseTmuxWindowId,
 	pickWindowTitleModel,
-} from "./lib.js";
+} from "./window-title.js";
 
 describe("extractFirstUserMessage", () => {
 	it("returns the first user text message from a mixed branch", () => {
