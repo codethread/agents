@@ -190,7 +190,7 @@ All remaining markdown body content is passed through as the agent system prompt
 
 `pi-extensions/extensions/subagent/index.ts` consumes discovery results as follows:
 
-- `name` selects the requested agent in single, parallel, and chain modes
+- `name` selects the requested agent in single and parallel modes
 - `source` drives project-agent confirmation and debug output
 - `filePath` appears in debug output
 - `model` is passed to child `pi` invocations via `--model`

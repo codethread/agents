@@ -10,21 +10,20 @@ Extensions for the [Pi Coding Agent](https://github.com/nichochar/pi-coding-agen
 
 > Delegate tasks to specialized subagents with isolated context.
 
-The agent is aware of this tool and will use it when asked to delegate work, run tasks in parallel, or chain multiple steps together. It also injects the currently discovered subagents into the system prompt as an XML list of names and descriptions so the parent agent can choose among them. You can guide it by describing the kind of work you want delegated.
+The agent is aware of this tool and will use it when asked to delegate work or run tasks in parallel. It also injects the currently discovered subagents into the system prompt as an XML list of names and descriptions so the parent agent can choose among them. You can guide it by describing the kind of work you want delegated.
 
 **How to use it:**
 
 - _"Use the explorer agent to map out the folder structure"_
 - _"Run these three tasks in parallel: lint, typecheck, and test"_
-- _"First research the API with the api-researcher, then pass the findings to the dev agent to implement it"_
+- _"Use agentScope: \"both\" if you want project-local agents included too"_
 
-The agent can invoke subagents in three modes:
+The agent can invoke subagents in two modes:
 
-| Mode         | When to use                                            | What happens                              |
-| ------------ | ------------------------------------------------------ | ----------------------------------------- |
-| **Single**   | One focused task                                       | Spawns one agent process                  |
-| **Parallel** | Independent tasks that can run at the same time        | Up to 8 tasks, 4 concurrent               |
-| **Chain**    | Sequential pipeline where each step builds on the last | Output flows via `{previous}` placeholder |
+| Mode         | When to use                                     | What happens                |
+| ------------ | ----------------------------------------------- | --------------------------- |
+| **Single**   | One focused task                                | Spawns one agent process    |
+| **Parallel** | Independent tasks that can run at the same time | Up to 8 tasks, 4 concurrent |
 
 **Creating agents:**
 

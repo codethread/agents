@@ -1,18 +1,18 @@
 # Subagent Orchestration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-06
+**Last Updated:** 2026-04-11
 
 ## 1. Overview
 
 ### Purpose
 
-The subagent extension needs a stable runtime for delegating work to isolated Pi subprocesses while preserving enough structure for streaming progress, UI rendering, and post-run inspection. This domain covers the `subagent` tool and the `debug-agents` command in `pi-extensions/extensions/subagent/index.ts`: mode selection, process spawning, incremental event handling, project-agent confirmation, mode-specific aggregation, and result rendering.
+The subagent extension provides a stable runtime for delegating work to isolated Pi subprocesses while preserving enough structure for streaming progress, confirmation, UI rendering, and post-run inspection. This domain covers the `subagent` tool and the `debug-agents` command in `pi-extensions/extensions/subagent/index.ts`.
 
 ### Goals
 
 - Execute delegated work in isolated child `pi` processes instead of the parent conversation context.
-- Support three orchestration modes: single agent, bounded parallel fan-out, and sequential chains.
+- Support two orchestration modes: single agent execution and bounded parallel fan-out.
 - Stream incremental progress back into the parent tool call while subprocesses are running.
 - Preserve enough metadata per agent run to render useful collapsed and expanded TUI views.
 - Reuse discovered agent configuration from the discovery layer without reinterpreting prompt, tool, or model metadata at runtime.
@@ -24,8 +24,8 @@ The subagent extension needs a stable runtime for delegating work to isolated Pi
 - Scheduling arbitrarily large workloads. Parallel work is intentionally capped and concurrency-limited.
 - Retrying failed agents, checkpointing intermediate state, or resuming partial runs.
 - Merging multiple agents into a shared in-process context. Isolation is process-based.
-- Defining nested delegation semantics beyond simple chain substitution via `{previous}`.
 - Providing a security sandbox stronger than "separate process + optional project-agent confirmation".
+- Supporting sequential handoff pipelines inside the tool API.
 
 ## 2. Architecture
 
@@ -35,9 +35,9 @@ Subagent orchestration lives in `pi-extensions/extensions/subagent/index.ts` and
 
 `export default function (pi: ExtensionAPI)` registers three entry points:
 
-1. `before_agent_start` hook — snapshots discovered agents with `scope === "both"` and appends an XML `<available_subagents>` list of names/descriptions to the parent system prompt.
-2. `debug-agents` command — snapshots discovered agents for each scope and sends a textual report into the conversation.
-3. `subagent` tool — validates parameters, resolves agents through discovery, executes the requested mode, and renders results in the Pi TUI.
+1. `before_agent_start` hook — discovers agents with `scope === "both"` and appends an XML `<available_subagents>` list of names/descriptions to the parent system prompt.
+2. `debug-agents` command — discovers agents for each scope and sends a textual report into the conversation.
+3. `subagent` tool — validates parameters, resolves agents through discovery, executes either single or parallel mode, and renders results in the Pi TUI.
 
 ### Runtime pipeline
 
@@ -45,9 +45,9 @@ A `subagent` execution follows this flow:
 
 1. Resolve `agentScope` from tool parameters, defaulting to `"user"`.
 2. Call `discoverAgents(ctx.cwd, agentScope)` once for the run.
-3. Validate that exactly one mode is active: single, parallel, or chain.
+3. Validate that exactly one mode is active: single or parallel.
 4. If project agents are in scope, UI is available, confirmation is enabled, and at least one requested agent came from the project source, prompt the user before continuing.
-5. Dispatch to one of the mode handlers.
+5. Dispatch to either the single-mode or parallel-mode handler.
 6. Each individual agent run goes through `runSingleAgent(...)`, which:
    - looks up the requested `AgentConfig`
    - builds a child `pi` invocation in JSON mode
@@ -98,18 +98,6 @@ Behavioral details:
 - the final tool response is a summary text such as `Parallel: 3/4 succeeded`
 - individual task failures remain encoded inside `details.results`; partial failure does **not** currently cause the overall tool call to set `isError`
 
-#### Chain mode
-
-Chain mode executes steps sequentially. Before each step, all `{previous}` placeholders in the step task are replaced with the final assistant text from the previous step.
-
-Behavioral details:
-
-- step numbering starts at 1 and is recorded in `SingleResult.step`
-- streaming updates for the current step are combined with already-completed prior steps
-- the chain stops on the first failed step
-- on failure, the tool returns `isError: true` and reports which step/agent stopped the chain
-- on success, the final tool content is the last step's final assistant text
-
 ### Streaming event handling
 
 `runSingleAgent(...)` treats child stdout as a stream of JSON events delimited by newlines.
@@ -138,8 +126,8 @@ For `tool_result_end`, the message is appended to the run log and an update is e
 
 The subagent tool owns both call rendering and result rendering.
 
-- `renderCall(...)` prints a compact preview of the chosen mode, scope, and first few tasks/steps.
-- `renderResult(...)` consumes `SubagentDetails` and chooses single, chain, or parallel rendering.
+- `renderCall(...)` prints a compact preview of the chosen mode, scope, and first few tasks.
+- `renderResult(...)` consumes `SubagentDetails` and chooses single or parallel rendering.
 - Shared usage strings come from `formatUsageStats(...)`, which delegates token/cost/model formatting to `pi-extensions/extensions/current-context-footer/usage-format.ts`.
 - Tool-call summaries come from `formatToolCall(...)`, which special-cases built-ins like `bash`, `read`, `write`, `edit`, `find`, and `grep`.
 
@@ -177,11 +165,10 @@ interface SingleResult {
 	thinkingLevel?: string;
 	stopReason?: string;
 	errorMessage?: string;
-	step?: number;
 }
 
 interface SubagentDetails {
-	mode: "single" | "parallel" | "chain";
+	mode: "single" | "parallel";
 	agentScope: AgentScope;
 	projectAgentsDir: string | null;
 	results: SingleResult[];
@@ -195,7 +182,6 @@ const SubagentParams = Type.Object({
 	agent: Type.Optional(Type.String()),
 	task: Type.Optional(Type.String()),
 	tasks: Type.Optional(Type.Array(TaskItem)),
-	chain: Type.Optional(Type.Array(ChainItem)),
 	agentScope: Type.Optional(StringEnum(["user", "project", "both"] as const)),
 	confirmProjectAgents: Type.Optional(Type.Boolean({ default: true })),
 	cwd: Type.Optional(Type.String()),
@@ -208,6 +194,7 @@ Operational constants:
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
 const COLLAPSED_ITEM_COUNT = 10;
+const RUNNING_EXIT_CODE = -1;
 ```
 
 Notable conventions:
@@ -239,7 +226,6 @@ Exactly one of these must be active:
 
 - `agent` + `task`
 - non-empty `tasks`
-- non-empty `chain`
 
 Otherwise the tool returns a text error listing available agents. Empty arrays do not count as active modes.
 
@@ -295,26 +281,14 @@ Failure model:
 - individual tasks can fail without aborting siblings
 - partial failure is summarized in text/details but does not set top-level `isError`
 
-#### Chain mode result contract
-
-Execution:
-
-- each step may override `cwd`
-- `{previous}` substitution uses the previous step's final assistant text exactly as returned by `getFinalOutput(...)`
-
-Failure model:
-
-- first failure aborts subsequent steps
-- tool returns `isError: true` plus `Chain stopped at step <n> (<agent>): <message>`
-
 ### Internal execution helper: `runSingleAgent(...)`
 
 `runSingleAgent(...)` is the orchestration core. Its contract is:
 
 - if the requested agent name does not exist, return a failed `SingleResult` immediately without spawning a process
 - otherwise spawn one child Pi process for the run
-- honor the per-run or per-step `cwd` when supplied; otherwise use the parent tool's `ctx.cwd`
-- if an abort signal fires, send `SIGTERM` immediately and schedule a later `SIGKILL` attempt, although the current guard uses `proc.killed` and therefore treats "signal already sent" as the condition rather than definitively confirming the child exited
+- honor the per-run `cwd` when supplied; otherwise use the parent tool's `ctx.cwd`
+- if an abort signal fires, send `SIGTERM` immediately and schedule a later `SIGKILL` attempt
 - clean up temporary prompt files/directories in a `finally` block regardless of outcome
 
 ## 5. Design Decisions
@@ -334,8 +308,8 @@ Failure model:
 - **Decision:** Parallel mode is bounded twice: at 8 total tasks and 4 concurrent workers.
   - **Rationale:** This keeps UI output and local process pressure manageable while still supporting fan-out workflows.
 
-- **Decision:** Chain mode fails fast, but parallel mode tolerates mixed success.
-  - **Rationale:** Chain steps are causally dependent through `{previous}` output, while parallel tasks are independent enough to return a mixed summary.
+- **Decision:** Sequential handoff chains were removed from the tool API.
+  - **Rationale:** They added substantial branching and renderer complexity for relatively narrow utility; keeping only single + parallel modes makes the orchestration surface easier to reason about and maintain.
 
 - **Decision:** Project-agent confirmation is only enforced in UI contexts and only for actually requested project agents.
   - **Rationale:** The warning is about repo-controlled prompt content, so prompting only matters when a human can approve and when a project-sourced agent would actually execute.
@@ -351,14 +325,14 @@ Current verification is manual and static:
 
 - `debug-agents` exposes the discovery/runtime boundary for inspection across scopes.
 - The `subagent` tool exercises subprocess spawning, streaming, confirmation, and rendering in real Pi runs.
-- Repo-wide `npm run lint` and `npm run typecheck` validate static correctness but do not assert orchestration behavior.
+- Repo-wide `npm run lint`, `npm run typecheck`, and `npm run test` validate static correctness and package-level tests, but do not assert orchestration behavior directly.
 
 ## 7. Open Questions
 
 - Should parallel mode set top-level `isError` when any child task fails, or is mixed-success summary output the intended long-term contract?
 - Should invalid-parameter and over-capacity responses be marked as tool errors instead of plain text results?
 - Should the renderer surface structured tool-result messages directly in expanded views, or is assistant text plus tool-call summaries sufficient?
-- Should chain substitution eventually support structured handoff data rather than plain final-text `{previous}` replacement?
+- Should parallel mode eventually expose richer task labels or grouping metadata for large fan-outs?
 
 ## Code Locations
 
