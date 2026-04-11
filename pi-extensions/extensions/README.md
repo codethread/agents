@@ -16,7 +16,7 @@ The agent is aware of this tool and will use it when asked to delegate work or r
 
 - _"Use the explorer agent to map out the folder structure"_
 - _"Run these three tasks in parallel: lint, typecheck, and test"_
-- _"Use agentScope: \"both\" if you want project-local agents included too"_
+- _"Project-local agents in .pi/agents are discovered automatically too"_
 
 The agent can invoke subagents in two modes:
 
@@ -29,8 +29,10 @@ The agent can invoke subagents in two modes:
 
 Agent files are markdown files with YAML frontmatter, placed in one of:
 
-- `~/.pi/agent/agents/` — user-scoped, always available
-- `.pi/agents/` — project-scoped, discovered from `cwd` upward
+- `~/.pi/agent/agents/` — user-defined agents
+- `.pi/agents/` — project-local agents, discovered from `cwd` upward
+
+Bundled package agents are always included too, and Pi sees one merged list with project definitions overriding user/package names and user definitions overriding package names.
 
 **Agent file format:**
 

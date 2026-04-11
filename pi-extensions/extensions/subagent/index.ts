@@ -16,7 +16,6 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Message } from "@mariozechner/pi-ai";
-import { StringEnum } from "@mariozechner/pi-ai";
 import { getMarkdownTheme, withFileMutationQueue } from "@mariozechner/pi-coding-agent";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
@@ -27,7 +26,7 @@ import {
 	formatModelDisplay,
 } from "../current-context-footer/usage-format.js";
 import { discoverAgents, formatAgentsForPrompt } from "./agents.js";
-import type { AgentConfig, AgentScope } from "./agents.js";
+import type { AgentConfig } from "./agents.js";
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
@@ -74,7 +73,6 @@ interface SingleResult {
 
 interface SubagentDetails {
 	mode: SubagentMode;
-	agentScope: AgentScope;
 	projectAgentsDir: string | null;
 	results: SingleResult[];
 }
@@ -131,13 +129,11 @@ function createPendingResult(task: TaskRequest): SingleResult {
 
 function createDetails(
 	mode: SubagentMode,
-	agentScope: AgentScope,
 	projectAgentsDir: string | null,
 	results: SingleResult[],
 ): SubagentDetails {
 	return {
 		mode,
-		agentScope,
 		projectAgentsDir,
 		results,
 	};
@@ -317,6 +313,23 @@ function getRequestedAgentNames(params: { agent?: string; tasks?: TaskRequest[] 
 	if (params.agent) names.add(params.agent);
 	for (const task of params.tasks ?? []) names.add(task.agent);
 	return Array.from(names);
+}
+
+function formatDebugSection(title: string, agents: AgentConfig[]): string {
+	const lines = [title];
+	if (agents.length === 0) {
+		lines.push("(none)");
+		return lines.join("\n");
+	}
+
+	for (const agent of agents) {
+		lines.push(`- ${agent.name} [${agent.source}]`);
+		lines.push(`  file: ${agent.filePath}`);
+		if (agent.model) lines.push(`  resolved model: ${agent.model}`);
+		if (agent.tools?.length) lines.push(`  normalized tools: ${agent.tools.join(", ")}`);
+		else lines.push("  normalized tools: (default toolset)");
+	}
+	return lines.join("\n");
 }
 
 function getResultUsageOptions(result: SingleResult) {
@@ -533,12 +546,6 @@ const TaskItem = Type.Object({
 	cwd: Type.Optional(Type.String({ description: "Working directory for the agent process" })),
 });
 
-const AgentScopeSchema = StringEnum(["user", "project", "both"] as const, {
-	description:
-		'Which agent directories to use for user/project agent discovery. Default: "user". Use "both" to include project-local agents. Package-bundled agents are always available.',
-	default: "user",
-});
-
 const SubagentParams = Type.Object({
 	agent: Type.Optional(
 		Type.String({ description: "Name of the agent to invoke (for single mode)" }),
@@ -547,7 +554,6 @@ const SubagentParams = Type.Object({
 	tasks: Type.Optional(
 		Type.Array(TaskItem, { description: "Array of {agent, task} for parallel execution" }),
 	),
-	agentScope: Type.Optional(AgentScopeSchema),
 	confirmProjectAgents: Type.Optional(
 		Type.Boolean({
 			description: "Prompt before running project-local agents. Default: true.",
@@ -561,7 +567,7 @@ const SubagentParams = Type.Object({
 
 export default function (pi: ExtensionAPI) {
 	pi.on("before_agent_start", (event, ctx) => {
-		const discovery = discoverAgents(ctx.cwd, "both");
+		const discovery = discoverAgents(ctx.cwd);
 		const promptAddon = formatAgentsForPrompt(discovery.agents);
 		if (!promptAddon) return;
 		return {
@@ -572,28 +578,15 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("debug-agents", {
 		description: "Send discovered subagent information into the conversation",
 		handler: async (_args, ctx) => {
-			const scopes: AgentScope[] = ["user", "project", "both"];
-			const sections: string[] = [];
-
-			for (const scope of scopes) {
-				const discovery = discoverAgents(ctx.cwd, scope);
-				const lines: string[] = [];
-				lines.push(`Scope: ${scope}`);
-				lines.push(`Project agents dir: ${discovery.projectAgentsDir ?? "(none)"}`);
-				if (discovery.agents.length === 0) {
-					lines.push("Agents: (none)");
-				} else {
-					lines.push("Agents:");
-					for (const agent of discovery.agents) {
-						lines.push(`- ${agent.name} [${agent.source}]`);
-						lines.push(`  file: ${agent.filePath}`);
-						if (agent.model) lines.push(`  resolved model: ${agent.model}`);
-						if (agent.tools?.length) lines.push(`  normalized tools: ${agent.tools.join(", ")}`);
-						else lines.push("  normalized tools: (default toolset)");
-					}
-				}
-				sections.push(lines.join("\n"));
-			}
+			const discovery = discoverAgents(ctx.cwd);
+			const sections = [
+				formatDebugSection("Available agents:", discovery.agents),
+				formatDebugSection("User agents:", discovery.userAgents),
+				[
+					`Project agents dir: ${discovery.projectAgentsDir ?? "(none)"}`,
+					formatDebugSection("Project agents:", discovery.projectAgents),
+				].join("\n"),
+			];
 
 			const content = `Here are the currently discovered subagents:\n\n${sections.join("\n\n")}`;
 
@@ -613,22 +606,19 @@ export default function (pi: ExtensionAPI) {
 		description: [
 			"Delegate tasks to specialized subagents with isolated context.",
 			"Modes: single (agent + task), parallel (tasks array).",
-			"Bundled package agents are always available.",
-			'Default agent scope is "user" (from ~/.pi/agent/agents).',
-			'To enable project-local agents in .pi/agents, set agentScope: "both" (or "project").',
+			"Bundled, user, and project agents are discovered automatically.",
 		].join(" "),
 		parameters: SubagentParams,
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
-			const agentScope: AgentScope = params.agentScope ?? "user";
-			const discovery = discoverAgents(ctx.cwd, agentScope);
+			const discovery = discoverAgents(ctx.cwd);
 			const agents = discovery.agents;
 			const confirmProjectAgents = params.confirmProjectAgents ?? true;
 			const hasTasks = (params.tasks?.length ?? 0) > 0;
 			const hasSingle = Boolean(params.agent && params.task);
 			const modeCount = Number(hasTasks) + Number(hasSingle);
 			const makeDetails = (mode: SubagentMode, results: SingleResult[]) =>
-				createDetails(mode, agentScope, discovery.projectAgentsDir, results);
+				createDetails(mode, discovery.projectAgentsDir, results);
 			const resolveModelInfo: ResolveModelInfo = (provider, model) => {
 				if (!provider || !model) return undefined;
 				const resolved = ctx.modelRegistry.find(provider, model);
@@ -652,11 +642,7 @@ export default function (pi: ExtensionAPI) {
 				};
 			}
 
-			if (
-				(agentScope === "project" || agentScope === "both") &&
-				confirmProjectAgents &&
-				ctx.hasUI
-			) {
+			if (confirmProjectAgents && ctx.hasUI) {
 				const requestedAgentNames = getRequestedAgentNames({
 					agent: params.agent,
 					tasks: params.tasks,
@@ -797,12 +783,10 @@ export default function (pi: ExtensionAPI) {
 		},
 
 		renderCall(args, theme, _context) {
-			const scope: AgentScope = args.agentScope ?? "user";
 			if (args.tasks?.length) {
 				let text =
 					theme.fg("toolTitle", theme.bold("subagent ")) +
-					theme.fg("accent", `parallel (${args.tasks.length} tasks)`) +
-					theme.fg("muted", ` [${scope}]`);
+					theme.fg("accent", `parallel (${args.tasks.length} tasks)`);
 				for (const task of args.tasks.slice(0, 3)) {
 					const preview = task.task.length > 40 ? `${task.task.slice(0, 40)}...` : task.task;
 					text += `\n  ${theme.fg("accent", task.agent)}${theme.fg("dim", ` ${preview}`)}`;
@@ -816,10 +800,7 @@ export default function (pi: ExtensionAPI) {
 			const agentName = args.agent || "...";
 			const preview =
 				args.task && args.task.length > 60 ? `${args.task.slice(0, 60)}...` : (args.task ?? "...");
-			let text =
-				theme.fg("toolTitle", theme.bold("subagent ")) +
-				theme.fg("accent", agentName) +
-				theme.fg("muted", ` [${scope}]`);
+			let text = theme.fg("toolTitle", theme.bold("subagent ")) + theme.fg("accent", agentName);
 			text += `\n  ${theme.fg("dim", preview)}`;
 			return new Text(text, 0, 0);
 		},

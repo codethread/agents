@@ -35,20 +35,19 @@ Subagent orchestration lives in `pi-extensions/extensions/subagent/index.ts` and
 
 `export default function (pi: ExtensionAPI)` registers three entry points:
 
-1. `before_agent_start` hook — discovers agents with `scope === "both"` and appends an XML `<available_subagents>` list of names/descriptions to the parent system prompt.
-2. `debug-agents` command — discovers agents for each scope and sends a textual report into the conversation.
+1. `before_agent_start` hook — discovers agents and appends an XML `<available_subagents>` list of names/descriptions to the parent system prompt.
+2. `debug-agents` command — reports the effective merged agent list plus separate user/project source sections.
 3. `subagent` tool — validates parameters, resolves agents through discovery, executes either single or parallel mode, and renders results in the Pi TUI.
 
 ### Runtime pipeline
 
 A `subagent` execution follows this flow:
 
-1. Resolve `agentScope` from tool parameters, defaulting to `"user"`.
-2. Call `discoverAgents(ctx.cwd, agentScope)` once for the run.
-3. Validate that exactly one mode is active: single or parallel.
-4. If project agents are in scope, UI is available, confirmation is enabled, and at least one requested agent came from the project source, prompt the user before continuing.
-5. Dispatch to either the single-mode or parallel-mode handler.
-6. Each individual agent run goes through `runSingleAgent(...)`, which:
+1. Call `discoverAgents(ctx.cwd)` once for the run.
+2. Validate that exactly one mode is active: single or parallel.
+3. If UI is available, confirmation is enabled, and at least one requested agent came from the project source, prompt the user before continuing.
+4. Dispatch to either the single-mode or parallel-mode handler.
+5. Each individual agent run goes through `runSingleAgent(...)`, which:
    - looks up the requested `AgentConfig`
    - builds a child `pi` invocation in JSON mode
    - writes the agent system prompt to a temporary markdown file when non-empty
@@ -57,7 +56,7 @@ A `subagent` execution follows this flow:
    - accumulates messages, usage, provider/model metadata, and stop/error state
    - emits streaming updates through the tool callback
    - cleans up temporary prompt files afterward
-7. The mode handler aggregates per-run `SingleResult` objects into `SubagentDetails`, which the tool renderer uses for collapsed and expanded display.
+6. The mode handler aggregates per-run `SingleResult` objects into `SubagentDetails`, which the tool renderer uses for collapsed and expanded display.
 
 ### Child process boundary
 
@@ -126,7 +125,7 @@ For `tool_result_end`, the message is appended to the run log and an update is e
 
 The subagent tool owns both call rendering and result rendering.
 
-- `renderCall(...)` prints a compact preview of the chosen mode, scope, and first few tasks.
+- `renderCall(...)` prints a compact preview of the chosen mode and first few tasks.
 - `renderResult(...)` consumes `SubagentDetails` and chooses single or parallel rendering.
 - Shared usage strings come from `formatUsageStats(...)`, which delegates token/cost/model formatting to `pi-extensions/extensions/current-context-footer/usage-format.ts`.
 - Tool-call summaries come from `formatToolCall(...)`, which special-cases built-ins like `bash`, `read`, `write`, `edit`, `find`, and `grep`.
@@ -169,7 +168,6 @@ interface SingleResult {
 
 interface SubagentDetails {
 	mode: "single" | "parallel";
-	agentScope: AgentScope;
 	projectAgentsDir: string | null;
 	results: SingleResult[];
 }
@@ -182,7 +180,6 @@ const SubagentParams = Type.Object({
 	agent: Type.Optional(Type.String()),
 	task: Type.Optional(Type.String()),
 	tasks: Type.Optional(Type.Array(TaskItem)),
-	agentScope: Type.Optional(StringEnum(["user", "project", "both"] as const)),
 	confirmProjectAgents: Type.Optional(Type.Boolean({ default: true })),
 	cwd: Type.Optional(Type.String()),
 });
@@ -207,14 +204,13 @@ Notable conventions:
 
 ### `debug-agents` command
 
-`debug-agents` reads discovery results for `user`, `project`, and `both` scopes and formats each into a plain-text report containing:
+`debug-agents` reads one discovery snapshot and formats a plain-text report containing:
 
-- scope name
-- resolved project agents directory, if any
-- each discovered agent's name and source
-- file path
-- resolved model when present
-- normalized tools, or `(default toolset)` when absent
+- the effective merged list of available agents
+- a separate user-agent section
+- the resolved project agents directory, if any
+- a separate project-agent section
+- for each listed agent: name, source, file path, resolved model when present, and normalized tools
 
 If the parent context is not idle, the report is queued as a follow-up message and an informational UI notification is emitted when UI support exists.
 
@@ -229,13 +225,12 @@ Exactly one of these must be active:
 
 Otherwise the tool returns a text error listing available agents. Empty arrays do not count as active modes.
 
-#### Agent scope and discovery
+#### Agent discovery
 
 At execution start, the tool resolves:
 
 ```ts
-const agentScope: AgentScope = params.agentScope ?? "user";
-const discovery = discoverAgents(ctx.cwd, agentScope);
+const discovery = discoverAgents(ctx.cwd);
 const agents = discovery.agents;
 ```
 
@@ -245,7 +240,6 @@ The runtime does not re-normalize tools or models. It assumes discovery already 
 
 Confirmation is only attempted when all of the following are true:
 
-- `agentScope` is `project` or `both`
 - `confirmProjectAgents !== false`
 - `ctx.hasUI` is true
 - at least one requested agent resolves to `source === "project"`
@@ -297,7 +291,7 @@ Failure model:
   - **Rationale:** This gives each delegated task an isolated context window and cleanly separates message streams from the parent conversation.
 
 - **Decision:** Runtime discovery happens once per tool invocation, before mode dispatch.
-  - **Rationale:** All branches need the same agent catalog and project-agent directory metadata; a single snapshot keeps selection and confirmation consistent during the run.
+  - **Rationale:** All branches need the same effective agent catalog and project-agent directory metadata; a single snapshot keeps selection and confirmation consistent during the run.
 
 - **Decision:** Child Pi invocations always use JSON mode.
   - **Rationale:** The runtime depends on structured `message_end` and `tool_result_end` events for streaming updates, usage aggregation, and renderer-friendly result logs.
@@ -308,8 +302,8 @@ Failure model:
 - **Decision:** Parallel mode is bounded twice: at 8 total tasks and 4 concurrent workers.
   - **Rationale:** This keeps UI output and local process pressure manageable while still supporting fan-out workflows.
 
-- **Decision:** Sequential handoff chains were removed from the tool API.
-  - **Rationale:** They added substantial branching and renderer complexity for relatively narrow utility; keeping only single + parallel modes makes the orchestration surface easier to reason about and maintain.
+- **Decision:** Pi executes against one merged subagent list rather than exposing source scopes in the tool API.
+  - **Rationale:** Source distinctions are useful for debugging and confirmation, but they do not need to complicate normal delegation.
 
 - **Decision:** Project-agent confirmation is only enforced in UI contexts and only for actually requested project agents.
   - **Rationale:** The warning is about repo-controlled prompt content, so prompting only matters when a human can approve and when a project-sourced agent would actually execute.
@@ -323,7 +317,7 @@ There are currently no automated tests in this repo for `pi-extensions/extension
 
 Current verification is manual and static:
 
-- `debug-agents` exposes the discovery/runtime boundary for inspection across scopes.
+- `debug-agents` exposes the discovery/runtime boundary for inspection.
 - The `subagent` tool exercises subprocess spawning, streaming, confirmation, and rendering in real Pi runs.
 - Repo-wide `npm run lint`, `npm run typecheck`, and `npm run test` validate static correctness and package-level tests, but do not assert orchestration behavior directly.
 

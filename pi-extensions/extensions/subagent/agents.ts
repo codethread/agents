@@ -7,8 +7,6 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getAgentDir, parseFrontmatter } from "@mariozechner/pi-coding-agent";
 
-export type AgentScope = "user" | "project" | "both";
-
 export interface AgentConfig {
 	name: string;
 	description: string;
@@ -21,6 +19,8 @@ export interface AgentConfig {
 
 export interface AgentDiscoveryResult {
 	agents: AgentConfig[];
+	userAgents: AgentConfig[];
+	projectAgents: AgentConfig[];
 	projectAgentsDir: string | null;
 }
 
@@ -126,8 +126,9 @@ function resolveModelAlias(
 	const fallbackMini = pickPreferredModel(openAiEnabled, true) ?? fallbackLarge;
 
 	if (lower.includes("haiku")) return fallbackMini;
-	if (lower.includes("sonnet") || lower.includes("opus") || lower.startsWith("claude"))
+	if (lower.includes("sonnet") || lower.includes("opus") || lower.startsWith("claude")) {
 		return fallbackLarge;
+	}
 
 	return trimmed;
 }
@@ -138,10 +139,7 @@ function loadAgentsFromDir(
 	settings: PiSettings | null,
 ): AgentConfig[] {
 	const agents: AgentConfig[] = [];
-
-	if (!fs.existsSync(dir)) {
-		return agents;
-	}
+	if (!fs.existsSync(dir)) return agents;
 
 	let entries: fs.Dirent[];
 	try {
@@ -163,14 +161,11 @@ function loadAgentsFromDir(
 		}
 
 		const { frontmatter, body } = parseFrontmatter<Record<string, string>>(content);
-
-		if (!frontmatter.name || !frontmatter.description) {
-			continue;
-		}
+		if (!frontmatter.name || !frontmatter.description) continue;
 
 		const parsedTools = frontmatter.tools
 			?.split(",")
-			.map((t: string) => t.trim())
+			.map((tool: string) => tool.trim())
 			.filter(Boolean);
 
 		agents.push({
@@ -212,9 +207,9 @@ function findBundledAgentsDir(): string | null {
 	return isDirectory(bundledDir) ? bundledDir : null;
 }
 
-export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryResult {
+export function discoverAgents(cwd: string): AgentDiscoveryResult {
 	const packageAgentsDir = findBundledAgentsDir();
-	const userDir = path.join(getAgentDir(), "agents");
+	const userAgentsDir = path.join(getAgentDir(), "agents");
 	const projectAgentsDir = findNearestProjectAgentsDir(cwd);
 	const settingsPath = findNearestSettingsFile(cwd);
 	const settings = settingsPath ? readJsonFile<PiSettings>(settingsPath) : null;
@@ -222,25 +217,22 @@ export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryRe
 	const packageAgents = packageAgentsDir
 		? loadAgentsFromDir(packageAgentsDir, "package", settings)
 		: [];
-	const userAgents = scope === "project" ? [] : loadAgentsFromDir(userDir, "user", settings);
-	const projectAgents =
-		scope === "user" || !projectAgentsDir
-			? []
-			: loadAgentsFromDir(projectAgentsDir, "project", settings);
+	const userAgents = loadAgentsFromDir(userAgentsDir, "user", settings);
+	const projectAgents = projectAgentsDir
+		? loadAgentsFromDir(projectAgentsDir, "project", settings)
+		: [];
 
 	const agentMap = new Map<string, AgentConfig>();
 	for (const agent of packageAgents) agentMap.set(agent.name, agent);
+	for (const agent of userAgents) agentMap.set(agent.name, agent);
+	for (const agent of projectAgents) agentMap.set(agent.name, agent);
 
-	if (scope === "both") {
-		for (const agent of userAgents) agentMap.set(agent.name, agent);
-		for (const agent of projectAgents) agentMap.set(agent.name, agent);
-	} else if (scope === "user") {
-		for (const agent of userAgents) agentMap.set(agent.name, agent);
-	} else {
-		for (const agent of projectAgents) agentMap.set(agent.name, agent);
-	}
-
-	return { agents: Array.from(agentMap.values()), projectAgentsDir };
+	return {
+		agents: Array.from(agentMap.values()),
+		userAgents,
+		projectAgents,
+		projectAgentsDir,
+	};
 }
 
 export function formatAgentList(
@@ -251,7 +243,7 @@ export function formatAgentList(
 	const listed = agents.slice(0, maxItems);
 	const remaining = agents.length - listed.length;
 	return {
-		text: listed.map((a) => `${a.name} (${a.source}): ${a.description}`).join("; "),
+		text: listed.map((agent) => `${agent.name} (${agent.source}): ${agent.description}`).join("; "),
 		remaining,
 	};
 }
