@@ -1,9 +1,9 @@
-- Install deps: `npm install`
-- Format: automatic via `npm run check` after all work completed
-- Lint: `npm run lint` (eslint)
-- Test: `npm run test` (vitest run)
-- Typecheck: `npm run typecheck` (tsc)
-- Verify all checks: `npm run check` when work complete, runs `lint` -> `typecheck` -> `format` (via prettier).
+- Install deps: `pnpm install`
+- Format: automatic via `pnpm check` after all work completed
+- Lint: `pnpm lint` (eslint)
+- Test: `pnpm test` (vitest run)
+- Typecheck: `pnpm typecheck` (tsc)
+- Verify all checks: `pnpm check` when work complete, runs `lint` -> `typecheck` -> `test` -> `format` (via prettier).
 - When building extensions:
   - always add `--debug-*` flags to allow you to verify results, see ./pi-extensions/extensions/dynamic-agents-md/index.ts as an example
   - when an extension adds new CLI flags, add them to `scripts/pi.nu` under the extension flags comment with an `[EXT]` prefix in the comment string

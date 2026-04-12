@@ -37,11 +37,11 @@ The bundled agents are discovered by the `subagent` extension from `pi-extension
 ## Development
 
 ```bash
-npm install
-npm run format
-npm run lint
-npm run typecheck
-npm run check
+pnpm install
+pnpm format
+pnpm lint
+pnpm typecheck
+pnpm check
 ```
 
 Running `pi` from this repo works for local testing because `.pi/settings.json` points Pi at the package root.
