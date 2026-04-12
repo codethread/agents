@@ -50,8 +50,8 @@ A worktree is clean only when both of the following are true:
 
 - Compute `MERGE_BASE` with `git merge-base <current-branch> <source-branch>`.
 - Compute `SOURCE_COMMIT_RANGE` as `<merge-base>..<source-branch>`.
-- Capture the source-only history with `git log --reverse --format=medium <merge-base>..<source-branch>` so every commit message in the branch-exclusive range can be preserved in chronological order.
-- The preserved body should include commit hashes, subjects, and any original commit body text from that range.
+- Capture the source-only history with `git log --reverse --format='- [%h] %s' <merge-base>..<source-branch>` so the squash body preserves a concise chronological list of source commits.
+- The preserved body should be a compact reference list, not the full verbose git log output.
 
 ### Squash commit message construction
 
@@ -59,7 +59,7 @@ A worktree is clean only when both of the following are true:
 - Infer the subject prefix from the strongest signal in the source history, preferring user-visible change types such as `feat`, `fix`, or `perf` over lower-signal maintenance types such as `chore`, `docs`, or `test` when the branch clearly contains product changes.
 - If the source history consistently uses another repo-appropriate semantic prefix such as `task`, preserve that convention.
 - Infer the summary text from the dominant theme across the source commit subjects and bodies; keep it short, imperative, and representative of the actual change.
-- The squash commit body must include a blank line after the subject, then the `COMMIT_MESSAGE_SECTION` heading, then the full source commit log for `SOURCE_COMMIT_RANGE` in chronological order.
+- The squash commit body must include a blank line after the subject, then the `COMMIT_MESSAGE_SECTION` heading, then the concise bullet list for `SOURCE_COMMIT_RANGE` in chronological order.
 
 ### Squash merge semantics
 
@@ -193,7 +193,7 @@ Entry state: RESOLVE_SOURCE
 ### PREPARE_COMMIT_MESSAGE
 
 1. Compute `MERGE_BASE` with `git merge-base <CURRENT_BRANCH> <source-branch>`.
-2. Capture the source-only history with `git log --reverse --format=medium <MERGE_BASE>..<source-branch>`.
+2. Capture the source-only history with `git log --reverse --format='- [%h] %s' <MERGE_BASE>..<source-branch>`.
 3. Review the commit subjects and bodies in that range and infer the best semantic subject line for the squash commit:
    a. Prefer the highest-signal change type represented by the branch, such as `feat`, `fix`, `perf`, or another repo-appropriate semantic type like `task` when that is the dominant convention.
    b. If the branch contains mixed commits, summarise the overall user-facing outcome rather than echoing an implementation detail.
@@ -204,10 +204,11 @@ Entry state: RESOLVE_SOURCE
    <semantic-subject>
 
    Squashed commits:
-   <full git log for MERGE_BASE..source-branch in chronological order>
+   - [short-sha] commit subject
+   - [short-sha] commit subject
    ```
 
-5. Preserve every commit message from the source-only range in the body, including hashes, subjects, and any original body text.
+5. Preserve every commit from the source-only range in the body as a concise `- [short-sha] subject` list.
 6. If the source-only range is empty, still continue; the merge may become a verified no-op and skip commit creation.
 
 ### RESET_TARGET
@@ -245,7 +246,7 @@ Entry state: RESOLVE_SOURCE
 - Never merge from or into a dirty worktree
 - Never stash, auto-commit, or auto-clean either worktree to make the merge proceed
 - Never use a generic squash subject when the source history provides enough signal to infer a semantic subject
-- Always preserve the full source-only commit log in the squash commit body when a squash commit is created
+- Always preserve the source-only commit list in the squash commit body when a squash commit is created, using the concise `- [short-sha] subject` format
 - Never switch away from `CURRENT_BRANCH` to perform the merge
 - Never delete the current worktree
 - Never use `git worktree remove --force`
@@ -262,4 +263,4 @@ Verify all of the following before reporting success:
 - [ ] The source branch no longer exists at `refs/heads/<source-branch>`
 - [ ] If a source worktree existed, its path no longer appears in `git worktree list --porcelain`
 - [ ] If the squash staged changes, `git log -1 --format=%s` is a semantic/conventional-style subject inferred from the source history rather than a generic squash message
-- [ ] If the squash staged changes, `git log -1 --format=%B` contains the `Squashed commits:` section followed by the preserved chronological log from `MERGE_BASE..source-branch`
+- [ ] If the squash staged changes, `git log -1 --format=%B` contains the `Squashed commits:` section followed by the preserved chronological `- [short-sha] subject` list from `MERGE_BASE..source-branch`

@@ -32,7 +32,7 @@ The bundled agents are discovered by the `subagent` extension from `pi-extension
 ## Included skills
 
 - `skills/skill-authoring/SKILL.md` — guide for writing well-structured Pi skills
-- `skills/merge/SKILL.md` — squash-merge a branch or linked worktree into the current branch with an inferred semantic commit message, preserve source commit history in the body, then clean up the source branch/worktree
+- `skills/merge/SKILL.md` — squash-merge a branch or linked worktree into the current branch with an inferred semantic commit message, preserve a concise source commit list in the body, then clean up the source branch/worktree
 
 ## Development
 
