@@ -1,7 +1,7 @@
 # Subagent Orchestration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-11
+**Last Updated:** 2026-04-12
 
 ## 1. Overview
 
@@ -62,7 +62,8 @@ A `subagent` execution follows this flow:
 
 Subprocess execution is intentionally isolated from the parent context:
 
-- the child is launched with `--mode json -p --no-session`
+- the child is launched with `--mode json -p`
+- when the parent session is persisted, each subagent run gets `--session <path>` in a subagent session directory; otherwise it falls back to `--no-session`
 - resolved agent model and normalized tools are forwarded via `--model` and `--tools`
 - the agent prompt is appended through `--append-system-prompt <temp file>`
 - the delegated work itself is passed as a single prompt string: `Task: <task>`
@@ -79,7 +80,7 @@ This preserves local-dev behavior when the extension is being run from a repo ch
 
 #### Single mode
 
-Single mode forwards one `agent` + `task` pair to `runSingleAgent(...)` and returns either:
+Single mode forwards one `agent` + `description` + `task` set to `runSingleAgent(...)` and returns either:
 
 - the final assistant text output on success, or
 - a tool-level error result when the subprocess exits non-zero or reports `stopReason` of `error`/`aborted`
@@ -88,7 +89,7 @@ The optional top-level `cwd` parameter applies only to single mode.
 
 #### Parallel mode
 
-Parallel mode accepts up to 8 tasks and runs them through `mapWithConcurrencyLimit(...)` with a concurrency cap of 4.
+Parallel mode accepts up to 8 tasks (`agent` + `description` + `task`) and runs them through `mapWithConcurrencyLimit(...)` with a concurrency cap of 4.
 
 Behavioral details:
 
@@ -96,6 +97,59 @@ Behavioral details:
 - per-task updates replace the placeholder at that task's stable index, so result ordering matches input ordering rather than completion order
 - the final tool response is a summary text such as `Parallel: 3/4 succeeded`
 - individual task failures remain encoded inside `details.results`; partial failure does **not** currently cause the overall tool call to set `isError`
+
+### 2.5 Session Logging
+
+When the parent session is persisted, subagent runs are also persisted and indexed through a manifest.
+
+Storage layout:
+
+```text
+~/.pi/agent/subagent-sessions/
+  --<cwd-encoded>--/
+    <parent-session-id>/
+      manifest.json
+      <uuid>.jsonl
+      <uuid>.jsonl
+```
+
+`<cwd-encoded>` follows Pi's session directory naming convention: strip a leading root separator, replace path separators with `-`, then wrap with `--`.
+
+For each subagent run, the runtime:
+
+1. generates a UUID (`crypto.randomUUID()`) used as both manifest entry `id` and session filename (`<uuid>.jsonl`)
+2. launches the child process with `--session <absolute path>`
+3. records the completed run in `manifest.json` (upsert by `id`)
+
+Manifest contract:
+
+```ts
+interface ManifestEntry {
+	id: string;
+	agent: string;
+	agentSource: string;
+	provider?: string;
+	model?: string;
+	thinking: string | null;
+	description: string;
+	prompt: string;
+	sessionFile: string;
+	timestamp: string;
+	exitCode: number;
+	usage: { input: number; output: number; cost: number };
+	durationMs: number;
+}
+
+interface Manifest {
+	parent: { sessionFile: string; sessionId: string };
+	cwd: string;
+	subagents: ManifestEntry[];
+}
+```
+
+`description` is required in tool params: single mode uses `params.description`, parallel mode uses `task.description` per task.
+
+Fallback behavior: if the parent has no persisted session file, subagents use `--no-session` and no manifest is written.
 
 ### Streaming event handling
 
@@ -157,6 +211,7 @@ interface SingleResult {
 	messages: Message[];
 	stderr: string;
 	usage: UsageStats;
+	sessionFile?: string;
 	provider?: string;
 	model?: string;
 	reasoning?: boolean;
@@ -169,6 +224,7 @@ interface SingleResult {
 interface SubagentDetails {
 	mode: "single" | "parallel";
 	projectAgentsDir: string | null;
+	parentSessionId?: string;
 	results: SingleResult[];
 }
 ```
@@ -178,8 +234,9 @@ Tool parameter schema:
 ```ts
 const SubagentParams = Type.Object({
 	agent: Type.Optional(Type.String()),
+	description: Type.Optional(Type.String()), // required when using single mode
 	task: Type.Optional(Type.String()),
-	tasks: Type.Optional(Type.Array(TaskItem)),
+	tasks: Type.Optional(Type.Array(TaskItem)), // each TaskItem requires description
 	confirmProjectAgents: Type.Optional(Type.Boolean({ default: true })),
 	cwd: Type.Optional(Type.String()),
 });
@@ -220,8 +277,8 @@ If the parent context is not idle, the report is queued as a follow-up message a
 
 Exactly one of these must be active:
 
-- `agent` + `task`
-- non-empty `tasks`
+- `agent` + `description` + `task`
+- non-empty `tasks` (each task includes `agent` + `description` + `task`)
 
 Otherwise the tool returns a text error listing available agents. Empty arrays do not count as active modes.
 
@@ -282,6 +339,8 @@ Failure model:
 - if the requested agent name does not exist, return a failed `SingleResult` immediately without spawning a process
 - otherwise spawn one child Pi process for the run
 - honor the per-run `cwd` when supplied; otherwise use the parent tool's `ctx.cwd`
+- when parent session info is available, create a subagent session path and run with `--session`; otherwise run with `--no-session`
+- on completion, update `manifest.json` with usage/cost/timing metadata for persisted subagent runs
 - if an abort signal fires, send `SIGTERM` immediately and schedule a later `SIGKILL` attempt
 - clean up temporary prompt files/directories in a `finally` block regardless of outcome
 
@@ -298,6 +357,9 @@ Failure model:
 
 - **Decision:** Agent prompts are passed through temporary files with mode `0600`.
   - **Rationale:** `--append-system-prompt` expects a file path, and private temp files avoid embedding long prompts directly in process arguments.
+
+- **Decision:** Persist subagent sessions only when the parent session is persisted, and index them via a per-parent manifest.
+  - **Rationale:** This preserves legacy ephemeral behavior for non-persisted runs while enabling structured post-run introspection (task summary, model, usage, cost, duration, and session file) whenever a parent session has a durable log.
 
 - **Decision:** Parallel mode is bounded twice: at 8 total tasks and 4 concurrent workers.
   - **Rationale:** This keeps UI output and local process pressure manageable while still supporting fan-out workflows.
@@ -334,4 +396,4 @@ Current verification is manual and static:
 - `pi-extensions/extensions/subagent/`
 - `pi-extensions/extensions/subagent/agents.ts` (runtime input boundary only)
 - `pi-extensions/extensions/current-context-footer/usage-format.ts` (shared usage-display helpers consumed by subagent rendering)
-- `pi-extensions/agents/*.md` (bundled agent definitions executed by this runtime)
+- `pi-agents/*.md` (bundled agent definitions executed by this runtime)

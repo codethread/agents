@@ -12,6 +12,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -39,6 +40,7 @@ type AgentSource = AgentConfig["source"] | "unknown";
 type TaskRequest = {
 	agent: string;
 	task: string;
+	description?: string;
 	cwd?: string;
 };
 
@@ -62,6 +64,7 @@ interface SingleResult {
 	messages: Message[];
 	stderr: string;
 	usage: UsageStats;
+	sessionFile?: string;
 	provider?: string;
 	model?: string;
 	reasoning?: boolean;
@@ -71,9 +74,35 @@ interface SingleResult {
 	errorMessage?: string;
 }
 
+interface ManifestEntry {
+	id: string;
+	agent: string;
+	agentSource: string;
+	provider?: string;
+	model?: string;
+	thinking: string | null;
+	description: string;
+	prompt: string;
+	sessionFile: string;
+	timestamp: string;
+	exitCode: number;
+	usage: { input: number; output: number; cost: number };
+	durationMs: number;
+}
+
+interface Manifest {
+	parent: {
+		sessionFile: string;
+		sessionId: string;
+	};
+	cwd: string;
+	subagents: ManifestEntry[];
+}
+
 interface SubagentDetails {
 	mode: SubagentMode;
 	projectAgentsDir: string | null;
+	parentSessionId?: string;
 	results: SingleResult[];
 }
 
@@ -131,10 +160,12 @@ function createDetails(
 	mode: SubagentMode,
 	projectAgentsDir: string | null,
 	results: SingleResult[],
+	parentSessionId?: string,
 ): SubagentDetails {
 	return {
 		mode,
 		projectAgentsDir,
+		parentSessionId,
 		results,
 	};
 }
@@ -186,16 +217,16 @@ function formatUsageStats(
 	return parts.join(" ");
 }
 
+function shortenHomePath(p: string): string {
+	const home = os.homedir();
+	return p.startsWith(home) ? `~${p.slice(home.length)}` : p;
+}
+
 function formatToolCall(
 	toolName: string,
 	args: Record<string, unknown>,
 	themeFg: (color: any, text: string) => string,
 ): string {
-	const shortenPath = (p: string) => {
-		const home = os.homedir();
-		return p.startsWith(home) ? `~${p.slice(home.length)}` : p;
-	};
-
 	switch (toolName) {
 		case "bash": {
 			const command = (args.command as string) || "...";
@@ -204,7 +235,7 @@ function formatToolCall(
 		}
 		case "read": {
 			const rawPath = (args.file_path || args.path || "...") as string;
-			const filePath = shortenPath(rawPath);
+			const filePath = shortenHomePath(rawPath);
 			const offset = args.offset as number | undefined;
 			const limit = args.limit as number | undefined;
 			let text = themeFg("accent", filePath);
@@ -217,7 +248,7 @@ function formatToolCall(
 		}
 		case "write": {
 			const rawPath = (args.file_path || args.path || "...") as string;
-			const filePath = shortenPath(rawPath);
+			const filePath = shortenHomePath(rawPath);
 			const content = (args.content || "") as string;
 			const lines = content.split("\n").length;
 			let text = themeFg("muted", "write ") + themeFg("accent", filePath);
@@ -226,11 +257,11 @@ function formatToolCall(
 		}
 		case "edit": {
 			const rawPath = (args.file_path || args.path || "...") as string;
-			return themeFg("muted", "edit ") + themeFg("accent", shortenPath(rawPath));
+			return themeFg("muted", "edit ") + themeFg("accent", shortenHomePath(rawPath));
 		}
 		case "ls": {
 			const rawPath = (args.path || ".") as string;
-			return themeFg("muted", "ls ") + themeFg("accent", shortenPath(rawPath));
+			return themeFg("muted", "ls ") + themeFg("accent", shortenHomePath(rawPath));
 		}
 		case "find": {
 			const pattern = (args.pattern || "*") as string;
@@ -238,7 +269,7 @@ function formatToolCall(
 			return (
 				themeFg("muted", "find ") +
 				themeFg("accent", pattern) +
-				themeFg("dim", ` in ${shortenPath(rawPath)}`)
+				themeFg("dim", ` in ${shortenHomePath(rawPath)}`)
 			);
 		}
 		case "grep": {
@@ -247,7 +278,7 @@ function formatToolCall(
 			return (
 				themeFg("muted", "grep ") +
 				themeFg("accent", `/${pattern}/`) +
-				themeFg("dim", ` in ${shortenPath(rawPath)}`)
+				themeFg("dim", ` in ${shortenHomePath(rawPath)}`)
 			);
 		}
 		default: {
@@ -357,6 +388,67 @@ function getPiInvocation(args: string[]): { command: string; args: string[] } {
 	return { command: "pi", args };
 }
 
+type ParentSessionInfo = { sessionFile: string; sessionId: string; cwd: string };
+
+function getSubagentSessionPath(
+	parentSessionFile: string,
+	parentSessionId: string,
+	cwd: string,
+): { dir: string; sessionFile: string; sessionId: string } {
+	const encodedCwd = `--${cwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
+	const agentDir = path.join(os.homedir(), ".pi", "agent");
+	const dir = path.join(agentDir, "subagent-sessions", encodedCwd, parentSessionId);
+	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+	const sessionId = randomUUID();
+	return {
+		dir,
+		sessionFile: path.join(dir, `${sessionId}.jsonl`),
+		sessionId,
+	};
+}
+
+async function updateManifest(
+	dir: string,
+	parentInfo: { sessionFile: string; sessionId: string },
+	cwd: string,
+	entry: ManifestEntry,
+): Promise<void> {
+	const manifestPath = path.join(dir, "manifest.json");
+	let manifest: Manifest = {
+		parent: {
+			sessionFile: parentInfo.sessionFile,
+			sessionId: parentInfo.sessionId,
+		},
+		cwd,
+		subagents: [],
+	};
+
+	try {
+		const raw = await fs.promises.readFile(manifestPath, "utf8");
+		const parsed = JSON.parse(raw) as Partial<Manifest>;
+		manifest = {
+			parent: parsed.parent ?? manifest.parent,
+			cwd: parsed.cwd ?? manifest.cwd,
+			subagents: Array.isArray(parsed.subagents) ? parsed.subagents : [],
+		};
+	} catch {
+		// create new manifest on first run or malformed content
+	}
+
+	manifest.parent = {
+		sessionFile: parentInfo.sessionFile,
+		sessionId: parentInfo.sessionId,
+	};
+	manifest.cwd = cwd;
+	const existingIndex = manifest.subagents.findIndex((subagent) => subagent.id === entry.id);
+	if (existingIndex >= 0) manifest.subagents[existingIndex] = entry;
+	else manifest.subagents.push(entry);
+
+	await withFileMutationQueue(manifestPath, async () => {
+		await fs.promises.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+	});
+}
+
 async function mapWithConcurrencyLimit<TIn, TOut>(
 	items: TIn[],
 	concurrency: number,
@@ -394,17 +486,38 @@ async function runSingleAgent(
 	defaultCwd: string,
 	agents: AgentConfig[],
 	request: TaskRequest,
+	description: string,
 	signal: AbortSignal | undefined,
 	onUpdate: ((result: SingleResult) => void) | undefined,
 	resolveModelInfo?: ResolveModelInfo,
+	parentSessionInfo?: ParentSessionInfo,
 ): Promise<SingleResult> {
 	const agent = agents.find((candidate) => candidate.name === request.agent);
 	if (!agent) return createUnknownAgentResult(request.agent, request.task, agents);
 
-	const args: string[] = ["--mode", "json", "-p", "--no-session"];
+	const args: string[] = ["--mode", "json", "-p"];
+	const runCwd = request.cwd ?? defaultCwd;
+	let subagentSession:
+		| {
+				dir: string;
+				sessionFile: string;
+				sessionId: string;
+		  }
+		| undefined;
+	if (parentSessionInfo) {
+		subagentSession = getSubagentSessionPath(
+			parentSessionInfo.sessionFile,
+			parentSessionInfo.sessionId,
+			runCwd,
+		);
+		args.push("--session", subagentSession.sessionFile);
+	} else {
+		args.push("--no-session");
+	}
 	if (agent.model) args.push("--model", agent.model);
 	if (agent.tools?.length) args.push("--tools", agent.tools.join(","));
 
+	const startTime = Date.now();
 	const currentResult: SingleResult = {
 		agent: request.agent,
 		agentSource: agent.source,
@@ -413,6 +526,7 @@ async function runSingleAgent(
 		messages: [],
 		stderr: "",
 		usage: createEmptyUsage(),
+		sessionFile: subagentSession?.sessionFile,
 		thinkingLevel: agent.model?.split(":").at(1),
 	};
 
@@ -432,7 +546,7 @@ async function runSingleAgent(
 		const exitCode = await new Promise<number>((resolve) => {
 			const invocation = getPiInvocation(args);
 			const proc = spawn(invocation.command, invocation.args, {
-				cwd: request.cwd ?? defaultCwd,
+				cwd: runCwd,
 				shell: false,
 				stdio: ["ignore", "pipe", "pipe"],
 			});
@@ -532,6 +646,35 @@ async function runSingleAgent(
 
 		currentResult.exitCode = exitCode;
 		if (wasAborted) throw new Error("Subagent was aborted");
+		if (parentSessionInfo && subagentSession) {
+			await updateManifest(
+				subagentSession.dir,
+				{
+					sessionFile: parentSessionInfo.sessionFile,
+					sessionId: parentSessionInfo.sessionId,
+				},
+				runCwd,
+				{
+					id: subagentSession.sessionId,
+					agent: currentResult.agent,
+					agentSource: currentResult.agentSource,
+					provider: currentResult.provider,
+					model: currentResult.model,
+					thinking: currentResult.thinkingLevel ?? null,
+					description,
+					prompt: currentResult.task,
+					sessionFile: path.basename(subagentSession.sessionFile),
+					timestamp: new Date().toISOString(),
+					exitCode: currentResult.exitCode,
+					usage: {
+						input: currentResult.usage.input,
+						output: currentResult.usage.output,
+						cost: currentResult.usage.cost,
+					},
+					durationMs: Date.now() - startTime,
+				},
+			);
+		}
 		return currentResult;
 	} finally {
 		if (tmpPromptDir) {
@@ -542,6 +685,10 @@ async function runSingleAgent(
 
 const TaskItem = Type.Object({
 	agent: Type.String({ description: "Name of the agent to invoke" }),
+	description: Type.String({
+		description:
+			"Terse summary of the delegated task (3-8 words), e.g. 'map auth flow in db connector'",
+	}),
 	task: Type.String({ description: "Task to delegate to the agent" }),
 	cwd: Type.Optional(Type.String({ description: "Working directory for the agent process" })),
 });
@@ -550,9 +697,17 @@ const SubagentParams = Type.Object({
 	agent: Type.Optional(
 		Type.String({ description: "Name of the agent to invoke (for single mode)" }),
 	),
+	description: Type.Optional(
+		Type.String({
+			description:
+				"Terse summary of the delegated task (3-8 words), e.g. 'map auth flow in db connector'",
+		}),
+	),
 	task: Type.Optional(Type.String({ description: "Task to delegate (for single mode)" })),
 	tasks: Type.Optional(
-		Type.Array(TaskItem, { description: "Array of {agent, task} for parallel execution" }),
+		Type.Array(TaskItem, {
+			description: "Array of {agent, description, task} for parallel execution",
+		}),
 	),
 	confirmProjectAgents: Type.Optional(
 		Type.Boolean({
@@ -605,7 +760,8 @@ export default function (pi: ExtensionAPI) {
 		label: "Subagent",
 		description: [
 			"Delegate tasks to specialized subagents with isolated context.",
-			"Modes: single (agent + task), parallel (tasks array).",
+			"Modes: single (agent + description + task), parallel (tasks array; each task includes description + task).",
+			"A terse description field is required for delegated tasks.",
 			"Bundled, user, and project agents are discovered automatically.",
 		].join(" "),
 		parameters: SubagentParams,
@@ -615,10 +771,16 @@ export default function (pi: ExtensionAPI) {
 			const agents = discovery.agents;
 			const confirmProjectAgents = params.confirmProjectAgents ?? true;
 			const hasTasks = (params.tasks?.length ?? 0) > 0;
-			const hasSingle = Boolean(params.agent && params.task);
+			const hasSingle = Boolean(params.agent && params.task && params.description);
+			const singleFieldsPresent = Boolean(params.agent || params.task || params.description);
 			const modeCount = Number(hasTasks) + Number(hasSingle);
+			const parentSessionFile = ctx.sessionManager.getSessionFile();
+			const parentSessionId = ctx.sessionManager.getSessionId();
+			const parentSessionInfo = parentSessionFile
+				? { sessionFile: parentSessionFile, sessionId: parentSessionId, cwd: ctx.cwd }
+				: undefined;
 			const makeDetails = (mode: SubagentMode, results: SingleResult[]) =>
-				createDetails(mode, discovery.projectAgentsDir, results);
+				createDetails(mode, discovery.projectAgentsDir, results, parentSessionInfo?.sessionId);
 			const resolveModelInfo: ResolveModelInfo = (provider, model) => {
 				if (!provider || !model) return undefined;
 				const resolved = ctx.modelRegistry.find(provider, model);
@@ -631,11 +793,15 @@ export default function (pi: ExtensionAPI) {
 			};
 
 			if (modeCount !== 1) {
+				const missingDescription = singleFieldsPresent && !hasSingle && !hasTasks;
+				const guidance = missingDescription
+					? "Single mode requires agent, description, and task."
+					: "Provide exactly one mode.";
 				return {
 					content: [
 						{
 							type: "text",
-							text: `Invalid parameters. Provide exactly one mode.\nAvailable agents: ${getAvailableAgentsText(agents)}`,
+							text: `Invalid parameters. ${guidance}\nAvailable agents: ${getAvailableAgentsText(agents)}`,
 						},
 					],
 					details: makeDetails("single", []),
@@ -706,12 +872,14 @@ export default function (pi: ExtensionAPI) {
 							ctx.cwd,
 							agents,
 							task,
+							task.description,
 							signal,
 							(partial) => {
 								allResults[index] = partial;
 								emitParallelUpdate();
 							},
 							resolveModelInfo,
+							parentSessionInfo,
 						);
 						allResults[index] = result;
 						emitParallelUpdate();
@@ -736,11 +904,12 @@ export default function (pi: ExtensionAPI) {
 				};
 			}
 
-			if (params.agent && params.task) {
+			if (params.agent && params.task && params.description) {
 				const result = await runSingleAgent(
 					ctx.cwd,
 					agents,
 					{ agent: params.agent, task: params.task, cwd: params.cwd },
+					params.description,
 					signal,
 					(partial) => {
 						if (!onUpdate) return;
@@ -750,6 +919,7 @@ export default function (pi: ExtensionAPI) {
 						});
 					},
 					resolveModelInfo,
+					parentSessionInfo,
 				);
 
 				if (isResultError(result)) {
@@ -874,6 +1044,16 @@ export default function (pi: ExtensionAPI) {
 					container.addChild(new Spacer(1));
 					container.addChild(new Text(theme.fg("muted", "─── Task ───"), 0, 0));
 					container.addChild(new Text(theme.fg("dim", singleResult.task), 0, 0));
+					if (singleResult.sessionFile) {
+						container.addChild(
+							new Text(
+								theme.fg("muted", "session: ") +
+									theme.fg("dim", shortenHomePath(singleResult.sessionFile)),
+								0,
+								0,
+							),
+						);
+					}
 					container.addChild(new Spacer(1));
 					container.addChild(new Text(theme.fg("muted", "─── Output ───"), 0, 0));
 					addToolCallsAndOutput(container, singleResult);
@@ -952,6 +1132,16 @@ export default function (pi: ExtensionAPI) {
 					container.addChild(
 						new Text(theme.fg("muted", "Task: ") + theme.fg("dim", singleResult.task), 0, 0),
 					);
+					if (singleResult.sessionFile) {
+						container.addChild(
+							new Text(
+								theme.fg("muted", "session: ") +
+									theme.fg("dim", shortenHomePath(singleResult.sessionFile)),
+								0,
+								0,
+							),
+						);
+					}
 					addToolCallsAndOutput(container, singleResult);
 					const usageStr = formatUsageStats(
 						singleResult.usage,
