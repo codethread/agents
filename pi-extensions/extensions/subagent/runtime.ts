@@ -64,10 +64,8 @@ export async function writePromptToTempFile(
 }
 
 export async function runSingleAgent(
-	defaultCwd: string,
 	agents: AgentConfig[],
 	request: TaskRequest,
-	description: string,
 	signal: AbortSignal | undefined,
 	onUpdate: ((result: SingleResult) => void) | undefined,
 	resolveModelInfo?: ResolveModelInfo,
@@ -77,7 +75,7 @@ export async function runSingleAgent(
 	if (!agent) return createUnknownAgentResult(request.agent, request.task, agents);
 
 	const args: string[] = ["--mode", "json", "-p"];
-	const runCwd = request.cwd ?? defaultCwd;
+	const runCwd = request.cwd;
 	let subagentSession:
 		| {
 				dir: string;
@@ -243,7 +241,7 @@ export async function runSingleAgent(
 					provider: currentResult.provider,
 					model: currentResult.model,
 					thinking: currentResult.thinkingLevel ?? null,
-					description,
+					description: request.description,
 					prompt: currentResult.task,
 					sessionFile: path.basename(subagentSession.sessionFile),
 					timestamp: new Date().toISOString(),

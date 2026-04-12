@@ -10,14 +10,14 @@ The agent is aware of this tool and will use it when asked to delegate work or r
 - _"Run these three tasks in parallel: lint, typecheck, and test"_
 - _"Project-local agents in .pi/agents are discovered automatically too"_
 
-The agent can invoke subagents in two modes:
+The tool always uses a `tasks` array. Use one task for focused work, or multiple independent tasks for parallel fan-out.
 
-| Mode         | When to use                                     | What happens                |
-| ------------ | ----------------------------------------------- | --------------------------- |
-| **Single**   | One focused task                                | Spawns one agent process    |
-| **Parallel** | Independent tasks that can run at the same time | Up to 8 tasks, 4 concurrent |
+| Shape                 | When to use                                     | What happens                |
+| --------------------- | ----------------------------------------------- | --------------------------- |
+| **`tasks` (1 item)**  | One focused task                                | Spawns one agent process    |
+| **`tasks` (N items)** | Independent tasks that can run at the same time | Up to 8 tasks, 4 concurrent |
 
-Tool calls require a terse `description` field for delegated work (single mode `description`, parallel mode `tasks[].description`).
+Each task must include `agent`, `description`, `task`, and `cwd`.
 
 ## Session logs
 
@@ -47,6 +47,8 @@ Agent files are markdown files with YAML frontmatter, placed in one of:
 - `.pi/agents/` — project-local agents, discovered from `cwd` upward
 
 Bundled package agents are always included too, and Pi sees one merged list with project definitions overriding user/package names and user definitions overriding package names. In this package, those bundled agents live under `pi-agents/`.
+
+Note: there is no extra confirmation prompt in the tool API for project-local agents; delegation uses the same required `tasks[]` schema for package, user, and project agents.
 
 **Agent file format:**
 

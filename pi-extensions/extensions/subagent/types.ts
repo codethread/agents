@@ -6,14 +6,13 @@ export const MAX_CONCURRENCY = 4;
 export const COLLAPSED_ITEM_COUNT = 10;
 export const RUNNING_EXIT_CODE = -1;
 
-export type SubagentMode = "single" | "parallel";
 export type AgentSource = AgentConfig["source"] | "unknown";
 
 export type TaskRequest = {
 	agent: string;
 	task: string;
-	description?: string;
-	cwd?: string;
+	description: string;
+	cwd: string;
 };
 
 export interface UsageStats {
@@ -47,7 +46,6 @@ export interface SingleResult {
 }
 
 export interface SubagentDetails {
-	mode: SubagentMode;
 	projectAgentsDir: string | null;
 	parentSessionId?: string;
 	results: SingleResult[];
@@ -106,13 +104,11 @@ export function createPendingResult(task: TaskRequest): SingleResult {
 }
 
 export function createDetails(
-	mode: SubagentMode,
 	projectAgentsDir: string | null,
 	results: SingleResult[],
 	parentSessionId?: string,
 ): SubagentDetails {
 	return {
-		mode,
 		projectAgentsDir,
 		parentSessionId,
 		results,
