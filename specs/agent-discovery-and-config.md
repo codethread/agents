@@ -1,7 +1,7 @@
 # Agent Discovery and Configuration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-11
+**Last Updated:** 2026-04-12
 
 ## 1. Overview
 
@@ -50,7 +50,7 @@ Agent discovery is implemented in `pi-extensions/extensions/subagent/agents.ts` 
 
 Discovery supports three sources:
 
-- **package** — bundled agents under `pi-extensions/agents/`
+- **package** — bundled agents under repo-level `pi-agents/` (with legacy fallback support for `pi-extensions/agents/`)
 - **user** — agents under `~/.pi/agent/agents`
 - **project** — agents under the nearest ancestor `.pi/agents`
 
@@ -153,9 +153,9 @@ const CLAUDE_TOOL_MAP: Record<string, string | null> = {
 
 Bundled agents in this repo demonstrate the file format discovery expects:
 
-- `pi-extensions/agents/scout.md`
-- `pi-extensions/agents/hack.md`
-- `pi-extensions/agents/builder.md`
+- `pi-agents/scout.md`
+- `pi-agents/hack.md`
+- `pi-agents/builder.md`
 
 These files use YAML frontmatter for `name`, `description`, optional author-only `meta`, and optional `tools` / `model`, followed by a markdown prompt body that becomes `systemPrompt`.
 
@@ -216,7 +216,7 @@ If the requested agent name is missing, runtime returns an error containing the 
 ## 5. Design Decisions
 
 - **Decision:** Agents are defined as markdown files with frontmatter and prompt body.
-  - **Rationale:** A single file can carry both runtime metadata and the system prompt, while also allowing author-only notes such as `meta`, matching how bundled agents in `pi-extensions/agents/*.md` are authored.
+  - **Rationale:** A single file can carry both runtime metadata and the system prompt, while also allowing author-only notes such as `meta`, matching how bundled agents in `pi-agents/*.md` are authored.
 
 - **Decision:** Pi sees one merged agent list rather than choosing among discovery scopes.
   - **Rationale:** Runtime behavior is simpler when user/project/package sources are a discovery concern, not a tool-call concern.
@@ -266,5 +266,5 @@ Additional verification remains code-level and runtime-level:
 - `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/subagent/`
 - `pi-extensions/extensions/subagent/agents.ts`
-- `pi-extensions/agents/*.md`
+- `pi-agents/*.md`
 - `.pi/settings.json` (local development example affecting nearest-settings resolution in this repo)

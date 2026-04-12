@@ -17,11 +17,11 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 
 ## Delegation and Resource Sync
 
-| Spec                                                             | Purpose                                                                                                                                     | Code                                                                                                             |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| [agent-discovery-and-config.md](./agent-discovery-and-config.md) | Defines how bundled, user, and project agents are discovered, normalized, and handed to subagent runtime execution.                         | `pi-extensions/extensions/subagent/`, `pi-extensions/extensions/subagent/agents.ts`, `pi-extensions/agents/*.md` |
-| [subagent-orchestration.md](./subagent-orchestration.md)         | Defines subagent runtime execution: mode dispatch, isolated child-process orchestration, streaming updates, confirmation, and UI rendering. | `pi-extensions/extensions/subagent/`, `pi-extensions/extensions/current-context-footer/usage-format.ts`          |
-| [claude-sync-integration.md](./claude-sync-integration.md)       | Defines Claude-to-Pi syncing: scope discovery, symlink safety rules, command-name translation, lifecycle gating, and result notifications.  | `pi-extensions/extensions/claude-sync/`                                                                          |
+| Spec                                                             | Purpose                                                                                                                                     | Code                                                                                                    |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [agent-discovery-and-config.md](./agent-discovery-and-config.md) | Defines how bundled, user, and project agents are discovered, normalized, and handed to subagent runtime execution.                         | `pi-extensions/extensions/subagent/`, `pi-extensions/extensions/subagent/agents.ts`, `pi-agents/*.md`   |
+| [subagent-orchestration.md](./subagent-orchestration.md)         | Defines subagent runtime execution: mode dispatch, isolated child-process orchestration, streaming updates, confirmation, and UI rendering. | `pi-extensions/extensions/subagent/`, `pi-extensions/extensions/current-context-footer/usage-format.ts` |
+| [claude-sync-integration.md](./claude-sync-integration.md)       | Defines Claude-to-Pi syncing: scope discovery, symlink safety rules, command-name translation, lifecycle gating, and result notifications.  | `pi-extensions/extensions/claude-sync/`                                                                 |
 
 ## Prompt and Context Injection
 

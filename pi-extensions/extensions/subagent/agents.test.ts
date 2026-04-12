@@ -234,4 +234,22 @@ describe("discoverAgents", () => {
 			"temp-user",
 		]);
 	});
+
+	it("loads bundled repo agents from pi-agents by default", () => {
+		const root = makeTempDir("subagent-bundled-");
+		const userAgentsDir = path.join(root, "user-agents");
+		const cwd = path.join(root, "workspace");
+
+		const discovery = discoverAgents(cwd, {
+			userAgentsDir,
+			projectAgentsDir: null,
+			settingsPath: null,
+		});
+
+		const bundledAgents = discovery.agents.filter((agent) => agent.source === "package");
+		expect(bundledAgents.map((agent) => agent.name).sort()).toEqual(["builder", "hack", "scout"]);
+		for (const agent of bundledAgents) {
+			expect(agent.filePath).toContain(`${path.sep}pi-agents${path.sep}`);
+		}
+	});
 });

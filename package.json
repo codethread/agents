@@ -12,6 +12,7 @@
 	],
 	"files": [
 		"pi-extensions",
+		"pi-agents",
 		"skills"
 	],
 	"packageManager": "pnpm@10.33.0",
