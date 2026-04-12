@@ -153,11 +153,11 @@ const CLAUDE_TOOL_MAP: Record<string, string | null> = {
 
 Bundled agents in this repo demonstrate the file format discovery expects:
 
-- `pi-extensions/agents/explorer.md`
-- `pi-extensions/agents/shell.md`
-- `pi-extensions/agents/worker.md`
+- `pi-extensions/agents/scout.md`
+- `pi-extensions/agents/hack.md`
+- `pi-extensions/agents/builder.md`
 
-These files use YAML frontmatter for `name`, `description`, and optional `tools` / `model`, followed by a markdown prompt body that becomes `systemPrompt`.
+These files use YAML frontmatter for `name`, `description`, optional author-only `meta`, and optional `tools` / `model`, followed by a markdown prompt body that becomes `systemPrompt`.
 
 ## 4. Interfaces
 
@@ -194,6 +194,7 @@ Discovery relies on these frontmatter fields:
 
 - `name` — required; files without it are skipped
 - `description` — required; files without it are skipped
+- `meta` — optional author-only string; ignored by discovery/runtime and not exposed to parent agents
 - `tools` — optional comma-separated string
 - `model` — optional string, possibly an alias
 
@@ -215,7 +216,7 @@ If the requested agent name is missing, runtime returns an error containing the 
 ## 5. Design Decisions
 
 - **Decision:** Agents are defined as markdown files with frontmatter and prompt body.
-  - **Rationale:** A single file can carry both metadata and the system prompt, matching how bundled agents in `pi-extensions/agents/*.md` are authored.
+  - **Rationale:** A single file can carry both runtime metadata and the system prompt, while also allowing author-only notes such as `meta`, matching how bundled agents in `pi-extensions/agents/*.md` are authored.
 
 - **Decision:** Pi sees one merged agent list rather than choosing among discovery scopes.
   - **Rationale:** Runtime behavior is simpler when user/project/package sources are a discovery concern, not a tool-call concern.
@@ -240,13 +241,19 @@ If the requested agent name is missing, runtime returns an error containing the 
 
 ## 6. Testing
 
-There are currently no automated tests in this repo covering `pi-extensions/extensions/subagent/agents.ts` beyond prompt-formatting helpers.
+`pi-extensions/extensions/subagent/agents.test.ts` provides automated coverage for key discovery behavior, including:
 
-Current verification is code-level and runtime-level:
+- XML prompt formatting for discovered agents
+- package/user/project override precedence
+- tool normalization and model alias resolution in discovered configs
+- author-only `meta` frontmatter being ignored by runtime-facing discovery output
+- isolation from bundled repo agents when temp dirs are supplied explicitly
+
+Additional verification remains code-level and runtime-level:
 
 - `debug-agents` exposes the effective merged list plus source-specific user/project sections for manual inspection.
 - The `subagent` tool exercises the discovered configuration by spawning child `pi` processes with the resolved model, tool set, and prompt.
-- Repo-wide checks (`npm run lint`, `npm run typecheck`, `npm run test`) provide static validation and package-level tests but do not assert discovery behavior directly.
+- Repo-wide checks (`npm run lint`, `npm run typecheck`, `npm run test`) provide static validation and package-level tests.
 
 ## 7. Open Questions
 

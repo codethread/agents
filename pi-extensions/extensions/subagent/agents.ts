@@ -24,6 +24,13 @@ export interface AgentDiscoveryResult {
 	projectAgentsDir: string | null;
 }
 
+export interface AgentDiscoveryOptions {
+	packageAgentsDir?: string | null;
+	userAgentsDir?: string;
+	projectAgentsDir?: string | null;
+	settingsPath?: string | null;
+}
+
 const PI_BUILTIN_TOOLS = new Set(["read", "bash", "edit", "write", "grep", "find", "ls"]);
 
 const CLAUDE_TOOL_MAP: Record<string, string | null> = {
@@ -207,11 +214,19 @@ function findBundledAgentsDir(): string | null {
 	return isDirectory(bundledDir) ? bundledDir : null;
 }
 
-export function discoverAgents(cwd: string): AgentDiscoveryResult {
-	const packageAgentsDir = findBundledAgentsDir();
-	const userAgentsDir = path.join(getAgentDir(), "agents");
-	const projectAgentsDir = findNearestProjectAgentsDir(cwd);
-	const settingsPath = findNearestSettingsFile(cwd);
+export function discoverAgents(
+	cwd: string,
+	options: AgentDiscoveryOptions = {},
+): AgentDiscoveryResult {
+	const packageAgentsDir =
+		options.packageAgentsDir === undefined ? findBundledAgentsDir() : options.packageAgentsDir;
+	const userAgentsDir = options.userAgentsDir ?? path.join(getAgentDir(), "agents");
+	const projectAgentsDir =
+		options.projectAgentsDir === undefined
+			? findNearestProjectAgentsDir(cwd)
+			: options.projectAgentsDir;
+	const settingsPath =
+		options.settingsPath === undefined ? findNearestSettingsFile(cwd) : options.settingsPath;
 	const settings = settingsPath ? readJsonFile<PiSettings>(settingsPath) : null;
 
 	const packageAgents = packageAgentsDir

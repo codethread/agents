@@ -6,7 +6,7 @@ The agent is aware of this tool and will use it when asked to delegate work or r
 
 **How to use it:**
 
-- _"Use the explorer agent to map out the folder structure"_
+- _"Use the scout agent to map out the folder structure"_
 - _"Run these three tasks in parallel: lint, typecheck, and test"_
 - _"Project-local agents in .pi/agents are discovered automatically too"_
 
@@ -32,18 +32,24 @@ Bundled package agents are always included too, and Pi sees one merged list with
 ---
 name: my-agent
 description: Short description of what this agent does
-tools: Read, Bash, Edit
+meta: Why this agent exists, for authors only
+tools: read, bash, edit
 model: sonnet
 ---
 
 You are a specialist in [whatever]. Your job is to...
 ```
 
-| Frontmatter field | Required | Description                                          |
-| ----------------- | -------- | ---------------------------------------------------- |
-| `name`            | ✅       | Agent identifier (used in tool calls)                |
-| `description`     | ✅       | Shown to the parent agent for delegation decisions   |
-| `tools`           |          | Comma-separated list of tools available to the agent |
-| `model`           |          | Model alias or full `provider/model` identifier      |
+| Frontmatter field | Required | Description                                                          |
+| ----------------- | -------- | -------------------------------------------------------------------- |
+| `name`            | ✅       | Agent identifier (used in tool calls)                                |
+| `description`     | ✅       | Shown to the parent agent for delegation decisions                   |
+| `meta`            |          | Author-only note about why the agent exists; ignored by runtime/tool |
+| `tools`           |          | Comma-separated list of Pi tool names available to the agent         |
+| `model`           |          | Model alias or full `provider/model` identifier                      |
+
+Use canonical Pi tool names in lowercase for new agents. Common built-ins are `read`, `bash`, `edit`, `write`, `grep`, `find`, and `ls`.
+Some legacy Claude-style names are normalized, but prefer the Pi names directly in frontmatter.
+The optional `meta` field is for maintainers only and is not surfaced to the parent agent via discovery or prompt injection.
 
 The markdown body below the frontmatter becomes the agent's system prompt.

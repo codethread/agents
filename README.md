@@ -29,6 +29,12 @@ pi install git:github.com/<you>/agents
 Pi loads the package's extensions, prompts, themes, and skills through `package.json#pi`.
 The bundled agents are discovered by the `subagent` extension from `pi-extensions/agents/`, so they travel with the package too. The package also includes a `pi-discovery` extension that watches for explicit `Pi` mentions and appends currently discovered extension source paths as a one-shot contextual note on the triggering user message, helping Pi inspect installed extension implementations directly when users reference them.
 
+## Bundled agents
+
+- `pi-extensions/agents/scout.md` — fast codebase recon and architecture mapping
+- `pi-extensions/agents/builder.md` — scoped implementation agent for code/config changes
+- `pi-extensions/agents/hack.md` — shell-first investigation and automation agent
+
 ## Included skills
 
 - `skills/skill-authoring/SKILL.md` — guide for writing well-structured Pi skills
