@@ -91,10 +91,12 @@ export default function (pi: ExtensionAPI) {
 			"Bundled, user, and project agents are discovered automatically.",
 		].join(" "),
 		promptSnippet: "Delegate tasks to specialized subagents",
-		promptGuidelines: [
-			"Always provide a terse description (3-8 words) for each delegated task.",
-			"Use a single-item tasks array for focused work; use multiple items for independent parallel tasks.",
-		],
+		// TODO: fix alignment of tools, but right now i prefer my injected context
+		// promptGuidelines: [
+		// 	"Use subagent for giving specific tasks to other agents like scouting the codebase or scripts with noisy feedback loops",
+		// 	"Always provide a terse description (3-8 words) for each delegated task.",
+		// 	"Use a single-item tasks array for focused work; use multiple items for independent parallel tasks.",
+		// ],
 		parameters: SubagentParams,
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
