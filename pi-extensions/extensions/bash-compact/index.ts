@@ -1,5 +1,5 @@
 import type { BashToolDetails, ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { createBashTool } from "@mariozechner/pi-coding-agent";
+import { createBashToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 
 const COLLAPSED_LINES = 5;
@@ -18,8 +18,9 @@ function previewLines(text: string, count: number) {
 
 export default function (pi: ExtensionAPI) {
 	pi.registerTool({
-		...createBashTool(process.cwd()),
+		...createBashToolDefinition(process.cwd()),
 		name: "bash",
+		promptSnippet: "Execute bash commands (ls, grep, find, etc.)",
 
 		renderCall(args, theme) {
 			let text = theme.fg("toolTitle", theme.bold("$ "));

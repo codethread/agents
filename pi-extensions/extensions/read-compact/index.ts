@@ -1,4 +1,4 @@
-import { createReadTool, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { createReadToolDefinition, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Container, Text } from "@mariozechner/pi-tui";
 
 /**
@@ -11,11 +11,13 @@ function mapReadError(message: string): string {
 }
 
 export default function (pi: ExtensionAPI) {
-	const builtinRead = createReadTool(process.cwd());
+	const builtinRead = createReadToolDefinition(process.cwd());
 
 	pi.registerTool({
 		...builtinRead,
 		name: "read",
+		promptSnippet: "Read file contents",
+		promptGuidelines: ["Use read to examine files instead of cat or sed."],
 
 		renderCall(args, theme) {
 			const path = (args.path as string | undefined) ?? "(unknown)";
