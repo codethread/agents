@@ -38,6 +38,7 @@ The bundled agents are discovered by the `subagent` extension from `pi-agents/`,
 ## Included skills
 
 - `skills/skill-authoring/SKILL.md` — guide for writing well-structured Pi skills
+- `skills/pi-session-introspection/SKILL.md` — jq cookbook for analysing Pi agent/subagent session JSONL files (tool usage, thinking, costs, file ops, subagent manifests)
 - `skills/merge/SKILL.md` — squash-merge a branch or linked worktree into the current branch with an inferred semantic commit message, preserve a concise source commit list in the body, then clean up the source branch/worktree
 
 ## Development
