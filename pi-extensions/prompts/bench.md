@@ -1,5 +1,5 @@
 ---
-description: Benchmark a task across multiple models/thinking levels
+description: Benchmark a task across models, prompts, or both
 argument-hint: <task description>
 ---
 
@@ -7,60 +7,85 @@ argument-hint: <task description>
 
 You are orchestrating a benchmark run: spawning isolated Pi processes across git worktrees, then analyzing and comparing results.
 
+The system supports three shapes through the same core flow:
+
+- **One prompt → many models/thinking levels**
+- **One model → many prompts**
+- **Many prompts × many models** (cross-product)
+
+Every runnable unit is an `entry`. Every entry gets its own worktree, session file, and batch slot. Analysis compares entries side-by-side.
+
 ## Configuration
 
 Read `.pi/bench-matrix.json` for the run config. **If missing**, scaffold it interactively:
 
-1. Ask the user which models/thinking levels to benchmark
-2. Ask for the setup command if not obvious from the project (e.g., `pnpm install`)
-3. Create the run's session directory, write the exact benchmark prompt to `prompt.md` inside it, and record that file path in the matrix
-4. Write `.pi/bench-matrix.json` and add it to `.gitignore` if not already there
+1. Ask the user which axis to compare: models, prompts, or both
+2. Collect model/thinking combinations and prompt variant(s)
+3. Ask for the setup command if not obvious from the project (e.g. `pnpm install`)
+4. Create the run's session directory, write prompt file(s), record paths in the matrix
+5. Write `.pi/bench-matrix.json` and add it to `.gitignore` if not already there
 
 ### Matrix schema
 
+A single unified schema. Each entry resolves to exactly one model, one thinking level, and one prompt. The varying axis is inferred from how entries differ — no `mode` field.
+
 ```json
 {
-	"setup": "pnpm install",
-	"task": "Rewrite tmux-window-title extension in clean code style",
-	"promptPath": "/home/codethread/.pi/agent/bench-sessions/2026-04-13T14-30-00/prompt.md",
-	"lastRun": null,
-	"entries": {
-		"sonnet-high": {
-			"model": "github-copilot/claude-sonnet-4.6",
-			"thinking": "high",
-			"batchId": 1
-		},
-		"gpt5": {
-			"model": "openai-codex/gpt-5.4",
-			"thinking": "off",
-			"batchId": 1
-		},
-		"gpt5-mini": {
-			"model": "openai-codex/gpt-5.4-mini",
-			"thinking": "off",
-			"batchId": 2
-		}
-	}
+  "setup": "pnpm install",
+  "task": "Rewrite tmux-window-title extension in clean code style",
+  "prompts": {
+    "baseline": {
+      "path": "/home/codethread/.pi/agent/bench-sessions/2026-04-13T14-30-00/prompts/baseline.md"
+    },
+    "strict": {
+      "path": "/home/codethread/.pi/agent/bench-sessions/2026-04-13T14-30-00/prompts/strict.md"
+    }
+  },
+  "lastRun": null,
+  "entries": {
+    "gpt5-baseline": {
+      "model": "openai-codex/gpt-5.4",
+      "thinking": "off",
+      "prompt": "baseline",
+      "batchId": 1
+    },
+    "gpt5-strict": {
+      "model": "openai-codex/gpt-5.4",
+      "thinking": "off",
+      "prompt": "strict",
+      "batchId": 2
+    },
+    "sonnet-baseline": {
+      "model": "github-copilot/claude-sonnet-4.6",
+      "thinking": "high",
+      "prompt": "baseline",
+      "batchId": 1
+    }
+  }
 }
 ```
 
-| Field                     | Description                                                                                         |
-| ------------------------- | --------------------------------------------------------------------------------------------------- |
-| `setup`                   | Shell command run in each new worktree before benchmarking                                          |
-| `task`                    | Original user request / benchmark task description                                                  |
-| `promptPath`              | Path to the markdown file containing the exact benchmark prompt; `cat` it into Pi for each run      |
-| `lastRun`                 | `null` for fresh state, or `"<run-id>"` after a completed run (task is stored at top-level `task`)  |
-| `entries.<slug>`          | Short descriptive key, used as worktree/branch suffix                                               |
-| `entries.<slug>.model`    | Pi `--model` value                                                                                  |
-| `entries.<slug>.thinking` | Thinking level: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`                                  |
-| `entries.<slug>.batchId`  | Optional, defaults to `1`. Same batchId = parallel. Batches execute sequentially in ascending order |
+When `prompts` contains exactly one entry, `entries.<slug>.prompt` can be omitted — the single prompt is used implicitly. When multiple prompts exist, every entry must specify `prompt`.
+
+| Field | Description |
+| --- | --- |
+| `setup` | Shell command run in each new worktree before benchmarking |
+| `task` | Original user request / benchmark task description |
+| `prompts.<slug>.path` | Absolute path to a prompt variant's markdown file |
+| `lastRun` | `null` for fresh state, or `"<run-id>"` after a completed run |
+| `entries.<slug>` | Runnable benchmark unit; slug is the worktree/branch/session suffix |
+| `entries.<slug>.model` | Pi `--model` value |
+| `entries.<slug>.thinking` | Thinking level: `off`, `minimal`, `low`, `medium`, `high`, `xhigh` |
+| `entries.<slug>.prompt` | Key into `prompts`; required when multiple prompts exist |
+| `entries.<slug>.batchId` | Optional, defaults to `1`. Same batchId = parallel. Batches run sequentially in ascending order |
+
+### Cross-product
+
+When the user wants multiple prompts × multiple models, expand into explicit entries. Example: 2 prompts × 3 models = 6 entries. Persist the expanded set — this makes batching, re-runs, and analysis deterministic.
 
 ### Batch execution
 
-Entries with the same `batchId` (or missing, defaulting to `1`) launch in parallel. Batches execute in ascending numerical order. Example:
-
-- `batchId: 1` and missing `batchId` → first wave (parallel)
-- `batchId: 2` → second wave (after batch 1 completes)
+Entries with the same `batchId` (or missing, defaulting to `1`) launch in parallel. Batches execute in ascending order. Batching is at the **entry** level: two entries sharing a model but using different prompts are still separate entries with independent batch slots.
 
 ## State machine
 
@@ -73,7 +98,8 @@ Proceed to **New Run**.
 Compare top-level `task` to the user's current request:
 
 - **Match or user asks for analysis** → Skip to **Analysis**
-- **Match and user asks for additional models / another benchmark pass** → Skip to **Additional Run**
+- **Match and user asks to add models, prompts, or both** → Skip to **Additional Run**
+- **User wants to revise prompt wording** → Create a new prompt slug + new entries, then **Additional Run**
 - **Clearly different task** → Treat as stale. Clear `lastRun`, proceed to **New Run**
 
 If ambiguous, ask the user.
@@ -82,72 +108,83 @@ If ambiguous, ask the user.
 
 When constructing the benchmark prompt for each spawned Pi process, decide subagent delegation policy from task intent:
 
-- **Direct skill tasks** (e.g., "rewrite this code", "add tests", "refactor this module"): append:
+- **Direct skill tasks** (e.g. "rewrite this code", "add tests", "refactor this module"): append:
   - `Do all the work yourself directly. Do NOT delegate to subagents.`
-  - Rationale: benchmark the model's own implementation ability.
-- **Orchestration tasks** (e.g., "implement this feature across 5 modules", "coordinate a migration"): allow subagents freely.
-  - Rationale: benchmark coordination and delegation quality.
-- **Nuanced cases**: some subagents are useful without doing implementation work. `scout` is generally acceptable even in direct-skill benchmarks for reconnaissance. Consider appending:
+- **Orchestration tasks** (e.g. "implement this feature across 5 modules", "coordinate a migration"): allow subagents freely.
+- **Nuanced cases**: `scout` is generally acceptable even in direct-skill benchmarks. Consider:
   - `Do NOT delegate implementation work to subagents. You may use the scout agent for codebase exploration if needed.`
 
-This policy decision belongs to the orchestrating agent at prompt-construction time, not the matrix configuration. The matrix defines model/thinking permutations; the orchestrator interprets task intent.
+This policy belongs to the orchestrating agent at prompt-construction time. The matrix defines permutations; the orchestrator interprets task intent.
 
-If the user explicitly specifies subagent policy in their `/bench` request, that explicit instruction overrides this heuristic.
+If the user explicitly specifies subagent policy, that overrides this heuristic.
 
 ## New Run
 
 ### 1. Generate run ID
 
-Use an ISO timestamp slug: `2026-04-13T14-30-00`
+ISO timestamp slug: `2026-04-13T14-30-00`
 
-### 2. Create the session dir and prompt file
+### 2. Create session dir and prompt files
 
 ```bash
 RUN_ID="<run-id>"
 SESSION_DIR="$HOME/.pi/agent/bench-sessions/$RUN_ID"
-PROMPT_FILE="$SESSION_DIR/prompt.md"
-mkdir -p "$SESSION_DIR"
-cat > "$PROMPT_FILE" <<'EOF'
-<the rendered benchmark prompt markdown>
+PROMPTS_DIR="$SESSION_DIR/prompts"
+mkdir -p "$PROMPTS_DIR"
+
+cat > "$PROMPTS_DIR/<prompt-slug>.md" <<'EOF'
+<the rendered prompt variant markdown>
 EOF
 ```
 
-The prompt now lives in the run's session directory, which makes it easy to inspect later and avoids escaping issues. Store that file path in `.pi/bench-matrix.json` as `promptPath`.
+One file per prompt variant. Use descriptive slugs: `baseline`, `strict`, `minimal-context`. Update `prompts.<slug>.path` in the matrix to point here. The written file is the source of truth — do not paraphrase or regenerate later.
 
 ### 3. Create worktrees and install deps
 
 ```bash
-# Create worktrees for all matrix entries
 for slug in <slugs>; do
   git worktree add "../<repo>__bench-$slug" -b "bench-$slug"
 done
 
-# Run setup in each
 for slug in <slugs>; do
   cd /path/to/<repo>__bench-$slug && <setup-command>
 done
 ```
 
-The repo name comes from the current worktree's directory basename (without any existing `__suffix`). Use `git worktree list` to find the base path.
+Each entry gets its own worktree. The repo name comes from the current worktree's directory basename (without any `__suffix`). Use `git worktree list` to find the base path.
 
 ### 4. Execute batches
 
-Group entries by `batchId` (defaulting to `1`). For each batch in ascending order, launch all entries in that batch as parallel background processes:
+Group entries by `batchId` (default `1`). For each batch in ascending order, launch all entries as parallel background processes.
+
+Prompt resolution:
+
+- If the entry has `prompt`, use `prompts[that-key].path`
+- Otherwise, use the single prompt in `prompts`
 
 ```bash
-PROMPT_FILE="$(jq -r '.promptPath' .pi/bench-matrix.json)"
-SESSION_DIR="$(dirname "$PROMPT_FILE")"
-RUN_ID="$(basename "$SESSION_DIR")"
+SESSION_DIR="$HOME/.pi/agent/bench-sessions/$RUN_ID"
 LOG_DIR="/tmp/bench-$RUN_ID"
 mkdir -p "$LOG_DIR"
 
-# Launch batch (all entries with same batchId)
+resolve_prompt() {
+  jq -r --arg slug "$1" '
+    .entries[$slug] as $entry
+    | if ($entry.prompt // "") != "" then
+        .prompts[$entry.prompt].path
+      else
+        .prompts[(.prompts | keys[0])].path
+      end
+  ' .pi/bench-matrix.json
+}
+
 for slug in <batch-slugs>; do
-  read -r model thinking <<< "<model> <thinking>"  # from matrix
+  read -r model thinking <<< "$(jq -r --arg s "$slug" '.entries[$s] | "\(.model) \(.thinking)"' .pi/bench-matrix.json)"
+  prompt_file="$(resolve_prompt "$slug")"
   wt_dir="/path/to/<repo>__bench-$slug"
   (
     cd "$wt_dir" && \
-    cat "$PROMPT_FILE" | pi --print \
+    cat "$prompt_file" | pi --print \
       --model "$model" \
       --thinking "$thinking" \
       --session "$SESSION_DIR/$slug.jsonl" \
@@ -155,41 +192,65 @@ for slug in <batch-slugs>; do
     echo $? > "$LOG_DIR/$slug.exit"
   ) &
 done
-wait
+# Do NOT `wait` here — step 5 handles the unified wait across all batches
 ```
 
-Capture stdout/stderr/exit-code per entry so you can diagnose failures.
+### 5. Wait for completion
 
-### 5. Monitor running batches
-
-TODO: can we make this a file watch or process watch to be deterministic? It's valid to be able to check the status as a heartbeat if we hit a global timeout (30mins for a full bench is good, as these runs can be slow, so we'd want to double check things are ticking along, then set another watch process with 30 min timeout)
-
-While processes are running, poll status:
+Block until all entries finish, with a 30-minute heartbeat checkpoint. Do **not** return control to the agent between polls — the script itself handles the wait loop so no agent turns are wasted.
 
 ```bash
-for slug in <all-slugs>; do
-  exit_file="$LOG_DIR/$slug.exit"
-  session_file="$SESSION_DIR/$slug.jsonl"
-  if [ -f "$exit_file" ]; then
-    echo "✅ $slug: done (exit=$(cat $exit_file))"
-  elif [ -f "$session_file" ]; then
-    turns=$(jq -r 'select(.type == "message" and .message.role == "assistant") | .message.role' "$session_file" | wc -l)
-    echo "⏳ $slug: running (~${turns} turns)"
-  else
-    echo "⏳ $slug: starting..."
+SLUGS="<all-slugs>"
+TIMEOUT=1800  # 30 minutes
+start=$(date +%s)
+
+while true; do
+  done_count=0
+  total=0
+  for slug in $SLUGS; do
+    total=$((total + 1))
+    [ -f "$LOG_DIR/$slug.exit" ] && done_count=$((done_count + 1))
+  done
+  [ $done_count -eq $total ] && break
+
+  elapsed=$(( $(date +%s) - start ))
+  if [ $elapsed -ge $TIMEOUT ]; then
+    echo "=== 30-minute heartbeat ($done_count/$total done) ==="
+    for slug in $SLUGS; do
+      exit_file="$LOG_DIR/$slug.exit"
+      session_file="$SESSION_DIR/$slug.jsonl"
+      if [ -f "$exit_file" ]; then
+        echo "✅ $slug: done (exit=$(cat $exit_file))"
+      elif [ -f "$session_file" ]; then
+        turns=$(jq -r 'select(.type == "message" and .message.role == "assistant") | .message.role' "$session_file" | wc -l)
+        echo "⏳ $slug: running (~${turns} turns)"
+      else
+        echo "⏳ $slug: starting..."
+      fi
+    done
+    start=$(date +%s)  # reset timer for next checkpoint
   fi
+
+  sleep 5
+done
+
+echo "All entries completed."
+for slug in $SLUGS; do
+  echo "$slug: exit=$(cat $LOG_DIR/$slug.exit)"
 done
 ```
 
+This blocks the agent's bash call until all entries are done. The 5-second poll is negligible overhead. If 30 minutes pass with entries still running, it prints a status heartbeat and resets the timer — the agent only regains control when everything finishes or a bash timeout is hit.
+
 ### 6. Update state
 
-Populate top-level `task` from the user's request and set `promptPath` to the run's `prompt.md` file, then set `lastRun` in `.pi/bench-matrix.json`:
+Set `lastRun` and ensure prompt paths point to this run's session directory:
 
 ```json
 {
-	"task": "<the user's request>",
-	"promptPath": "<absolute path to session-dir/prompt.md>",
-	"lastRun": "<run-id>"
+  "task": "<the user's request>",
+  "prompts": { "<slug>": { "path": "<session-dir/prompts/slug.md>" } },
+  "lastRun": "<run-id>"
 }
 ```
 
@@ -197,61 +258,30 @@ Populate top-level `task` from the user's request and set `promptPath` to the ru
 
 ## Additional Run
 
-Use when the benchmark task is unchanged, but the user wants to expand the matrix with one or more new model/thinking combinations and run only those additions.
+Use when the task is unchanged but the user wants to expand the matrix — new models, new prompts, or new combinations.
 
-### 1. Add the missing entries
+### 1. Add missing prompts and entries
 
-Read `.pi/bench-matrix.json` and append new `entries` for the requested model/thinking pairs that do not already exist. Leave existing entries unchanged.
+- Add new prompt variants under `prompts`
+- Add new entries for requested model/thinking/prompt combinations
+- Leave existing entries and prompt slugs unchanged
+- Never overwrite an existing prompt slug; create a new one instead
 
-### 2. Generate a run ID
+### 2. Generate run ID
 
-Use an ISO timestamp slug: `2026-04-13T14-30-00`
+### 3. Create session dir and prompt files
 
-### 3. Create the session dir and prompt file
+Write all active prompt variants into the new run's `prompts/` directory. Each run is self-contained. Old runs keep their historical files.
 
-```bash
-RUN_ID="<run-id>"
-SESSION_DIR="$HOME/.pi/agent/bench-sessions/$RUN_ID"
-PROMPT_FILE="$SESSION_DIR/prompt.md"
-mkdir -p "$SESSION_DIR"
-cat > "$PROMPT_FILE" <<'EOF'
-<the rendered benchmark prompt markdown>
-EOF
-```
+### 4. Create worktrees for new entries only
 
-The new run gets its own session directory and `prompt.md`, so old runs keep their historical prompt file intact.
+### 5. Execute new entries only
 
-### 4. Create worktrees and install deps for the new entries only
-
-```bash
-# Create worktrees only for the new slugs
-for slug in <new-slugs>; do
-  git worktree add "../<repo>__bench-$slug" -b "bench-$slug"
-done
-
-# Run setup in each new worktree
-for slug in <new-slugs>; do
-  cd /path/to/<repo>__bench-$slug && <setup-command>
-done
-```
-
-The existing matrix entries and their worktrees are left alone. New entries can reuse or define `batchId` values among themselves for parallelism; only the new entries are scheduled.
-
-### 5. Execute batches
-
-Group only the new entries by `batchId` (defaulting to `1`). For each batch in ascending order, launch all entries in that batch as parallel background processes.
+Same prompt resolution and batch logic as New Run.
 
 ### 6. Update state
 
-Populate top-level `task` from the user's request and set `promptPath` to the run's `prompt.md` file, then set `lastRun` in `.pi/bench-matrix.json` to the new run ID:
-
-```json
-{
-	"task": "<the user's request>",
-	"promptPath": "<absolute path to session-dir/prompt.md>",
-	"lastRun": "<run-id>"
-}
-```
+Update `lastRun` and prompt paths to the new run directory.
 
 ### 7. Proceed to Analysis
 
@@ -259,9 +289,17 @@ Populate top-level `task` from the user's request and set `promptPath` to the ru
 
 Use the `pi-session-introspection` skill to analyze `~/.pi/agent/bench-sessions/<run-id>/` session files.
 
-Inspect the source code yourself as appropriate to measure quality based on the user's original request.
+Inspect the source code in each worktree to measure quality against the user's original request.
 
-Note: Some providers (github-copilot) do not report cost, this does not mean the model is free, we must simply infer usage from tokens alone
+Note: Some providers (github-copilot) do not report cost — infer usage from tokens alone.
+
+### Framing
+
+Frame the comparison according to what varies:
+
+- **Model varies, prompt constant**: compare raw model performance.
+- **Prompt varies, model constant**: compare how wording affects quality, instruction-following, scope control, tool usage, and code churn.
+- **Both vary**: compare prompts within each model, then models within each prompt. Call out interaction effects. Do not flatten into one ranking.
 
 ### Per-entry metrics
 
@@ -294,35 +332,34 @@ jq -s '[.[] | select(.type == "message" and .message.role == "toolResult" and
 ### Per-worktree checks
 
 ```bash
-# File structure
 cd /path/to/<repo>__bench-$slug
 tree --charset=ascii <target-dir>/
-
-# Git diff stats
 git diff --stat HEAD
-
-# Project verification
-pnpm check  # or whatever the project uses
-
-# Carry out analysis, such as additional tests written
-pnpm test 2>&1 | rg '(Test Files|Tests)'
+pnpm check  # or project verification command
 ```
 
-Present results as a **comparison table**. Include all metrics side-by-side. Then ask the user what to do next.
+### Presenting results
 
-### Resetting a single entry for re-run
+Comparison table with columns: slug, model, thinking, prompt, exit code, turns, tokens in/out, cost, tool calls, diff stats, qualitative notes.
+
+Interpret results according to the active comparison axis. Then ask the user what to do next.
+
+### Write analysis to session directory
+
+After presenting results to the user, write an `analysis.md` file to the run's session directory (`$SESSION_DIR/analysis.md`) containing the comparison table and summary. This is the permanent record of the run.
+
+### Resetting a single entry
 
 ```bash
-# Reset worktree to clean state
 cd /path/to/<repo>__bench-$slug && git checkout -- . && git clean -fd
-# Remove stale session
 rm -f "$SESSION_DIR/$slug.jsonl"
-# Re-run with the same or modified prompt
 ```
+
+To change prompt wording for comparison, create a new prompt slug and new entry rather than mutating history.
 
 ## Cleanup
 
-When the user explicitly states the bench as done:
+When the user says the bench is done:
 
 ```bash
 for slug in <all-slugs>; do
@@ -331,7 +368,7 @@ for slug in <all-slugs>; do
 done
 ```
 
-Clear `lastRun` from `.pi/bench-matrix.json`. Session files in `~/.pi/agent/bench-sessions/<run-id>/` can be kept for future reference.
+Clear `lastRun` from `.pi/bench-matrix.json`. Session files in `~/.pi/agent/bench-sessions/<run-id>/` are kept for reference.
 
 ## Task
 
