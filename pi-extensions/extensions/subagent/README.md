@@ -2,7 +2,7 @@
 
 > Delegate tasks to specialized subagents with isolated context.
 
-The agent is aware of this tool and will use it when asked to delegate work or run tasks in parallel. It also injects the currently discovered subagents into the system prompt as an XML list of names and descriptions so the parent agent can choose among them. You can guide it by describing the kind of work you want delegated.
+The agent is aware of this tool and will use it when asked to delegate work or run tasks in parallel. It also injects the currently discovered subagents into the system prompt as an XML list of names and descriptions so the parent agent can choose among them. Child subagent processes are marked with `PI_SUBAGENT=1`, which lets extensions hide or reshape behavior for delegated runs. You can guide it by describing the kind of work you want delegated.
 
 **How to use it:**
 

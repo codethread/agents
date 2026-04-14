@@ -64,6 +64,7 @@ Subprocess execution is intentionally isolated from the parent context:
 
 - the child is launched with `--mode json -p`
 - when the parent session is persisted, each subagent run gets `--session <path>` in a subagent session directory; otherwise it falls back to `--no-session`
+- child subagents are marked with `PI_SUBAGENT=1` in the environment so extensions can adjust behavior for delegated runs
 - resolved agent model and normalized tools are forwarded via `--model` and `--tools`
 - the agent prompt is appended through `--append-system-prompt <temp file>`
 - the delegated work itself is passed as a single prompt string: `Task: <task>`

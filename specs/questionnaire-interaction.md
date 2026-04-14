@@ -39,7 +39,7 @@ Implementation lives in:
 
 The extension registers a `questionnaire` tool with a TypeBox schema. Execution flow:
 
-1. require interactive UI via `ctx.hasUI`
+1. during `session_start`, remove the tool from active tools when running headless subagents (`!ctx.hasUI` and `PI_SUBAGENT=1`)
 2. require at least one question
 3. normalize `label`
 4. resolve editor command from `$VISUAL` or `$EDITOR`
@@ -121,6 +121,13 @@ Failure behavior:
 - non-zero editor exit code → cancelled result
 - signal termination → cancelled result mentioning the signal
 - if the questionnaire buffer is saved empty, treat that as an explicit stop request
+
+Visibility behavior:
+
+- questionnaire stays registered in normal interactive sessions
+- subagent child processes set `PI_SUBAGENT=1`
+- on `session_start`, headless subagents remove `questionnaire` from active tools before the next prompt is built
+- this is a startup-only hide, not a runtime execution guard
 
 The temporary questionnaire directory is removed in a `finally` block.
 
@@ -277,7 +284,7 @@ Special stop case:
 
 Notable implementation detail:
 
-- even hard failures such as missing UI/editor are represented as cancelled questionnaire results rather than throwing tool errors
+- even hard failures such as missing editor, launch failure, or explicit cancellation are represented as cancelled questionnaire results rather than throwing tool errors
 
 ### Parsing contract
 

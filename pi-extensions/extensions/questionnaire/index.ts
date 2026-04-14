@@ -70,6 +70,19 @@ const QuestionnaireParams = Type.Object({
 	}),
 });
 
+const QUESTIONNAIRE_TOOL_NAME = "questionnaire";
+
+function isSubagentRuntime(): boolean {
+	return process.env.PI_SUBAGENT?.trim() === "1";
+}
+
+function hideQuestionnaireForSubagent(ctx: { hasUI: boolean }, pi: ExtensionAPI): void {
+	if (ctx.hasUI || !isSubagentRuntime()) return;
+	const activeTools = pi.getActiveTools();
+	if (!activeTools.includes(QUESTIONNAIRE_TOOL_NAME)) return;
+	pi.setActiveTools(activeTools.filter((toolName) => toolName !== QUESTIONNAIRE_TOOL_NAME));
+}
+
 function errorResult(
 	message: string,
 	questions: Question[] = [],
@@ -141,17 +154,18 @@ function renderSessionTldrMarkdown(transcript: string): string {
 }
 
 export default function questionnaire(pi: ExtensionAPI) {
+	pi.on("session_start", (_event, ctx) => {
+		hideQuestionnaireForSubagent(ctx, pi);
+	});
+
 	pi.registerTool({
-		name: "questionnaire",
+		name: QUESTIONNAIRE_TOOL_NAME,
 		label: "Questionnaire",
 		description:
 			"Ask the user one or more questions through a temporary markdown form opened in the user's external editor ($VISUAL/$EDITOR). Returns structured answers with optional custom responses.",
 		parameters: QuestionnaireParams,
 
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-			if (!ctx.hasUI) {
-				return errorResult("Error: UI not available (running in non-interactive mode)");
-			}
 			if (params.questions.length === 0) {
 				return errorResult("Error: No questions provided");
 			}
