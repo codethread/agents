@@ -10,3 +10,4 @@
 - [ ] we might need to disable subagents for tasks, easy enough with a `--disable-subagents bob,bill,babra` list which hides them from the tool info
 - [ ] it would be good support other harness for `/bench`, e.g `codex exec <task` and `claude --print`
 - [x] questionnaire needs to be hidden if not main UI agent
+- [ ] should likely disable subagents for the orchestrator when doing benchmarks - they really should read the files

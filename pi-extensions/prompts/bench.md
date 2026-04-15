@@ -31,53 +31,53 @@ A single unified schema. Each entry resolves to exactly one model, one thinking 
 
 ```json
 {
-  "setup": "pnpm install",
-  "task": "Rewrite tmux-window-title extension in clean code style",
-  "prompts": {
-    "baseline": {
-      "path": "/home/codethread/.pi/agent/bench-sessions/2026-04-13T14-30-00/prompts/baseline.md"
-    },
-    "strict": {
-      "path": "/home/codethread/.pi/agent/bench-sessions/2026-04-13T14-30-00/prompts/strict.md"
-    }
-  },
-  "lastRun": null,
-  "entries": {
-    "gpt5-baseline": {
-      "model": "openai-codex/gpt-5.4",
-      "thinking": "off",
-      "prompt": "baseline",
-      "batchId": 1
-    },
-    "gpt5-strict": {
-      "model": "openai-codex/gpt-5.4",
-      "thinking": "off",
-      "prompt": "strict",
-      "batchId": 2
-    },
-    "sonnet-baseline": {
-      "model": "github-copilot/claude-sonnet-4.6",
-      "thinking": "high",
-      "prompt": "baseline",
-      "batchId": 1
-    }
-  }
+	"setup": "pnpm install",
+	"task": "Rewrite tmux-window-title extension in clean code style",
+	"prompts": {
+		"baseline": {
+			"path": "/home/codethread/.pi/agent/bench-sessions/2026-04-13T14-30-00/prompts/baseline.md"
+		},
+		"strict": {
+			"path": "/home/codethread/.pi/agent/bench-sessions/2026-04-13T14-30-00/prompts/strict.md"
+		}
+	},
+	"lastRun": null,
+	"entries": {
+		"gpt5-baseline": {
+			"model": "openai-codex/gpt-5.4",
+			"thinking": "off",
+			"prompt": "baseline",
+			"batchId": 1
+		},
+		"gpt5-strict": {
+			"model": "openai-codex/gpt-5.4",
+			"thinking": "off",
+			"prompt": "strict",
+			"batchId": 2
+		},
+		"sonnet-baseline": {
+			"model": "github-copilot/claude-sonnet-4.6",
+			"thinking": "high",
+			"prompt": "baseline",
+			"batchId": 1
+		}
+	}
 }
 ```
 
 When `prompts` contains exactly one entry, `entries.<slug>.prompt` can be omitted — the single prompt is used implicitly. When multiple prompts exist, every entry must specify `prompt`.
 
-| Field | Description |
-| --- | --- |
-| `setup` | Shell command run in each new worktree before benchmarking |
-| `task` | Original user request / benchmark task description |
-| `prompts.<slug>.path` | Absolute path to a prompt variant's markdown file |
-| `lastRun` | `null` for fresh state, or `"<run-id>"` after a completed run |
-| `entries.<slug>` | Runnable benchmark unit; slug is the worktree/branch/session suffix |
-| `entries.<slug>.model` | Pi `--model` value |
-| `entries.<slug>.thinking` | Thinking level: `off`, `minimal`, `low`, `medium`, `high`, `xhigh` |
-| `entries.<slug>.prompt` | Key into `prompts`; required when multiple prompts exist |
-| `entries.<slug>.batchId` | Optional, defaults to `1`. Same batchId = parallel. Batches run sequentially in ascending order |
+| Field                     | Description                                                                                     |
+| ------------------------- | ----------------------------------------------------------------------------------------------- |
+| `setup`                   | Shell command run in each new worktree before benchmarking                                      |
+| `task`                    | Original user request / benchmark task description                                              |
+| `prompts.<slug>.path`     | Absolute path to a prompt variant's markdown file                                               |
+| `lastRun`                 | `null` for fresh state, or `"<run-id>"` after a completed run                                   |
+| `entries.<slug>`          | Runnable benchmark unit; slug is the worktree/branch/session suffix                             |
+| `entries.<slug>.model`    | Pi `--model` value                                                                              |
+| `entries.<slug>.thinking` | Thinking level: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`                              |
+| `entries.<slug>.prompt`   | Key into `prompts`; required when multiple prompts exist                                        |
+| `entries.<slug>.batchId`  | Optional, defaults to `1`. Same batchId = parallel. Batches run sequentially in ascending order |
 
 ### Cross-product
 
@@ -248,9 +248,9 @@ Set `lastRun` and ensure prompt paths point to this run's session directory:
 
 ```json
 {
-  "task": "<the user's request>",
-  "prompts": { "<slug>": { "path": "<session-dir/prompts/slug.md>" } },
-  "lastRun": "<run-id>"
+	"task": "<the user's request>",
+	"prompts": { "<slug>": { "path": "<session-dir/prompts/slug.md>" } },
+	"lastRun": "<run-id>"
 }
 ```
 
