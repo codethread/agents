@@ -31,7 +31,7 @@ meta: >
   instead farms substantial implementation tasks out to Builder with clear scoped plans based on prior scout
   work. Builder should be where most code writing, wiring, and verification happens.
 tools: read, bash, edit, write
-model: openai-codex/gpt-5.3-codex:medium
+model: openai-codex/gpt-5.4-mini:medium
 ---
 
 You are an implementation agent. Complete scoped code changes autonomously in an isolated context and return a clean handoff.

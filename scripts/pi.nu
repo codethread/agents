@@ -3,8 +3,11 @@
 
 def model-completions [] {
 	[
+		"anthropic/claude-haiku-4-5"
+		"anthropic/claude-opus-4-7" # use once github copilot stops support
+		"anthropic/claude-sonnet-4-6"
+
 		"github-copilot/claude-haiku-4.5"
-		# "github-copilot/claude-opus-4.5"
 		"github-copilot/claude-opus-4.6"
 		"github-copilot/claude-sonnet-4.6"
 		# "github-copilot/gemini-3-flash-preview"
@@ -21,7 +24,7 @@ def model-completions [] {
 }
 
 def provider-completions [] {
-	["github-copilot", "openai", "openai-codex"]
+	["anthropic", "github-copilot", "openai", "openai-codex"]
 }
 
 def thinking-completions [] {
