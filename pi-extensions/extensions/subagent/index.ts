@@ -7,9 +7,17 @@
  * Uses JSON mode to capture structured output from subagents.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { discoverAgents, formatAgentsForPrompt } from "./agents.js";
+import {
+	discoverAgents,
+	findAgentByName,
+	formatAgentsForPrompt,
+	formatSelectedAgentPrompt,
+	getAgentActiveTools,
+	getInheritedAgentRuntimeSettings,
+	parseAgentFlagCliOverrides,
+} from "./agents.js";
 import { mapWithConcurrencyLimit, runSingleAgent } from "./runtime.js";
 import {
 	formatDebugSection,
@@ -47,12 +55,100 @@ const SubagentParams = Type.Object({
 });
 
 export default function (pi: ExtensionAPI) {
-	pi.on("before_agent_start", (event, ctx) => {
+	let selectedAgentName: string | undefined;
+	let agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
+
+	const failAgentSelection = (
+		message: string,
+		ctx?: Pick<ExtensionContext, "hasUI" | "ui">,
+	): never => {
+		if (ctx?.hasUI) ctx.ui.notify(message, "error");
+		process.stderr.write(`${message}\n`);
+		process.exit(1);
+	};
+
+	const requireSelectedAgent = (ctx: Pick<ExtensionContext, "cwd" | "hasUI" | "ui">) => {
+		if (!selectedAgentName) return undefined;
 		const discovery = discoverAgents(ctx.cwd);
+		const agent = findAgentByName(discovery.agents, selectedAgentName);
+		if (!agent) {
+			failAgentSelection(
+				`Unknown agent "${selectedAgentName}". Available agents: ${getAvailableAgentsText(discovery.agents)}`,
+				ctx,
+			);
+		}
+		return { agent: agent!, discovery };
+	};
+
+	const applySelectedAgentSettings = async (ctx: ExtensionContext) => {
+		const selected = requireSelectedAgent(ctx);
+		if (!selected) return;
+
+		const inherited = getInheritedAgentRuntimeSettings(selected.agent, agentFlagCliOverrides);
+		const activeTools = getAgentActiveTools(inherited.tools, pi.getAllTools());
+		if (activeTools?.length) {
+			pi.setActiveTools(activeTools);
+		}
+
+		if (inherited.modelRef) {
+			const [provider, ...idParts] = inherited.modelRef.split("/");
+			const id = idParts.join("/");
+			if (!provider || !id) {
+				failAgentSelection(
+					`Agent "${selected.agent.name}" resolved model "${inherited.modelRef}" is not a fully qualified provider/model identifier. Override with --model or update the agent file.`,
+					ctx,
+				);
+			}
+
+			const model = ctx.modelRegistry.find(provider, id);
+			if (!model) {
+				failAgentSelection(
+					`Agent "${selected.agent.name}" resolved model "${inherited.modelRef}" is not available in this Pi runtime. Override with --model or update the agent file.`,
+					ctx,
+				);
+			}
+
+			const didSetModel = await pi.setModel(model!);
+			if (!didSetModel) {
+				failAgentSelection(
+					`Agent "${selected.agent.name}" requires model "${inherited.modelRef}", but no API key is available. Override with --model or configure credentials.`,
+					ctx,
+				);
+			}
+		}
+
+		if (inherited.thinkingLevel) {
+			pi.setThinkingLevel(inherited.thinkingLevel);
+		}
+	};
+
+	pi.registerFlag("agent", {
+		description:
+			"Inherit a discovered subagent config by name unless overridden by explicit CLI flags",
+		type: "string",
+	});
+
+	pi.on("session_start", async (_event, ctx) => {
+		agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
+		const agentFlag = pi.getFlag("agent");
+		selectedAgentName = typeof agentFlag === "string" ? agentFlag.trim() : undefined;
+		if (!selectedAgentName) {
+			selectedAgentName = undefined;
+			return;
+		}
+
+		requireSelectedAgent(ctx);
+		await applySelectedAgentSettings(ctx);
+	});
+
+	pi.on("before_agent_start", (event, ctx) => {
+		const selected = requireSelectedAgent(ctx);
+		const discovery = selected?.discovery ?? discoverAgents(ctx.cwd);
 		const promptAddon = formatAgentsForPrompt(discovery.agents);
-		if (!promptAddon) return;
+		const selectedPromptAddon = formatSelectedAgentPrompt(selected?.agent);
+		if (!promptAddon && !selectedPromptAddon) return;
 		return {
-			systemPrompt: `${event.systemPrompt}${promptAddon}`,
+			systemPrompt: `${event.systemPrompt}${promptAddon}${selectedPromptAddon}`,
 		};
 	});
 

@@ -31,6 +31,29 @@ export interface AgentDiscoveryOptions {
 	settingsPath?: string | null;
 }
 
+export type AgentThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
+
+export interface AgentRuntimeSettings {
+	tools?: string[];
+	modelFlagValue?: string;
+	modelRef?: string;
+	thinkingLevel?: AgentThinkingLevel;
+	systemPrompt: string;
+}
+
+export interface AgentFlagCliOverrides {
+	hasModelOverride: boolean;
+	hasThinkingOverride: boolean;
+	hasToolsOverride: boolean;
+}
+
+interface ToolLike {
+	name: string;
+	sourceInfo: {
+		source: string;
+	};
+}
+
 const PI_BUILTIN_TOOLS = new Set(["read", "bash", "edit", "write", "grep", "find", "ls"]);
 
 const CLAUDE_TOOL_MAP: Record<string, string | null> = {
@@ -54,6 +77,15 @@ interface PiSettings {
 	defaultModel?: string;
 	enabledModels?: string[];
 }
+
+const THINKING_LEVELS = new Set<AgentThinkingLevel>([
+	"off",
+	"minimal",
+	"low",
+	"medium",
+	"high",
+	"xhigh",
+]);
 
 function normalizeTools(rawTools: string[] | undefined): string[] | undefined {
 	if (!rawTools || rawTools.length === 0) return undefined;
@@ -270,6 +302,99 @@ export function formatAgentList(
 		text: listed.map((agent) => `${agent.name} (${agent.source}): ${agent.description}`).join("; "),
 		remaining,
 	};
+}
+
+export function findAgentByName(
+	agents: AgentConfig[],
+	name: string | undefined | null,
+): AgentConfig | undefined {
+	const requestedName = name?.trim();
+	if (!requestedName) return undefined;
+	return agents.find((agent) => agent.name === requestedName);
+}
+
+function parseAgentModel(model: string | undefined): {
+	modelFlagValue?: string;
+	modelRef?: string;
+	thinkingLevel?: AgentThinkingLevel;
+} {
+	const modelFlagValue = model?.trim();
+	if (!modelFlagValue) return {};
+
+	const lastColon = modelFlagValue.lastIndexOf(":");
+	if (lastColon === -1) {
+		return { modelFlagValue, modelRef: modelFlagValue };
+	}
+
+	const modelRef = modelFlagValue.slice(0, lastColon).trim();
+	const maybeThinkingLevel = modelFlagValue.slice(lastColon + 1).trim();
+	if (!modelRef || !THINKING_LEVELS.has(maybeThinkingLevel as AgentThinkingLevel)) {
+		return { modelFlagValue, modelRef: modelFlagValue };
+	}
+
+	return {
+		modelFlagValue,
+		modelRef,
+		thinkingLevel: maybeThinkingLevel as AgentThinkingLevel,
+	};
+}
+
+export function getAgentRuntimeSettings(agent: AgentConfig): AgentRuntimeSettings {
+	const parsedModel = parseAgentModel(agent.model);
+	return {
+		tools: agent.tools,
+		systemPrompt: agent.systemPrompt,
+		...parsedModel,
+	};
+}
+
+export function getInheritedAgentRuntimeSettings(
+	agent: AgentConfig,
+	cliOverrides: AgentFlagCliOverrides,
+): AgentRuntimeSettings {
+	const settings = getAgentRuntimeSettings(agent);
+	return {
+		systemPrompt: settings.systemPrompt,
+		tools: cliOverrides.hasToolsOverride ? undefined : settings.tools,
+		modelFlagValue: cliOverrides.hasModelOverride ? undefined : settings.modelFlagValue,
+		modelRef: cliOverrides.hasModelOverride ? undefined : settings.modelRef,
+		thinkingLevel: cliOverrides.hasThinkingOverride ? undefined : settings.thinkingLevel,
+	};
+}
+
+function hasCliFlag(argv: string[], longFlag: string, shortFlag?: string): boolean {
+	for (let i = 0; i < argv.length; i++) {
+		const arg = argv[i];
+		if (arg === longFlag || (shortFlag && arg === shortFlag)) return true;
+		if (arg.startsWith(`${longFlag}=`)) return true;
+		if (shortFlag && arg.startsWith(`${shortFlag}=`)) return true;
+	}
+	return false;
+}
+
+export function parseAgentFlagCliOverrides(argv: string[]): AgentFlagCliOverrides {
+	return {
+		hasModelOverride: hasCliFlag(argv, "--model", "-m") || hasCliFlag(argv, "--provider"),
+		hasThinkingOverride: hasCliFlag(argv, "--thinking"),
+		hasToolsOverride: hasCliFlag(argv, "--tools") || hasCliFlag(argv, "--no-tools"),
+	};
+}
+
+export function getAgentActiveTools(
+	inheritedBuiltins: string[] | undefined,
+	allTools: ToolLike[],
+): string[] | undefined {
+	if (!inheritedBuiltins?.length) return undefined;
+	const nonBuiltins = allTools
+		.filter((tool) => tool.sourceInfo.source !== "builtin")
+		.map((tool) => tool.name);
+	return Array.from(new Set([...inheritedBuiltins, ...nonBuiltins]));
+}
+
+export function formatSelectedAgentPrompt(agent: AgentConfig | undefined): string {
+	const systemPrompt = agent ? getAgentRuntimeSettings(agent).systemPrompt : "";
+	if (!systemPrompt.trim()) return "";
+	return `\n\n${systemPrompt}`;
 }
 
 function escapeXml(str: string): string {

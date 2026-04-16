@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { Message } from "@mariozechner/pi-ai";
 import { withFileMutationQueue } from "@mariozechner/pi-coding-agent";
-import type { AgentConfig } from "./agents.js";
+import { getAgentRuntimeSettings, type AgentConfig } from "./agents.js";
 import { getSubagentSessionPath, updateManifest } from "./session.js";
 import {
 	createEmptyUsage,
@@ -74,6 +74,7 @@ export async function runSingleAgent(
 	const agent = agents.find((candidate) => candidate.name === request.agent);
 	if (!agent) return createUnknownAgentResult(request.agent, request.task, agents);
 
+	const runtimeSettings = getAgentRuntimeSettings(agent);
 	const args: string[] = ["--mode", "json", "-p"];
 	const runCwd = request.cwd;
 	let subagentSession:
@@ -93,8 +94,8 @@ export async function runSingleAgent(
 	} else {
 		args.push("--no-session");
 	}
-	if (agent.model) args.push("--model", agent.model);
-	if (agent.tools?.length) args.push("--tools", agent.tools.join(","));
+	if (runtimeSettings.modelFlagValue) args.push("--model", runtimeSettings.modelFlagValue);
+	if (runtimeSettings.tools?.length) args.push("--tools", runtimeSettings.tools.join(","));
 
 	const startTime = Date.now();
 
@@ -107,15 +108,15 @@ export async function runSingleAgent(
 		stderr: "",
 		usage: createEmptyUsage(),
 		sessionFile: subagentSession?.sessionFile,
-		thinkingLevel: agent.model?.split(":").at(1),
+		thinkingLevel: runtimeSettings.thinkingLevel,
 	};
 
 	const emitUpdate = () => onUpdate?.({ ...currentResult, messages: [...currentResult.messages] });
 	let tmpPromptDir: string | null = null;
 
 	try {
-		if (agent.systemPrompt.trim()) {
-			const tmp = await writePromptToTempFile(agent.name, agent.systemPrompt);
+		if (runtimeSettings.systemPrompt.trim()) {
+			const tmp = await writePromptToTempFile(agent.name, runtimeSettings.systemPrompt);
 			tmpPromptDir = tmp.dir;
 			args.push("--append-system-prompt", tmp.filePath);
 		}

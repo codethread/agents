@@ -4,6 +4,8 @@
 
 The agent is aware of this tool and will use it when asked to delegate work or run tasks in parallel. It also injects the currently discovered subagents into the system prompt as an XML list of names and descriptions so the parent agent can choose among them. Child subagent processes are marked with `PI_SUBAGENT=1`, which lets extensions hide or reshape behavior for delegated runs. You can guide it by describing the kind of work you want delegated.
 
+This extension also registers `--agent <name>` for direct agent mode. That flag resolves the named discovered agent and inherits that agent file's runtime config into the top-level Pi session, so `pi --agent scout` talks to the scout instructions directly without going through the `subagent` tool. Today that inherited config includes the agent prompt body, model/thinking, and tool selection.
+
 **How to use it:**
 
 - _"Use the scout agent to map out the folder structure"_
@@ -11,6 +13,31 @@ The agent is aware of this tool and will use it when asked to delegate work or r
 - _"Project-local agents in .pi/agents are discovered automatically too"_
 
 The tool always uses a `tasks` array. Use one task for focused work, or multiple independent tasks for parallel fan-out.
+
+## Direct agent mode
+
+Use `pi --agent <name>` when you want the current top-level session to adopt one discovered agent directly.
+Discovery and override rules are the same as the `subagent` tool: bundled package agents load first, user agents override package agents, and project agents override both.
+The flag inherits all currently supported runtime-facing agent fields from the selected agent file. Today that means:
+
+- prompt body → appended to the default system prompt
+- `model` → applied to the top-level session model
+- `model` thinking suffix (for example `:low`) → applied to Pi thinking level
+- `tools` → applied to the built-in tool set, while non-builtin extension tools stay active just like Pi's normal `--tools` behavior
+
+Explicit CLI flags win over inherited agent fields on a per-field basis. For example:
+
+- `--model` or `--provider` overrides the inherited agent model
+- `--thinking` overrides the inherited thinking level
+- `--tools` or `--no-tools` overrides the inherited tool selection
+
+A missing agent name is a hard failure, and Pi also hard-fails when an inherited agent model cannot be applied unless you override it explicitly on the CLI.
+
+Examples:
+
+- `pi --agent scout "Map the retry flow"`
+- `pi --agent builder --model openai-codex/gpt-5.4 "Implement the planned refactor"`
+- `pi --agent scout --tools read,bash,edit "Use scout prompt, but keep edit available"`
 
 | Shape                 | When to use                                     | What happens                |
 | --------------------- | ----------------------------------------------- | --------------------------- |

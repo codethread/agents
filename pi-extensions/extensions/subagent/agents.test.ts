@@ -2,7 +2,17 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { discoverAgents, formatAgentsForPrompt, type AgentConfig } from "./agents.js";
+import {
+	discoverAgents,
+	findAgentByName,
+	formatAgentsForPrompt,
+	formatSelectedAgentPrompt,
+	getAgentRuntimeSettings,
+	getAgentActiveTools,
+	getInheritedAgentRuntimeSettings,
+	parseAgentFlagCliOverrides,
+	type AgentConfig,
+} from "./agents.js";
 
 const tempDirs: string[] = [];
 
@@ -97,6 +107,153 @@ describe("formatAgentsForPrompt", () => {
 	});
 });
 
+describe("getAgentRuntimeSettings", () => {
+	it("parses model ref and thinking level from the agent model field", () => {
+		const agent: AgentConfig = {
+			name: "builder",
+			description: "Implementation agent",
+			tools: ["read", "edit"],
+			model: "openai-codex/gpt-5.4-mini:high",
+			systemPrompt: "You are builder.",
+			source: "package",
+			filePath: "/tmp/builder.md",
+		};
+
+		expect(getAgentRuntimeSettings(agent)).toEqual({
+			tools: ["read", "edit"],
+			modelFlagValue: "openai-codex/gpt-5.4-mini:high",
+			modelRef: "openai-codex/gpt-5.4-mini",
+			thinkingLevel: "high",
+			systemPrompt: "You are builder.",
+		});
+	});
+
+	it("treats non-thinking suffixes as part of the model string", () => {
+		const agent: AgentConfig = {
+			name: "custom",
+			description: "Custom model agent",
+			model: "custom-provider/model:preview",
+			systemPrompt: "You are custom.",
+			source: "user",
+			filePath: "/tmp/custom.md",
+		};
+
+		expect(getAgentRuntimeSettings(agent)).toEqual({
+			tools: undefined,
+			modelFlagValue: "custom-provider/model:preview",
+			modelRef: "custom-provider/model:preview",
+			systemPrompt: "You are custom.",
+		});
+	});
+});
+
+describe("parseAgentFlagCliOverrides", () => {
+	it("detects model, provider, thinking, and tools overrides", () => {
+		expect(
+			parseAgentFlagCliOverrides([
+				"--agent",
+				"scout",
+				"--model",
+				"openai/gpt-5.4-nano:off",
+				"--thinking=medium",
+				"--tools=read,bash",
+			]),
+		).toEqual({
+			hasModelOverride: true,
+			hasThinkingOverride: true,
+			hasToolsOverride: true,
+		});
+
+		expect(
+			parseAgentFlagCliOverrides(["--agent", "scout", "-m", "openai/gpt-5.4-nano:off"]),
+		).toEqual({
+			hasModelOverride: true,
+			hasThinkingOverride: false,
+			hasToolsOverride: false,
+		});
+
+		expect(
+			parseAgentFlagCliOverrides(["--agent", "scout", "--provider", "openai", "--no-tools"]),
+		).toEqual({
+			hasModelOverride: true,
+			hasThinkingOverride: false,
+			hasToolsOverride: true,
+		});
+	});
+});
+
+describe("getAgentActiveTools", () => {
+	it("keeps non-builtin tools active while inheriting builtin tool selection", () => {
+		expect(
+			getAgentActiveTools(
+				["read", "bash"],
+				[
+					{ name: "read", sourceInfo: { source: "builtin" } },
+					{ name: "bash", sourceInfo: { source: "builtin" } },
+					{ name: "edit", sourceInfo: { source: "builtin" } },
+					{ name: "questionnaire", sourceInfo: { source: "/repo/questionnaire.ts" } },
+					{ name: "subagent", sourceInfo: { source: "/repo/subagent.ts" } },
+				],
+			),
+		).toEqual(["read", "bash", "questionnaire", "subagent"]);
+	});
+});
+
+describe("getInheritedAgentRuntimeSettings", () => {
+	it("keeps inheriting fields that were not overridden explicitly", () => {
+		const agent: AgentConfig = {
+			name: "scout",
+			description: "Recon agent",
+			tools: ["read", "bash"],
+			model: "openai-codex/gpt-5.4-mini:low",
+			systemPrompt: "You are scout.",
+			source: "package",
+			filePath: "/tmp/scout.md",
+		};
+
+		expect(
+			getInheritedAgentRuntimeSettings(agent, {
+				hasModelOverride: true,
+				hasThinkingOverride: false,
+				hasToolsOverride: true,
+			}),
+		).toEqual({
+			systemPrompt: "You are scout.",
+			tools: undefined,
+			modelFlagValue: undefined,
+			modelRef: undefined,
+			thinkingLevel: "low",
+		});
+	});
+});
+
+describe("formatSelectedAgentPrompt", () => {
+	it("returns the agent prompt with a separating blank line", () => {
+		const agent: AgentConfig = {
+			name: "scout",
+			description: "Recon agent",
+			systemPrompt: "You are scout.\nStay concise.",
+			source: "package",
+			filePath: "/tmp/scout.md",
+		};
+
+		expect(formatSelectedAgentPrompt(agent)).toBe("\n\nYou are scout.\nStay concise.");
+	});
+
+	it("returns an empty string for missing or blank prompts", () => {
+		expect(formatSelectedAgentPrompt(undefined)).toBe("");
+		expect(
+			formatSelectedAgentPrompt({
+				name: "blank",
+				description: "Blank agent",
+				systemPrompt: " \n\t ",
+				source: "user",
+				filePath: "/tmp/blank.md",
+			}),
+		).toBe("");
+	});
+});
+
 describe("discoverAgents", () => {
 	it("discovers agents from temp package, user, and project dirs with override precedence", () => {
 		const root = makeTempDir("subagent-discovery-");
@@ -172,6 +329,10 @@ describe("discoverAgents", () => {
 			tools: ["find", "edit"],
 		});
 		expect(byName.get("shared")?.filePath).not.toBe(userAgentPath);
+		expect(findAgentByName(discovery.agents, " shared ")).toMatchObject({
+			source: "project",
+			filePath: projectAgentPath,
+		});
 	});
 
 	it("ignores author-only meta frontmatter during discovery and prompt formatting", () => {

@@ -1,13 +1,13 @@
 # Subagent Orchestration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-12
+**Last Updated:** 2026-04-15
 
 ## 1. Overview
 
 ### Purpose
 
-The subagent extension provides a stable runtime for delegating work to isolated Pi subprocesses while preserving enough structure for streaming progress, UI rendering, and post-run inspection. This domain covers the `subagent` tool and the `debug-agents` command in `pi-extensions/extensions/subagent/`.
+The subagent extension provides a stable runtime for delegating work to isolated Pi subprocesses while preserving enough structure for streaming progress, UI rendering, and post-run inspection. This domain covers the `subagent` tool, the `debug-agents` command, and the direct top-level `--agent <name>` flag in `pi-extensions/extensions/subagent/`.
 
 ### Goals
 
@@ -33,11 +33,12 @@ Subagent orchestration lives in `pi-extensions/extensions/subagent/` and sits di
 
 ### Extension surface
 
-`export default function (pi: ExtensionAPI)` registers three entry points:
+`export default function (pi: ExtensionAPI)` registers four entry points:
 
-1. `before_agent_start` hook — discovers agents and appends an XML `<available_subagents>` list of names/descriptions to the parent system prompt.
-2. `debug-agents` command — reports the effective merged agent list plus separate user/project source sections.
-3. `subagent` tool — validates parameters, resolves agents through discovery, executes a `tasks[]` workload (1..N items), and renders results in the Pi TUI.
+1. `--agent <name>` CLI flag — validates one requested discovered agent name at session start and applies inherited runtime settings from that agent file unless explicit CLI flags override those fields.
+2. `before_agent_start` hook — discovers agents, appends an XML `<available_subagents>` list of names/descriptions to the parent system prompt, and when `--agent` is set appends the selected agent prompt body too.
+3. `debug-agents` command — reports the effective merged agent list plus separate user/project source sections.
+4. `subagent` tool — validates parameters, resolves agents through discovery, executes a `tasks[]` workload (1..N items), and renders results in the Pi TUI.
 
 ### Runtime pipeline
 
@@ -253,6 +254,35 @@ Notable conventions:
 
 ## 4. Interfaces
 
+### `--agent <name>` direct mode
+
+At session start, the extension reads the registered `agent` CLI flag.
+If the flag is present, it discovers agents for `ctx.cwd`, validates that the requested name exists in the effective merged catalog, and exits with an error if it does not.
+
+If the flag is present, the extension then derives inherited runtime settings from the selected `AgentConfig` and applies them to the parent session unless explicit CLI flags override the corresponding field.
+Today that inherited runtime surface includes:
+
+- model
+- thinking level parsed from the model suffix
+- built-in tool selection (while preserving non-builtin extension tools, matching Pi `--tools` semantics)
+- prompt body
+
+Override rules are per-field:
+
+- `--model` / `-m` or `--provider` suppress inherited agent model selection
+- `--thinking` suppresses inherited agent thinking level
+- `--tools` or `--no-tools` suppress inherited agent tool selection
+
+If a requested agent name is missing, or if a still-inherited agent model cannot be applied in the active runtime, the extension fails hard with exit code `1` rather than silently falling back.
+
+For each turn, `before_agent_start` then:
+
+- appends the normal `<available_subagents>` XML catalog
+- resolves the current selected agent by name from a fresh discovery snapshot
+- appends that agent's markdown body to the parent system prompt
+
+This direct mode reuses discovery semantics from delegated runs and is intended to inherit the selected agent's full runtime behavior surface over time, not just today's prompt/model/tools fields.
+
 ### `debug-agents` command
 
 `debug-agents` reads one discovery snapshot and formats a plain-text report containing:
@@ -336,6 +366,9 @@ Failure model:
 - **Decision:** Pi executes against one merged subagent list rather than exposing source scopes in the tool API.
   - **Rationale:** Source distinctions are useful for debugging and confirmation, but they do not need to complicate normal delegation.
 
+- **Decision:** Direct top-level `--agent` mode inherits all currently supported runtime-facing agent settings, while explicit CLI flags override matching fields only.
+  - **Rationale:** The flag is meant to make the top-level session behave like the selected agent file, but users still need precise escape hatches for model, thinking, and tools without losing the rest of the inherited behavior.
+
 - **Decision:** The tool API is unified around one required `tasks[]` shape instead of separate single/parallel modes.
   - **Rationale:** A single invocation pattern removes mode-dispatch ambiguity, eliminates optional top-level fields, and lets the same orchestration path handle both one-task and many-task runs.
 
@@ -346,11 +379,13 @@ Failure model:
 
 There are currently no automated tests in this repo for `pi-extensions/extensions/subagent/`.
 
-Current verification is manual and static:
+Current verification is a mix of helper-level automation plus manual runtime checks:
 
+- `pi-extensions/extensions/subagent/agents.test.ts` covers direct-agent helper behavior such as selected-agent lookup, runtime-setting extraction, and CLI override filtering.
 - `debug-agents` exposes the discovery/runtime boundary for inspection.
 - The `subagent` tool exercises subprocess spawning, streaming, confirmation, and rendering in real Pi runs.
-- Repo-wide `npm run lint`, `npm run typecheck`, and `npm run test` validate static correctness and package-level tests, but do not assert orchestration behavior directly.
+- `pi --agent <name> --debug-prompt` exercises direct-agent prompt inheritance in a top-level session.
+- Repo-wide `npm run lint`, `npm run typecheck`, and `npm run test` validate static correctness and package-level tests, but do not assert full orchestration behavior directly.
 
 ## 7. Open Questions
 

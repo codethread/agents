@@ -1,7 +1,7 @@
 # Agent Discovery and Configuration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-12
+**Last Updated:** 2026-04-15
 
 ## 1. Overview
 
@@ -15,6 +15,7 @@ The subagent extension needs a stable way to find agent definitions, normalize t
 - Return a uniform `AgentConfig` shape regardless of source file location.
 - Present Pi with one effective merged list of available subagents.
 - Preserve source metadata for debug output and project-agent confirmation.
+- Allow direct top-level selection of one discovered agent config via `--agent <name>`.
 - Normalize Claude-flavored tool names into Pi's built-in tool set.
 - Resolve lightweight model aliases into enabled OpenAI-backed models when local settings make that possible.
 - Apply deterministic source precedence so agent name collisions resolve predictably.
@@ -88,9 +89,10 @@ Model alias resolution is intentionally opportunistic:
 
 ### Runtime integration boundary
 
-The subagent runtime uses discovery results in three places:
+The subagent runtime uses discovery results in four places:
 
 - `before_agent_start` discovers agents once and injects a terse XML list of available subagent names and descriptions into the parent agent system prompt.
+- when `--agent <name>` is set, the same discovery result resolves the selected agent by name, derives inherited runtime settings from that `AgentConfig`, applies model/thinking/tools unless explicit CLI flags override those fields, and appends the agent's `systemPrompt` to the parent system prompt.
 - `debug-agents` renders the effective agent list plus source-specific user/project sections.
 - `subagent` execution always uses the effective merged list, while still consulting `source === "project"` for confirmation behavior.
 
@@ -188,6 +190,48 @@ Formats discovered subagents for system-prompt injection as:
 - an XML list under `<available_subagents>`
 - one `<subagent>` entry per agent containing `<name>` and `<description>` only
 
+#### `findAgentByName(agents: AgentConfig[], name: string | undefined | null): AgentConfig | undefined`
+
+Returns the effective discovered agent whose `name` exactly matches the trimmed requested name.
+Returns `undefined` for blank or missing names.
+
+#### `getAgentRuntimeSettings(agent: AgentConfig): AgentRuntimeSettings`
+
+Extracts the runtime-facing settings represented by one discovered agent.
+Today that includes:
+
+- `systemPrompt`
+- `tools`
+- `modelFlagValue` (full CLI-ready model string, including any thinking suffix)
+- `modelRef` (provider/model without thinking suffix when parsable)
+- `thinkingLevel` (parsed from a recognized `:off|minimal|low|medium|high|xhigh` suffix)
+
+This helper is the shared source of truth for both child subagent execution and top-level `--agent` inheritance.
+
+#### `parseAgentFlagCliOverrides(argv: string[]): AgentFlagCliOverrides`
+
+Detects explicit CLI overrides that should suppress inherited agent fields for direct top-level mode.
+Today this treats the following as overrides:
+
+- `--model` / `-m`
+- `--provider`
+- `--thinking`
+- `--tools`
+- `--no-tools`
+
+#### `getInheritedAgentRuntimeSettings(agent: AgentConfig, cliOverrides: AgentFlagCliOverrides): AgentRuntimeSettings`
+
+Returns the subset of runtime settings that should still be inherited for top-level `--agent` mode after explicit CLI overrides are applied on a per-field basis.
+If a field remains inherited here, the direct-agent runtime is expected to apply it or fail hard rather than silently falling back.
+
+#### `formatSelectedAgentPrompt(agent: AgentConfig | undefined): string`
+
+Formats one selected discovered agent for direct top-level prompt injection:
+
+- returns `""` when no agent is selected or its `systemPrompt` is blank
+- otherwise returns `"\n\n" + agent.systemPrompt`
+- preserves the original markdown body content so top-level `--agent` uses the same prompt text source as child subagent execution
+
 ### Accepted agent frontmatter
 
 Discovery relies on these frontmatter fields:
@@ -195,7 +239,7 @@ Discovery relies on these frontmatter fields:
 - `name` — required; files without it are skipped
 - `description` — required; files without it are skipped
 - `meta` — optional author-only string; ignored by discovery/runtime and not exposed to parent agents
-- `tools` — optional comma-separated string
+- `tools` — optional comma-separated string of built-in Pi tool names
 - `model` — optional string, possibly an alias
 
 All remaining markdown body content is passed through as the agent system prompt.
@@ -209,7 +253,10 @@ The subagent runtime consumes discovery results as follows:
 - `filePath` appears in debug output
 - `model` is passed to child `pi` invocations via `--model`
 - `tools` is passed via `--tools` as a comma-separated list; omitted means default toolset
-- `systemPrompt` is written to a temporary file and appended with `--append-system-prompt`
+- `systemPrompt` is written to a temporary file and appended with `--append-system-prompt` for child subagent runs
+- in top-level `--agent <name>` mode, the same runtime-facing fields are inherited into the parent session: prompt body, model, thinking level, and built-in tool selection today
+- built-in tool inheritance preserves non-builtin extension tools, matching Pi's normal `--tools` semantics
+- explicit CLI flags override inherited fields on a per-field basis instead of disabling all inheritance
 
 If the requested agent name is missing, runtime returns an error containing the list of available agent names.
 
@@ -220,6 +267,15 @@ If the requested agent name is missing, runtime returns an error containing the 
 
 - **Decision:** Pi sees one merged agent list rather than choosing among discovery scopes.
   - **Rationale:** Runtime behavior is simpler when user/project/package sources are a discovery concern, not a tool-call concern.
+
+- **Decision:** Direct top-level agent mode reuses the same merged discovery result as delegated subagent runs.
+  - **Rationale:** `pi --agent <name>` should honor the same package → user → project override semantics as the `subagent` tool and child runtime.
+
+- **Decision:** Top-level `--agent` inheritance is derived from shared runtime-setting helpers rather than ad hoc field reads in the extension entrypoint.
+  - **Rationale:** When new runtime-facing agent fields are added over time, extending the shared helper layer keeps child subagent execution and top-level direct-agent mode aligned.
+
+- **Decision:** Explicit CLI flags override inherited agent fields on a per-field basis.
+  - **Rationale:** Users should be able to adopt an agent wholesale and still override just model, thinking, or tools without losing the rest of the agent-defined behavior.
 
 - **Decision:** Source precedence is implemented with a name-keyed `Map`.
   - **Rationale:** Replacement semantics are simple and deterministic, and they let user or project agents override bundled defaults without extra merge rules.
@@ -244,6 +300,8 @@ If the requested agent name is missing, runtime returns an error containing the 
 `pi-extensions/extensions/subagent/agents.test.ts` provides automated coverage for key discovery behavior, including:
 
 - XML prompt formatting for discovered agents
+- selected-agent prompt formatting and name lookup helpers used by top-level `--agent`
+- runtime-setting extraction and CLI override filtering helpers used by top-level `--agent`
 - package/user/project override precedence
 - tool normalization and model alias resolution in discovered configs
 - author-only `meta` frontmatter being ignored by runtime-facing discovery output
@@ -253,6 +311,7 @@ Additional verification remains code-level and runtime-level:
 
 - `debug-agents` exposes the effective merged list plus source-specific user/project sections for manual inspection.
 - The `subagent` tool exercises the discovered configuration by spawning child `pi` processes with the resolved model, tool set, and prompt.
+- `pi --agent <name>` exercises the same discovery layer for direct top-level inheritance of prompt/model/thinking/tools.
 - Repo-wide checks (`npm run lint`, `npm run typecheck`, `npm run test`) provide static validation and package-level tests.
 
 ## 7. Open Questions

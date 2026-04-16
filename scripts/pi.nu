@@ -72,6 +72,7 @@ extern "pi" [
 	--help(-h)                                # Show help
 	--version(-v)                             # Show version
 	# Extension flags — update when new extensions add CLI flags (see pi-extensions/extensions/README.md)
+	--agent: string                           # [EXT] Inherit discovered agent config by name (prompt/model/tools, unless overridden)
 	--debug-prompt: string                    # [EXT] Print effective system prompt and exit (optional JSON override arg)
 	--debug-tldr                              # [EXT] Print current session TL;DR and exit
 	--debug-tldr-transcript                   # [EXT] Print transcript used by /tldr and exit
