@@ -1,12 +1,12 @@
 ---
 name: spec-authoring
+metadata:
+  intent: >
+	create consistent structure to make skills easier read and maintain
 description: >
-  Guide for writing and maintaining domain specifications that drive agent implementation.
+  Guide for writing and updating domain specifications that drive agent implementation.
   Use when creating a new spec, updating an existing spec after feature changes, converting
-  a planned spec to implemented status, or reviewing spec quality. Triggers on phrases like
-  "create a spec", "write a spec", "update the spec", "spec for this feature", "plan this
-  feature", or any request to document a system's design intent, architecture, and decisions
-  before or during implementation.
+  a planned spec to implemented status, or reviewing spec quality.
 ---
 
 # Spec Authoring Guide
