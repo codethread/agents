@@ -1,7 +1,7 @@
 # Agent Discovery and Configuration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-15
+**Last Updated:** 2026-04-17
 
 ## 1. Overview
 
@@ -16,7 +16,7 @@ The subagent extension needs a stable way to find agent definitions, normalize t
 - Present Pi with one effective merged list of available subagents.
 - Preserve source metadata for debug output and project-agent confirmation.
 - Allow direct top-level selection of one discovered agent config via `--agent <name>`.
-- Normalize Claude-flavored tool names into Pi's built-in tool set.
+- Normalize legacy Claude-flavored tool names while treating agent `tools` as an exact allowlist across built-in and extension tools.
 - Resolve lightweight model aliases into enabled OpenAI-backed models when local settings make that possible.
 - Apply deterministic source precedence so agent name collisions resolve predictably.
 
@@ -106,7 +106,7 @@ Core exported types from `pi-extensions/extensions/subagent/agents.ts`:
 export interface AgentConfig {
 	name: string;
 	description: string;
-	tools?: string[];
+	tools: string[];
 	model?: string;
 	systemPrompt: string;
 	source: "package" | "user" | "project";
@@ -131,10 +131,10 @@ interface PiSettings {
 }
 ```
 
-Supported built-in tools and Claude-to-Pi normalization table:
+Supported canonical built-in tools and Claude-to-Pi normalization table:
 
 ```ts
-const PI_BUILTIN_TOOLS = new Set(["read", "bash", "edit", "write", "grep", "find", "ls"]);
+const PI_CANONICAL_TOOLS = new Set(["read", "bash", "edit", "write", "grep", "find", "ls"]);
 
 const CLAUDE_TOOL_MAP: Record<string, string | null> = {
 	read: "read",
@@ -152,6 +152,14 @@ const CLAUDE_TOOL_MAP: Record<string, string | null> = {
 	skill: null,
 };
 ```
+
+Discovery normalizes tool names as follows:
+
+- canonical Pi built-ins stay as-is
+- known Claude aliases such as `glob` and `multiedit` map to their Pi equivalents
+- unsupported Claude-only tools such as `task`, `websearch`, `webfetch`, and `skill` are dropped
+- any other tool name is preserved (lowercased) so extension tools like `subagent` or `questionnaire` remain expressible in agent frontmatter
+- omitted or blank `tools` frontmatter resolves to an empty allowlist
 
 Bundled agents in this repo demonstrate the file format discovery expects:
 
@@ -239,7 +247,7 @@ Discovery relies on these frontmatter fields:
 - `name` — required; files without it are skipped
 - `description` — required; files without it are skipped
 - `meta` — optional author-only string; ignored by discovery/runtime and not exposed to parent agents
-- `tools` — optional comma-separated string of built-in Pi tool names
+- `tools` — optional comma-separated string of tool names; built-ins and extension tools share the same namespace here, and omitted/blank resolves to an empty allowlist
 - `model` — optional string, possibly an alias
 
 All remaining markdown body content is passed through as the agent system prompt.
@@ -251,11 +259,11 @@ The subagent runtime consumes discovery results as follows:
 - `name` selects the requested agent in single and parallel modes
 - `source` drives project-agent confirmation and debug output
 - `filePath` appears in debug output
-- `model` is passed to child `pi` invocations via `--model`
-- `tools` is passed via `--tools` as a comma-separated list; omitted means default toolset
-- `systemPrompt` is written to a temporary file and appended with `--append-system-prompt` for child subagent runs
-- in top-level `--agent <name>` mode, the same runtime-facing fields are inherited into the parent session: prompt body, model, thinking level, and built-in tool selection today
-- built-in tool inheritance preserves non-builtin extension tools, matching Pi's normal `--tools` semantics
+- delegated child `pi` invocations use `--agent <name>`, so the discovered `model`, `tools`, and prompt body flow through the same direct-agent inheritance path as top-level `--agent`
+- `tools` is an exact allowlist for the agent across built-in and extension tools; omitted/blank means the agent inherits an empty tool set unless the CLI explicitly overrides it
+- `systemPrompt` is inherited through the shared direct-agent path rather than bespoke child-process prompt injection
+- in top-level `--agent <name>` mode, the same runtime-facing fields are inherited into the parent session: prompt body, model, thinking level, and the exact tool allowlist
+- `--tools` and `--no-tools` are highest-precedence PUT-style overrides for tool selection: if either is present, agent-derived tool inheritance is skipped entirely
 - explicit CLI flags override inherited fields on a per-field basis instead of disabling all inheritance
 
 If the requested agent name is missing, runtime returns an error containing the list of available agent names.
@@ -286,8 +294,11 @@ If the requested agent name is missing, runtime returns an error containing the 
 - **Decision:** Discovery is best-effort for filesystem and JSON access, but not for all frontmatter shape errors.
   - **Rationale:** `readJsonFile`, directory reads, and file reads are wrapped defensively, but `parseFrontmatter(...)` and `frontmatter.tools?.split(",")` are not guarded per file. In practice, unreadable files are skipped, while malformed frontmatter or unexpected `tools` types can still abort discovery.
 
-- **Decision:** Tool normalization is intentionally lossy.
-  - **Rationale:** Only Pi built-ins are preserved. Unsupported Claude tools such as `task`, `websearch`, `webfetch`, and `skill` are dropped so child Pi invocations only receive tools this package can actually expose.
+- **Decision:** Agent `tools` is an exact allowlist over the full active tool namespace, not just built-ins.
+  - **Rationale:** Built-in and extension tools must obey the same least-privilege contract. If an agent file does not name `subagent`, `questionnaire`, or any other extension tool, direct `--agent` mode and delegated child runs must not quietly keep that tool active.
+
+- **Decision:** Tool normalization is only lossy for unsupported Claude-only aliases.
+  - **Rationale:** Known Claude aliases should map to Pi equivalents, unsupported Claude tools such as `task`, `websearch`, `webfetch`, and `skill` should be dropped, and all other tool names should be preserved so extension-defined tools remain configurable from agent frontmatter.
 
 - **Decision:** Claude-family model aliases are rewritten only when local OpenAI-backed models are enabled.
   - **Rationale:** This preserves author intent for portable agent files while still allowing bundled agents authored with Claude-style names like `sonnet` or `haiku` to run in Pi environments backed by OpenAI/OpenAI Codex models.

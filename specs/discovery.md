@@ -1,7 +1,7 @@
 # Discovery Notes
 
 **Status:** Living notes
-**Last Updated:** 2026-04-07
+**Last Updated:** 2026-04-17
 
 ## Purpose
 
@@ -41,6 +41,17 @@ This is useful for discovery and debugging because it helps answer two separate 
 - what model/provider the extension actually sees at hook execution time
 
 For the current experiment, if the selected model id includes `mini`, the extension appends a pirate-speaking instruction to the system prompt and reports whether that decision came from CLI selection or runtime model state.
+
+### Agent tool allowlists must use runtime activation for extension tools
+
+Pi's CLI `--tools` parsing happens before extension tools are registered, so it cannot be the sole enforcement mechanism when an agent needs an exact tool set that includes extension-defined tools.
+
+Implication for subagent/direct-agent design:
+
+- treat built-in and extension tools as one logical namespace in agent frontmatter
+- preserve extension tool names through discovery instead of dropping them as "unknown"
+- enforce the final allowlist with runtime `setActiveTools(...)`, not just CLI `--tools`
+- when delegating child runs, prefer `pi --agent <name>` over manually reconstructing prompt/model/tool flags so direct and delegated execution stay aligned
 
 ### Recommendation
 

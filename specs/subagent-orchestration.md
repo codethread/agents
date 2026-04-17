@@ -1,7 +1,7 @@
 # Subagent Orchestration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-15
+**Last Updated:** 2026-04-17
 
 ## 1. Overview
 
@@ -15,7 +15,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 - Support bounded parallel fan-out using one consistent `tasks[]` invocation shape (including single-item runs).
 - Stream incremental progress back into the parent tool call while subprocesses are running.
 - Preserve enough metadata per agent run to render useful collapsed and expanded TUI views.
-- Reuse discovered agent configuration from the discovery layer without reinterpreting prompt, tool, or model metadata at runtime.
+- Reuse discovered agent configuration from the discovery layer without drifting between direct `--agent` mode and delegated child runs.
 - Keep the delegation interface consistent and explicit by requiring per-task labels and working directories.
 
 ### Non-Goals
@@ -50,8 +50,7 @@ A `subagent` execution follows this flow:
 4. Stream per-task updates as results are produced.
 5. Each individual agent run goes through `runSingleAgent(...)`, which:
    - looks up the requested `AgentConfig`
-   - builds a child `pi` invocation in JSON mode
-   - writes the agent system prompt to a temporary markdown file when non-empty
+   - builds a child `pi` invocation in JSON mode using `--agent <name>`
    - spawns a subprocess in the requested working directory
    - parses newline-delimited JSON events from stdout
    - accumulates messages, usage, provider/model metadata, and stop/error state
@@ -66,8 +65,7 @@ Subprocess execution is intentionally isolated from the parent context:
 - the child is launched with `--mode json -p`
 - when the parent session is persisted, each subagent run gets `--session <path>` in a subagent session directory; otherwise it falls back to `--no-session`
 - child subagents are marked with `PI_SUBAGENT=1` in the environment so extensions can adjust behavior for delegated runs
-- resolved agent model and normalized tools are forwarded via `--model` and `--tools`
-- the agent prompt is appended through `--append-system-prompt <temp file>`
+- the selected discovered agent is activated in the child through `--agent <name>`, so prompt/model/thinking/tool inheritance uses the same code path as top-level direct-agent mode
 - the delegated work itself is passed as a single prompt string: `Task: <task>`
 
 Invocation is environment-aware:
@@ -264,14 +262,14 @@ Today that inherited runtime surface includes:
 
 - model
 - thinking level parsed from the model suffix
-- built-in tool selection (while preserving non-builtin extension tools, matching Pi `--tools` semantics)
+- the exact tool allowlist across built-in and extension tools
 - prompt body
 
 Override rules are per-field:
 
 - `--model` / `-m` or `--provider` suppress inherited agent model selection
 - `--thinking` suppresses inherited agent thinking level
-- `--tools` or `--no-tools` suppress inherited agent tool selection
+- `--tools` or `--no-tools` suppress inherited agent tool selection entirely; the CLI tool set is treated as the final PUT-style value
 
 If a requested agent name is missing, or if a still-inherited agent model cannot be applied in the active runtime, the extension fails hard with exit code `1` rather than silently falling back.
 
@@ -354,8 +352,8 @@ Failure model:
 - **Decision:** Child Pi invocations always use JSON mode.
   - **Rationale:** The runtime depends on structured `message_end` and `tool_result_end` events for streaming updates, usage aggregation, and renderer-friendly result logs.
 
-- **Decision:** Agent prompts are passed through temporary files with mode `0600`.
-  - **Rationale:** `--append-system-prompt` expects a file path, and private temp files avoid embedding long prompts directly in process arguments.
+- **Decision:** Delegated child runs invoke `pi --agent <name>` instead of separately forwarding prompt/model/tools.
+  - **Rationale:** This keeps direct top-level mode and delegated child execution on one inheritance path, which is required now that tool selection is an exact allowlist spanning both built-in and extension tools.
 
 - **Decision:** Persist subagent sessions only when the parent session is persisted, and index them via a per-parent manifest.
   - **Rationale:** This preserves legacy ephemeral behavior for non-persisted runs while enabling structured post-run introspection (task summary, model, usage, cost, duration, and session file) whenever a parent session has a durable log.
@@ -367,7 +365,7 @@ Failure model:
   - **Rationale:** Source distinctions are useful for debugging and confirmation, but they do not need to complicate normal delegation.
 
 - **Decision:** Direct top-level `--agent` mode inherits all currently supported runtime-facing agent settings, while explicit CLI flags override matching fields only.
-  - **Rationale:** The flag is meant to make the top-level session behave like the selected agent file, but users still need precise escape hatches for model, thinking, and tools without losing the rest of the inherited behavior.
+  - **Rationale:** The flag is meant to make the top-level session behave like the selected agent file, but users still need precise escape hatches for model, thinking, and tools without losing the rest of the inherited behavior. For tools specifically, the override is exact rather than additive: agent-selected tools are skipped entirely when `--tools` or `--no-tools` is present.
 
 - **Decision:** The tool API is unified around one required `tasks[]` shape instead of separate single/parallel modes.
   - **Rationale:** A single invocation pattern removes mode-dispatch ambiguity, eliminates optional top-level fields, and lets the same orchestration path handle both one-task and many-task runs.
@@ -381,7 +379,8 @@ There are currently no automated tests in this repo for `pi-extensions/extension
 
 Current verification is a mix of helper-level automation plus manual runtime checks:
 
-- `pi-extensions/extensions/subagent/agents.test.ts` covers direct-agent helper behavior such as selected-agent lookup, runtime-setting extraction, and CLI override filtering.
+- `pi-extensions/extensions/subagent/agents.test.ts` covers direct-agent helper behavior such as selected-agent lookup, runtime-setting extraction, exact tool allowlists, and CLI override filtering.
+- `pi-extensions/extensions/subagent/runtime.test.ts` covers child-process argument construction for delegated `--agent` runs.
 - `debug-agents` exposes the discovery/runtime boundary for inspection.
 - The `subagent` tool exercises subprocess spawning, streaming, confirmation, and rendering in real Pi runs.
 - `pi --agent <name> --debug-prompt` exercises direct-agent prompt inheritance in a top-level session.

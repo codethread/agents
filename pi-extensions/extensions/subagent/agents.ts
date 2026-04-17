@@ -10,7 +10,7 @@ import { getAgentDir, parseFrontmatter } from "@mariozechner/pi-coding-agent";
 export interface AgentConfig {
 	name: string;
 	description: string;
-	tools?: string[];
+	tools: string[];
 	model?: string;
 	systemPrompt: string;
 	source: "package" | "user" | "project";
@@ -54,7 +54,7 @@ interface ToolLike {
 	};
 }
 
-const PI_BUILTIN_TOOLS = new Set(["read", "bash", "edit", "write", "grep", "find", "ls"]);
+const PI_CANONICAL_TOOLS = new Set(["read", "bash", "edit", "write", "grep", "find", "ls"]);
 
 const CLAUDE_TOOL_MAP: Record<string, string | null> = {
 	read: "read",
@@ -87,21 +87,21 @@ const THINKING_LEVELS = new Set<AgentThinkingLevel>([
 	"xhigh",
 ]);
 
-function normalizeTools(rawTools: string[] | undefined): string[] | undefined {
-	if (!rawTools || rawTools.length === 0) return undefined;
+function normalizeTools(rawTools: string[] | undefined): string[] {
+	if (!rawTools || rawTools.length === 0) return [];
 
 	const mapped = rawTools
 		.map((tool) => tool.trim())
 		.filter(Boolean)
 		.map((tool) => {
 			const lower = tool.toLowerCase();
-			if (PI_BUILTIN_TOOLS.has(lower)) return lower;
-			return CLAUDE_TOOL_MAP[lower] ?? null;
+			if (PI_CANONICAL_TOOLS.has(lower)) return lower;
+			if (Object.hasOwn(CLAUDE_TOOL_MAP, lower)) return CLAUDE_TOOL_MAP[lower];
+			return lower;
 		})
-		.filter((tool): tool is string => tool !== null && PI_BUILTIN_TOOLS.has(tool));
+		.filter((tool): tool is string => tool !== null);
 
-	const unique = Array.from(new Set(mapped));
-	return unique.length > 0 ? unique : undefined;
+	return Array.from(new Set(mapped));
 }
 
 function readJsonFile<T>(filePath: string): T | null {
@@ -381,14 +381,12 @@ export function parseAgentFlagCliOverrides(argv: string[]): AgentFlagCliOverride
 }
 
 export function getAgentActiveTools(
-	inheritedBuiltins: string[] | undefined,
+	inheritedTools: string[] | undefined,
 	allTools: ToolLike[],
 ): string[] | undefined {
-	if (!inheritedBuiltins?.length) return undefined;
-	const nonBuiltins = allTools
-		.filter((tool) => tool.sourceInfo.source !== "builtin")
-		.map((tool) => tool.name);
-	return Array.from(new Set([...inheritedBuiltins, ...nonBuiltins]));
+	if (inheritedTools === undefined) return undefined;
+	const availableToolNames = new Set(allTools.map((tool) => tool.name));
+	return Array.from(new Set(inheritedTools.filter((tool) => availableToolNames.has(tool))));
 }
 
 export function formatSelectedAgentPrompt(agent: AgentConfig | undefined): string {

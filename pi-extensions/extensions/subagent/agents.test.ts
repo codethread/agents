@@ -73,6 +73,7 @@ describe("formatAgentsForPrompt", () => {
 			{
 				name: "alpha",
 				description: "General-purpose helper",
+				tools: [],
 				systemPrompt: "prompt",
 				source: "package",
 				filePath: "/tmp/alpha.md",
@@ -80,6 +81,7 @@ describe("formatAgentsForPrompt", () => {
 			{
 				name: "beta <fast>",
 				description: "Map dirs & files > summarize",
+				tools: [],
 				systemPrompt: "prompt",
 				source: "user",
 				filePath: "/tmp/beta.md",
@@ -132,6 +134,7 @@ describe("getAgentRuntimeSettings", () => {
 		const agent: AgentConfig = {
 			name: "custom",
 			description: "Custom model agent",
+			tools: [],
 			model: "custom-provider/model:preview",
 			systemPrompt: "You are custom.",
 			source: "user",
@@ -139,7 +142,7 @@ describe("getAgentRuntimeSettings", () => {
 		};
 
 		expect(getAgentRuntimeSettings(agent)).toEqual({
-			tools: undefined,
+			tools: [],
 			modelFlagValue: "custom-provider/model:preview",
 			modelRef: "custom-provider/model:preview",
 			systemPrompt: "You are custom.",
@@ -183,19 +186,30 @@ describe("parseAgentFlagCliOverrides", () => {
 });
 
 describe("getAgentActiveTools", () => {
-	it("keeps non-builtin tools active while inheriting builtin tool selection", () => {
+	it("treats the inherited tool list as the exact active set across built-in and extension tools", () => {
 		expect(
 			getAgentActiveTools(
-				["read", "bash"],
+				["read", "questionnaire"],
 				[
 					{ name: "read", sourceInfo: { source: "builtin" } },
 					{ name: "bash", sourceInfo: { source: "builtin" } },
-					{ name: "edit", sourceInfo: { source: "builtin" } },
 					{ name: "questionnaire", sourceInfo: { source: "/repo/questionnaire.ts" } },
 					{ name: "subagent", sourceInfo: { source: "/repo/subagent.ts" } },
 				],
 			),
-		).toEqual(["read", "bash", "questionnaire", "subagent"]);
+		).toEqual(["read", "questionnaire"]);
+	});
+
+	it("filters out requested tools that are not actually available in the runtime", () => {
+		expect(
+			getAgentActiveTools(
+				["read", "missing-tool", "subagent"],
+				[
+					{ name: "read", sourceInfo: { source: "builtin" } },
+					{ name: "subagent", sourceInfo: { source: "/repo/subagent.ts" } },
+				],
+			),
+		).toEqual(["read", "subagent"]);
 	});
 });
 
@@ -232,6 +246,7 @@ describe("formatSelectedAgentPrompt", () => {
 		const agent: AgentConfig = {
 			name: "scout",
 			description: "Recon agent",
+			tools: [],
 			systemPrompt: "You are scout.\nStay concise.",
 			source: "package",
 			filePath: "/tmp/scout.md",
@@ -246,6 +261,7 @@ describe("formatSelectedAgentPrompt", () => {
 			formatSelectedAgentPrompt({
 				name: "blank",
 				description: "Blank agent",
+				tools: [],
 				systemPrompt: " \n\t ",
 				source: "user",
 				filePath: "/tmp/blank.md",
@@ -288,7 +304,7 @@ describe("discoverAgents", () => {
 		writeAgent(userAgentsDir, "gamma.md", {
 			name: "gamma",
 			description: "User-only agent",
-			tools: "Glob",
+			tools: "Glob, Questionnaire, Subagent",
 		});
 		const projectAgentPath = writeAgent(projectAgentsDir, "shared.md", {
 			name: "shared",
@@ -319,7 +335,7 @@ describe("discoverAgents", () => {
 		});
 		expect(byName.get("gamma")).toMatchObject({
 			source: "user",
-			tools: ["find"],
+			tools: ["find", "questionnaire", "subagent"],
 		});
 		expect(byName.get("shared")).toMatchObject({
 			source: "project",
@@ -394,6 +410,9 @@ describe("discoverAgents", () => {
 			"temp-package",
 			"temp-user",
 		]);
+		for (const agent of discovery.agents) {
+			expect(agent.tools).toEqual([]);
+		}
 	});
 
 	it("loads bundled repo agents from pi-agents by default", () => {

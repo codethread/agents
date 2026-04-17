@@ -86,7 +86,7 @@ export default function (pi: ExtensionAPI) {
 
 		const inherited = getInheritedAgentRuntimeSettings(selected.agent, agentFlagCliOverrides);
 		const activeTools = getAgentActiveTools(inherited.tools, pi.getAllTools());
-		if (activeTools?.length) {
+		if (activeTools !== undefined) {
 			pi.setActiveTools(activeTools);
 		}
 

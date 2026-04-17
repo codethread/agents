@@ -1,9 +1,7 @@
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import type { Message } from "@mariozechner/pi-ai";
-import { withFileMutationQueue } from "@mariozechner/pi-coding-agent";
 import { getAgentRuntimeSettings, type AgentConfig } from "./agents.js";
 import { getSubagentSessionPath, updateManifest } from "./session.js";
 import {
@@ -50,17 +48,16 @@ export async function mapWithConcurrencyLimit<TIn, TOut>(
 	return results;
 }
 
-export async function writePromptToTempFile(
+export function buildSingleAgentArgs(
 	agentName: string,
-	prompt: string,
-): Promise<{ dir: string; filePath: string }> {
-	const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "pi-subagent-"));
-	const safeName = agentName.replace(/[^\w.-]+/g, "_");
-	const filePath = path.join(tmpDir, `prompt-${safeName}.md`);
-	await withFileMutationQueue(filePath, async () => {
-		await fs.promises.writeFile(filePath, prompt, { encoding: "utf-8", mode: 0o600 });
-	});
-	return { dir: tmpDir, filePath };
+	task: string,
+	sessionFile?: string,
+): string[] {
+	const args = ["--mode", "json", "-p", "--agent", agentName];
+	if (sessionFile) args.push("--session", sessionFile);
+	else args.push("--no-session");
+	args.push(`Task: ${task}`);
+	return args;
 }
 
 export async function runSingleAgent(
@@ -75,7 +72,6 @@ export async function runSingleAgent(
 	if (!agent) return createUnknownAgentResult(request.agent, request.task, agents);
 
 	const runtimeSettings = getAgentRuntimeSettings(agent);
-	const args: string[] = ["--mode", "json", "-p"];
 	const runCwd = request.cwd;
 	let subagentSession:
 		| {
@@ -90,13 +86,8 @@ export async function runSingleAgent(
 			parentSessionInfo.sessionId,
 			runCwd,
 		);
-		args.push("--session", subagentSession.sessionFile);
-	} else {
-		args.push("--no-session");
 	}
-	if (runtimeSettings.modelFlagValue) args.push("--model", runtimeSettings.modelFlagValue);
-	if (runtimeSettings.tools?.length) args.push("--tools", runtimeSettings.tools.join(","));
-
+	const args = buildSingleAgentArgs(agent.name, request.task, subagentSession?.sessionFile);
 	const startTime = Date.now();
 
 	const currentResult: SingleResult = {
@@ -112,158 +103,144 @@ export async function runSingleAgent(
 	};
 
 	const emitUpdate = () => onUpdate?.({ ...currentResult, messages: [...currentResult.messages] });
-	let tmpPromptDir: string | null = null;
 
-	try {
-		if (runtimeSettings.systemPrompt.trim()) {
-			const tmp = await writePromptToTempFile(agent.name, runtimeSettings.systemPrompt);
-			tmpPromptDir = tmp.dir;
-			args.push("--append-system-prompt", tmp.filePath);
-		}
+	let wasAborted = false;
 
-		args.push(`Task: ${request.task}`);
-		let wasAborted = false;
+	const exitCode = await new Promise<number>((resolve) => {
+		const invocation = getPiInvocation(args);
+		const proc = spawn(invocation.command, invocation.args, {
+			cwd: runCwd,
+			shell: false,
+			stdio: ["ignore", "pipe", "pipe"],
+			env: {
+				...process.env,
+				PI_SUBAGENT: "1",
+			},
+		});
+		let buffer = "";
 
-		const exitCode = await new Promise<number>((resolve) => {
-			const invocation = getPiInvocation(args);
-			const proc = spawn(invocation.command, invocation.args, {
-				cwd: runCwd,
-				shell: false,
-				stdio: ["ignore", "pipe", "pipe"],
-				env: {
-					...process.env,
-					PI_SUBAGENT: "1",
-				},
-			});
-			let buffer = "";
+		const processLine = (line: string) => {
+			if (!line.trim()) return;
 
-			const processLine = (line: string) => {
-				if (!line.trim()) return;
-
-				let event: unknown;
-				try {
-					event = JSON.parse(line);
-				} catch {
-					return;
-				}
-
-				if (
-					typeof event !== "object" ||
-					event === null ||
-					!("type" in event) ||
-					typeof event.type !== "string"
-				) {
-					return;
-				}
-
-				if (event.type === "message_end" && "message" in event && event.message) {
-					const msg = event.message as Message;
-					currentResult.messages.push(msg);
-
-					if (msg.role === "assistant") {
-						currentResult.usage.turns++;
-						const usage = msg.usage;
-						if (usage) {
-							currentResult.usage.input += usage.input || 0;
-							currentResult.usage.output += usage.output || 0;
-							currentResult.usage.cacheRead += usage.cacheRead || 0;
-							currentResult.usage.cacheWrite += usage.cacheWrite || 0;
-							currentResult.usage.cost += usage.cost?.total || 0;
-							currentResult.usage.contextTokens = usage.totalTokens || 0;
-						}
-						if (msg.provider) currentResult.provider = msg.provider;
-						if (msg.model) currentResult.model = msg.model;
-						const modelInfo = resolveModelInfo?.(currentResult.provider, currentResult.model);
-						if (modelInfo) {
-							currentResult.usage.contextWindow = modelInfo.contextWindow;
-							currentResult.reasoning = modelInfo.reasoning;
-							currentResult.usingSubscription = modelInfo.usingSubscription;
-						}
-						if (currentResult.usage.contextWindow && currentResult.usage.contextTokens > 0) {
-							currentResult.usage.contextPercent =
-								(currentResult.usage.contextTokens / currentResult.usage.contextWindow) * 100;
-						}
-						if (msg.stopReason) currentResult.stopReason = msg.stopReason;
-						if (msg.errorMessage) currentResult.errorMessage = msg.errorMessage;
-					}
-					emitUpdate();
-					return;
-				}
-
-				if (event.type === "tool_result_end" && "message" in event && event.message) {
-					currentResult.messages.push(event.message as Message);
-					emitUpdate();
-				}
-			};
-
-			proc.stdout.on("data", (data) => {
-				buffer += data.toString();
-				const lines = buffer.split("\n");
-				buffer = lines.pop() || "";
-				for (const line of lines) processLine(line);
-			});
-
-			proc.stderr.on("data", (data) => {
-				currentResult.stderr += data.toString();
-			});
-
-			proc.on("close", (code) => {
-				if (buffer.trim()) processLine(buffer);
-				resolve(code ?? 0);
-			});
-
-			proc.on("error", () => {
-				resolve(1);
-			});
-
-			if (signal) {
-				const killProc = () => {
-					wasAborted = true;
-					proc.kill("SIGTERM");
-					setTimeout(() => {
-						if (!proc.killed) proc.kill("SIGKILL");
-					}, 5000);
-				};
-				if (signal.aborted) killProc();
-				else signal.addEventListener("abort", killProc, { once: true });
+			let event: unknown;
+			try {
+				event = JSON.parse(line);
+			} catch {
+				return;
 			}
+
+			if (
+				typeof event !== "object" ||
+				event === null ||
+				!("type" in event) ||
+				typeof event.type !== "string"
+			) {
+				return;
+			}
+
+			if (event.type === "message_end" && "message" in event && event.message) {
+				const msg = event.message as Message;
+				currentResult.messages.push(msg);
+
+				if (msg.role === "assistant") {
+					currentResult.usage.turns++;
+					const usage = msg.usage;
+					if (usage) {
+						currentResult.usage.input += usage.input || 0;
+						currentResult.usage.output += usage.output || 0;
+						currentResult.usage.cacheRead += usage.cacheRead || 0;
+						currentResult.usage.cacheWrite += usage.cacheWrite || 0;
+						currentResult.usage.cost += usage.cost?.total || 0;
+						currentResult.usage.contextTokens = usage.totalTokens || 0;
+					}
+					if (msg.provider) currentResult.provider = msg.provider;
+					if (msg.model) currentResult.model = msg.model;
+					const modelInfo = resolveModelInfo?.(currentResult.provider, currentResult.model);
+					if (modelInfo) {
+						currentResult.usage.contextWindow = modelInfo.contextWindow;
+						currentResult.reasoning = modelInfo.reasoning;
+						currentResult.usingSubscription = modelInfo.usingSubscription;
+					}
+					if (currentResult.usage.contextWindow && currentResult.usage.contextTokens > 0) {
+						currentResult.usage.contextPercent =
+							(currentResult.usage.contextTokens / currentResult.usage.contextWindow) * 100;
+					}
+					if (msg.stopReason) currentResult.stopReason = msg.stopReason;
+					if (msg.errorMessage) currentResult.errorMessage = msg.errorMessage;
+				}
+				emitUpdate();
+				return;
+			}
+
+			if (event.type === "tool_result_end" && "message" in event && event.message) {
+				currentResult.messages.push(event.message as Message);
+				emitUpdate();
+			}
+		};
+
+		proc.stdout.on("data", (data) => {
+			buffer += data.toString();
+			const lines = buffer.split("\n");
+			buffer = lines.pop() || "";
+			for (const line of lines) processLine(line);
 		});
 
-		currentResult.exitCode = exitCode;
-		if (wasAborted) throw new Error("Subagent was aborted");
-		if (parentSessionInfo && subagentSession) {
-			await updateManifest(
-				subagentSession.dir,
-				{
-					sessionFile: parentSessionInfo.sessionFile,
-					sessionId: parentSessionInfo.sessionId,
-				},
-				runCwd,
-				{
-					id: subagentSession.sessionId,
-					agent: currentResult.agent,
-					agentSource: currentResult.agentSource,
-					provider: currentResult.provider,
-					model: currentResult.model,
-					thinking: currentResult.thinkingLevel ?? null,
-					description: request.description,
-					prompt: currentResult.task,
-					sessionFile: path.basename(subagentSession.sessionFile),
-					timestamp: new Date().toISOString(),
-					exitCode: currentResult.exitCode,
-					usage: {
-						input: currentResult.usage.input,
-						output: currentResult.usage.output,
-						cost: currentResult.usage.cost,
-					},
-					durationMs: Date.now() - startTime,
-				},
-			);
+		proc.stderr.on("data", (data) => {
+			currentResult.stderr += data.toString();
+		});
+
+		proc.on("close", (code) => {
+			if (buffer.trim()) processLine(buffer);
+			resolve(code ?? 0);
+		});
+
+		proc.on("error", () => {
+			resolve(1);
+		});
+
+		if (signal) {
+			const killProc = () => {
+				wasAborted = true;
+				proc.kill("SIGTERM");
+				setTimeout(() => {
+					if (!proc.killed) proc.kill("SIGKILL");
+				}, 5000);
+			};
+			if (signal.aborted) killProc();
+			else signal.addEventListener("abort", killProc, { once: true });
 		}
-		return currentResult;
-	} finally {
-		if (tmpPromptDir) {
-			await fs.promises.rm(tmpPromptDir, { recursive: true, force: true });
-		}
+	});
+
+	currentResult.exitCode = exitCode;
+	if (wasAborted) throw new Error("Subagent was aborted");
+	if (parentSessionInfo && subagentSession) {
+		await updateManifest(
+			subagentSession.dir,
+			{
+				sessionFile: parentSessionInfo.sessionFile,
+				sessionId: parentSessionInfo.sessionId,
+			},
+			runCwd,
+			{
+				id: subagentSession.sessionId,
+				agent: currentResult.agent,
+				agentSource: currentResult.agentSource,
+				provider: currentResult.provider,
+				model: currentResult.model,
+				thinking: currentResult.thinkingLevel ?? null,
+				description: request.description,
+				prompt: currentResult.task,
+				sessionFile: path.basename(subagentSession.sessionFile),
+				timestamp: new Date().toISOString(),
+				exitCode: currentResult.exitCode,
+				usage: {
+					input: currentResult.usage.input,
+					output: currentResult.usage.output,
+					cost: currentResult.usage.cost,
+				},
+				durationMs: Date.now() - startTime,
+			},
+		);
 	}
+	return currentResult;
 }

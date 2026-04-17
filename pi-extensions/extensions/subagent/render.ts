@@ -196,8 +196,8 @@ export function formatDebugSection(title: string, agents: AgentConfig[]): string
 		lines.push(`- ${agent.name} [${agent.source}]`);
 		lines.push(`  file: ${agent.filePath}`);
 		if (agent.model) lines.push(`  resolved model: ${agent.model}`);
-		if (agent.tools?.length) lines.push(`  normalized tools: ${agent.tools.join(", ")}`);
-		else lines.push("  normalized tools: (default toolset)");
+		if (agent.tools.length) lines.push(`  normalized tools: ${agent.tools.join(", ")}`);
+		else lines.push("  normalized tools: (empty tool set)");
 	}
 	return lines.join("\n");
 }
