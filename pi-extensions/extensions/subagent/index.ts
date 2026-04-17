@@ -21,8 +21,9 @@ import {
 import { mapWithConcurrencyLimit, runSingleAgent } from "./runtime.js";
 import {
 	formatDebugSection,
+	formatParallelParentVisibleResult,
 	getAvailableAgentsText,
-	getFinalOutput,
+	getParentVisibleResultText,
 	getResultErrorText,
 	isResultError,
 	renderSubagentCall,
@@ -287,27 +288,16 @@ export default function (pi: ExtensionAPI) {
 					};
 				}
 				return {
-					content: [{ type: "text", text: getFinalOutput(result.messages) || "(no output)" }],
+					content: [{ type: "text", text: getParentVisibleResultText(result) || "(no output)" }],
 					details: makeDetails(results),
 				};
 			}
 
-			const successCount = results.filter((result) => !isResultError(result)).length;
-			const summaries = results.map((result) => {
-				if (isResultError(result)) {
-					const errorText = getResultErrorText(result);
-					const preview = errorText.slice(0, 100) + (errorText.length > 100 ? "..." : "");
-					return `[${result.agent}] failed: ${preview || "(no output)"}`;
-				}
-				const output = getFinalOutput(result.messages);
-				const preview = output.slice(0, 100) + (output.length > 100 ? "..." : "");
-				return `[${result.agent}] completed: ${preview || "(no output)"}`;
-			});
 			return {
 				content: [
 					{
 						type: "text",
-						text: `Parallel: ${successCount}/${results.length} succeeded\n\n${summaries.join("\n\n")}`,
+						text: formatParallelParentVisibleResult(results),
 					},
 				],
 				details: makeDetails(results),

@@ -88,6 +88,8 @@ Behavioral details:
 - per-task updates replace the placeholder at that task's stable index, so result ordering matches input ordering rather than completion order
 - the same path handles single-item and multi-item arrays
 - the final tool response is a summary text such as `Parallel: 3/4 succeeded`
+- for single-task runs, the parent agent only receives the child's final displayable message (assistant text, or final tool-result text when the child ends on a tool result)
+- for parallel runs, the parent agent receives each child run's full final displayable message grouped by agent instead of a shortened preview
 - individual task failures remain encoded inside `details.results`; partial failure does **not** currently cause the overall tool call to set `isError`
 
 ### 2.5 Session Logging
@@ -165,7 +167,7 @@ For assistant `message_end` events, the runtime:
 - computes `contextPercent` when both current token count and context window are known
 - stores `stopReason` and `errorMessage` when present
 
-For `tool_result_end`, the message is appended to the run log and an update is emitted, but rendering later focuses on assistant text/tool-call parts rather than raw tool-result bodies.
+For `tool_result_end`, the message is appended to the run log and an update is emitted, but rendering later focuses on assistant text/tool-call parts, with a fallback to the last displayable tool-result text when that is the only final output.
 
 ### Rendering pipeline
 
@@ -370,8 +372,8 @@ Failure model:
 - **Decision:** The tool API is unified around one required `tasks[]` shape instead of separate single/parallel modes.
   - **Rationale:** A single invocation pattern removes mode-dispatch ambiguity, eliminates optional top-level fields, and lets the same orchestration path handle both one-task and many-task runs.
 
-- **Decision:** Rendering emphasizes assistant text and summarized tool calls rather than raw tool-result payloads.
-  - **Rationale:** The tool aims to present concise operator-facing progress and outcomes, not a verbatim replay of every event object.
+- **Decision:** Rendering emphasizes assistant text and summarized tool calls, but single-run output falls back to the last tool-result text when that is the only final displayable child message.
+  - **Rationale:** The tool aims to present concise operator-facing progress and outcomes, while still ensuring the parent agent sees the actual final child result instead of an empty placeholder.
 
 ## 6. Testing
 

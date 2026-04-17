@@ -13,6 +13,8 @@ This extension also registers `--agent <name>` for direct agent mode. That flag 
 - _"Project-local agents in .pi/agents are discovered automatically too"_
 
 The tool always uses a `tasks` array. Use one task for focused work, or multiple independent tasks for parallel fan-out.
+The parent agent sees only each child run's final displayable message in tool context, not the full transcript.
+In parallel runs, the parent-visible tool result includes each child run's full final displayable message grouped by agent rather than a shortened preview.
 
 ## Direct agent mode
 

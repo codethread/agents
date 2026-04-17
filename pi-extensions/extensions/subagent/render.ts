@@ -143,15 +143,47 @@ export function getResultErrorText(result: SingleResult): string {
 	return result.errorMessage || result.stderr || getFinalOutput(result.messages) || "(no output)";
 }
 
+function getMessageText(message: Message): string {
+	if (message.role !== "assistant" && message.role !== "toolResult") return "";
+	return message.content
+		.filter((part): part is { type: "text"; text: string } => part.type === "text")
+		.map((part) => part.text)
+		.join("");
+}
+
 export function getFinalOutput(messages: Message[]): string {
 	for (let i = messages.length - 1; i >= 0; i--) {
-		const msg = messages[i];
-		if (msg.role !== "assistant") continue;
-		for (const part of msg.content) {
-			if (part.type === "text") return part.text;
-		}
+		const text = getMessageText(messages[i]);
+		if (text) return text;
 	}
 	return "";
+}
+
+export function getParentVisibleResultText(result: SingleResult): string {
+	return isResultError(result) ? getResultErrorText(result) : getFinalOutput(result.messages);
+}
+
+function formatParentVisibleSection(
+	label: string,
+	status: "completed" | "failed",
+	text: string,
+): string {
+	const safeText = text || "(no output)";
+	return safeText.includes("\n")
+		? `[${label}] ${status}:\n${safeText}`
+		: `[${label}] ${status}: ${safeText}`;
+}
+
+export function formatParallelParentVisibleResult(results: SingleResult[]): string {
+	const successCount = results.filter((result) => !isResultError(result)).length;
+	const sections = results.map((result) =>
+		formatParentVisibleSection(
+			result.agent,
+			isResultError(result) ? "failed" : "completed",
+			getParentVisibleResultText(result),
+		),
+	);
+	return `Parallel: ${successCount}/${results.length} succeeded\n\n${sections.join("\n\n")}`;
 }
 
 export function getDisplayItems(messages: Message[]): DisplayItem[] {
@@ -351,9 +383,16 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 					? theme.fg("error", "✗")
 					: theme.fg("success", "✓");
 		const displayItems = getDisplayItems(singleResult.messages);
+		const finalOutput = getFinalOutput(singleResult.messages);
 		text += `\n\n${theme.fg("muted", "─── ")}${theme.fg("accent", singleResult.agent)} ${resultIcon}`;
 		if (displayItems.length === 0) {
-			text += `\n${theme.fg("muted", singleResult.exitCode === RUNNING_EXIT_CODE ? "(running...)" : "(no output)")}`;
+			if (singleResult.exitCode === RUNNING_EXIT_CODE) {
+				text += `\n${theme.fg("muted", "(running...)")}`;
+			} else if (finalOutput) {
+				text += `\n${theme.fg("toolOutput", finalOutput.split("\n").slice(0, 3).join("\n"))}`;
+			} else {
+				text += `\n${theme.fg("muted", "(no output)")}`;
+			}
 		} else {
 			text += `\n${renderDisplayItems(displayItems, 5)}`;
 		}
