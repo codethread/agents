@@ -25,10 +25,11 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 
 ## Prompt and Context Injection
 
-| Spec                                                                           | Purpose                                                                                                                                                       | Code                                          |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| [dynamic-agents-template-injection.md](./dynamic-agents-template-injection.md) | Defines global/project `agent.njk` discovery, Nunjucks rendering, prompt injection, and prompt-debug surfaces for the `dynamic-agents-md` extension.          | `pi-extensions/extensions/dynamic-agents-md/` |
-| [pi-extension-discovery.md](./pi-extension-discovery.md)                       | Defines discovery of enabled Pi extension entrypoints plus conditional contextual-note/debug exposure of their source paths for the `pi-discovery` extension. | `pi-extensions/extensions/pi-discovery/`      |
+| Spec                                                                           | Purpose                                                                                                                                                       | Code                                                                                       |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [dynamic-agents-template-injection.md](./dynamic-agents-template-injection.md) | Defines global/project `agent.njk` discovery, Nunjucks rendering, prompt injection, and prompt-debug surfaces for the `dynamic-agents-md` extension.          | `pi-extensions/extensions/dynamic-agents-md/`                                              |
+| [pi-extension-discovery.md](./pi-extension-discovery.md)                       | Defines discovery of enabled Pi extension entrypoints plus conditional contextual-note/debug exposure of their source paths for the `pi-discovery` extension. | `pi-extensions/extensions/pi-discovery/`                                                   |
+| [system-prompt-ownership.md](./system-prompt-ownership.md)                     | Records discovery findings and the implemented design for owning Pi's base prompt scaffold while preserving later prompt chaining.                            | `pi-extensions/extensions/owned-system-prompt/`, `specs/fixtures/system-prompt-ownership/` |
 
 ## Presentation and UX
 

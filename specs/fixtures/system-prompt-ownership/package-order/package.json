@@ -1,0 +1,11 @@
+{
+	"name": "system-prompt-order-fixture",
+	"type": "module",
+	"pi": {
+		"extensions": [
+			"./b.ts",
+			"./a.ts",
+			"./c.ts"
+		]
+	}
+}

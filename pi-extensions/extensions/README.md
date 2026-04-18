@@ -26,6 +26,7 @@ Small index for the extensions shipped in this package. See each extension folde
 | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
 | [`claude-sync`](./claude-sync/README.md)                           | Synchronize Claude project context with Pi — transparent to the user.                                          |
 | [`dynamic-agents-md`](./dynamic-agents-md/README.md)               | Render a Nunjucks template into the system prompt.                                                             |
+| [`owned-system-prompt`](./owned-system-prompt/README.md)           | Own Pi's base prompt scaffold while preserving later prompt chaining.                                          |
 | [`project-structure-prompt`](./project-structure-prompt/README.md) | Append a bounded repository tree snapshot to the system prompt.                                                |
 | [`pi-discovery`](./pi-discovery/README.md)                         | Append discovered extension source paths as a one-shot contextual note when the user explicitly mentions `Pi`. |
 

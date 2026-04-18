@@ -26,6 +26,7 @@
 	},
 	"pi": {
 		"extensions": [
+			"./pi-extensions/extensions/owned-system-prompt",
 			"./pi-extensions/extensions"
 		],
 		"prompts": [

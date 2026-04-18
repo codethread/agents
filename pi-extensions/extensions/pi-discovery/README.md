@@ -10,4 +10,6 @@ Makes Pi aware of the extension code currently available in the running environm
 
 This is useful when a user references an installed extension and wants Pi to inspect the implementation directly instead of guessing.
 
+When the request is about Pi behavior, installed extensions, prompt variables, or package-provided runtime features, inspect the relevant Pi docs and the discovered extension source files before answering instead of inferring behavior from memory.
+
 **Command:** `/debug-extensions` — sends the current extension discovery report into the conversation.

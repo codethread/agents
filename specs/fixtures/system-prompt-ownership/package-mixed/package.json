@@ -1,0 +1,10 @@
+{
+	"name": "system-prompt-mixed-fixture",
+	"type": "module",
+	"pi": {
+		"extensions": [
+			"./a.ts",
+			"./others"
+		]
+	}
+}
