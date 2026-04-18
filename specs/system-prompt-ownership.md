@@ -337,11 +337,11 @@ but the spec and README should avoid machine-local install paths such as Nix sto
 
 The current built-in prompt contains guidance about how to inspect Pi itself.
 
-Planned ownership change:
+Implemented ownership change:
 
-- move that explanatory Pi-specific guidance into `pi-extensions/extensions/pi-discovery/README.md`
-- let `pi-discovery` own the user-facing note about how Pi source/extensions should be inspected
-- remove the need for the owned system prompt to carry that longer Pi-documentation block in v1
+- moved that explanatory Pi-specific guidance into `pi-extensions/extensions/pi-discovery/README.md`
+- `pi-discovery` now owns the user-facing note about how Pi source/extensions should be inspected
+- `pi-discovery` now surfaces Pi package/source paths alongside discovered extension paths, reducing the need for the owned system prompt to carry that longer Pi-documentation block in v1
 
 This intentionally moves some Pi-specific guidance from system prompt space to a conditional user-message path, which is acceptable for now.
 

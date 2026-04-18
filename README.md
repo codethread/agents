@@ -27,7 +27,7 @@ pi install git:github.com/<you>/agents
 ```
 
 Pi loads the package's extensions, prompts, themes, and skills through `package.json#pi`.
-The bundled agents are discovered by the `subagent` extension from `pi-agents/`, so they travel with the package too. Project-specific agents still load from the nearest `.pi/agents/` directory when you run Pi inside another repo. The package also includes a `pi-discovery` extension that watches for explicit `Pi` mentions and appends currently discovered extension source paths as a one-shot contextual note on the triggering user message, helping Pi inspect installed extension implementations directly when users reference them.
+The bundled agents are discovered by the `subagent` extension from `pi-agents/`, so they travel with the package too. Project-specific agents still load from the nearest `.pi/agents/` directory when you run Pi inside another repo. The package also includes a `pi-discovery` extension that watches for explicit `Pi` mentions and appends Pi runtime source paths plus currently discovered extension source paths as a one-shot contextual note on the triggering user message, helping Pi inspect installed implementations directly when users reference them.
 
 This package also ships an `owned-system-prompt` extension. To let it replace Pi's built-in base prompt scaffold, create `~/.pi/agent/SYSTEM.md` containing exactly:
 

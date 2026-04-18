@@ -1,17 +1,18 @@
 # Pi Extension Discovery Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-11
+**Last Updated:** 2026-04-18
 
 ## 1. Overview
 
 ### Purpose
 
-The `pi-discovery` extension tells Pi where its currently discovered extension source code lives, but only when that context is likely relevant. Instead of appending a compact extension catalog to every system prompt, it watches raw user input and appends a one-shot contextual note to the first user message whose text contains the standalone, case-sensitive token `Pi`. That note gives the agent enough extension-discovery context to inspect installed extension files directly when users reference Pi behavior, prompt variables, or package-provided runtime features.
+The `pi-discovery` extension tells Pi where both its runtime/source tree and its currently discovered extension source code live, but only when that context is likely relevant. Instead of appending a compact discovery catalog to every system prompt, it watches raw user input and appends a one-shot contextual note to the first user message whose text contains the standalone, case-sensitive token `Pi`. That note gives the agent enough runtime/package and extension-discovery context to inspect installed Pi files directly when users reference Pi behavior, prompt variables, or package-provided runtime features.
 
 ### Goals
 
 - Expose the active global/project Pi config paths relevant to extension discovery.
+- Expose the preferred Pi package/source root plus key docs/examples/core-tool paths.
 - Discover enabled extension entrypoints without loading them a second time.
 - Include enough provenance metadata for Pi to find the real source tree for each extension without surfacing redundant path labels.
 - Avoid unconditional system-prompt injection for unrelated turns.
@@ -24,7 +25,7 @@ The `pi-discovery` extension tells Pi where its currently discovered extension s
 - Explaining extension behavior itself. The extension only points Pi at the files so it can inspect them.
 - Loading or executing extension modules for discovery.
 - Managing extension enable/disable state.
-- Discovering skills, prompts, themes, or agents. This extension is extension-specific.
+- Discovering skills, prompts, themes, or agents. This extension is still primarily about Pi runtime + extension source discoverability.
 
 ## 2. Architecture
 
@@ -73,8 +74,9 @@ The extension caches discovery per cwd for the session runtime and keeps a closu
 
 The appended contextual note contains:
 
-- a short instruction telling Pi to inspect extension source files directly when relevant
+- a short instruction telling Pi to inspect Pi source/docs and matching extension source files directly when relevant
 - global/project config paths relevant to extension discovery
+- Pi runtime/source package paths, preferring `PI_PACKAGE_DIR` when available and otherwise falling back to the installed `@mariozechner/pi-coding-agent` package root inferred from `import.meta.resolve(...)`
 - existence status for those paths
 - one `<extension ... />` entry per enabled extension entrypoint
 
@@ -103,11 +105,21 @@ Behavior:
 
 ## 3. Data Model
 
-Core types from `lib.ts`:
+Core types:
 
 ```ts
 export interface PiExtensionRecord extends SourceInfo {
 	name: string;
+}
+
+export interface PiSourceDiscovery {
+	inspectPackageDir: string;
+	inspectPackageDirSource: "env" | "runtime-package";
+	runtimePackageDir: string;
+	runtimePackageEntry: string;
+	docsDir: string;
+	examplesDir: string;
+	coreToolsDir: string;
 }
 
 export interface PiExtensionDiscovery {
@@ -117,6 +129,7 @@ export interface PiExtensionDiscovery {
 	projectConfigDir: string;
 	projectSettingsPath: string;
 	projectExtensionsDir: string;
+	piSource: PiSourceDiscovery;
 	extensions: PiExtensionRecord[];
 }
 ```
@@ -143,9 +156,10 @@ Behavioral contract:
 
 Returns a contextual-note fragment structured as:
 
-- a short instruction telling Pi to inspect extension source files directly when relevant
+- a short instruction telling Pi to inspect Pi source/docs and extension source files directly when relevant
 - `<pi_extension_discovery>` root element
 - a single `<paths ... />` element with global/project path metadata
+- a single `<pi_source ... />` element with Pi package/runtime path metadata
 - `<available_extensions>` containing one self-closing `<extension ... />` element per discovered extension
 
 This fragment is appended to the triggering user message via the `input` transform path rather than the system prompt.
@@ -171,8 +185,8 @@ Sends a human-readable report into the conversation.
 - **Decision:** The contextual-note format remains compact XML.
   - **Rationale:** Pi already uses terse XML catalogs elsewhere in this repo, and XML attributes keep path-heavy entries relatively small.
 
-- **Decision:** The extension exposes file paths and base directories, not behavior summaries.
-  - **Rationale:** The user goal is source-code discoverability. Once Pi knows where code lives, it can inspect the implementation directly.
+- **Decision:** The extension exposes Pi runtime/package paths and extension file paths/base directories, not behavior summaries.
+  - **Rationale:** The user goal is source-code discoverability. Once Pi knows where the core package and enabled extensions live, it can inspect the implementation directly.
 
 - **Decision:** The `Pi` trigger is case-sensitive and single-shot per extension runtime.
   - **Rationale:** This keeps the behavior narrow, predictable, and low-noise. The intent is to catch explicit Pi references, not every lowercase `pi` substring or repeated follow-up turn.
@@ -189,7 +203,7 @@ Covered behaviors include:
 - name inference for `index.ts` vs single-file extensions
 - mixed project/user/package discovery ordering
 - package-origin metadata preservation
-- contextual-note/report formatting
+- contextual-note/report formatting, including Pi source path metadata
 - trigger detection for standalone `Pi`
 - non-matches for lowercase `pi`, embedded substrings such as `pilot`, and extension-originated input
 - single-shot runtime behavior

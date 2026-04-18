@@ -30,6 +30,27 @@ function makeContext(overrides: Partial<TestContext> = {}): TestContext {
 	};
 }
 
+function makeDiscovery() {
+	return {
+		agentDir: "/agent",
+		globalSettingsPath: "/agent/settings.json",
+		globalExtensionsDir: "/agent/extensions",
+		projectConfigDir: "/repo/.pi",
+		projectSettingsPath: "/repo/.pi/settings.json",
+		projectExtensionsDir: "/repo/.pi/extensions",
+		piSource: {
+			inspectPackageDir: "/pi-source",
+			inspectPackageDirSource: "env" as const,
+			runtimePackageDir: "/runtime/pi",
+			runtimePackageEntry: "/runtime/pi/dist/index.js",
+			docsDir: "/pi-source/docs",
+			examplesDir: "/pi-source/examples",
+			coreToolsDir: "/pi-source/dist/core/tools",
+		},
+		extensions: [],
+	};
+}
+
 function createDeps(): PiDiscoveryContextNoteDeps {
 	return {
 		discoverPiExtensions: vi.fn(),
@@ -75,15 +96,8 @@ describe("registerPiDiscoveryExtension", () => {
 	});
 
 	it("appends a context note to the first user message that mentions Pi", async () => {
-		vi.mocked(deps.discoverPiExtensions).mockResolvedValue({
-			agentDir: "/agent",
-			globalSettingsPath: "/agent/settings.json",
-			globalExtensionsDir: "/agent/extensions",
-			projectConfigDir: "/repo/.pi",
-			projectSettingsPath: "/repo/.pi/settings.json",
-			projectExtensionsDir: "/repo/.pi/extensions",
-			extensions: [],
-		});
+		const discovery = makeDiscovery();
+		vi.mocked(deps.discoverPiExtensions).mockResolvedValue(discovery);
 		const { inputHandler } = setupExtension(deps);
 		const ctx = makeContext();
 
@@ -97,27 +111,11 @@ describe("registerPiDiscoveryExtension", () => {
 			text: "How does Pi handle extensions?\n\n<pi_extension_discovery />",
 		});
 		expect(deps.discoverPiExtensions).toHaveBeenCalledWith("/repo");
-		expect(deps.formatExtensionDiscoveryContextNote).toHaveBeenCalledWith({
-			agentDir: "/agent",
-			globalSettingsPath: "/agent/settings.json",
-			globalExtensionsDir: "/agent/extensions",
-			projectConfigDir: "/repo/.pi",
-			projectSettingsPath: "/repo/.pi/settings.json",
-			projectExtensionsDir: "/repo/.pi/extensions",
-			extensions: [],
-		});
+		expect(deps.formatExtensionDiscoveryContextNote).toHaveBeenCalledWith(discovery);
 	});
 
 	it("fires only once per extension runtime instance", async () => {
-		vi.mocked(deps.discoverPiExtensions).mockResolvedValue({
-			agentDir: "/agent",
-			globalSettingsPath: "/agent/settings.json",
-			globalExtensionsDir: "/agent/extensions",
-			projectConfigDir: "/repo/.pi",
-			projectSettingsPath: "/repo/.pi/settings.json",
-			projectExtensionsDir: "/repo/.pi/extensions",
-			extensions: [],
-		});
+		vi.mocked(deps.discoverPiExtensions).mockResolvedValue(makeDiscovery());
 		const { inputHandler } = setupExtension(deps);
 		const ctx = makeContext();
 
@@ -146,15 +144,7 @@ describe("registerPiDiscoveryExtension", () => {
 	it("does not consume the one-shot trigger when discovery fails", async () => {
 		vi.mocked(deps.discoverPiExtensions)
 			.mockRejectedValueOnce(new Error("boom"))
-			.mockResolvedValueOnce({
-				agentDir: "/agent",
-				globalSettingsPath: "/agent/settings.json",
-				globalExtensionsDir: "/agent/extensions",
-				projectConfigDir: "/repo/.pi",
-				projectSettingsPath: "/repo/.pi/settings.json",
-				projectExtensionsDir: "/repo/.pi/extensions",
-				extensions: [],
-			});
+			.mockResolvedValueOnce(makeDiscovery());
 		const { inputHandler } = setupExtension(deps);
 		const ctx = makeContext();
 
@@ -174,15 +164,7 @@ describe("registerPiDiscoveryExtension", () => {
 	});
 
 	it("warms discovery on session start and reuses the cached result", async () => {
-		vi.mocked(deps.discoverPiExtensions).mockResolvedValue({
-			agentDir: "/agent",
-			globalSettingsPath: "/agent/settings.json",
-			globalExtensionsDir: "/agent/extensions",
-			projectConfigDir: "/repo/.pi",
-			projectSettingsPath: "/repo/.pi/settings.json",
-			projectExtensionsDir: "/repo/.pi/extensions",
-			extensions: [],
-		});
+		vi.mocked(deps.discoverPiExtensions).mockResolvedValue(makeDiscovery());
 		const { inputHandler, sessionStartHandler } = setupExtension(deps);
 		const ctx = makeContext();
 
@@ -193,29 +175,14 @@ describe("registerPiDiscoveryExtension", () => {
 	});
 
 	it("debug command sends the current discovery report", async () => {
-		vi.mocked(deps.discoverPiExtensions).mockResolvedValue({
-			agentDir: "/agent",
-			globalSettingsPath: "/agent/settings.json",
-			globalExtensionsDir: "/agent/extensions",
-			projectConfigDir: "/repo/.pi",
-			projectSettingsPath: "/repo/.pi/settings.json",
-			projectExtensionsDir: "/repo/.pi/extensions",
-			extensions: [],
-		});
+		const discovery = makeDiscovery();
+		vi.mocked(deps.discoverPiExtensions).mockResolvedValue(discovery);
 		const { debugExtensionsCommand, sendUserMessage } = setupExtension(deps);
 		const ctx = makeContext({ isIdle: () => true });
 
 		await debugExtensionsCommand?.handler("", ctx);
 
-		expect(deps.formatExtensionDiscoveryReport).toHaveBeenCalledWith({
-			agentDir: "/agent",
-			globalSettingsPath: "/agent/settings.json",
-			globalExtensionsDir: "/agent/extensions",
-			projectConfigDir: "/repo/.pi",
-			projectSettingsPath: "/repo/.pi/settings.json",
-			projectExtensionsDir: "/repo/.pi/extensions",
-			extensions: [],
-		});
+		expect(deps.formatExtensionDiscoveryReport).toHaveBeenCalledWith(discovery);
 		expect(sendUserMessage).toHaveBeenCalledWith(
 			"Here are the currently discovered extensions:\n\nExtensions: ...",
 		);

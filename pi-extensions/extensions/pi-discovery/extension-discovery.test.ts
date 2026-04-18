@@ -1,7 +1,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	appendContextNoteToText,
 	discoverPiExtensions,
@@ -12,6 +12,7 @@ import {
 } from "./extension-discovery.js";
 
 const tempDirs: string[] = [];
+const originalPiPackageDir = process.env.PI_PACKAGE_DIR;
 
 function makeTempDir(): string {
 	const dir = mkdtempSync(path.join(os.tmpdir(), "pi-discovery-"));
@@ -29,7 +30,42 @@ function writeText(filePath: string, value: string) {
 	writeFileSync(filePath, value);
 }
 
+function makeStaticDiscovery() {
+	return {
+		agentDir: "/home/user/.pi/agent",
+		globalSettingsPath: "/home/user/.pi/agent/settings.json",
+		globalExtensionsDir: "/home/user/.pi/agent/extensions",
+		projectConfigDir: "/repo/.pi",
+		projectSettingsPath: "/repo/.pi/settings.json",
+		projectExtensionsDir: "/repo/.pi/extensions",
+		piSource: {
+			inspectPackageDir: "/pi-source",
+			inspectPackageDirSource: "env" as const,
+			runtimePackageDir: "/nix/store/pi",
+			runtimePackageEntry: "/nix/store/pi/dist/index.js",
+			docsDir: "/pi-source/docs",
+			examplesDir: "/pi-source/examples",
+			coreToolsDir: "/pi-source/dist/core/tools",
+		},
+		extensions: [
+			{
+				name: "dynamic-agents-md",
+				path: "/pkg/pi-extensions/extensions/dynamic-agents-md/index.ts",
+				scope: "user" as const,
+				source: "npm:@codethread/agents",
+				origin: "package" as const,
+				baseDir: "/pkg",
+			},
+		],
+	};
+}
+
+beforeEach(() => {
+	process.env.PI_PACKAGE_DIR = originalPiPackageDir;
+});
+
 afterEach(async () => {
+	process.env.PI_PACKAGE_DIR = originalPiPackageDir;
 	const { rm } = await import("node:fs/promises");
 	await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
@@ -75,8 +111,13 @@ describe("discoverPiExtensions", () => {
 		const root = makeTempDir();
 		const cwd = path.join(root, "workspace");
 		const agentDir = path.join(root, "agent-home");
+		const piSourceDir = path.join(root, "pi-source");
 		mkdirSync(cwd, { recursive: true });
 		mkdirSync(agentDir, { recursive: true });
+		mkdirSync(path.join(piSourceDir, "docs"), { recursive: true });
+		mkdirSync(path.join(piSourceDir, "examples"), { recursive: true });
+		mkdirSync(path.join(piSourceDir, "dist", "core", "tools"), { recursive: true });
+		process.env.PI_PACKAGE_DIR = piSourceDir;
 
 		writeText(path.join(agentDir, "extensions", "user-auto.ts"), "export default function () {}\n");
 		writeText(path.join(agentDir, "user-extra.ts"), "export default function () {}\n");
@@ -115,6 +156,16 @@ describe("discoverPiExtensions", () => {
 			"from-package",
 		]);
 
+		expect(discovery.piSource).toMatchObject({
+			inspectPackageDir: piSourceDir,
+			inspectPackageDirSource: "env",
+			docsDir: path.join(piSourceDir, "docs"),
+			examplesDir: path.join(piSourceDir, "examples"),
+			coreToolsDir: path.join(piSourceDir, "dist", "core", "tools"),
+		});
+		expect(discovery.piSource.runtimePackageEntry.length).toBeGreaterThan(0);
+		expect(discovery.piSource.runtimePackageDir.length).toBeGreaterThan(0);
+
 		const pkgExtension = discovery.extensions.at(-1);
 		expect(pkgExtension).toMatchObject({
 			name: "from-package",
@@ -127,36 +178,25 @@ describe("discoverPiExtensions", () => {
 });
 
 describe("formatters", () => {
-	it("formats context-note and debug output with path metadata", () => {
-		const discovery = {
-			agentDir: "/home/user/.pi/agent",
-			globalSettingsPath: "/home/user/.pi/agent/settings.json",
-			globalExtensionsDir: "/home/user/.pi/agent/extensions",
-			projectConfigDir: "/repo/.pi",
-			projectSettingsPath: "/repo/.pi/settings.json",
-			projectExtensionsDir: "/repo/.pi/extensions",
-			extensions: [
-				{
-					name: "dynamic-agents-md",
-					path: "/pkg/pi-extensions/extensions/dynamic-agents-md/index.ts",
-					scope: "user" as const,
-					source: "npm:@codethread/agents",
-					origin: "package" as const,
-					baseDir: "/pkg",
-				},
-			],
-		};
+	it("formats context-note and debug output with Pi source and path metadata", () => {
+		const discovery = makeStaticDiscovery();
 
 		const note = formatExtensionDiscoveryContextNote(discovery);
 		expect(note).toContain("[Context note: the user explicitly mentioned Pi.");
 		expect(note).toContain("<pi_extension_discovery>");
 		expect(note).toContain('globalSettings="/home/user/.pi/agent/settings.json"');
 		expect(note).toContain('projectExtensionsDir="/repo/.pi/extensions"');
+		expect(note).toContain('inspectPackageDir="/pi-source"');
+		expect(note).toContain('runtimePackageEntry="/nix/store/pi/dist/index.js"');
+		expect(note).toContain('coreToolsDir="/pi-source/dist/core/tools"');
 		expect(note).toContain('name="dynamic-agents-md"');
 		expect(note).toContain('source="npm:@codethread/agents"');
 
 		const report = formatExtensionDiscoveryReport(discovery);
 		expect(report).toContain("Agent dir: /home/user/.pi/agent");
+		expect(report).toContain("Pi inspect package dir: /pi-source [missing] via env");
+		expect(report).toContain("Pi runtime package entry: /nix/store/pi/dist/index.js [missing]");
+		expect(report).toContain("Pi core tools dir: /pi-source/dist/core/tools [missing]");
 		expect(report).toContain("Extensions:");
 		expect(report).toContain("- dynamic-agents-md");
 		expect(report).toContain("  origin: package");
@@ -164,12 +204,7 @@ describe("formatters", () => {
 
 	it("omits source when a local package source normalizes to the same path as baseDir", () => {
 		const discovery = {
-			agentDir: "/home/user/.pi/agent",
-			globalSettingsPath: "/home/user/.pi/agent/settings.json",
-			globalExtensionsDir: "/home/user/.pi/agent/extensions",
-			projectConfigDir: "/repo/.pi",
-			projectSettingsPath: "/repo/.pi/settings.json",
-			projectExtensionsDir: "/repo/.pi/extensions",
+			...makeStaticDiscovery(),
 			extensions: [
 				{
 					name: "bash-compact",

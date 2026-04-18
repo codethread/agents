@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
 	DefaultPackageManager,
 	SettingsManager,
@@ -14,6 +15,18 @@ export interface PiExtensionRecord extends SourceInfo {
 	name: string;
 }
 
+export type PiInspectPackageDirSource = "env" | "runtime-package";
+
+export interface PiSourceDiscovery {
+	inspectPackageDir: string;
+	inspectPackageDirSource: PiInspectPackageDirSource;
+	runtimePackageDir: string;
+	runtimePackageEntry: string;
+	docsDir: string;
+	examplesDir: string;
+	coreToolsDir: string;
+}
+
 export interface PiExtensionDiscovery {
 	agentDir: string;
 	globalSettingsPath: string;
@@ -21,6 +34,7 @@ export interface PiExtensionDiscovery {
 	projectConfigDir: string;
 	projectSettingsPath: string;
 	projectExtensionsDir: string;
+	piSource: PiSourceDiscovery;
 	extensions: PiExtensionRecord[];
 }
 
@@ -81,6 +95,31 @@ function formatExtensionSource(extension: PiExtensionRecord): string | undefined
 	return extension.source === extension.baseDir ? undefined : extension.source;
 }
 
+function pathFromModuleSpecifier(specifier: string): string {
+	return specifier.startsWith("file://") ? fileURLToPath(specifier) : specifier;
+}
+
+export function discoverPiSource(): PiSourceDiscovery {
+	const runtimePackageEntry = pathFromModuleSpecifier(
+		import.meta.resolve("@mariozechner/pi-coding-agent"),
+	);
+	const runtimePackageDir = path.resolve(path.dirname(runtimePackageEntry), "..");
+	const inspectPackageDirFromEnv = process.env.PI_PACKAGE_DIR
+		? path.resolve(expandHomePrefix(process.env.PI_PACKAGE_DIR))
+		: null;
+	const inspectPackageDir = inspectPackageDirFromEnv ?? runtimePackageDir;
+
+	return {
+		inspectPackageDir,
+		inspectPackageDirSource: inspectPackageDirFromEnv ? "env" : "runtime-package",
+		runtimePackageDir,
+		runtimePackageEntry,
+		docsDir: path.join(inspectPackageDir, "docs"),
+		examplesDir: path.join(inspectPackageDir, "examples"),
+		coreToolsDir: path.join(inspectPackageDir, "dist", "core", "tools"),
+	};
+}
+
 export function hasStandalonePiTrigger(text: string): boolean {
 	return PI_TRIGGER_REGEX.test(text);
 }
@@ -126,13 +165,14 @@ export async function discoverPiExtensions(
 		projectConfigDir,
 		projectSettingsPath: path.join(projectConfigDir, "settings.json"),
 		projectExtensionsDir: path.join(projectConfigDir, "extensions"),
+		piSource: discoverPiSource(),
 		extensions,
 	};
 }
 
 export function formatExtensionDiscoveryContextNote(discovery: PiExtensionDiscovery): string {
 	const lines = [
-		"[Context note: the user explicitly mentioned Pi. If the request is about Pi behavior, installed extensions, prompt variables, or package-provided runtime features, inspect the matching extension source files before answering.]",
+		"[Context note: the user explicitly mentioned Pi. If the request is about Pi behavior, installed extensions, prompt variables, or package-provided runtime features, inspect the relevant Pi source/docs paths and matching extension source files before answering.]",
 		"",
 		"<pi_extension_discovery>",
 		`  <paths ${formatXmlAttributes({
@@ -146,6 +186,21 @@ export function formatExtensionDiscoveryContextNote(discovery: PiExtensionDiscov
 			projectSettingsStatus: pathStatus(discovery.projectSettingsPath),
 			projectExtensionsDir: discovery.projectExtensionsDir,
 			projectExtensionsStatus: pathStatus(discovery.projectExtensionsDir),
+		})} />`,
+		`  <pi_source ${formatXmlAttributes({
+			inspectPackageDir: discovery.piSource.inspectPackageDir,
+			inspectPackageDirStatus: pathStatus(discovery.piSource.inspectPackageDir),
+			inspectPackageDirSource: discovery.piSource.inspectPackageDirSource,
+			runtimePackageDir: discovery.piSource.runtimePackageDir,
+			runtimePackageDirStatus: pathStatus(discovery.piSource.runtimePackageDir),
+			runtimePackageEntry: discovery.piSource.runtimePackageEntry,
+			runtimePackageEntryStatus: pathStatus(discovery.piSource.runtimePackageEntry),
+			docsDir: discovery.piSource.docsDir,
+			docsStatus: pathStatus(discovery.piSource.docsDir),
+			examplesDir: discovery.piSource.examplesDir,
+			examplesStatus: pathStatus(discovery.piSource.examplesDir),
+			coreToolsDir: discovery.piSource.coreToolsDir,
+			coreToolsStatus: pathStatus(discovery.piSource.coreToolsDir),
 		})} />`,
 		"  <available_extensions>",
 	];
@@ -182,6 +237,12 @@ export function formatExtensionDiscoveryReport(discovery: PiExtensionDiscovery):
 		`Project config dir: ${discovery.projectConfigDir} [${pathStatus(discovery.projectConfigDir)}]`,
 		`Project settings: ${discovery.projectSettingsPath} [${pathStatus(discovery.projectSettingsPath)}]`,
 		`Project extensions dir: ${discovery.projectExtensionsDir} [${pathStatus(discovery.projectExtensionsDir)}]`,
+		`Pi inspect package dir: ${discovery.piSource.inspectPackageDir} [${pathStatus(discovery.piSource.inspectPackageDir)}] via ${discovery.piSource.inspectPackageDirSource}`,
+		`Pi runtime package dir: ${discovery.piSource.runtimePackageDir} [${pathStatus(discovery.piSource.runtimePackageDir)}]`,
+		`Pi runtime package entry: ${discovery.piSource.runtimePackageEntry} [${pathStatus(discovery.piSource.runtimePackageEntry)}]`,
+		`Pi docs dir: ${discovery.piSource.docsDir} [${pathStatus(discovery.piSource.docsDir)}]`,
+		`Pi examples dir: ${discovery.piSource.examplesDir} [${pathStatus(discovery.piSource.examplesDir)}]`,
+		`Pi core tools dir: ${discovery.piSource.coreToolsDir} [${pathStatus(discovery.piSource.coreToolsDir)}]`,
 	];
 
 	if (discovery.extensions.length === 0) {
