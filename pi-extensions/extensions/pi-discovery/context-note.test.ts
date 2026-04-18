@@ -174,7 +174,7 @@ describe("registerPiDiscoveryExtension", () => {
 		expect(deps.discoverPiExtensions).toHaveBeenCalledTimes(1);
 	});
 
-	it("debug command sends the current discovery report", async () => {
+	it("debug command shows the current discovery report in the UI only", async () => {
 		const discovery = makeDiscovery();
 		vi.mocked(deps.discoverPiExtensions).mockResolvedValue(discovery);
 		const { debugExtensionsCommand, sendUserMessage } = setupExtension(deps);
@@ -183,8 +183,7 @@ describe("registerPiDiscoveryExtension", () => {
 		await debugExtensionsCommand?.handler("", ctx);
 
 		expect(deps.formatExtensionDiscoveryReport).toHaveBeenCalledWith(discovery);
-		expect(sendUserMessage).toHaveBeenCalledWith(
-			"Here are the currently discovered extensions:\n\nExtensions: ...",
-		);
+		expect(ctx.ui.notify).toHaveBeenCalledWith("Extensions: ...", "info");
+		expect(sendUserMessage).not.toHaveBeenCalled();
 	});
 });

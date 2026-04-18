@@ -25,7 +25,24 @@ The `dynamic-agents-md` extension appends dynamically rendered prompt text to Pi
 - Sandboxing Nunjucks beyond the extension's small helper surface.
 - Cleaning up or managing project template files; the extension only reads them.
 
-## 2. Architecture
+## 2. Design Decisions
+
+- **Decision:** Support both a global template and a nearest project template.
+  - **Rationale:** Personal rules and repo-local rules solve different problems and often need to compose.
+
+- **Decision:** Inject into the system prompt, not as a user message.
+  - **Rationale:** These rules are intended to behave like top-level operating instructions for the agent run.
+
+- **Decision:** Strip blank lines aggressively after rendering.
+  - **Rationale:** Templates often contain conditional whitespace; stripping keeps injected prompts compact and predictable.
+
+- **Decision:** Add a small `regex_test` Nunjucks filter instead of custom path-matching syntax.
+  - **Rationale:** Templates stay flexible without creating a new mini language.
+
+- **Decision:** Use a one-shot synthetic `ping` for `--debug-prompt`.
+  - **Rationale:** The effective prompt only exists once a turn is about to start; the debug flag forces that state to materialize.
+
+## 3. Architecture
 
 Implementation is split across:
 
@@ -204,7 +221,7 @@ Current implementation detail worth preserving in spec:
 
 - the command creates a temp directory/file for inspection, but does **not** currently remove it after the editor exits
 
-## 3. Data Model
+## 4. Data Model
 
 Parser-local types from `parser.ts`:
 
@@ -241,7 +258,7 @@ let debugPromptOverrides: DynamicAgentsTemplateVars | null = null;
 
 These fields prevent repeated synthetic `ping` injection for `--debug-prompt`, ensure prompt printing happens exactly once, and carry any debug-only template var overrides into the render step.
 
-## 4. Interfaces
+## 5. Interfaces
 
 ### Parser helpers
 
@@ -283,23 +300,6 @@ Registered by the `pi-extensions/extensions/dynamic-agents-md/` extension:
 
 No tools are registered.
 
-## 5. Design Decisions
-
-- **Decision:** Support both a global template and a nearest project template.
-  - **Rationale:** Personal rules and repo-local rules solve different problems and often need to compose.
-
-- **Decision:** Inject into the system prompt, not as a user message.
-  - **Rationale:** These rules are intended to behave like top-level operating instructions for the agent run.
-
-- **Decision:** Strip blank lines aggressively after rendering.
-  - **Rationale:** Templates often contain conditional whitespace; stripping keeps injected prompts compact and predictable.
-
-- **Decision:** Add a small `regex_test` Nunjucks filter instead of custom path-matching syntax.
-  - **Rationale:** Templates stay flexible without creating a new mini language.
-
-- **Decision:** Use a one-shot synthetic `ping` for `--debug-prompt`.
-  - **Rationale:** The effective prompt only exists once a turn is about to start; the debug flag forces that state to materialize.
-
 ## 6. Testing
 
 Automated tests exist in:
@@ -332,7 +332,7 @@ Full extension lifecycle behavior in `index.ts` still has some manual verificati
 - Should template rendering eventually expose additional structured vars beyond provider/model/cwd/hasUI/isMainAgent/isSubagent/tools/env?
 - Should system-prompt injection remain the long-term strategy despite prompt-cache tradeoffs noted in `specs/discovery.md`?
 
-## Code Locations
+## 8. Code Locations
 
 - `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/dynamic-agents-md/`

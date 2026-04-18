@@ -27,7 +27,39 @@ The subagent extension provides a stable runtime for delegating work to isolated
 - Providing a security sandbox stronger than "separate process isolation".
 - Supporting sequential handoff pipelines inside the tool API.
 
-## 2. Architecture
+## 2. Design Decisions
+
+- **Decision:** Subagents run in separate `pi` subprocesses instead of nested in-process calls.
+  - **Rationale:** This gives each delegated task an isolated context window and cleanly separates message streams from the parent conversation.
+
+- **Decision:** Runtime discovery happens once per tool invocation before task execution.
+  - **Rationale:** All task items use the same effective agent catalog and project-agent directory metadata; one snapshot keeps execution consistent during the run.
+
+- **Decision:** Child Pi invocations always use JSON mode.
+  - **Rationale:** The runtime depends on structured `message_end` and `tool_result_end` events for streaming updates, usage aggregation, and renderer-friendly result logs.
+
+- **Decision:** Delegated child runs invoke `pi --agent <name>` instead of separately forwarding prompt/model/tools.
+  - **Rationale:** This keeps direct top-level mode and delegated child execution on one inheritance path, which is required now that tool selection is an exact allowlist spanning both built-in and extension tools.
+
+- **Decision:** Persist subagent sessions only when the parent session is persisted, and index them via a per-parent manifest.
+  - **Rationale:** This preserves legacy ephemeral behavior for non-persisted runs while enabling structured post-run introspection (task summary, model, usage, cost, duration, and session file) whenever a parent session has a durable log.
+
+- **Decision:** Parallel mode is bounded twice: at 8 total tasks and 4 concurrent workers.
+  - **Rationale:** This keeps UI output and local process pressure manageable while still supporting fan-out workflows.
+
+- **Decision:** Pi executes against one merged subagent list rather than exposing source scopes in the tool API.
+  - **Rationale:** Source distinctions are useful for debugging and confirmation, but they do not need to complicate normal delegation.
+
+- **Decision:** Direct top-level `--agent` mode inherits all currently supported runtime-facing agent settings, while explicit CLI flags override matching fields only.
+  - **Rationale:** The flag is meant to make the top-level session behave like the selected agent file, but users still need precise escape hatches for model, thinking, and tools without losing the rest of the inherited behavior. For tools specifically, the override is exact rather than additive: agent-selected tools are skipped entirely when `--tools` or `--no-tools` is present.
+
+- **Decision:** The tool API is unified around one required `tasks[]` shape instead of separate single/parallel modes.
+  - **Rationale:** A single invocation pattern removes mode-dispatch ambiguity, eliminates optional top-level fields, and lets the same orchestration path handle both one-task and many-task runs.
+
+- **Decision:** Rendering emphasizes assistant text and summarized tool calls, but single-run output falls back to the last tool-result text when that is the only final displayable child message.
+  - **Rationale:** The tool aims to present concise operator-facing progress and outcomes, while still ensuring the parent agent sees the actual final child result instead of an empty placeholder.
+
+## 3. Architecture
 
 Subagent orchestration lives in `pi-extensions/extensions/subagent/` and sits directly on top of the discovery/config layer from `./agents.js`.
 
@@ -180,7 +212,7 @@ The subagent tool owns both call rendering and result rendering.
 
 Expanded views use `Container`, `Text`, `Spacer`, and `Markdown` components to show task text, tool-call summaries, markdown-rendered final output, and usage stats. Collapsed views show shorter previews and prompt the user to expand when content was truncated.
 
-## 3. Data Model
+## 4. Data Model
 
 Core runtime shapes defined in the subagent runtime:
 
@@ -252,7 +284,7 @@ Notable conventions:
 - `exitCode: -1` is reserved for parallel placeholder entries that are still running.
 - `thinkingLevel` is derived from `agent.model?.split(":").at(1)` before the subprocess runs; resolved provider/model values may later replace runtime display metadata.
 
-## 4. Interfaces
+## 5. Interfaces
 
 ### `--agent <name>` direct mode
 
@@ -343,38 +375,6 @@ Failure model:
 - if an abort signal fires, send `SIGTERM` immediately and schedule a later `SIGKILL` attempt
 - clean up temporary prompt files/directories in a `finally` block regardless of outcome
 
-## 5. Design Decisions
-
-- **Decision:** Subagents run in separate `pi` subprocesses instead of nested in-process calls.
-  - **Rationale:** This gives each delegated task an isolated context window and cleanly separates message streams from the parent conversation.
-
-- **Decision:** Runtime discovery happens once per tool invocation before task execution.
-  - **Rationale:** All task items use the same effective agent catalog and project-agent directory metadata; one snapshot keeps execution consistent during the run.
-
-- **Decision:** Child Pi invocations always use JSON mode.
-  - **Rationale:** The runtime depends on structured `message_end` and `tool_result_end` events for streaming updates, usage aggregation, and renderer-friendly result logs.
-
-- **Decision:** Delegated child runs invoke `pi --agent <name>` instead of separately forwarding prompt/model/tools.
-  - **Rationale:** This keeps direct top-level mode and delegated child execution on one inheritance path, which is required now that tool selection is an exact allowlist spanning both built-in and extension tools.
-
-- **Decision:** Persist subagent sessions only when the parent session is persisted, and index them via a per-parent manifest.
-  - **Rationale:** This preserves legacy ephemeral behavior for non-persisted runs while enabling structured post-run introspection (task summary, model, usage, cost, duration, and session file) whenever a parent session has a durable log.
-
-- **Decision:** Parallel mode is bounded twice: at 8 total tasks and 4 concurrent workers.
-  - **Rationale:** This keeps UI output and local process pressure manageable while still supporting fan-out workflows.
-
-- **Decision:** Pi executes against one merged subagent list rather than exposing source scopes in the tool API.
-  - **Rationale:** Source distinctions are useful for debugging and confirmation, but they do not need to complicate normal delegation.
-
-- **Decision:** Direct top-level `--agent` mode inherits all currently supported runtime-facing agent settings, while explicit CLI flags override matching fields only.
-  - **Rationale:** The flag is meant to make the top-level session behave like the selected agent file, but users still need precise escape hatches for model, thinking, and tools without losing the rest of the inherited behavior. For tools specifically, the override is exact rather than additive: agent-selected tools are skipped entirely when `--tools` or `--no-tools` is present.
-
-- **Decision:** The tool API is unified around one required `tasks[]` shape instead of separate single/parallel modes.
-  - **Rationale:** A single invocation pattern removes mode-dispatch ambiguity, eliminates optional top-level fields, and lets the same orchestration path handle both one-task and many-task runs.
-
-- **Decision:** Rendering emphasizes assistant text and summarized tool calls, but single-run output falls back to the last tool-result text when that is the only final displayable child message.
-  - **Rationale:** The tool aims to present concise operator-facing progress and outcomes, while still ensuring the parent agent sees the actual final child result instead of an empty placeholder.
-
 ## 6. Testing
 
 There are currently no automated tests in this repo for `pi-extensions/extensions/subagent/`.
@@ -395,7 +395,7 @@ Current verification is a mix of helper-level automation plus manual runtime che
 - Should the renderer surface structured tool-result messages directly in expanded views, or is assistant text plus tool-call summaries sufficient?
 - Should parallel mode eventually expose richer task labels or grouping metadata for large fan-outs?
 
-## Code Locations
+## 8. Code Locations
 
 - `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/subagent/`

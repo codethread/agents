@@ -28,7 +28,45 @@ The subagent extension needs a stable way to find agent definitions, normalize t
 - Supporting arbitrary external tool names or provider-agnostic model aliasing. Normalization is intentionally narrow and conservative.
 - Exposing user/project/both discovery scopes to Pi-facing runtime selection.
 
-## 2. Architecture
+## 2. Design Decisions
+
+- **Decision:** Agents are defined as markdown files with frontmatter and prompt body.
+  - **Rationale:** A single file can carry both runtime metadata and the system prompt, while also allowing author-only notes such as `meta`, matching how bundled agents in `pi-agents/*.md` are authored.
+
+- **Decision:** Pi sees one merged agent list rather than choosing among discovery scopes.
+  - **Rationale:** Runtime behavior is simpler when user/project/package sources are a discovery concern, not a tool-call concern.
+
+- **Decision:** Direct top-level agent mode reuses the same merged discovery result as delegated subagent runs.
+  - **Rationale:** `pi --agent <name>` should honor the same package → user → project override semantics as the `subagent` tool and child runtime.
+
+- **Decision:** Top-level `--agent` inheritance is derived from shared runtime-setting helpers rather than ad hoc field reads in the extension entrypoint.
+  - **Rationale:** When new runtime-facing agent fields are added over time, extending the shared helper layer keeps child subagent execution and top-level direct-agent mode aligned.
+
+- **Decision:** Explicit CLI flags override inherited agent fields on a per-field basis.
+  - **Rationale:** Users should be able to adopt an agent wholesale and still override just model, thinking, or tools without losing the rest of the agent-defined behavior.
+
+- **Decision:** Source precedence is implemented with a name-keyed `Map`.
+  - **Rationale:** Replacement semantics are simple and deterministic, and they let user or project agents override bundled defaults without extra merge rules.
+
+- **Decision:** Source-specific lists are still returned for debugging.
+  - **Rationale:** Humans sometimes need to understand where definitions came from even though Pi should not care.
+
+- **Decision:** Discovery is best-effort for filesystem and JSON access, but not for all frontmatter shape errors.
+  - **Rationale:** `readJsonFile`, directory reads, and file reads are wrapped defensively, but `parseFrontmatter(...)` and `frontmatter.tools?.split(",")` are not guarded per file. In practice, unreadable files are skipped, while malformed frontmatter or unexpected `tools` types can still abort discovery.
+
+- **Decision:** Agent `tools` is an exact allowlist over the full active tool namespace, not just built-ins.
+  - **Rationale:** Built-in and extension tools must obey the same least-privilege contract. If an agent file does not name `subagent`, `questionnaire`, or any other extension tool, direct `--agent` mode and delegated child runs must not quietly keep that tool active.
+
+- **Decision:** Tool normalization is only lossy for unsupported Claude-only aliases.
+  - **Rationale:** Known Claude aliases should map to Pi equivalents, unsupported Claude tools such as `task`, `websearch`, `webfetch`, and `skill` should be dropped, and all other tool names should be preserved so extension-defined tools remain configurable from agent frontmatter.
+
+- **Decision:** Claude-family model aliases are rewritten only when local OpenAI-backed models are enabled.
+  - **Rationale:** This preserves author intent for portable agent files while still allowing bundled agents authored with Claude-style names like `sonnet` or `haiku` to run in Pi environments backed by OpenAI/OpenAI Codex models.
+
+- **Decision:** Settings lookup is based on the caller's working directory, not the agent file's location.
+  - **Rationale:** Discovery behaves like the rest of Pi configuration resolution: the active workspace determines settings for the whole run.
+
+## 3. Architecture
 
 Agent discovery is implemented in `pi-extensions/extensions/subagent/agents.ts` and consumed by the subagent runtime in `pi-extensions/extensions/subagent/`.
 
@@ -98,7 +136,7 @@ The subagent runtime uses discovery results in four places:
 
 This means discovery is the configuration boundary; runtime execution trusts the normalized `AgentConfig` it receives.
 
-## 3. Data Model
+## 4. Data Model
 
 Core exported types from `pi-extensions/extensions/subagent/agents.ts`:
 
@@ -169,7 +207,7 @@ Bundled agents in this repo demonstrate the file format discovery expects:
 
 These files use YAML frontmatter for `name`, `description`, optional author-only `meta`, and optional `tools` / `model`, followed by a markdown prompt body that becomes `systemPrompt`.
 
-## 4. Interfaces
+## 5. Interfaces
 
 ### Exported discovery API
 
@@ -268,44 +306,6 @@ The subagent runtime consumes discovery results as follows:
 
 If the requested agent name is missing, runtime returns an error containing the list of available agent names.
 
-## 5. Design Decisions
-
-- **Decision:** Agents are defined as markdown files with frontmatter and prompt body.
-  - **Rationale:** A single file can carry both runtime metadata and the system prompt, while also allowing author-only notes such as `meta`, matching how bundled agents in `pi-agents/*.md` are authored.
-
-- **Decision:** Pi sees one merged agent list rather than choosing among discovery scopes.
-  - **Rationale:** Runtime behavior is simpler when user/project/package sources are a discovery concern, not a tool-call concern.
-
-- **Decision:** Direct top-level agent mode reuses the same merged discovery result as delegated subagent runs.
-  - **Rationale:** `pi --agent <name>` should honor the same package → user → project override semantics as the `subagent` tool and child runtime.
-
-- **Decision:** Top-level `--agent` inheritance is derived from shared runtime-setting helpers rather than ad hoc field reads in the extension entrypoint.
-  - **Rationale:** When new runtime-facing agent fields are added over time, extending the shared helper layer keeps child subagent execution and top-level direct-agent mode aligned.
-
-- **Decision:** Explicit CLI flags override inherited agent fields on a per-field basis.
-  - **Rationale:** Users should be able to adopt an agent wholesale and still override just model, thinking, or tools without losing the rest of the agent-defined behavior.
-
-- **Decision:** Source precedence is implemented with a name-keyed `Map`.
-  - **Rationale:** Replacement semantics are simple and deterministic, and they let user or project agents override bundled defaults without extra merge rules.
-
-- **Decision:** Source-specific lists are still returned for debugging.
-  - **Rationale:** Humans sometimes need to understand where definitions came from even though Pi should not care.
-
-- **Decision:** Discovery is best-effort for filesystem and JSON access, but not for all frontmatter shape errors.
-  - **Rationale:** `readJsonFile`, directory reads, and file reads are wrapped defensively, but `parseFrontmatter(...)` and `frontmatter.tools?.split(",")` are not guarded per file. In practice, unreadable files are skipped, while malformed frontmatter or unexpected `tools` types can still abort discovery.
-
-- **Decision:** Agent `tools` is an exact allowlist over the full active tool namespace, not just built-ins.
-  - **Rationale:** Built-in and extension tools must obey the same least-privilege contract. If an agent file does not name `subagent`, `questionnaire`, or any other extension tool, direct `--agent` mode and delegated child runs must not quietly keep that tool active.
-
-- **Decision:** Tool normalization is only lossy for unsupported Claude-only aliases.
-  - **Rationale:** Known Claude aliases should map to Pi equivalents, unsupported Claude tools such as `task`, `websearch`, `webfetch`, and `skill` should be dropped, and all other tool names should be preserved so extension-defined tools remain configurable from agent frontmatter.
-
-- **Decision:** Claude-family model aliases are rewritten only when local OpenAI-backed models are enabled.
-  - **Rationale:** This preserves author intent for portable agent files while still allowing bundled agents authored with Claude-style names like `sonnet` or `haiku` to run in Pi environments backed by OpenAI/OpenAI Codex models.
-
-- **Decision:** Settings lookup is based on the caller's working directory, not the agent file's location.
-  - **Rationale:** Discovery behaves like the rest of Pi configuration resolution: the active workspace determines settings for the whole run.
-
 ## 6. Testing
 
 `pi-extensions/extensions/subagent/agents.test.ts` provides automated coverage for key discovery behavior, including:
@@ -331,7 +331,7 @@ Additional verification remains code-level and runtime-level:
 - Should `formatAgentList` remain part of the public module surface if it is only a presentation helper?
 - Should model alias resolution grow beyond OpenAI/OpenAI Codex-backed environments, or is conservative pass-through the intended long-term behavior?
 
-## Code Locations
+## 8. Code Locations
 
 - `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/subagent/`

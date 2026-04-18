@@ -29,55 +29,24 @@ The questionnaire extension provides a structured-input tool for Pi sessions tha
 - Parsing arbitrary prose outside designated response blocks.
 - Falling back to Pi's inline input editor when no external editor is configured.
 
-## 2. Architecture
+## 2. Design Decisions
 
-Implementation lives in:
+- **Decision:** Keep one tool for both single- and multi-question flows.
+  - **Rationale:** Callers should not need separate tools when only count differs.
 
-- `pi-extensions/extensions/questionnaire/`
-- `pi-extensions/extensions/questionnaire/parser.ts`
-- `pi-extensions/extensions/shared/session-transcript.ts`
+- **Decision:** Always include `Other`.
+  - **Rationale:** Clarification workflows often need an escape hatch, and removing per-question configuration simplifies the contract.
 
-The extension registers a `questionnaire` tool with a TypeBox schema. Execution flow:
+- **Decision:** Separate verbose option rendering from compact answer parsing.
+  - **Rationale:** Agents can provide rich markdown descriptions without making the parser fragile.
 
-1. during `session_start`, remove the tool from active tools when running headless subagents (`!ctx.hasUI` and `PI_SUBAGENT=1`)
-2. require at least one question
-3. normalize `label`
-4. resolve editor command from `$VISUAL` or `$EDITOR`
-5. build a user/assistant-only session transcript from the current branch
-6. write a temporary markdown questionnaire plus companion `session-tldr.md`
-7. open the questionnaire via `spawnSync(..., { shell: true, stdio: "inherit" })`
-8. read the edited markdown back
-9. if the file is empty, treat it as an explicit stop
-10. parse all answers from `<user_response>` blocks
-11. if parsing fails, prepend a validation banner and reopen the same file
-12. return structured answers on success or a cancelled/stopped result otherwise
+- **Decision:** Use a companion transcript file rather than embedding chat history in the questionnaire.
+  - **Rationale:** Users can navigate both files using normal editor workflows, especially in Vim-like editors.
 
-### Interaction model
+- **Decision:** Treat an empty saved questionnaire as explicit stop.
+  - **Rationale:** Clearing a buffer is often easier than finding a dedicated cancel control inside a text editor.
 
-The tool is editor-driven. The generated markdown contains:
-
-- a first-line comment pointing to a companion transcript file:
-  - `<!-- session-summary: /absolute/path/to/session-tldr.md -->`
-- a title
-- optional top-level context
-- one `---`-delimited section per question
-- a heading per question
-- a machine marker placed immediately under the heading:
-  - `<!-- questionnaire-question:<id> -->`
-- a verbose `### Options:` section that can include rich markdown per option
-- a compact `### Answer:` subsection containing one `<user_response>...</user_response>` block
-- predefined checkbox options plus a final `Other:` checkbox line
-
-Representative question section:
-
-```md
-<!-- session-summary: /tmp/pi-questionnaire-abc123/session-tldr.md -->
-
-# Questionnaire
-
----
-
-## Q1 — Architecture
+## 3. Architecture
 
 <!-- questionnaire-question:architecture -->
 
@@ -103,7 +72,8 @@ Better for keyed lookups.
 - [ ] 2. Use a hashmap
 - [ ] 3. Other:
      </user_response>
-```
+
+````
 
 The user checks exactly one option. If `Other:` is selected, the user writes custom text directly below the checked `Other:` line and before `</user_response>`.
 
@@ -145,7 +115,7 @@ Question from the user
 # Assistant
 
 Reply from the assistant
-```
+````
 
 ### Validation retry model
 
@@ -169,7 +139,7 @@ Unlike the initial clean form, the validation banner includes brief instructions
 - if selecting `Other`, write custom text directly below the `Other:` line
 - save an empty buffer to stop without answering
 
-## 3. Data Model
+## 4. Data Model
 
 Implementation-local types:
 
@@ -248,7 +218,7 @@ Normalization rules:
 - custom answers are parsed from all text after the checked `Other:` line up to `</user_response>`
 - if the custom text begins with `Other:`, that prefix is stripped before returning the value
 
-## 4. Interfaces
+## 5. Interfaces
 
 ### Tool registration
 
@@ -325,23 +295,6 @@ Current implementation note:
 
 - cancelled rendering does **not** display the explanatory cancellation/error text from `content`; it only shows `Cancelled` or `Stopped`
 
-## 5. Design Decisions
-
-- **Decision:** Keep one tool for both single- and multi-question flows.
-  - **Rationale:** Callers should not need separate tools when only count differs.
-
-- **Decision:** Always include `Other`.
-  - **Rationale:** Clarification workflows often need an escape hatch, and removing per-question configuration simplifies the contract.
-
-- **Decision:** Separate verbose option rendering from compact answer parsing.
-  - **Rationale:** Agents can provide rich markdown descriptions without making the parser fragile.
-
-- **Decision:** Use a companion transcript file rather than embedding chat history in the questionnaire.
-  - **Rationale:** Users can navigate both files using normal editor workflows, especially in Vim-like editors.
-
-- **Decision:** Treat an empty saved questionnaire as explicit stop.
-  - **Rationale:** Clearing a buffer is often easier than finding a dedicated cancel control inside a text editor.
-
 ## 6. Testing
 
 Automated tests live in:
@@ -376,7 +329,7 @@ Verification is manual plus static:
 - Should the parser tolerate even more edits outside the response blocks as long as the blocks remain valid?
 - Should the tool preserve the temp file for debugging after repeated failures?
 
-## Code Locations
+## 8. Code Locations
 
 - `pi-extensions/extensions/questionnaire/`
 - `pi-extensions/extensions/questionnaire/parser.ts`

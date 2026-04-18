@@ -24,7 +24,27 @@ This package ships a small presentation layer on top of Pi's extension APIs: com
 - Defining Pi's entire theme schema or TUI framework.
 - Persisting usage/session metrics outside the active session.
 
-## 2. Architecture
+## 2. Design Decisions
+
+- **Decision:** Wrap built-in `bash` and `read` tools instead of replacing execution logic.
+  - **Rationale:** The package wants custom rendering, not a forked tool implementation.
+
+- **Decision:** Hide successful `read` output completely.
+  - **Rationale:** File contents are often large and already visible to the model; duplicating them in the TUI adds noise.
+
+- **Decision:** Collapse bash output to five lines by default.
+  - **Rationale:** Shell output can be noisy; a small preview keeps transcripts scannable while preserving expansion.
+
+- **Decision:** Share usage/model string formatting in one helper module.
+  - **Rationale:** Footer and subagent rendering should present context, cost, and model labels consistently.
+
+- **Decision:** Compute footer cost from assistant messages in the active branch.
+  - **Rationale:** The footer reflects session-branch usage, not a global account total.
+
+- **Decision:** Use semantic theme roles in code.
+  - **Rationale:** Palette changes should be possible without touching renderer logic.
+
+## 3. Architecture
 
 The presentation layer is split across five pieces:
 
@@ -78,7 +98,7 @@ The footer subscribes to branch changes through `footerData.onBranchChange(...)`
 
 Renderer code requests semantic roles like `toolTitle`, `muted`, `warning`, or `error`; it does not embed palette hex values directly.
 
-## 3. Component Behavior
+## 4. Component Behavior
 
 ### Bash compact renderer
 
@@ -162,7 +182,7 @@ Behavior:
 - status text is sanitized to a single line by replacing newlines and tabs with spaces
 - final combined line is width-truncated
 
-## 4. Data Model
+## 5. Data Model
 
 Formatting options exported from `current-context-footer/usage-format.ts`:
 
@@ -204,7 +224,7 @@ function sanitizeStatusText(text: string): string;
 function shortenHome(path: string): string;
 ```
 
-## 5. Interfaces
+## 6. Interfaces
 
 ### `bash` tool override
 
@@ -277,26 +297,6 @@ Notable semantic roles used directly by this package include:
 - `error`
 - `success`
 
-## 6. Design Decisions
-
-- **Decision:** Wrap built-in `bash` and `read` tools instead of replacing execution logic.
-  - **Rationale:** The package wants custom rendering, not a forked tool implementation.
-
-- **Decision:** Hide successful `read` output completely.
-  - **Rationale:** File contents are often large and already visible to the model; duplicating them in the TUI adds noise.
-
-- **Decision:** Collapse bash output to five lines by default.
-  - **Rationale:** Shell output can be noisy; a small preview keeps transcripts scannable while preserving expansion.
-
-- **Decision:** Share usage/model string formatting in one helper module.
-  - **Rationale:** Footer and subagent rendering should present context, cost, and model labels consistently.
-
-- **Decision:** Compute footer cost from assistant messages in the active branch.
-  - **Rationale:** The footer reflects session-branch usage, not a global account total.
-
-- **Decision:** Use semantic theme roles in code.
-  - **Rationale:** Palette changes should be possible without touching renderer logic.
-
 ## 7. Testing
 
 There are currently no automated tests in this repo specifically covering these presentation-layer extensions or theme.
@@ -313,7 +313,7 @@ Current verification is manual plus static:
 - `formatContextDisplay(...)` supports `autoCompactEnabled`, but the current footer does not use that suffix. Should another presentation surface consume it?
 - Should the theme eventually trim unused semantic keys, or are the extras deliberate future-proofing?
 
-## Code Locations
+## 9. Code Locations
 
 - `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/bash-compact/`

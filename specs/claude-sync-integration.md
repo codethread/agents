@@ -28,7 +28,27 @@ The Claude sync extension gives Pi a compatibility bridge for Claude-oriented pr
 - Supporting arbitrary Claude resource types beyond `skills`, `agents`, and markdown files under `commands`.
 - Providing an explicit user command to trigger re-sync mid-session. Sync runs eagerly during extension startup and its result is reused later in the same session.
 
-## 2. Architecture
+## 2. Design Decisions
+
+- **Decision:** Sync is implemented as symlink creation rather than file copying.
+  - **Rationale:** Claude-authored resources remain the source of truth, and Pi sees updates through the linked filesystem view instead of maintaining a second copy.
+
+- **Decision:** User and project scopes are both supported in one pass.
+  - **Rationale:** Pi can consume personal Claude resources from `~/.claude` while also honoring repo-local Claude resources when launched inside a project hierarchy.
+
+- **Decision:** `skills` and `agents` are linked as directories, but `commands` are mapped file-by-file into `prompts`.
+  - **Rationale:** Pi directory conventions align with Claude for skills and agents, but command names need translation into Pi prompt filenames.
+
+- **Decision:** Symlink targets are written as relative paths.
+  - **Rationale:** Relative links remain portable when parent directories move together and are easier to inspect inside the destination tree.
+
+- **Decision:** Conflicts are reported, not repaired.
+  - **Rationale:** Existing files, broken links, and alternative symlink targets may reflect deliberate user state; the extension avoids destructive assumptions.
+
+- **Decision:** Startup work is memoized in a single promise reused by both lifecycle hooks.
+  - **Rationale:** Sync runs once per session, avoids duplicate filesystem work, and gives `resources_discover` and `session_start` a consistent view of the outcome.
+
+## 3. Architecture
 
 The integration is implemented entirely in `pi-extensions/extensions/claude-sync/`.
 
@@ -124,7 +144,7 @@ The extension does not expose tools or commands. Its contract is lifecycle-based
 
 Because the promise is created once at extension initialization, both hooks observe the same sync result for the session.
 
-## 3. Data Model
+## 4. Data Model
 
 Result reporting is intentionally lightweight:
 
@@ -157,7 +177,7 @@ type SyncResult = {
 
 This result is not persisted; it is used only to coordinate lifecycle behavior and user-facing notifications within the current session.
 
-## 4. Interfaces
+## 5. Interfaces
 
 ### Internal helper API
 
@@ -236,26 +256,6 @@ Behavioral contract:
 
 The extension does not publish synced paths directly through the hook return value. Instead, it relies on the filesystem side effects being complete before Pi continues discovering resources.
 
-## 5. Design Decisions
-
-- **Decision:** Sync is implemented as symlink creation rather than file copying.
-  - **Rationale:** Claude-authored resources remain the source of truth, and Pi sees updates through the linked filesystem view instead of maintaining a second copy.
-
-- **Decision:** User and project scopes are both supported in one pass.
-  - **Rationale:** Pi can consume personal Claude resources from `~/.claude` while also honoring repo-local Claude resources when launched inside a project hierarchy.
-
-- **Decision:** `skills` and `agents` are linked as directories, but `commands` are mapped file-by-file into `prompts`.
-  - **Rationale:** Pi directory conventions align with Claude for skills and agents, but command names need translation into Pi prompt filenames.
-
-- **Decision:** Symlink targets are written as relative paths.
-  - **Rationale:** Relative links remain portable when parent directories move together and are easier to inspect inside the destination tree.
-
-- **Decision:** Conflicts are reported, not repaired.
-  - **Rationale:** Existing files, broken links, and alternative symlink targets may reflect deliberate user state; the extension avoids destructive assumptions.
-
-- **Decision:** Startup work is memoized in a single promise reused by both lifecycle hooks.
-  - **Rationale:** Sync runs once per session, avoids duplicate filesystem work, and gives `resources_discover` and `session_start` a consistent view of the outcome.
-
 ## 6. Testing
 
 There are currently no automated tests in this repo covering `pi-extensions/extensions/claude-sync/`.
@@ -280,7 +280,7 @@ Important runtime behaviors that are currently verified by inspection rather tha
 - Should additional Claude resource categories ever be mapped into Pi, or is the current `skills` / `agents` / `commands` surface the intended long-term boundary?
 - Should there be a manual re-sync trigger for long-lived sessions where Claude resources change after startup?
 
-## Code Locations
+## 8. Code Locations
 
 - `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/claude-sync/`

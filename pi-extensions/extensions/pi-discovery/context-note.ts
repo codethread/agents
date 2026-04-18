@@ -75,22 +75,22 @@ export function registerPiDiscoveryExtension(
 	});
 
 	pi.registerCommand("debug-extensions", {
-		description: "Send discovered extension information into the conversation",
+		description: "Show discovered extension information in the UI only",
 		handler: async (_args, ctx) => {
 			try {
 				const discovery = await getDiscovery(ctx.cwd);
-				const content = `Here are the currently discovered extensions:\n\n${deps.formatExtensionDiscoveryReport(discovery)}`;
+				const content = deps.formatExtensionDiscoveryReport(discovery);
 
-				if (!ctx.isIdle()) {
-					pi.sendUserMessage(content, { deliverAs: "followUp" });
-					if (ctx.hasUI) ctx.ui.notify("Queued extension debug info as follow-up", "info");
+				if (ctx.hasUI) {
+					ctx.ui.notify(content, "info");
 					return;
 				}
 
-				pi.sendUserMessage(content);
+				process.stdout.write(`${content}\n`);
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				if (ctx.hasUI) ctx.ui.notify(`[pi-discovery] ${message}`, "error");
+				else process.stderr.write(`[pi-discovery] ${message}\n`);
 			}
 		},
 	});

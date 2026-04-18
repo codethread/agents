@@ -25,7 +25,24 @@ The `tldr` extension generates a short user-facing catch-up summary for the curr
 - Falling back to arbitrary models when preferred summary models are unavailable.
 - Replaying tool results verbatim in the transcript.
 
-## 2. Architecture
+## 2. Design Decisions
+
+- **Decision:** Summaries are user-only and hidden from the agent.
+  - **Rationale:** The command is for human catch-up, not for changing the agent's active context.
+
+- **Decision:** Only preferred small models are used.
+  - **Rationale:** TL;DR generation should be cheap and predictable rather than silently consuming a larger model.
+
+- **Decision:** Transcript extraction ignores tool-call and thinking blocks.
+  - **Rationale:** The summary should describe work status, not replay mechanics.
+
+- **Decision:** Parsing uses defensive Zod validation with debug notes.
+  - **Rationale:** Session and model payloads can vary; a best-effort path is more useful than hard failure on unexpected shapes.
+
+- **Decision:** Debug flags run at session start and exit the process.
+  - **Rationale:** They are inspection modes, not interactive session features.
+
+## 3. Architecture
 
 Implementation is split across:
 
@@ -155,7 +172,7 @@ The UI explicitly notes that the summary is **hidden from agent**.
 
 Without UI, the summary is printed to stdout.
 
-## 3. Data Model
+## 4. Data Model
 
 Main result type in `index.ts`:
 
@@ -194,7 +211,7 @@ const PREFERRED_SMALL_MODELS = [
 ] as const;
 ```
 
-## 4. Interfaces
+## 5. Interfaces
 
 ### `/tldr` command contract
 
@@ -236,23 +253,6 @@ Behavioral contract:
 - keeps parsing non-fatally when possible
 - emits debug notes for malformed blocks and unexpected block types
 
-## 5. Design Decisions
-
-- **Decision:** Summaries are user-only and hidden from the agent.
-  - **Rationale:** The command is for human catch-up, not for changing the agent's active context.
-
-- **Decision:** Only preferred small models are used.
-  - **Rationale:** TL;DR generation should be cheap and predictable rather than silently consuming a larger model.
-
-- **Decision:** Transcript extraction ignores tool-call and thinking blocks.
-  - **Rationale:** The summary should describe work status, not replay mechanics.
-
-- **Decision:** Parsing uses defensive Zod validation with debug notes.
-  - **Rationale:** Session and model payloads can vary; a best-effort path is more useful than hard failure on unexpected shapes.
-
-- **Decision:** Debug flags run at session start and exit the process.
-  - **Rationale:** They are inspection modes, not interactive session features.
-
 ## 6. Testing
 
 Automated tests exist for library behavior in:
@@ -277,7 +277,7 @@ Interactive command/UI behavior in `index.ts` is still verified manually.
 - Should `/tldr` eventually support summarizing another branch or a bounded window of recent turns?
 - Should the transcript builder start preserving more structured signals, such as explicit failure states, when they only appear outside assistant text?
 
-## Code Locations
+## 8. Code Locations
 
 - `pi-extensions/extensions/README.md`
 - `pi-extensions/extensions/tldr/`

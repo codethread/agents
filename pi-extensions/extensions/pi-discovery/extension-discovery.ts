@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -10,6 +9,9 @@ import {
 
 const CONFIG_DIR_NAME = ".pi";
 const PI_TRIGGER_REGEX = /(^|[^\p{L}\p{N}_])Pi(?=$|[^\p{L}\p{N}_])/u;
+const PI_CONTEXT_NOTE =
+	"User mentioned Pi. Inspect these Pi/runtime/extension paths directly if relevant.";
+const PI_DEBUG_NOTE = "Debug view. Hidden from agent.";
 
 export interface PiExtensionRecord extends SourceInfo {
 	name: string;
@@ -54,16 +56,54 @@ function formatXmlAttributes(attributes: Record<string, string | undefined>): st
 		.join(" ");
 }
 
+function formatXmlElement(
+	tagName: string,
+	attributes: Record<string, string | undefined>,
+	options: { indent?: string; selfClosing?: boolean } = {},
+): string {
+	const indent = options.indent ?? "";
+	const attrs = formatXmlAttributes(attributes);
+	if (options.selfClosing ?? true) {
+		return attrs.length > 0 ? `${indent}<${tagName} ${attrs} />` : `${indent}<${tagName} />`;
+	}
+	return attrs.length > 0 ? `${indent}<${tagName} ${attrs}>` : `${indent}<${tagName}>`;
+}
+
+function formatXmlTextElement(
+	tagName: string,
+	text: string,
+	options: { indent?: string; multiline?: boolean } = {},
+): string {
+	const indent = options.indent ?? "";
+	if (!options.multiline) return `${indent}<${tagName}>${escapeXml(text)}</${tagName}>`;
+	const content = text
+		.split("\n")
+		.map((line) => `${indent}  ${escapeXml(line)}`)
+		.join("\n");
+	return `${indent}<${tagName}>\n${content}\n${indent}</${tagName}>`;
+}
+
+function buildPiSourceText(piSource: PiSourceDiscovery): string {
+	const readmePath = path.join(piSource.inspectPackageDir, "README.md");
+	const docsPath = piSource.docsDir;
+	const examplesPath = piSource.examplesDir;
+	return [
+		"Pi documentation (read only when the user asks about pi itself, its SDK, extensions, themes, skills, or TUI):",
+		`- Main documentation: ${readmePath}`,
+		`- Additional docs: ${docsPath}`,
+		`- Examples: ${examplesPath} (extensions, custom tools, SDK)`,
+		"- When asked about: extensions (docs/extensions.md, examples/extensions/), themes (docs/themes.md), skills (docs/skills.md), prompt templates (docs/prompt-templates.md), TUI components (docs/tui.md), keybindings (docs/keybindings.md), SDK integrations (docs/sdk.md), custom providers (docs/custom-provider.md), adding models (docs/models.md), pi packages (docs/packages.md)",
+		"- When working on pi topics, read the docs and examples, and follow .md cross-references before implementing",
+		"- Always read pi .md files completely and follow links to related docs (e.g., tui.md for TUI API details)",
+	].join("\n");
+}
+
 export function getExtensionNameFromPath(filePath: string): string {
 	const baseName = path.basename(filePath);
 	if (baseName === "index.ts" || baseName === "index.js") {
 		return path.basename(path.dirname(filePath));
 	}
 	return baseName.replace(/\.(ts|js)$/i, "");
-}
-
-function pathStatus(filePath: string): "exists" | "missing" {
-	return fs.existsSync(filePath) ? "exists" : "missing";
 }
 
 function expandHomePrefix(input: string): string {
@@ -171,37 +211,65 @@ export async function discoverPiExtensions(
 }
 
 export function formatExtensionDiscoveryContextNote(discovery: PiExtensionDiscovery): string {
-	const lines = [
-		"[Context note: the user explicitly mentioned Pi. If the request is about Pi behavior, installed extensions, prompt variables, or package-provided runtime features, inspect the relevant Pi source/docs paths and matching extension source files before answering.]",
-		"",
-		"<pi_extension_discovery>",
-		`  <paths ${formatXmlAttributes({
+	const parts = [
+		formatXmlElement("pi_extension_discovery", { note: PI_CONTEXT_NOTE }, { selfClosing: false }),
+		formatXmlElement("paths", {
 			agentDir: discovery.agentDir,
 			globalSettings: discovery.globalSettingsPath,
-			globalSettingsStatus: pathStatus(discovery.globalSettingsPath),
 			globalExtensionsDir: discovery.globalExtensionsDir,
-			globalExtensionsStatus: pathStatus(discovery.globalExtensionsDir),
 			projectConfigDir: discovery.projectConfigDir,
 			projectSettings: discovery.projectSettingsPath,
-			projectSettingsStatus: pathStatus(discovery.projectSettingsPath),
 			projectExtensionsDir: discovery.projectExtensionsDir,
-			projectExtensionsStatus: pathStatus(discovery.projectExtensionsDir),
-		})} />`,
-		`  <pi_source ${formatXmlAttributes({
-			inspectPackageDir: discovery.piSource.inspectPackageDir,
-			inspectPackageDirStatus: pathStatus(discovery.piSource.inspectPackageDir),
-			inspectPackageDirSource: discovery.piSource.inspectPackageDirSource,
-			runtimePackageDir: discovery.piSource.runtimePackageDir,
-			runtimePackageDirStatus: pathStatus(discovery.piSource.runtimePackageDir),
-			runtimePackageEntry: discovery.piSource.runtimePackageEntry,
-			runtimePackageEntryStatus: pathStatus(discovery.piSource.runtimePackageEntry),
-			docsDir: discovery.piSource.docsDir,
-			docsStatus: pathStatus(discovery.piSource.docsDir),
-			examplesDir: discovery.piSource.examplesDir,
-			examplesStatus: pathStatus(discovery.piSource.examplesDir),
-			coreToolsDir: discovery.piSource.coreToolsDir,
-			coreToolsStatus: pathStatus(discovery.piSource.coreToolsDir),
-		})} />`,
+		}),
+		formatXmlTextElement("pi_source", buildPiSourceText(discovery.piSource), {
+			multiline: true,
+		}),
+		"<available_extensions>",
+	];
+
+	if (discovery.extensions.length === 0) {
+		parts.push("<none />");
+	} else {
+		for (const extension of discovery.extensions) {
+			parts.push(
+				formatXmlElement("extension", {
+					name: extension.name,
+					path: extension.path,
+					scope: extension.scope,
+					source: formatExtensionSource(extension),
+					origin: extension.origin,
+					baseDir: extension.baseDir,
+				}),
+			);
+		}
+	}
+
+	parts.push("</available_extensions>");
+	parts.push("</pi_extension_discovery>");
+	return parts.join("");
+}
+
+export const formatExtensionDiscoveryForPrompt = formatExtensionDiscoveryContextNote;
+
+export function formatExtensionDiscoveryReport(discovery: PiExtensionDiscovery): string {
+	const lines = [
+		formatXmlElement("pi_extension_discovery", { note: PI_DEBUG_NOTE }, { selfClosing: false }),
+		formatXmlElement(
+			"paths",
+			{
+				agentDir: discovery.agentDir,
+				globalSettings: discovery.globalSettingsPath,
+				globalExtensionsDir: discovery.globalExtensionsDir,
+				projectConfigDir: discovery.projectConfigDir,
+				projectSettings: discovery.projectSettingsPath,
+				projectExtensionsDir: discovery.projectExtensionsDir,
+			},
+			{ indent: "  " },
+		),
+		formatXmlTextElement("pi_source", buildPiSourceText(discovery.piSource), {
+			indent: "  ",
+			multiline: true,
+		}),
 		"  <available_extensions>",
 	];
 
@@ -210,55 +278,23 @@ export function formatExtensionDiscoveryContextNote(discovery: PiExtensionDiscov
 	} else {
 		for (const extension of discovery.extensions) {
 			lines.push(
-				`    <extension ${formatXmlAttributes({
-					name: extension.name,
-					path: extension.path,
-					scope: extension.scope,
-					source: formatExtensionSource(extension),
-					origin: extension.origin,
-					baseDir: extension.baseDir,
-				})} />`,
+				formatXmlElement(
+					"extension",
+					{
+						name: extension.name,
+						path: extension.path,
+						scope: extension.scope,
+						source: formatExtensionSource(extension),
+						origin: extension.origin,
+						baseDir: extension.baseDir,
+					},
+					{ indent: "    " },
+				),
 			);
 		}
 	}
 
 	lines.push("  </available_extensions>");
 	lines.push("</pi_extension_discovery>");
-	return lines.join("\n");
-}
-
-export const formatExtensionDiscoveryForPrompt = formatExtensionDiscoveryContextNote;
-
-export function formatExtensionDiscoveryReport(discovery: PiExtensionDiscovery): string {
-	const lines = [
-		`Agent dir: ${discovery.agentDir}`,
-		`Global settings: ${discovery.globalSettingsPath} [${pathStatus(discovery.globalSettingsPath)}]`,
-		`Global extensions dir: ${discovery.globalExtensionsDir} [${pathStatus(discovery.globalExtensionsDir)}]`,
-		`Project config dir: ${discovery.projectConfigDir} [${pathStatus(discovery.projectConfigDir)}]`,
-		`Project settings: ${discovery.projectSettingsPath} [${pathStatus(discovery.projectSettingsPath)}]`,
-		`Project extensions dir: ${discovery.projectExtensionsDir} [${pathStatus(discovery.projectExtensionsDir)}]`,
-		`Pi inspect package dir: ${discovery.piSource.inspectPackageDir} [${pathStatus(discovery.piSource.inspectPackageDir)}] via ${discovery.piSource.inspectPackageDirSource}`,
-		`Pi runtime package dir: ${discovery.piSource.runtimePackageDir} [${pathStatus(discovery.piSource.runtimePackageDir)}]`,
-		`Pi runtime package entry: ${discovery.piSource.runtimePackageEntry} [${pathStatus(discovery.piSource.runtimePackageEntry)}]`,
-		`Pi docs dir: ${discovery.piSource.docsDir} [${pathStatus(discovery.piSource.docsDir)}]`,
-		`Pi examples dir: ${discovery.piSource.examplesDir} [${pathStatus(discovery.piSource.examplesDir)}]`,
-		`Pi core tools dir: ${discovery.piSource.coreToolsDir} [${pathStatus(discovery.piSource.coreToolsDir)}]`,
-	];
-
-	if (discovery.extensions.length === 0) {
-		lines.push("Extensions: (none)");
-		return lines.join("\n");
-	}
-
-	lines.push("Extensions:");
-	for (const extension of discovery.extensions) {
-		lines.push(`- ${extension.name}`);
-		lines.push(`  file: ${extension.path}`);
-		lines.push(`  scope: ${extension.scope}`);
-		const formattedSource = formatExtensionSource(extension);
-		if (formattedSource) lines.push(`  source: ${formattedSource}`);
-		lines.push(`  origin: ${extension.origin}`);
-		if (extension.baseDir) lines.push(`  baseDir: ${extension.baseDir}`);
-	}
 	return lines.join("\n");
 }

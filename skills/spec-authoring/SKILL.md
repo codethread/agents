@@ -15,9 +15,9 @@ Specs are persistent domain documents that describe a system boundary: why it ex
 
 ## Variables
 
-| Variable     | Value            | Notes                             |
-| ------------ | ---------------- | --------------------------------- |
-| SPECS_DIR    | `specs/`         | Root directory for all spec files |
+| Variable     | Value             | Notes                             |
+| ------------ | ----------------- | --------------------------------- |
+| SPECS_DIR    | `specs/`          | Root directory for all spec files |
 | SPECS_README | `specs/README.md` | Index table linking specs to code |
 
 ## Prerequisites
@@ -54,11 +54,11 @@ If the user gives a feature name, identify which domain it belongs to before nam
 
 Choose the lightest spec shape that still captures the boundary clearly.
 
-| Size        | Use when             | Contents                                                                   |
-| ----------- | -------------------- | -------------------------------------------------------------------------- |
-| Lightweight | Small subsystem      | Sections 1, 2, 4 only. Skip Data Model if types are self-documenting.     |
-| Medium      | Moderate subsystem   | All sections, with concrete types and interfaces.                          |
-| Heavyweight | Large domain         | All sections plus Security, Failure Modes, Migration, Performance as needed. |
+| Size        | Use when           | Contents                                                                     |
+| ----------- | ------------------ | ---------------------------------------------------------------------------- |
+| Lightweight | Small subsystem    | Sections 1, 2, 4 only. Skip Data Model if types are self-documenting.        |
+| Medium      | Moderate subsystem | All sections, with concrete types and interfaces.                            |
+| Heavyweight | Large domain       | All sections plus Security, Failure Modes, Migration, Performance as needed. |
 
 ### Spec status values
 
@@ -369,16 +369,16 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 
 ## [Category Name]
 
-| Spec | Purpose | Code |
-|---|---|---|
-| [domain.md](./domain.md) | One-line purpose | `src/domain/` |
-| [other.md](./other.md) | One-line purpose | `src/other/`, `src/shared/utils.ts` |
+| Spec                     | Purpose          | Code                                |
+| ------------------------ | ---------------- | ----------------------------------- |
+| [domain.md](./domain.md) | One-line purpose | `src/domain/`                       |
+| [other.md](./other.md)   | One-line purpose | `src/other/`, `src/shared/utils.ts` |
 
 ## [Another Category]
 
 | Spec | Purpose | Code |
-|---|---|---|
-| ... | ... | ... |
+| ---- | ------- | ---- |
+| ...  | ...     | ...  |
 ```
 
 Index rules:
