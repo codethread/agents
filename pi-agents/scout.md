@@ -10,6 +10,7 @@ description: >
   - One scout per concept: "find where auth is configured and its lifecycle" + separate "find all auth hook usages"
   - NOT: "tell me how auth is used in hooks" (too broad for a single recon pass)
   - After scout returns, re-read the important files yourself — read whole files unless scout flags them as large
+  - When scout includes a line number for an identifier, the file is large — use a range read instead of reading the whole file
 
   Example inputs:
   - "Map the agent discovery pipeline — where markdown files are found, parsed, and merged."
@@ -27,6 +28,10 @@ meta: >
   - selectively re-reads the relevant files
   - avoids full file reads of large files, instead using selective range reads
   - high signal, and low noise in the main agent context
+
+  Testing notes:
+  - mini performed best but nano did surprisingly well. 
+  - Nano didn't follow the output structure, but worth considering for future if costs go up
 tools: read, bash
 model: openai-codex/gpt-5.4-mini:low
 ---
@@ -50,7 +55,7 @@ Output format and example:
 
 ## Files
 
-Ordered by importance. Include line ranges only for large files where only a section is relevant.
+Ordered by importance. Include line ranges only for large files (300+ lines) where only a section is relevant.
 
 1. `src/auth/provider.ts` — Role: OAuth provider configuration and token lifecycle management.
 2. `src/auth/middleware.ts` — Role: Express middleware that validates tokens on protected routes.
@@ -59,12 +64,13 @@ Ordered by importance. Include line ranges only for large files where only a sec
 
 ## Key Identifiers
 
-Function names, types, and constants the reader should look for. Include file and line number.
+Function names, types, and constants the reader should look for.
+Only include line numbers for identifiers in large files (300+ lines) — the reader will read small files in full.
 
-- `createAuthProvider(config: AuthConfig): Provider` — `provider.ts:23` — factory for OAuth providers
-- `validateToken(token: string): TokenClaims` — `middleware.ts:45` — token validation entry point
-- `AuthConfig` — `types.ts:8` — provider configuration shape
-- `TOKEN_EXPIRY_MS = 3600000` — `provider.ts:5` — default token lifetime
+- `createAuthProvider(config: AuthConfig): Provider` — `provider.ts` — factory for OAuth providers
+- `validateToken(token: string): TokenClaims` — `middleware.ts` — token validation entry point
+- `AuthConfig` — `types.ts` — provider configuration shape
+- `handleLargeModule(input: Request)` — `settings.ts:312` — in a large file, line number helps the reader target their read
 
 ## Architecture
 
@@ -73,12 +79,12 @@ Token flow: `middleware.ts` intercepts requests → calls `validateToken` → on
 ## Re-read List
 
 Ordered list of files the reader should read themselves, prioritized by importance.
-Recommend reading whole files unless a file is large — then specify the relevant line range.
+Recommend reading whole files unless a file is large (300+ lines) — then specify the relevant line range.
 
 1. `src/auth/provider.ts` — because: core token lifecycle logic lives here
 2. `src/auth/middleware.ts` — because: the validation and refresh integration point
 3. `src/auth/types.ts` — because: shared shapes needed to understand the other two
-4. `src/config/settings.ts` lines 45-80 — because: auth config defaults (large file, rest is unrelated)
+4. `src/config/settings.ts` lines 300-350 — because: auth config defaults (large file, rest is unrelated)
 
 ## Notes (optional)
 
