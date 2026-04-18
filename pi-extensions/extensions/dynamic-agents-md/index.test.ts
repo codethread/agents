@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { getTemplateVars, parseDebugPromptOverrides } from "./index.js";
+
+const originalPiSubagent = process.env.PI_SUBAGENT;
+
+afterEach(() => {
+	if (originalPiSubagent === undefined) delete process.env.PI_SUBAGENT;
+	else process.env.PI_SUBAGENT = originalPiSubagent;
+});
 
 describe("parseDebugPromptOverrides", () => {
 	it("returns null overrides for bare --debug-prompt", () => {
@@ -39,6 +46,34 @@ describe("parseDebugPromptOverrides", () => {
 });
 
 describe("getTemplateVars", () => {
+	it("marks the top-level runtime as the main agent by default", () => {
+		delete process.env.PI_SUBAGENT;
+		const vars = getTemplateVars({
+			cwd: "/repo",
+			hasUI: true,
+			tools: ["read"],
+		});
+
+		expect(vars).toMatchObject({
+			isMainAgent: true,
+			isSubagent: false,
+		});
+	});
+
+	it("marks delegated runtimes as subagents", () => {
+		process.env.PI_SUBAGENT = "1";
+		const vars = getTemplateVars({
+			cwd: "/repo",
+			hasUI: false,
+			tools: ["read"],
+		});
+
+		expect(vars).toMatchObject({
+			isMainAgent: false,
+			isSubagent: true,
+		});
+	});
+
 	it("lets overrides replace machine-derived vars", () => {
 		const ctx: Parameters<typeof getTemplateVars>[0] = {
 			cwd: "/repo",
@@ -52,6 +87,7 @@ describe("getTemplateVars", () => {
 		const vars = getTemplateVars(ctx, {
 			model: "claude-sonnet",
 			HOME: "/tmp/fake-home",
+			isMainAgent: false,
 		});
 
 		expect(vars).toMatchObject({
@@ -59,6 +95,7 @@ describe("getTemplateVars", () => {
 			model: "claude-sonnet",
 			cwd: "/repo",
 			hasUI: true,
+			isMainAgent: false,
 			tools: ["read", "write"],
 			HOME: "/tmp/fake-home",
 		});

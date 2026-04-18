@@ -21,6 +21,10 @@ function isTemplateVarsObject(value: unknown): value is DynamicAgentsTemplateVar
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+export function isSubagentRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
+	return env.PI_SUBAGENT?.trim() === "1";
+}
+
 export function parseDebugPromptOverrides(argv: string[]): {
 	overrides: DynamicAgentsTemplateVars | null;
 	error: string | null;
@@ -84,11 +88,14 @@ export function getTemplateVars(
 	},
 	overrides?: DynamicAgentsTemplateVars | null,
 ): DynamicAgentsTemplateVars {
+	const isSubagent = isSubagentRuntime();
 	return {
 		provider: ctx.model?.provider,
 		model: ctx.model?.id,
 		cwd: ctx.cwd,
 		hasUI: ctx.hasUI,
+		isMainAgent: !isSubagent,
+		isSubagent,
 		...process.env,
 		tools: ctx.tools ?? [],
 		...overrides,

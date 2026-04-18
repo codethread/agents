@@ -1,7 +1,7 @@
 # Dynamic Agents Template Injection Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-10
+**Last Updated:** 2026-04-17
 
 ## 1. Overview
 
@@ -12,7 +12,7 @@ The `dynamic-agents-md` extension appends dynamically rendered prompt text to Pi
 ### Goals
 
 - Discover prompt templates from stable global and project locations.
-- Render templates with runtime model/provider metadata, active tool names, plus environment variables.
+- Render templates with runtime model/provider metadata, agent-role booleans, active tool names, plus environment variables.
 - Support both global and project rules in the same prompt when both exist.
 - Strip blank lines so rendered prompt fragments stay compact.
 - Provide a CLI flag and a command for debugging the effective system prompt.
@@ -64,12 +64,22 @@ Input vars passed from `before_agent_start` are normally:
 	model: ctx.model?.id,
 	cwd: ctx.cwd,
 	hasUI: ctx.hasUI,
+	isMainAgent: process.env.PI_SUBAGENT?.trim() !== "1",
+	isSubagent: process.env.PI_SUBAGENT?.trim() === "1",
 	...process.env,
 	tools: pi.getActiveTools(),
 }
 ```
 
 When `--debug-prompt` is invoked with a JSON object string, those key/value pairs are merged last and therefore override the machine-derived vars for debug rendering only.
+
+Agent-role behavior:
+
+- top-level Pi runs expose `isMainAgent: true` and `isSubagent: false`
+- delegated subagent runs expose `isMainAgent: false` and `isSubagent: true`
+- this is derived from the `PI_SUBAGENT=1` environment marker set by the subagent runtime
+
+This lets templates switch between user-facing guidance for the main agent and terse parent-agent-facing guidance for subagents.
 
 Key rendering helpers:
 
@@ -305,6 +315,7 @@ Covered behaviors include:
 - `regex_test` behavior, including `~/...` expansion
 - `has_tools` behavior for single-tool and multi-tool checks
 - `has_tools` false result when any required tool is missing
+- main-agent vs subagent template vars derived from `PI_SUBAGENT`
 - blank-line stripping
 - global+project merge ordering and headings
 - null return when rendered output is empty
@@ -318,7 +329,7 @@ Full extension lifecycle behavior in `index.ts` still has some manual verificati
 ## 7. Open Questions
 
 - Should `/debug-prompt` clean up its temp file after the editor exits, or is persistence useful for debugging?
-- Should template rendering eventually expose additional structured vars beyond provider/model/cwd/hasUI/tools/env?
+- Should template rendering eventually expose additional structured vars beyond provider/model/cwd/hasUI/isMainAgent/isSubagent/tools/env?
 - Should system-prompt injection remain the long-term strategy despite prompt-cache tradeoffs noted in `specs/discovery.md`?
 
 ## Code Locations

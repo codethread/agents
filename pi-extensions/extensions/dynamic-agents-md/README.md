@@ -13,14 +13,16 @@ If both exist, both are rendered: global under a `# Global rules` heading, proje
 
 **Template variables:**
 
-| Variable            | Type       | Description                                          |
-| ------------------- | ---------- | ---------------------------------------------------- |
-| `provider`          | `string`   | Current AI provider (e.g. `"anthropic"`, `"openai"`) |
-| `model`             | `string`   | Current model ID (e.g. `"claude-sonnet-4-20250514"`) |
-| `cwd`               | `string`   | Current working directory                            |
-| `hasUI`             | `boolean`  | Whether Pi has an interactive UI                     |
-| `tools`             | `string[]` | Currently active tool names                          |
-| `HOME`, `PATH`, ... | `string`   | All environment variables are available              |
+| Variable            | Type       | Description                                           |
+| ------------------- | ---------- | ----------------------------------------------------- |
+| `provider`          | `string`   | Current AI provider (e.g. `"anthropic"`, `"openai"`)  |
+| `model`             | `string`   | Current model ID (e.g. `"claude-sonnet-4-20250514"`)  |
+| `cwd`               | `string`   | Current working directory                             |
+| `hasUI`             | `boolean`  | Whether Pi has an interactive UI                      |
+| `isMainAgent`       | `boolean`  | `true` for the top-level agent, `false` for subagents |
+| `isSubagent`        | `boolean`  | `true` when running inside a delegated subagent       |
+| `tools`             | `string[]` | Currently active tool names                           |
+| `HOME`, `PATH`, ... | `string`   | All environment variables are available               |
 
 **Nunjucks syntax examples:**
 
@@ -39,6 +41,13 @@ Prefer XML-style structured output.
 {# Only include instructions when all required tools are available #}
 {% if has_tools(["read", "write"]) %}
 Prefer read-then-write workflows over shell redirection.
+{% endif %}
+
+{# Switch tone/output for the main agent vs delegated subagents #}
+{% if isMainAgent %}
+Address the user directly and explain tradeoffs.
+{% else %}
+Return terse, implementation-focused output for the parent agent.
 {% endif %}
 
 {# Filter form also works against the tools variable #}
@@ -65,4 +74,4 @@ You can also pass a JSON object to override template vars for debug rendering on
 pi --debug-prompt '{"model":"claude-sonnet"}'
 ```
 
-These overrides are applied on top of the normal vars (`provider`, `model`, `cwd`, `hasUI`, `tools`, env vars) only for the debug turn.
+These overrides are applied on top of the normal vars (`provider`, `model`, `cwd`, `hasUI`, `isMainAgent`, `isSubagent`, `tools`, env vars) only for the debug turn.
