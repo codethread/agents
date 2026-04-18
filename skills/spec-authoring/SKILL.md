@@ -1,43 +1,81 @@
 ---
 name: spec-authoring
-metadata:
-  intent: >
-	create consistent structure to make skills easier read and maintain
 description: >
-  Guide for writing and updating domain specifications that drive agent implementation.
-  Use when creating a new spec, updating an existing spec after feature changes, converting
-  a planned spec to implemented status, or reviewing spec quality.
+  Guide for writing and updating domain specifications. Use when creating a new spec,
+  updating an existing spec, converting planned spec to implemented, or reviewing spec
+  quality. Triggers on: "write spec", "update spec", "spec this", "review spec".
+metadata:
+  intent: >-
+    drive consistent domain specs that capture intent, rationale, and boundaries code alone cannot express
 ---
 
 # Spec Authoring Guide
 
-Specs are persistent design documents that drive and record implementation decisions. They are written **before** code to guide agents, then evolve alongside the code as the system matures. A spec's value comes from capturing _intent_ and _rationale_ — things code cannot express.
+Specs are persistent domain documents that describe a system boundary: why it exists, what it contains, what it excludes, and how it should evolve as code changes. They are written from the code outward, with code as reality and the spec as the durable statement of intent, rationale, and boundaries.
 
 ## Variables
 
-| Variable       | Value                | Notes                                       |
-| -------------- | -------------------- | ------------------------------------------- |
-| SPECS_DIR      | `specs/`             | Root directory for all spec files           |
-| DISCOVERY_FILE | `specs/discovery.md` | Cross-cutting learnings shared across specs |
-| SPECS_README   | `specs/README.md`    | Index table linking specs to code           |
+| Variable     | Value            | Notes                             |
+| ------------ | ---------------- | --------------------------------- |
+| SPECS_DIR    | `specs/`         | Root directory for all spec files |
+| SPECS_README | `specs/README.md` | Index table linking specs to code |
 
 ## Prerequisites
 
 - The feature or system being specified has a clear scope
 - If updating an existing spec, read the current spec and its referenced code locations first
-- Check DISCOVERY_FILE for cross-cutting notes that may affect the design
+- Read the actual code before writing or updating a spec
 
 ## Knowledge
+
+### Code-first principle
+
+Specs describe intent informed by reality. Code is the source of truth for what exists; specs capture why it exists, what boundary it belongs to, and what should not change accidentally. Never write a spec from memory or assumption — read the code first.
+
+### Domain naming
+
+A spec names a stable system boundary, not a feature request or delivery task.
+
+Good names:
+
+- `auth-system`
+- `task-engine`
+- `data-pipeline`
+
+Bad names:
+
+- `add-priority-filter`
+- `spec-003`
+- `phase-2-redesign`
+
+If the user gives a feature name, identify which domain it belongs to before naming the spec.
+
+### Spec sizing
+
+Choose the lightest spec shape that still captures the boundary clearly.
+
+| Size        | Use when             | Contents                                                                   |
+| ----------- | -------------------- | -------------------------------------------------------------------------- |
+| Lightweight | Small subsystem      | Sections 1, 2, 4 only. Skip Data Model if types are self-documenting.     |
+| Medium      | Moderate subsystem   | All sections, with concrete types and interfaces.                          |
+| Heavyweight | Large domain         | All sections plus Security, Failure Modes, Migration, Performance as needed. |
+
+### Spec status values
+
+- **Draft** — initial write-up, may not reflect code accurately yet
+- **Implemented** — spec matches the code
+- **Partial** — some sections are implemented, others remain planned
+- **Deprecated** — system is being replaced or removed
 
 ### The spec lifecycle
 
 ```
-Planned → In Progress → Implemented → (continues evolving)
+Planned → In Progress → Implemented
 ```
 
-- **Planned**: Spec written before any code. Maximum detail in Architecture, Data Model, Interfaces, and Implementation Phases. This is the blueprint the agent builds from.
-- **In Progress**: Code is being written. Spec is the source of truth for intent; code is the source of truth for implementation details.
-- **Implemented**: Code exists and works. Spec evolves to focus on _why_ over _how_. Architecture and Data Model sections slim down to summaries pointing at code. Implementation Phases become a Testing section.
+- **Planned**: Spec written before code. Maximum detail in Architecture, Data Model, Interfaces, and Implementation Phases. This is the blueprint the agent builds from.
+- **In Progress**: Code is being written. The spec remains the source of intent while code becomes the source of implementation detail.
+- **Implemented**: Code exists and works. The spec should emphasize why, boundaries, and non-obvious decisions more than implementation mechanics.
 
 ### What specs are for
 
@@ -56,8 +94,8 @@ Specs capture things code cannot:
 
 - **Restating type definitions** — If a TypeScript interface or Rust struct is self-documenting, don't transcribe it into the spec. Reference the file instead.
 - **Listing test assertions in prose** — Well-named `describe`/`it` blocks communicate this better than spec bullet points.
-- **Full function implementations** — Code belongs in code files. Specs can show key signatures, schemas, and API shapes, but not complete implementations.
-- **Explaining standard concepts** — Don't teach the agent what git, HTTP, or encryption is. Document _your specific application_ of these concepts.
+- **Full implementations** — Code belongs in code files. Specs can show key signatures, schemas, and API shapes, but not complete implementations.
+- **Explaining standard concepts** — Don't teach the agent what git, HTTP, or encryption is. Document your specific application of these concepts.
 
 ### Section density by lifecycle stage
 
@@ -74,7 +112,7 @@ Specs capture things code cannot:
 
 ### Design Decisions: the highest-value section
 
-Every non-obvious choice gets its own entry with explicit rationale. This is what agents need most when modifying existing code — understanding _why_ something is the way it is prevents accidental design regression.
+Every non-obvious choice gets its own entry with explicit rationale. This is what agents need most when modifying existing code — understanding why something is the way it is prevents accidental design regression.
 
 Format:
 
@@ -87,13 +125,13 @@ Good decisions to document:
 
 - Why one approach was chosen over alternatives
 - Why a dependency was or wasn't used
-- Why a particular scope/boundary was drawn
+- Why a particular scope or boundary was drawn
 - Security or performance tradeoffs
 - Caching, injection, or lifecycle strategies
 
 ### When to include concrete artifacts
 
-Include copy-pasteable artifacts when they carry **design intent** an agent couldn't derive from context:
+Include copy-pasteable artifacts when they carry design intent an agent couldn't derive from context:
 
 | Artifact                | Include in spec?                                    |
 | ----------------------- | --------------------------------------------------- |
@@ -129,7 +167,7 @@ Entry state: DETERMINE_MODE
 
 ### WRITE_LIVING_SPEC
 
-- action: read the code first, then write a living spec per Procedures
+- action: read the code thoroughly first (see READ_CODE procedure), then write a living spec
 - always → REGISTER_IN_INDEX
 
 ### REVIEW_SPEC
@@ -141,7 +179,6 @@ Entry state: DETERMINE_MODE
 ### REGISTER_IN_INDEX
 
 - action: ensure SPECS_README has an entry for this spec with Purpose and Code columns
-- action: if cross-cutting learnings emerged, append to DISCOVERY_FILE
 - always → DONE
 
 ### DONE
@@ -150,11 +187,24 @@ Entry state: DETERMINE_MODE
 
 ## Procedures
 
+### READ_CODE
+
+This is the foundation for any spec based on existing code. Read the actual implementation thoroughly:
+
+- Entry points and public interfaces
+- Data model / types / schemas
+- Key flows and state transitions
+- Integration boundaries (what talks to what)
+- Error handling patterns
+- Test coverage (what's tested tells you what matters)
+
+Never write a spec from memory or assumptions. The code is the source of truth for what exists. The spec adds why it exists and what its boundaries are.
+
 ### WRITE_PLANNING_SPEC
 
 Write all sections at full detail. This is the blueprint an agent will implement from.
 
-1. Create file in SPECS_DIR with kebab-case name matching the system area
+1. Create file in SPECS_DIR with kebab-case name matching the stable domain
 2. Add frontmatter: `**Status:** Planned`, `**Last Updated:** <date>`
 3. Write sections in this order:
 
@@ -185,7 +235,7 @@ Bulleted list of things explicitly out of scope. Be specific — "not X" is more
   - **Rationale:** <why, including what alternatives were rejected>
 ```
 
-Place this early (section 2) so the agent internalizes constraints before reading architecture details.
+Place this early so the agent internalizes constraints before reading architecture details.
 
 #### Section 3: Architecture
 
@@ -194,14 +244,14 @@ Place this early (section 2) so the agent internalizes constraints before readin
 
 ### Component structure
 
-File tree or crate/module map showing what will be created.
+File tree or module map showing what will be created.
 
 ### Data flow
 
 ASCII diagram or numbered flow showing how data moves through the system.
 ```
 
-Include concrete file paths, crate names, module structure. The agent needs to know _where_ to put things.
+Include concrete file paths, crate names, or module structure. The agent needs to know where things belong.
 
 #### Section 4: Data Model
 
@@ -276,7 +326,7 @@ Sequence phases so each can be built and tested independently. Earlier phases sh
 
 ### UPDATE_TO_LIVING_SPEC
 
-Transition a spec from Planned/In Progress to Implemented. The goal is to keep what code _can't_ express and remove what it _already_ expresses.
+Transition a spec from Planned/In Progress to Implemented. The goal is to keep what code can't express and remove what it already expresses.
 
 1. Change status to `**Status:** Implemented`
 2. Update `**Last Updated:**` date
@@ -303,30 +353,53 @@ Transition a spec from Planned/In Progress to Implemented. The goal is to keep w
 
 For existing code that has no spec. Read the code first, then work backwards.
 
-1. Read all source files for the system
-2. Identify the non-obvious decisions — anything where the code's _what_ doesn't explain the _why_
+1. Read the actual implementation thoroughly using the READ_CODE procedure
+2. Identify the non-obvious decisions — anything where the code's what doesn't explain the why
 3. Write the spec following the living-spec density (see Knowledge table)
 4. Prioritize Design Decisions — interview the user if rationale isn't clear from code
 
 ### Updating SPECS_README
 
-The index table groups specs by domain area. Each entry has:
+The index groups specs by system area with `##` headings. Each area has a 3-column table:
 
 ```markdown
-| [spec-name.md](./spec-name.md) | One-line purpose | `code/path/` |
+# Specifications
+
+Persistent domain specifications. Organized by system area, not feature chronology.
+
+## [Category Name]
+
+| Spec | Purpose | Code |
+|---|---|---|
+| [domain.md](./domain.md) | One-line purpose | `src/domain/` |
+| [other.md](./other.md) | One-line purpose | `src/other/`, `src/shared/utils.ts` |
+
+## [Another Category]
+
+| Spec | Purpose | Code |
+|---|---|---|
+| ... | ... | ... |
 ```
 
-If adding a new domain area, create a new table section with an `##` heading.
+Index rules:
+
+- Group by system area, not alphabetically
+- Code column can list multiple paths
+- Update every time a spec is created, renamed, or its code location changes
+- If a spec is deprecated, move to a "Deprecated" section rather than deleting
 
 ## Constraints
 
-- **Specs describe intent, code describes reality.** When they conflict, the code is correct and the spec needs updating.
-- **Never transcribe entire type definitions or function bodies into specs.** Reference the file.
-- **Design Decisions must have rationale.** A decision without a "why" is useless — the agent can read _what_ from the code.
-- **Non-Goals are mandatory.** Unbounded specs lead to unbounded implementations.
-- **Keep specs under 400 lines for simple systems, under 800 for complex ones.** If a spec exceeds this, it's either covering too much scope or restating code. Exception: planning specs for large multi-component systems (like a secrets system with crypto, K8s integration, and multi-crate structure) may legitimately need more.
-- **One spec per system area.** Don't split a single system across multiple specs. Don't combine unrelated systems into one spec.
-- **Always update the index.** A spec not in SPECS_README effectively doesn't exist for discovery.
+- Specs describe intent, code describes reality. When they conflict, the code is correct and the spec needs updating.
+- Specs are organized by stable domain, never by feature or chronology.
+- Always read the code before writing — never spec from imagination.
+- Never transcribe entire type definitions or function bodies into specs.
+- Design Decisions must have rationale. A decision without a "why" is useless — the agent can read what from the code.
+- Non-Goals are mandatory. Unbounded specs lead to unbounded implementations.
+- Don't over-spec small things — a 10-line utility doesn't need a spec.
+- Keep specs under 400 lines for simple systems, under 800 for complex ones. Exception: planning specs for large multi-component systems may legitimately need more.
+- One spec per system area. Don't split a single system across multiple specs. Don't combine unrelated systems into one spec.
+- Always update the index. A spec not in SPECS_README effectively doesn't exist for discovery.
 
 ## Validation
 
@@ -341,4 +414,4 @@ Before considering a spec complete, verify:
 - [ ] Code Locations section exists and paths are accurate
 - [ ] SPECS_README index includes an entry for this spec
 - [ ] Spec line count is proportionate to system complexity (not a 1:1 mirror of code)
-- [ ] Cross-cutting learnings (if any) are added to DISCOVERY_FILE
+- [ ] Domain name follows stable naming conventions, not feature/chronology-based
