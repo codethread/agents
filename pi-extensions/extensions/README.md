@@ -2,6 +2,9 @@
 
 Small index for the extensions shipped in this package. See each extension folder for full docs.
 
+> [!NOTE]
+> **Note on Cache Invalidation:** When working with dynamic context injections and extensions, understand that modifying the system prompt mid-session (or changing the model/provider) completely drops the LLM Prompt Cache. This forces the entire conversation prefix to be reprocessed, increasing latency and cost. Ensure this is a mindful tradeoff in your extension design. See `specs/discovery.md` for detailed cache management and "Lost in the Middle" attention strategies.
+
 ## Tools
 
 | Extension                                    | Summary                                                                                                              |
@@ -19,11 +22,12 @@ Small index for the extensions shipped in this package. See each extension folde
 
 ## Lifecycle / Prompt Extensions
 
-| Extension                                            | Summary                                                                                                        |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| [`claude-sync`](./claude-sync/README.md)             | Synchronize Claude project context with Pi — transparent to the user.                                          |
-| [`dynamic-agents-md`](./dynamic-agents-md/README.md) | Render a Nunjucks template into the system prompt.                                                             |
-| [`pi-discovery`](./pi-discovery/README.md)           | Append discovered extension source paths as a one-shot contextual note when the user explicitly mentions `Pi`. |
+| Extension                                                          | Summary                                                                                                        |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| [`claude-sync`](./claude-sync/README.md)                           | Synchronize Claude project context with Pi — transparent to the user.                                          |
+| [`dynamic-agents-md`](./dynamic-agents-md/README.md)               | Render a Nunjucks template into the system prompt.                                                             |
+| [`project-structure-prompt`](./project-structure-prompt/README.md) | Append a bounded repository tree snapshot to the system prompt.                                                |
+| [`pi-discovery`](./pi-discovery/README.md)                         | Append discovered extension source paths as a one-shot contextual note when the user explicitly mentions `Pi`. |
 
 ## Session Utilities
 
