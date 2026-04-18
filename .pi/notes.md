@@ -4,7 +4,7 @@
 >
 > - [ ] not done
 > - [~] claimed by agent (wip)
-> - [x] done (wip)
+> - [x] done
 
 - [x] improve matrix.json to include the original user request and the used agent prompt (helps to eval intent and re-run if needed)
 - [ ] we might need to disable subagents for tasks, easy enough with a `--disable-subagents bob,bill,babra` list which hides them from the tool info
