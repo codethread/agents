@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { wrapSystemReminder } from "../shared/xml.js";
 
 export const DEFAULT_SYSTEM_PROMPT_SENTINEL =
 	"Pi documentation (read only when the user asks about pi itself, its SDK, extensions, themes, skills, or TUI):";
@@ -107,17 +108,20 @@ export function buildOwnedPromptAddon(activeTools: string[]): string {
 		.map((guideline) => `- ${guideline}`)
 		.join("\n");
 
-	return [
-		"You help users by reading files, executing commands, editing code, and writing new files.",
-		"",
-		"Available tools:",
-		toolsList,
-		"",
-		"In addition to the tools above, you may have access to other custom tools depending on the project.",
-		"",
-		"Guidelines:",
-		guidelinesList,
-	].join("\n");
+	return wrapSystemReminder(
+		"harness",
+		[
+			"You help users by reading files, executing commands, editing code, and writing new files.",
+			"",
+			"Available tools:",
+			toolsList,
+			"",
+			"In addition to the tools above, you may have access to other custom tools depending on the project.",
+			"",
+			"Guidelines:",
+			guidelinesList,
+		].join("\n"),
+	);
 }
 
 export function shouldAppendOwnedPrompt(systemPrompt: string): boolean {
@@ -131,6 +135,8 @@ function stripOuterEmptyLines(text: string): string {
 export default function ownedSystemPromptExtension(pi: ExtensionAPI) {
 	let printPromptOnNextTurn = false;
 	let debugPromptTriggered = false;
+	let waitForDebugPromptMaterialization: Promise<void> | null = null;
+	let resolveDebugPromptMaterialization: (() => void) | null = null;
 
 	pi.registerFlag("debug-owned-prompt", {
 		description: "Print the current effective system prompt and exit",
@@ -138,22 +144,31 @@ export default function ownedSystemPromptExtension(pi: ExtensionAPI) {
 		default: false,
 	});
 
-	pi.on("session_start", (_event, ctx) => {
+	pi.on("session_start", async (_event, ctx) => {
 		if (pi.getFlag("debug-owned-prompt") !== true || debugPromptTriggered) return;
 		debugPromptTriggered = true;
 		printPromptOnNextTurn = true;
-		pi.sendUserMessage("ping");
+		waitForDebugPromptMaterialization = new Promise<void>((resolve) => {
+			resolveDebugPromptMaterialization = resolve;
+		});
 		if (ctx.hasUI) {
 			ctx.ui.notify(
 				"Debug owned prompt mode: starting a ping turn to materialize the prompt.",
 				"info",
 			);
 		}
+		await pi.sendUserMessage("ping");
+		if (!ctx.hasUI && waitForDebugPromptMaterialization) {
+			await waitForDebugPromptMaterialization;
+		}
 	});
 
 	pi.on("agent_start", (_event, ctx) => {
 		if (!printPromptOnNextTurn) return;
 		printPromptOnNextTurn = false;
+		resolveDebugPromptMaterialization?.();
+		resolveDebugPromptMaterialization = null;
+		waitForDebugPromptMaterialization = null;
 		process.stdout.write(`${stripOuterEmptyLines(ctx.getSystemPrompt())}\n`);
 		process.exit(0);
 	});

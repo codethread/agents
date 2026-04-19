@@ -6,6 +6,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getAgentDir, parseFrontmatter } from "@mariozechner/pi-coding-agent";
+import { wrapSystemReminder } from "../shared/xml.js";
 
 export interface AgentConfig {
 	name: string;
@@ -392,7 +393,7 @@ export function getAgentActiveTools(
 export function formatSelectedAgentPrompt(agent: AgentConfig | undefined): string {
 	const systemPrompt = agent ? getAgentRuntimeSettings(agent).systemPrompt : "";
 	if (!systemPrompt.trim()) return "";
-	return `\n\n${systemPrompt}`;
+	return `\n\n${wrapSystemReminder("selected-agent-prompt", systemPrompt)}`;
 }
 
 function escapeXml(str: string): string {
@@ -403,8 +404,6 @@ export function formatAgentsForPrompt(agents: AgentConfig[]): string {
 	if (agents.length === 0) return "";
 
 	const lines = [
-		"",
-		"",
 		"These are the available subagents with their intended use.",
 		"",
 		"<available_subagents>",
@@ -418,5 +417,5 @@ export function formatAgentsForPrompt(agents: AgentConfig[]): string {
 	}
 
 	lines.push("</available_subagents>");
-	return lines.join("\n");
+	return `\n\n${wrapSystemReminder("available-subagents", lines.join("\n"))}`;
 }

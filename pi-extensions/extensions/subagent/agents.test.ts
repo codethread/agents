@@ -68,7 +68,7 @@ describe("formatAgentsForPrompt", () => {
 		expect(formatAgentsForPrompt([])).toBe("");
 	});
 
-	it("formats subagents as an XML list with escaped names and descriptions", () => {
+	it("formats subagents inside a system_reminder wrapper with escaped names and descriptions", () => {
 		const agents: AgentConfig[] = [
 			{
 				name: "alpha",
@@ -92,6 +92,7 @@ describe("formatAgentsForPrompt", () => {
 			[
 				"",
 				"",
+				'<system_reminder type="available-subagents">',
 				"These are the available subagents with their intended use.",
 				"",
 				"<available_subagents>",
@@ -104,6 +105,7 @@ describe("formatAgentsForPrompt", () => {
 				"    <description>Map dirs &amp; files &gt; summarize</description>",
 				"  </subagent>",
 				"</available_subagents>",
+				"</system_reminder>",
 			].join("\n"),
 		);
 	});
@@ -242,7 +244,7 @@ describe("getInheritedAgentRuntimeSettings", () => {
 });
 
 describe("formatSelectedAgentPrompt", () => {
-	it("returns the agent prompt with a separating blank line", () => {
+	it("returns the agent prompt inside a separating XML wrapper", () => {
 		const agent: AgentConfig = {
 			name: "scout",
 			description: "Recon agent",
@@ -252,7 +254,9 @@ describe("formatSelectedAgentPrompt", () => {
 			filePath: "/tmp/scout.md",
 		};
 
-		expect(formatSelectedAgentPrompt(agent)).toBe("\n\nYou are scout.\nStay concise.");
+		expect(formatSelectedAgentPrompt(agent)).toBe(
+			'\n\n<system_reminder type="selected-agent-prompt">\nYou are scout.\nStay concise.\n</system_reminder>',
+		);
 	});
 
 	it("returns an empty string for missing or blank prompts", () => {

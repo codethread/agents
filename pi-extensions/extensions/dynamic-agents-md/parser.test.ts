@@ -191,7 +191,7 @@ describe("stripEmptyLines", () => {
 });
 
 describe("renderTemplateSections", () => {
-	it("renders global rules first, then project rules, with headings", async () => {
+	it("renders global rules first, then project rules, with system_reminder types", async () => {
 		const root = await makeTempDir();
 		const cwd = path.join(root, "packages", "api");
 		const agentDir = path.join(root, "custom-agent-dir");
@@ -212,13 +212,13 @@ describe("renderTemplateSections", () => {
 			expect(sections).toEqual([
 				{
 					scope: "global",
-					heading: "# Global rules",
+					reminderType: "rules",
 					filePath: path.join(agentDir, "agent.njk"),
 					renderedPrompt: "Global: openai",
 				},
 				{
 					scope: "project",
-					heading: "# Project rules",
+					reminderType: "project-rules",
 					filePath: path.join(root, ".pi", "agent.njk"),
 					renderedPrompt: "Project: gpt-5",
 				},
@@ -231,7 +231,7 @@ describe("renderTemplateSections", () => {
 });
 
 describe("renderNearestTemplate", () => {
-	it("renders a single project template without headings", async () => {
+	it("renders a single project template inside a project-rules system_reminder", async () => {
 		const root = await makeTempDir();
 		const cwd = path.join(root, "packages", "api");
 		const agentDir = path.join(root, "custom-agent-dir");
@@ -253,7 +253,8 @@ describe("renderNearestTemplate", () => {
 
 			expect(rendered).toEqual({
 				filePath: path.join(root, ".pi", "agent.njk"),
-				renderedPrompt: "Provider: openai\nModel: gpt-5",
+				renderedPrompt:
+					'<system_reminder type="project-rules">\nProvider: openai\nModel: gpt-5\n</system_reminder>',
 			});
 		} finally {
 			if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
@@ -261,7 +262,7 @@ describe("renderNearestTemplate", () => {
 		}
 	});
 
-	it("merges global and project templates with headings", async () => {
+	it("merges global and project templates as separate system_reminder blocks", async () => {
 		const root = await makeTempDir();
 		const cwd = path.join(root, "packages", "api");
 		const agentDir = path.join(root, "custom-agent-dir");
@@ -279,7 +280,7 @@ describe("renderNearestTemplate", () => {
 			expect(rendered).toEqual({
 				filePath: path.join(root, ".pi", "agent.njk"),
 				renderedPrompt:
-					"# Global rules\n\nUse GitHub globally.\n\n# Project rules\n\nUse issue labels in this repo.",
+					'<system_reminder type="rules">\nUse GitHub globally.\n</system_reminder>\n\n<system_reminder type="project-rules">\nUse issue labels in this repo.\n</system_reminder>',
 			});
 		} finally {
 			if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;

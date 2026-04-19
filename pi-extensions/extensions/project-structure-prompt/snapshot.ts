@@ -1,3 +1,5 @@
+import { wrapSystemReminder } from "../shared/xml.js";
+
 export const MAX_PROJECT_STRUCTURE_LINES = 200;
 const TREE_TIMEOUT_MS = 30_000;
 const GIT_TIMEOUT_MS = 5_000;
@@ -204,7 +206,7 @@ export function formatProjectStructurePrompt(snapshot: ProjectStructureSnapshot)
 	if (snapshot.note) lines.push(snapshot.note);
 
 	lines.push("", "```text", snapshot.tree, "```");
-	return lines.join("\n");
+	return wrapSystemReminder("project-structure", lines.join("\n"));
 }
 
 export async function buildProjectStructurePrompt(

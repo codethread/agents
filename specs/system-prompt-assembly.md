@@ -54,7 +54,7 @@ The result is the initial `event.systemPrompt` observed by extensions.
 
 The `owned-system-prompt` extension detects whether Pi's default scaffold is still present by checking a sentinel string.
 
-- When the user has provided `SYSTEM.md` and the default scaffold is no longer present, the extension appends a package-owned tool list and guidelines block.
+- When the user has provided `SYSTEM.md` and the default scaffold is no longer present, the extension appends a package-owned tool list and guidelines block wrapped in `<system_reminder type="harness">`.
 - This extension MUST run first, because later `before_agent_start` hooks chain from its output.
 
 Child spec: [`specs/system-prompt-ownership.md`](./system-prompt-ownership.md)
@@ -63,13 +63,13 @@ Child spec: [`specs/system-prompt-ownership.md`](./system-prompt-ownership.md)
 
 The `dynamic-agents-md` extension discovers a global `agent.njk` template and the nearest project `.pi/agent.njk`, then renders them with runtime variables such as model, provider, cwd, tools, agent role, and environment values.
 
-The rendered text is appended to `event.systemPrompt`.
+Each rendered section is appended to `event.systemPrompt` inside its own `<system_reminder type="...">` wrapper: global rules use `type="rules"`, project rules use `type="project-rules"`.
 
 Child spec: [`specs/dynamic-agents-template-injection.md`](./dynamic-agents-template-injection.md)
 
 ### 3.4 Phase 3: Structural Context (`project-structure-prompt`)
 
-The `project-structure-prompt` extension generates a bounded repository tree snapshot and appends it to `event.systemPrompt`.
+The `project-structure-prompt` extension generates a bounded repository tree snapshot and appends it to `event.systemPrompt` inside `<system_reminder type="project-structure">`.
 
 This extension is intentionally self-contained and does not have a dedicated spec.
 
@@ -77,8 +77,8 @@ This extension is intentionally self-contained and does not have a dedicated spe
 
 The `subagent` extension discovers bundled, user, and project agents, then appends:
 
-- the agent inventory listing
-- the selected-agent prompt body when a subagent is active
+- the agent inventory listing inside `<system_reminder type="available-subagents">`, preserving an inner `<available_subagents>` list
+- the selected-agent prompt body inside `<system_reminder type="selected-agent-prompt">` when direct `--agent` mode is active
 
 Child specs:
 
@@ -117,6 +117,7 @@ Child spec: [`specs/pi-extension-discovery.md`](./pi-extension-discovery.md)
 ## 5. Invariants for New Extensions
 
 - Always append to `event.systemPrompt`; never replace it.
+- Wrap each injected prompt contribution in its own root XML tag so adjacent prose cannot bleed across section boundaries.
 - Return early or no-op when your contribution is empty.
 - Use `--debug-*` flags to surface your prompt contribution for verification.
 - Be aware of prompt-cache implications; see `specs/discovery.md` for the related notes.

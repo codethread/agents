@@ -36,6 +36,9 @@ The `dynamic-agents-md` extension appends dynamically rendered prompt text to Pi
 - **Decision:** Strip blank lines aggressively after rendering.
   - **Rationale:** Templates often contain conditional whitespace; stripping keeps injected prompts compact and predictable.
 
+- **Decision:** Wrap each rendered template section in its own `<system_reminder type="...">` tag.
+  - **Rationale:** Dedicated `type="rules"` / `type="project-rules"` blocks make section boundaries explicit so surrounding prompt prose does not bleed across adjacent injections.
+
 - **Decision:** Add a small `regex_test` Nunjucks filter instead of custom path-matching syntax.
   - **Rationale:** Templates stay flexible without creating a new mini language.
 
@@ -107,17 +110,17 @@ Key rendering helpers:
 
 When both global and project templates render non-empty output, the final injected fragment is:
 
-```md
-# Global rules
-
+```xml
+<system_reminder type="rules">
 <global rendered text>
+</system_reminder>
 
-# Project rules
-
+<system_reminder type="project-rules">
 <project rendered text>
+</system_reminder>
 ```
 
-When only one template renders non-empty output, the extension injects just that rendered text with no heading wrapper.
+When only one template renders non-empty output, the extension still wraps that single rendered section in its scope-specific `system_reminder` tag.
 
 ### Nunjucks helpers
 
@@ -199,7 +202,7 @@ Flow:
 3. send a synthetic `ping` user message once so a turn starts and the fully materialized prompt exists
 4. show a UI notification describing debug-prompt mode
 5. during `before_agent_start`, render templates with the normal vars plus any debug-only overrides
-6. on the next `agent_start`, print `ctx.getSystemPrompt()` after `stripEmptyLines(...)` to stdout
+6. on the next `agent_start`, print `ctx.getSystemPrompt()` with only outer blank lines trimmed to stdout
 7. exit the process with code `0`
 
 This debug path is for non-interactive inspection and intentionally terminates the session process after printing.
@@ -211,7 +214,7 @@ The extension also registers a command named `debug-prompt`.
 Behavior:
 
 - reads the current effective system prompt from `ctx.getSystemPrompt()`
-- strips empty lines
+- trims only outer empty lines so section spacing remains visible
 - requires `$VISUAL` or `$EDITOR`
 - writes the prompt to a temp markdown file
 - opens that file via `spawnSync(..., { shell: true, stdio: "inherit" })`
@@ -233,7 +236,7 @@ export type TemplateMatch = {
 
 export type RenderedTemplateSection = {
 	scope: "global" | "project";
-	heading: string;
+	reminderType: "rules" | "project-rules";
 	filePath: string;
 	renderedPrompt: string;
 };
@@ -317,7 +320,7 @@ Covered behaviors include:
 - `has_tools` false result when any required tool is missing
 - main-agent vs subagent template vars derived from `PI_SUBAGENT`
 - blank-line stripping
-- global+project merge ordering and headings
+- global+project merge ordering and per-section `system_reminder` wrappers
 - null return when rendered output is empty
 - `--debug-prompt` override parsing from both `--flag value` and `--flag=value`
 - ignoring non-JSON-looking trailing values to preserve legacy bare-flag behavior

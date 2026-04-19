@@ -68,7 +68,7 @@ Subagent orchestration lives in `pi-extensions/extensions/subagent/` and sits di
 `export default function (pi: ExtensionAPI)` registers four entry points:
 
 1. `--agent <name>` CLI flag — validates one requested discovered agent name at session start and applies inherited runtime settings from that agent file unless explicit CLI flags override those fields.
-2. `before_agent_start` hook — discovers agents, appends an XML `<available_subagents>` list of names/descriptions to the parent system prompt, and when `--agent` is set appends the selected agent prompt body too.
+2. `before_agent_start` hook — discovers agents, appends a `<system_reminder type="available-subagents">` block containing an inner XML `<available_subagents>` list of names/descriptions to the parent system prompt, and when `--agent` is set appends the selected agent prompt body inside `<system_reminder type="selected-agent-prompt">` too.
 3. `debug-agents` command — reports the effective merged agent list plus separate user/project source sections.
 4. `subagent` tool — validates parameters, resolves agents through discovery, executes a `tasks[]` workload (1..N items), and renders results in the Pi TUI.
 
@@ -309,9 +309,9 @@ If a requested agent name is missing, or if a still-inherited agent model cannot
 
 For each turn, `before_agent_start` then:
 
-- appends the normal `<available_subagents>` XML catalog
+- appends the normal `<system_reminder type="available-subagents">` wrapper containing the `<available_subagents>` XML catalog
 - resolves the current selected agent by name from a fresh discovery snapshot
-- appends that agent's markdown body to the parent system prompt
+- appends that agent's markdown body inside `<system_reminder type="selected-agent-prompt">` to the parent system prompt
 
 This direct mode reuses discovery semantics from delegated runs and is intended to inherit the selected agent's full runtime behavior surface over time, not just today's prompt/model/tools fields.
 

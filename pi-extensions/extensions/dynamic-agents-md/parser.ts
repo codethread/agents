@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import nunjucks from "nunjucks";
+import { wrapSystemReminder } from "../shared/xml.js";
 
 export type TemplateMatch = {
 	filePath: string;
@@ -9,7 +10,7 @@ export type TemplateMatch = {
 
 export type RenderedTemplateSection = {
 	scope: "global" | "project";
-	heading: string;
+	reminderType: "rules" | "project-rules";
 	filePath: string;
 	renderedPrompt: string;
 };
@@ -155,7 +156,7 @@ async function renderTemplateMatch(
 
 	return {
 		scope: template.scope,
-		heading: template.scope === "global" ? "# Global rules" : "# Project rules",
+		reminderType: template.scope === "global" ? "rules" : "project-rules",
 		filePath: template.filePath,
 		renderedPrompt,
 	};
@@ -181,17 +182,10 @@ export async function renderNearestTemplate(
 ): Promise<{ filePath: string; renderedPrompt: string } | null> {
 	const sections = await renderTemplateSections(startCwd, vars);
 	if (sections.length === 0) return null;
-	if (sections.length === 1) {
-		return {
-			filePath: sections[0].filePath,
-			renderedPrompt: sections[0].renderedPrompt,
-		};
-	}
-
 	return {
 		filePath: sections[sections.length - 1].filePath,
 		renderedPrompt: sections
-			.map((section) => `${section.heading}\n\n${section.renderedPrompt}`)
+			.map((section) => wrapSystemReminder(section.reminderType, section.renderedPrompt))
 			.join("\n\n"),
 	};
 }

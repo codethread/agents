@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { getTemplateVars, parseDebugPromptOverrides } from "./index.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import dynamicAgentsMdExtension, { getTemplateVars, parseDebugPromptOverrides } from "./index.js";
 
 const originalPiSubagent = process.env.PI_SUBAGENT;
 
@@ -42,6 +42,33 @@ describe("parseDebugPromptOverrides", () => {
 			overrides: null,
 			error: expect.stringContaining("Invalid --debug-prompt JSON:"),
 		});
+	});
+});
+
+describe("debug prompt startup", () => {
+	it("starts a synthetic ping turn during session_start", async () => {
+		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
+		const sendUserMessage = vi.fn();
+		const notify = vi.fn();
+
+		dynamicAgentsMdExtension({
+			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
+				handlers.set(eventName, handler);
+			},
+			registerFlag: vi.fn(),
+			registerCommand: vi.fn(),
+			getFlag: vi.fn((name: string) => name === "debug-prompt"),
+			getActiveTools: vi.fn(() => ["read"]),
+			sendUserMessage,
+		} as any);
+
+		await handlers.get("session_start")?.({}, { hasUI: true, ui: { notify } });
+
+		expect(sendUserMessage).toHaveBeenCalledWith("ping");
+		expect(notify).toHaveBeenCalledWith(
+			"Debug prompt mode: starting a ping turn to materialize the prompt.",
+			"info",
+		);
 	});
 });
 

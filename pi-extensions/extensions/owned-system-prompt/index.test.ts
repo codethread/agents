@@ -102,13 +102,14 @@ describe("owned-system-prompt helpers", () => {
 		);
 	});
 
-	it("renders the owned prompt addon from synced builtin metadata", () => {
-		expect(buildOwnedPromptAddon(["read", "bash", "edit", "write"])).toContain(
+	it("renders the owned prompt addon inside a system_reminder XML wrapper", () => {
+		const prompt = buildOwnedPromptAddon(["read", "bash", "edit", "write"]);
+		expect(prompt).toContain('<system_reminder type="harness">');
+		expect(prompt).toContain(
 			"Available tools:\n- read: Read file contents\n- bash: Execute bash commands (ls, grep, find, etc.)\n- edit: Make precise file edits with exact text replacement, including multiple disjoint edits in one call\n- write: Create or overwrite files",
 		);
-		expect(buildOwnedPromptAddon(["read", "bash", "edit", "write"])).toContain(
-			"Guidelines:\n- Use bash for file operations like ls, rg, find",
-		);
+		expect(prompt).toContain("Guidelines:\n- Use bash for file operations like ls, rg, find");
+		expect(prompt).toContain("</system_reminder>");
 	});
 
 	it("skips prompt ownership when pi's default base prompt is still present", () => {
@@ -153,13 +154,16 @@ describe("owned-system-prompt extension", () => {
 
 		expect(result).toEqual({
 			systemPrompt: expect.stringContaining(
-				"You are an expert coding assistant operating inside pi, a coding agent harness.\n\nYou help users by reading files, executing commands, editing code, and writing new files.",
+				'You are an expert coding assistant operating inside pi, a coding agent harness.\n\n<system_reminder type="harness">\nYou help users by reading files, executing commands, editing code, and writing new files.',
 			),
 		});
 		expect(result).toEqual({
 			systemPrompt: expect.stringContaining(
-				"In addition to the tools above, you may have access to other custom tools depending on the project.",
+				"In addition to the tools above, you may have access to other custom tools depending on the project.\n\nGuidelines:",
 			),
+		});
+		expect(result).toEqual({
+			systemPrompt: expect.stringContaining("</system_reminder>"),
 		});
 	});
 

@@ -130,7 +130,7 @@ Model alias resolution is intentionally opportunistic:
 The subagent runtime uses discovery results in four places:
 
 - `before_agent_start` discovers agents once and injects a terse XML list of available subagent names and descriptions into the parent agent system prompt.
-- when `--agent <name>` is set, the same discovery result resolves the selected agent by name, derives inherited runtime settings from that `AgentConfig`, applies model/thinking/tools unless explicit CLI flags override those fields, and appends the agent's `systemPrompt` to the parent system prompt.
+- when `--agent <name>` is set, the same discovery result resolves the selected agent by name, derives inherited runtime settings from that `AgentConfig`, applies model/thinking/tools unless explicit CLI flags override those fields, and appends the agent's `systemPrompt` wrapped in `<system_reminder type="selected-agent-prompt">` to the parent system prompt.
 - `debug-agents` renders the effective agent list plus source-specific user/project sections.
 - `subagent` execution always uses the effective merged list, while still consulting `source === "project"` for confirmation behavior.
 
@@ -232,8 +232,9 @@ Formats a short human-readable list such as `name (source): description` and rep
 
 Formats discovered subagents for system-prompt injection as:
 
+- an outer `<system_reminder type="available-subagents">` wrapper
 - a terse lead-in line: `These are the available subagents with their intended use.`
-- an XML list under `<available_subagents>`
+- an inner XML list under `<available_subagents>`
 - one `<subagent>` entry per agent containing `<name>` and `<description>` only
 
 #### `findAgentByName(agents: AgentConfig[], name: string | undefined | null): AgentConfig | undefined`
@@ -275,8 +276,8 @@ If a field remains inherited here, the direct-agent runtime is expected to apply
 Formats one selected discovered agent for direct top-level prompt injection:
 
 - returns `""` when no agent is selected or its `systemPrompt` is blank
-- otherwise returns `"\n\n" + agent.systemPrompt`
-- preserves the original markdown body content so top-level `--agent` uses the same prompt text source as child subagent execution
+- otherwise returns `"\n\n<system_reminder type=\"selected-agent-prompt\">...` with the original markdown body inside that XML wrapper
+- preserves the original markdown body content so top-level `--agent` uses the same prompt text source as child subagent execution while keeping a hard section boundary
 
 ### Accepted agent frontmatter
 

@@ -2,7 +2,7 @@
 
 > Delegate tasks to specialized subagents with isolated context.
 
-The agent is aware of this tool and will use it when asked to delegate work or run tasks in parallel. It also injects the currently discovered subagents into the system prompt as an XML list of names and descriptions so the parent agent can choose among them. Child subagent processes are marked with `PI_SUBAGENT=1`, which lets extensions hide or reshape behavior for delegated runs. You can guide it by describing the kind of work you want delegated.
+The agent is aware of this tool and will use it when asked to delegate work or run tasks in parallel. It also injects the currently discovered subagents into the system prompt inside `<system_reminder type="available-subagents">...</system_reminder>`, preserving the inner XML list of names and descriptions so the parent agent can choose among them, and direct `--agent` mode wraps the selected agent body inside `<system_reminder type="selected-agent-prompt">...</system_reminder>`. Child subagent processes are marked with `PI_SUBAGENT=1`, which lets extensions hide or reshape behavior for delegated runs. You can guide it by describing the kind of work you want delegated.
 
 This extension also registers `--agent <name>` for direct agent mode. That flag resolves the named discovered agent and inherits that agent file's runtime config into the top-level Pi session, so `pi --agent scout` talks to the scout instructions directly without going through the `subagent` tool. Today that inherited config includes the agent prompt body, model/thinking, and the exact tool allowlist.
 
@@ -22,7 +22,7 @@ Use `pi --agent <name>` when you want the current top-level session to adopt one
 Discovery and override rules are the same as the `subagent` tool: bundled package agents load first, user agents override package agents, and project agents override both.
 The flag inherits all currently supported runtime-facing agent fields from the selected agent file. Today that means:
 
-- prompt body → appended to the default system prompt
+- prompt body → appended to the default system prompt inside `<system_reminder type="selected-agent-prompt">...</system_reminder>`
 - `model` → applied to the top-level session model
 - `model` thinking suffix (for example `:low`) → applied to Pi thinking level
 - `tools` → applied as the exact active tool set across built-in and extension tools

@@ -2,7 +2,7 @@
 
 > Own Pi's base prompt scaffold while preserving normal `before_agent_start` chaining.
 
-This extension assumes you replace Pi's default base prompt with a tiny custom `SYSTEM.md`, then it appends this package's owned tool and guideline sections during `before_agent_start`.
+This extension assumes you replace Pi's default base prompt with a tiny custom `SYSTEM.md`, then it appends this package's owned tool and guideline sections during `before_agent_start` inside one `<system_reminder type="harness">...</system_reminder>` block.
 
 That keeps later prompt-mutating extensions like `dynamic-agents-md` and `subagent` working unchanged: they see the owned prompt as their input prompt and can continue appending normally.
 

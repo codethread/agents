@@ -3,11 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import {
-	renderNearestTemplate,
-	stripEmptyLines,
-	type DynamicAgentsTemplateVars,
-} from "./parser.js";
+import { renderNearestTemplate, type DynamicAgentsTemplateVars } from "./parser.js";
 
 function getEditorCommand(): string | undefined {
 	const visual = process.env.VISUAL?.trim();
@@ -102,6 +98,10 @@ export function getTemplateVars(
 	};
 }
 
+function trimOuterEmptyLines(text: string): string {
+	return text.trim();
+}
+
 function openExternalEditor(
 	editorCommand: string,
 	filePath: string,
@@ -124,6 +124,8 @@ export default function dynamicAgentsMdExtension(pi: ExtensionAPI) {
 	let printPromptOnNextTurn = false;
 	let debugPromptTriggered = false;
 	let debugPromptOverrides: DynamicAgentsTemplateVars | null = null;
+	let waitForDebugPromptMaterialization: Promise<void> | null = null;
+	let resolveDebugPromptMaterialization: (() => void) | null = null;
 
 	pi.registerFlag("debug-prompt", {
 		description:
@@ -135,7 +137,7 @@ export default function dynamicAgentsMdExtension(pi: ExtensionAPI) {
 	pi.registerCommand("debug-prompt", {
 		description: "Open the current effective system prompt in an external editor",
 		handler: async (_args, ctx) => {
-			const prompt = stripEmptyLines(ctx.getSystemPrompt());
+			const prompt = trimOuterEmptyLines(ctx.getSystemPrompt());
 			if (!prompt) {
 				ctx.ui.notify("No system prompt available", "info");
 				return;
@@ -158,7 +160,7 @@ export default function dynamicAgentsMdExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	pi.on("session_start", (_event, ctx) => {
+	pi.on("session_start", async (_event, ctx) => {
 		if (pi.getFlag("debug-prompt")) {
 			const parsedOverrides = parseDebugPromptOverrides(process.argv.slice(2));
 			if (parsedOverrides.error) {
@@ -171,8 +173,14 @@ export default function dynamicAgentsMdExtension(pi: ExtensionAPI) {
 			printPromptOnNextTurn = true;
 			if (!debugPromptTriggered) {
 				debugPromptTriggered = true;
-				pi.sendUserMessage("ping");
+				waitForDebugPromptMaterialization = new Promise<void>((resolve) => {
+					resolveDebugPromptMaterialization = resolve;
+				});
 				ctx.ui.notify("Debug prompt mode: starting a ping turn to materialize the prompt.", "info");
+				await pi.sendUserMessage("ping");
+				if (!ctx.hasUI && waitForDebugPromptMaterialization) {
+					await waitForDebugPromptMaterialization;
+				}
 			}
 		}
 	});
@@ -180,7 +188,10 @@ export default function dynamicAgentsMdExtension(pi: ExtensionAPI) {
 	pi.on("agent_start", (_event, ctx) => {
 		if (printPromptOnNextTurn) {
 			printPromptOnNextTurn = false;
-			process.stdout.write(`${stripEmptyLines(ctx.getSystemPrompt())}\n`);
+			resolveDebugPromptMaterialization?.();
+			resolveDebugPromptMaterialization = null;
+			waitForDebugPromptMaterialization = null;
+			process.stdout.write(`${trimOuterEmptyLines(ctx.getSystemPrompt())}\n`);
 			process.exit(0);
 		}
 	});

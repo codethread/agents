@@ -7,7 +7,7 @@
 
 ### Purpose
 
-Own Pi's base prompt scaffold — the tool list and guideline sections — while preserving normal `before_agent_start` chaining so that later extensions like `dynamic-agents-md` and `subagent` can continue appending to the owned prompt without modification.
+Own Pi's base prompt scaffold — the tool list and guideline sections — while preserving normal `before_agent_start` chaining so that later extensions like `dynamic-agents-md` and `subagent` can continue appending to the owned prompt without modification. The owned scaffold itself is wrapped in one `<system_reminder type="harness">` block so later injected prose stays clearly separated.
 
 ### Goals
 
@@ -48,7 +48,7 @@ The extension is a single `before_agent_start` hook with three exported pure fun
 
 - `getOwnedBuiltinTools(activeTools)` — filters active tools to known built-ins in deterministic order.
 - `buildOwnedGuidelines(activeTools)` — assembles the guideline list, adapting bash guidance to the active tool set.
-- `buildOwnedPromptAddon(activeTools)` — renders the full `Available tools` + `Guidelines` block.
+- `buildOwnedPromptAddon(activeTools)` — renders the full `Available tools` + `Guidelines` block inside `<system_reminder type="harness">`.
 - `shouldAppendOwnedPrompt(systemPrompt)` — returns `false` when the Pi default sentinel is present.
 
 See `pi-extensions/extensions/owned-system-prompt/index.ts`.
@@ -61,7 +61,7 @@ Users must create `~/.pi/agent/SYSTEM.md` containing:
 You are an expert coding assistant operating inside pi, a coding agent harness.
 ```
 
-Pi core treats this as the custom base prompt and still appends context files, skills, current date, and cwd. The extension then appends the owned tool/guideline sections via `before_agent_start`.
+Pi core treats this as the custom base prompt and still appends context files, skills, current date, and cwd. The extension then appends the owned tool/guideline sections via `before_agent_start`, wrapped in `<system_reminder type="harness">`.
 
 If the file is absent or the default Pi base prompt is still in effect, the extension silently skips appending (see sentinel detection above).
 
