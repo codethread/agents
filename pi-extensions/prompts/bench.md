@@ -5,7 +5,7 @@ argument-hint: <task description>
 
 # Benchmark Orchestration
 
-You are orchestrating a benchmark run: spawning isolated Pi processes across git worktrees, then analyzing and comparing results.
+You are orchestrating a benchmark run: spawning isolated agent/tool processes across git worktrees, then analyzing and comparing results.
 
 The system supports three shapes through the same core flow:
 
@@ -27,7 +27,7 @@ Read `.pi/bench-matrix.json` for the run config. **If missing**, scaffold it int
 
 ### Matrix schema
 
-A single unified schema. Each entry resolves to exactly one model, one thinking level, and one prompt. The varying axis is inferred from how entries differ — no `mode` field.
+A single unified schema. Each entry resolves to exactly one runner/tool, one prompt, and the runner-specific config needed to execute it. The varying axis is inferred from how entries differ — no `mode` field.
 
 ```json
 {
@@ -43,21 +43,22 @@ A single unified schema. Each entry resolves to exactly one model, one thinking 
 	},
 	"lastRun": null,
 	"entries": {
-		"gpt5-baseline": {
+		"pi-gpt5-baseline": {
+			"tool": "pi",
 			"model": "openai-codex/gpt-5.4",
 			"thinking": "off",
 			"prompt": "baseline",
 			"batchId": 1
 		},
-		"gpt5-strict": {
-			"model": "openai-codex/gpt-5.4",
-			"thinking": "off",
-			"prompt": "strict",
-			"batchId": 2
-		},
-		"sonnet-baseline": {
-			"model": "github-copilot/claude-sonnet-4.6",
+		"claude-sonic-baseline": {
+			"tool": "claude",
+			"model": "sonic",
 			"thinking": "high",
+			"prompt": "baseline",
+			"batchId": 1
+		},
+		"codex-baseline": {
+			"tool": "codex",
 			"prompt": "baseline",
 			"batchId": 1
 		}
@@ -67,6 +68,23 @@ A single unified schema. Each entry resolves to exactly one model, one thinking 
 
 When `prompts` contains exactly one entry, `entries.<slug>.prompt` can be omitted — the single prompt is used implicitly. When multiple prompts exist, every entry must specify `prompt`.
 
+### Runner-specific entry fields
+
+- `tool: "pi"`
+  - Requires `model`
+  - Optional `thinking`: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`
+- `tool: "claude"`
+  - Command shape: `claude --print --dangerously-skip-permissions`
+  - Supports prompt via stdin
+  - Optional `model`: if omitted, default to `sonic`; user may instead request `haiku` or `opus`
+  - Optional `thinking`: use this value for Claude's `--effort` flag
+  - Claude `thinking` values should match Claude effort levels: `low`, `medium`, `high`, `xhigh`, `max`
+- `tool: "codex"`
+  - Command shape: `codex exec --dangerously-bypass-approvals-and-sandbox`
+  - Supports prompt via stdin
+  - Do not vary thinking: use Codex's default GPT-5.4 high-thinking behavior
+  - Optional `model` only if the user explicitly wants to override it
+
 | Field                     | Description                                                                                     |
 | ------------------------- | ----------------------------------------------------------------------------------------------- |
 | `setup`                   | Shell command run in each new worktree before benchmarking                                      |
@@ -74,8 +92,9 @@ When `prompts` contains exactly one entry, `entries.<slug>.prompt` can be omitte
 | `prompts.<slug>.path`     | Absolute path to a prompt variant's markdown file                                               |
 | `lastRun`                 | `null` for fresh state, or `"<run-id>"` after a completed run                                   |
 | `entries.<slug>`          | Runnable benchmark unit; slug is the worktree/branch/session suffix                             |
-| `entries.<slug>.model`    | Pi `--model` value                                                                              |
-| `entries.<slug>.thinking` | Thinking level: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`                              |
+| `entries.<slug>.tool`     | Runner/tool: `pi`, `claude`, or `codex`                                                         |
+| `entries.<slug>.model`    | Runner-specific model value; required for Pi, optional for Claude/Codex as described above      |
+| `entries.<slug>.thinking` | Pi thinking level, or for Claude the value passed to `--effort`                                 |
 | `entries.<slug>.prompt`   | Key into `prompts`; required when multiple prompts exist                                        |
 | `entries.<slug>.batchId`  | Optional, defaults to `1`. Same batchId = parallel. Batches run sequentially in ascending order |
 
@@ -106,7 +125,7 @@ If ambiguous, ask the user.
 
 ## Subagent Policy
 
-When constructing the benchmark prompt for each spawned Pi process, decide subagent delegation policy from task intent:
+When constructing the benchmark prompt for each spawned process, decide delegation policy from task intent:
 
 - **Direct skill tasks** (e.g. "rewrite this code", "add tests", "refactor this module"): append:
   - `Do all the work yourself directly. Do NOT delegate to subagents.`
@@ -115,6 +134,8 @@ When constructing the benchmark prompt for each spawned Pi process, decide subag
   - `Do NOT delegate implementation work to subagents. You may use the scout agent for codebase exploration if needed.`
 
 This policy belongs to the orchestrating agent at prompt-construction time. The matrix defines permutations; the orchestrator interprets task intent.
+
+Apply this policy only to **Pi** entries. For **Claude** and **Codex**, do not add extra session-inspection instructions or Pi-specific harness guidance — just give them the benchmark task and evaluate the resulting code/output.
 
 If the user explicitly specifies subagent policy, that overrides this heuristic.
 
@@ -162,6 +183,12 @@ Prompt resolution:
 - If the entry has `prompt`, use `prompts[that-key].path`
 - Otherwise, use the single prompt in `prompts`
 
+Execution policy by runner:
+
+- **Pi**: use `pi --print`, persist a JSONL session file, and later inspect both result and session internals
+- **Claude**: use `claude --print --dangerously-skip-permissions`, pipe prompt on stdin, capture stdout/stderr/exit only, and evaluate the result only
+- **Codex**: use `codex exec --dangerously-bypass-approvals-and-sandbox`, pipe prompt on stdin, capture stdout/stderr/exit only, and evaluate the result only
+
 ```bash
 SESSION_DIR="$HOME/.pi/agent/bench-sessions/$RUN_ID"
 LOG_DIR="/tmp/bench-$RUN_ID"
@@ -179,16 +206,44 @@ resolve_prompt() {
 }
 
 for slug in <batch-slugs>; do
-  read -r model thinking <<< "$(jq -r --arg s "$slug" '.entries[$s] | "\(.model) \(.thinking)"' .pi/bench-matrix.json)"
+  tool="$(jq -r --arg s "$slug" '.entries[$s].tool // "pi"' .pi/bench-matrix.json)"
+  model="$(jq -r --arg s "$slug" '.entries[$s].model // ""' .pi/bench-matrix.json)"
+  thinking="$(jq -r --arg s "$slug" '.entries[$s].thinking // ""' .pi/bench-matrix.json)"
   prompt_file="$(resolve_prompt "$slug")"
   wt_dir="/path/to/<repo>__bench-$slug"
   (
-    cd "$wt_dir" && \
-    cat "$prompt_file" | pi --print \
-      --model "$model" \
-      --thinking "$thinking" \
-      --session "$SESSION_DIR/$slug.jsonl" \
-      > "$LOG_DIR/$slug.stdout" 2> "$LOG_DIR/$slug.stderr"
+    cd "$wt_dir" || exit 1
+    case "$tool" in
+      pi)
+        cat "$prompt_file" | pi --print \
+          --model "$model" \
+          ${thinking:+--thinking "$thinking"} \
+          --session "$SESSION_DIR/$slug.jsonl" \
+          > "$LOG_DIR/$slug.stdout" 2> "$LOG_DIR/$slug.stderr"
+        ;;
+      claude)
+        if [ -n "$model" ]; then
+          cat "$prompt_file" | claude --print --dangerously-skip-permissions --model "$model" ${thinking:+--effort "$thinking"} \
+            > "$LOG_DIR/$slug.stdout" 2> "$LOG_DIR/$slug.stderr"
+        else
+          cat "$prompt_file" | claude --print --dangerously-skip-permissions --model sonic ${thinking:+--effort "$thinking"} \
+            > "$LOG_DIR/$slug.stdout" 2> "$LOG_DIR/$slug.stderr"
+        fi
+        ;;
+      codex)
+        if [ -n "$model" ]; then
+          cat "$prompt_file" | codex exec --dangerously-bypass-approvals-and-sandbox --model "$model" - \
+            > "$LOG_DIR/$slug.stdout" 2> "$LOG_DIR/$slug.stderr"
+        else
+          cat "$prompt_file" | codex exec --dangerously-bypass-approvals-and-sandbox - \
+            > "$LOG_DIR/$slug.stdout" 2> "$LOG_DIR/$slug.stderr"
+        fi
+        ;;
+      *)
+        echo "Unknown tool: $tool" >&2
+        exit 1
+        ;;
+    esac
     echo $? > "$LOG_DIR/$slug.exit"
   ) &
 done
@@ -287,9 +342,11 @@ Update `lastRun` and prompt paths to the new run directory.
 
 ## Analysis
 
-Use the `pi-session-introspection` skill to analyze `~/.pi/agent/bench-sessions/<run-id>/` session files.
-
 Inspect the source code in each worktree to measure quality against the user's original request.
+
+For **Pi** entries, use the `pi-session-introspection` skill to analyze `~/.pi/agent/bench-sessions/<run-id>/` session files.
+
+For **Claude** and **Codex** entries, do **not** inspect internal transcripts, agent logs, or hidden reasoning even if artifacts exist. Treat them as black-box runs: evaluate only the produced diff, stdout/stderr, exit code, and verification results.
 
 Note: Some providers (github-copilot) do not report cost — infer usage from tokens alone.
 
@@ -302,6 +359,17 @@ Frame the comparison according to what varies:
 - **Both vary**: compare prompts within each model, then models within each prompt. Call out interaction effects. Do not flatten into one ranking.
 
 ### Per-entry metrics
+
+Common to all runners:
+
+- exit code
+- wall-clock duration
+- stdout/stderr summary
+- diff stats
+- verification results (`pnpm check` or project equivalent)
+- qualitative notes on correctness, scope control, code quality, and instruction-following
+
+Pi-only session metrics:
 
 ```bash
 SESSION="$SESSION_DIR/$slug.jsonl"
@@ -329,6 +397,14 @@ jq -s '[.[] | select(.type == "message" and .message.role == "toolResult" and
   .message.isError == true)] | length' "$SESSION"
 ```
 
+Claude/Codex black-box metrics:
+
+```bash
+wc -lc "$LOG_DIR/$slug.stdout" "$LOG_DIR/$slug.stderr"
+head -50 "$LOG_DIR/$slug.stdout"
+head -50 "$LOG_DIR/$slug.stderr"
+```
+
 ### Per-worktree checks
 
 ```bash
@@ -340,7 +416,7 @@ pnpm check  # or project verification command
 
 ### Presenting results
 
-Comparison table with columns: slug, model, thinking, prompt, exit code, turns, tokens in/out, cost, tool calls, diff stats, qualitative notes.
+Comparison table with columns: slug, tool, model, thinking, prompt, exit code, duration, turns (Pi-only), tokens in/out (Pi-only if available), cost (Pi-only if available), diff stats, verification outcome, qualitative notes. For Claude, `thinking` is passed to `--effort`.
 
 Interpret results according to the active comparison axis. Then ask the user what to do next.
 
