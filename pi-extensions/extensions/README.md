@@ -11,7 +11,6 @@ Small index for the extensions shipped in this package. See each extension folde
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | [`subagent`](./subagent/README.md)           | Delegate tasks to specialized subagents with isolated context, or inherit one discovered agent config via `--agent`. |
 | [`questionnaire`](./questionnaire/README.md) | Structured question forms opened in your external editor.                                                            |
-| [`etiquette`](./etiquette/README.md)         | Compact a drafted user-facing message and return the exact text to send.                                              |
 
 ## UI Extensions
 

@@ -11,6 +11,7 @@ import { wrapSystemReminder } from "../shared/xml.js";
 export interface AgentConfig {
 	name: string;
 	description: string;
+	hidden: boolean;
 	tools: string[];
 	model?: string;
 	systemPrompt: string;
@@ -173,6 +174,16 @@ function resolveModelAlias(
 	return trimmed;
 }
 
+function getFrontmatterString(value: unknown): string | undefined {
+	return typeof value === "string" ? value : undefined;
+}
+
+function parseHiddenFrontmatter(value: unknown): boolean {
+	if (value === true) return true;
+	if (typeof value === "string") return value.trim().toLowerCase() === "true";
+	return false;
+}
+
 function loadAgentsFromDir(
 	dir: string,
 	source: "package" | "user" | "project",
@@ -200,19 +211,22 @@ function loadAgentsFromDir(
 			continue;
 		}
 
-		const { frontmatter, body } = parseFrontmatter<Record<string, string>>(content);
-		if (!frontmatter.name || !frontmatter.description) continue;
+		const { frontmatter, body } = parseFrontmatter<Record<string, unknown>>(content);
+		const name = getFrontmatterString(frontmatter.name);
+		const description = getFrontmatterString(frontmatter.description);
+		if (!name || !description) continue;
 
-		const parsedTools = frontmatter.tools
+		const parsedTools = getFrontmatterString(frontmatter.tools)
 			?.split(",")
 			.map((tool: string) => tool.trim())
 			.filter(Boolean);
 
 		agents.push({
-			name: frontmatter.name,
-			description: frontmatter.description,
+			name,
+			description,
+			hidden: parseHiddenFrontmatter(frontmatter.hidden),
 			tools: normalizeTools(parsedTools),
-			model: resolveModelAlias(frontmatter.model, settings),
+			model: resolveModelAlias(getFrontmatterString(frontmatter.model), settings),
 			systemPrompt: body,
 			source,
 			filePath,
@@ -401,7 +415,8 @@ function escapeXml(str: string): string {
 }
 
 export function formatAgentsForPrompt(agents: AgentConfig[]): string {
-	if (agents.length === 0) return "";
+	const visibleAgents = agents.filter((agent) => !agent.hidden);
+	if (visibleAgents.length === 0) return "";
 
 	const lines = [
 		"These are the available subagents with their intended use.",
@@ -409,7 +424,7 @@ export function formatAgentsForPrompt(agents: AgentConfig[]): string {
 		"<available_subagents>",
 	];
 
-	for (const agent of agents) {
+	for (const agent of visibleAgents) {
 		lines.push("  <subagent>");
 		lines.push(`    <name>${escapeXml(agent.name)}</name>`);
 		lines.push(`    <description>${escapeXml(agent.description)}</description>`);

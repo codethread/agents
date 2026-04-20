@@ -40,6 +40,7 @@ function writeAgent(
 		name: string;
 		description: string;
 		meta?: string;
+		hidden?: boolean;
 		tools?: string;
 		model?: string;
 		body?: string;
@@ -50,6 +51,7 @@ function writeAgent(
 		`name: ${params.name}`,
 		`description: ${params.description}`,
 		...(params.meta ? [`meta: ${params.meta}`] : []),
+		...(params.hidden ? ["hidden: true"] : []),
 		...(params.tools ? [`tools: ${params.tools}`] : []),
 		...(params.model ? [`model: ${params.model}`] : []),
 		"---",
@@ -68,11 +70,12 @@ describe("formatAgentsForPrompt", () => {
 		expect(formatAgentsForPrompt([])).toBe("");
 	});
 
-	it("formats subagents inside a system_reminder wrapper with escaped names and descriptions", () => {
+	it("formats visible subagents inside a system_reminder wrapper with escaped names and descriptions", () => {
 		const agents: AgentConfig[] = [
 			{
 				name: "alpha",
 				description: "General-purpose helper",
+				hidden: false,
 				tools: [],
 				systemPrompt: "prompt",
 				source: "package",
@@ -81,6 +84,7 @@ describe("formatAgentsForPrompt", () => {
 			{
 				name: "beta <fast>",
 				description: "Map dirs & files > summarize",
+				hidden: true,
 				tools: [],
 				systemPrompt: "prompt",
 				source: "user",
@@ -100,27 +104,40 @@ describe("formatAgentsForPrompt", () => {
 				"    <name>alpha</name>",
 				"    <description>General-purpose helper</description>",
 				"  </subagent>",
-				"  <subagent>",
-				"    <name>beta &lt;fast&gt;</name>",
-				"    <description>Map dirs &amp; files &gt; summarize</description>",
-				"  </subagent>",
 				"</available_subagents>",
 				"</system_reminder>",
 			].join("\n"),
 		);
+	});
+
+	it("returns an empty string when only hidden agents exist", () => {
+		const agents: AgentConfig[] = [
+			{
+				name: "hidden-agent",
+				description: "Secret helper",
+				hidden: true,
+				tools: [],
+				systemPrompt: "prompt",
+				source: "package",
+				filePath: "/tmp/hidden-agent.md",
+			},
+		];
+
+		expect(formatAgentsForPrompt(agents)).toBe("");
 	});
 });
 
 describe("getAgentRuntimeSettings", () => {
 	it("parses model ref and thinking level from the agent model field", () => {
 		const agent: AgentConfig = {
-			name: "builder",
+			name: "fixer",
 			description: "Implementation agent",
+			hidden: false,
 			tools: ["read", "edit"],
 			model: "openai-codex/gpt-5.4-mini:high",
-			systemPrompt: "You are builder.",
+			systemPrompt: "You are fixer.",
 			source: "package",
-			filePath: "/tmp/builder.md",
+			filePath: "/tmp/fixer.md",
 		};
 
 		expect(getAgentRuntimeSettings(agent)).toEqual({
@@ -128,7 +145,7 @@ describe("getAgentRuntimeSettings", () => {
 			modelFlagValue: "openai-codex/gpt-5.4-mini:high",
 			modelRef: "openai-codex/gpt-5.4-mini",
 			thinkingLevel: "high",
-			systemPrompt: "You are builder.",
+			systemPrompt: "You are fixer.",
 		});
 	});
 
@@ -136,6 +153,7 @@ describe("getAgentRuntimeSettings", () => {
 		const agent: AgentConfig = {
 			name: "custom",
 			description: "Custom model agent",
+			hidden: false,
 			tools: [],
 			model: "custom-provider/model:preview",
 			systemPrompt: "You are custom.",
@@ -220,6 +238,7 @@ describe("getInheritedAgentRuntimeSettings", () => {
 		const agent: AgentConfig = {
 			name: "scout",
 			description: "Recon agent",
+			hidden: false,
 			tools: ["read", "bash"],
 			model: "openai-codex/gpt-5.4-mini:low",
 			systemPrompt: "You are scout.",
@@ -248,6 +267,7 @@ describe("formatSelectedAgentPrompt", () => {
 		const agent: AgentConfig = {
 			name: "scout",
 			description: "Recon agent",
+			hidden: false,
 			tools: [],
 			systemPrompt: "You are scout.\nStay concise.",
 			source: "package",
@@ -265,6 +285,7 @@ describe("formatSelectedAgentPrompt", () => {
 			formatSelectedAgentPrompt({
 				name: "blank",
 				description: "Blank agent",
+				hidden: false,
 				tools: [],
 				systemPrompt: " \n\t ",
 				source: "user",
@@ -334,16 +355,19 @@ describe("discoverAgents", () => {
 		expect(byName.get("alpha")).toMatchObject({
 			source: "package",
 			filePath: packageAgentPath,
+			hidden: false,
 			tools: ["read", "bash"],
 			model: "openai/gpt-5.4",
 		});
 		expect(byName.get("gamma")).toMatchObject({
 			source: "user",
+			hidden: false,
 			tools: ["find", "questionnaire", "subagent"],
 		});
 		expect(byName.get("shared")).toMatchObject({
 			source: "project",
 			filePath: projectAgentPath,
+			hidden: false,
 			description: "Project version",
 			systemPrompt: "Project body",
 			tools: ["find", "edit"],
@@ -379,11 +403,54 @@ describe("discoverAgents", () => {
 		expect(discovery.agents[0]).toMatchObject({
 			name: "scout",
 			description: "Recon agent",
+			hidden: false,
 			tools: ["read", "bash"],
 			systemPrompt: "You are scout.",
 		});
 		expect(formatAgentsForPrompt(discovery.agents)).not.toContain("Author-only rationale");
 		expect(formatAgentsForPrompt(discovery.agents)).not.toContain("meta");
+	});
+
+	it("keeps hidden agents discoverable by name while omitting them from prompt inventory", () => {
+		const root = makeTempDir("subagent-hidden-");
+		const packageAgentsDir = path.join(root, "package-agents");
+		const cwd = path.join(root, "workspace");
+
+		writeAgent(packageAgentsDir, "visible.md", {
+			name: "visible",
+			description: "Visible agent",
+			body: "You are visible.",
+		});
+		writeAgent(packageAgentsDir, "hidden.md", {
+			name: "hidden-agent",
+			description: "Hidden agent",
+			hidden: true,
+			body: "You are hidden.",
+		});
+
+		const discovery = discoverAgents(cwd, {
+			packageAgentsDir,
+			userAgentsDir: path.join(root, "user-agents"),
+			projectAgentsDir: null,
+			settingsPath: null,
+		});
+
+		expect(
+			discovery.agents
+				.map((agent) => [agent.name, agent.hidden] as const)
+				.sort(([left], [right]) => left.localeCompare(right)),
+		).toEqual([
+			["hidden-agent", true],
+			["visible", false],
+		]);
+		expect(findAgentByName(discovery.agents, "hidden-agent")).toMatchObject({
+			name: "hidden-agent",
+			hidden: true,
+			systemPrompt: "You are hidden.",
+		});
+		const promptInventory = formatAgentsForPrompt(discovery.agents);
+		expect(promptInventory).toContain("<name>visible</name>");
+		expect(promptInventory).not.toContain("hidden-agent");
 	});
 
 	it("can run entirely against temp dirs without loading bundled repo agents", () => {
@@ -415,6 +482,7 @@ describe("discoverAgents", () => {
 			"temp-user",
 		]);
 		for (const agent of discovery.agents) {
+			expect(agent.hidden).toBe(false);
 			expect(agent.tools).toEqual([]);
 		}
 	});
@@ -431,8 +499,9 @@ describe("discoverAgents", () => {
 		});
 
 		const bundledAgents = discovery.agents.filter((agent) => agent.source === "package");
-		expect(bundledAgents.map((agent) => agent.name).sort()).toEqual(["builder", "hack", "scout"]);
+		expect(bundledAgents.map((agent) => agent.name).sort()).toEqual(["fixer", "hack", "scout"]);
 		for (const agent of bundledAgents) {
+			expect(agent.hidden).toBe(false);
 			expect(agent.filePath).toContain(`${path.sep}pi-agents${path.sep}`);
 		}
 	});

@@ -1,7 +1,7 @@
 # Agent Discovery and Configuration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-17
+**Last Updated:** 2026-04-19
 
 ## 1. Overview
 
@@ -14,6 +14,7 @@ The subagent extension needs a stable way to find agent definitions, normalize t
 - Discover agents from bundled package content plus optional user and project directories.
 - Return a uniform `AgentConfig` shape regardless of source file location.
 - Present Pi with one effective merged list of available subagents.
+- Allow agents to be hidden from the parent prompt inventory without removing them from discovery or explicit name-based execution.
 - Preserve source metadata for debug output and project-agent confirmation.
 - Allow direct top-level selection of one discovered agent config via `--agent <name>`.
 - Normalize legacy Claude-flavored tool names while treating agent `tools` as an exact allowlist across built-in and extension tools.
@@ -35,6 +36,9 @@ The subagent extension needs a stable way to find agent definitions, normalize t
 
 - **Decision:** Pi sees one merged agent list rather than choosing among discovery scopes.
   - **Rationale:** Runtime behavior is simpler when user/project/package sources are a discovery concern, not a tool-call concern.
+
+- **Decision:** `hidden: true` removes an agent from the parent prompt inventory only; it does not remove the agent from discovery.
+  - **Rationale:** Some agents should remain callable via `subagent` or `--agent` by operators who know their names without advertising them to the parent agent's general delegation chooser.
 
 - **Decision:** Direct top-level agent mode reuses the same merged discovery result as delegated subagent runs.
   - **Rationale:** `pi --agent <name>` should honor the same package → user → project override semantics as the `subagent` tool and child runtime.
@@ -79,7 +83,7 @@ Agent discovery is implemented in `pi-extensions/extensions/subagent/agents.ts` 
 2. The same call also resolves settings with `findNearestSettingsFile(cwd)`, preferring the nearest ancestor `.pi/settings.json` and falling back to the user settings file under `getAgentDir()`.
 3. Each discovered directory is loaded through `loadAgentsFromDir(dir, source, settings)`.
 4. Each markdown file is parsed with `parseFrontmatter(...)`.
-5. Required frontmatter fields are projected into `AgentConfig`, while the markdown body becomes `systemPrompt`.
+5. Required frontmatter fields plus optional runtime visibility metadata are projected into `AgentConfig`, while the markdown body becomes `systemPrompt`.
 6. `normalizeTools(...)` maps the optional `tools` list into Pi tool names.
 7. `resolveModelAlias(...)` optionally rewrites lightweight model aliases using enabled models from settings.
 8. A `Map<string, AgentConfig>` applies source precedence by agent name and produces the final effective `agents` array.
@@ -129,7 +133,7 @@ Model alias resolution is intentionally opportunistic:
 
 The subagent runtime uses discovery results in four places:
 
-- `before_agent_start` discovers agents once and injects a terse XML list of available subagent names and descriptions into the parent agent system prompt.
+- `before_agent_start` discovers agents once and injects a terse XML list of visible subagent names and descriptions into the parent agent system prompt.
 - when `--agent <name>` is set, the same discovery result resolves the selected agent by name, derives inherited runtime settings from that `AgentConfig`, applies model/thinking/tools unless explicit CLI flags override those fields, and appends the agent's `systemPrompt` wrapped in `<system_reminder type="selected-agent-prompt">` to the parent system prompt.
 - `debug-agents` renders the effective agent list plus source-specific user/project sections.
 - `subagent` execution always uses the effective merged list, while still consulting `source === "project"` for confirmation behavior.
@@ -144,6 +148,7 @@ Core exported types from `pi-extensions/extensions/subagent/agents.ts`:
 export interface AgentConfig {
 	name: string;
 	description: string;
+	hidden: boolean;
 	tools: string[];
 	model?: string;
 	systemPrompt: string;
@@ -203,9 +208,9 @@ Bundled agents in this repo demonstrate the file format discovery expects:
 
 - `pi-agents/scout.md`
 - `pi-agents/hack.md`
-- `pi-agents/builder.md`
+- `pi-agents/fixer.md`
 
-These files use YAML frontmatter for `name`, `description`, optional author-only `meta`, and optional `tools` / `model`, followed by a markdown prompt body that becomes `systemPrompt`.
+These files use YAML frontmatter for `name`, `description`, optional author-only `meta`, optional `hidden`, and optional `tools` / `model`, followed by a markdown prompt body that becomes `systemPrompt`.
 
 ## 5. Interfaces
 
@@ -235,7 +240,8 @@ Formats discovered subagents for system-prompt injection as:
 - an outer `<system_reminder type="available-subagents">` wrapper
 - a terse lead-in line: `These are the available subagents with their intended use.`
 - an inner XML list under `<available_subagents>`
-- one `<subagent>` entry per agent containing `<name>` and `<description>` only
+- one `<subagent>` entry per visible agent containing `<name>` and `<description>` only
+- agents with `hidden: true` are omitted from this prompt-formatting output entirely
 
 #### `findAgentByName(agents: AgentConfig[], name: string | undefined | null): AgentConfig | undefined`
 
@@ -286,6 +292,7 @@ Discovery relies on these frontmatter fields:
 - `name` — required; files without it are skipped
 - `description` — required; files without it are skipped
 - `meta` — optional author-only string; ignored by discovery/runtime and not exposed to parent agents
+- `hidden` — optional boolean/string flag; truthy `true` hides the agent from parent prompt inventory while keeping it discoverable and callable by explicit name
 - `tools` — optional comma-separated string of tool names; built-ins and extension tools share the same namespace here, and omitted/blank resolves to an empty allowlist
 - `model` — optional string, possibly an alias
 
@@ -296,6 +303,7 @@ All remaining markdown body content is passed through as the agent system prompt
 The subagent runtime consumes discovery results as follows:
 
 - `name` selects the requested agent in single and parallel modes
+- `hidden` suppresses parent prompt inventory exposure without affecting explicit lookup, debug output, or execution
 - `source` drives project-agent confirmation and debug output
 - `filePath` appears in debug output
 - delegated child `pi` invocations use `--agent <name>`, so the discovered `model`, `tools`, and prompt body flow through the same direct-agent inheritance path as top-level `--agent`
@@ -317,6 +325,7 @@ If the requested agent name is missing, runtime returns an error containing the 
 - package/user/project override precedence
 - tool normalization and model alias resolution in discovered configs
 - author-only `meta` frontmatter being ignored by runtime-facing discovery output
+- hidden-agent discovery behavior: still discoverable by name, omitted from parent prompt inventory
 - isolation from bundled repo agents when temp dirs are supplied explicitly
 
 Additional verification remains code-level and runtime-level:

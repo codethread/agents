@@ -225,7 +225,9 @@ export function formatDebugSection(title: string, agents: AgentConfig[]): string
 	}
 
 	for (const agent of agents) {
-		lines.push(`- ${agent.name} [${agent.source}]`);
+		lines.push(
+			`- ${agent.name} [${agent.source}]${agent.hidden ? " (hidden from prompt inventory)" : ""}`,
+		);
 		lines.push(`  file: ${agent.filePath}`);
 		if (agent.model) lines.push(`  resolved model: ${agent.model}`);
 		if (agent.tools.length) lines.push(`  normalized tools: ${agent.tools.join(", ")}`);

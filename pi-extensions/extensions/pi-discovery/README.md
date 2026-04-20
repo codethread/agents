@@ -29,3 +29,12 @@ Useful Pi package-relative paths surfaced by this extension include:
 The built-in tool prompt metadata manually vendored by `owned-system-prompt` is refreshed from files under `dist/core/tools/*.js`, so surfacing that directory here keeps the source-of-truth path discoverable in Pi-specific conversations.
 
 **Command:** `/debug-extensions` — shows the current Pi source + extension discovery report in the UI only (hidden from the agent), using a multiline XML view for readability.
+
+## Implementation layout
+
+- `index.ts` — Pi extension entry point
+- `context-note.ts` — session warm-up, one-shot input injection, and `/debug-extensions`
+- `extension-discovery.ts` — compatibility export surface for discovery, rendering, and trigger helpers
+- `discovery.ts` — Pi runtime/source and enabled extension discovery
+- `source-utils.ts` — path/source normalization helpers
+- `rendering.ts` — compact and debug XML rendering

@@ -4,7 +4,7 @@ Pi-specific agent tooling extracted from my dotfiles repo. Still need to port mo
 
 ## Contents
 
-- `pi-extensions/extensions/` — Pi extensions
+- `pi-extensions/extensions/` — Pi extensions, including tools like `subagent` and `questionnaire`
 - `pi-agents/` — bundled subagents used by the `subagent` extension
 - `pi-extensions/prompts/` — prompt templates
 - `pi-extensions/themes/` — Pi themes
@@ -40,15 +40,16 @@ See `pi-extensions/extensions/owned-system-prompt/README.md` for details.
 ## Bundled agents
 
 - `pi-agents/scout.md` — fast codebase recon and architecture mapping
-- `pi-agents/builder.md` — scoped implementation agent for code/config changes
+- `pi-agents/fixer.md` — validation repair and scoped mechanical completion agent
 - `pi-agents/hack.md` — shell-first investigation and automation agent
 
 ## Included skills
 
+- `skills/git-commit/SKILL.md` — create conventional git commit(s) from the current worktree changes
+- `skills/git-merge/SKILL.md` — squash-merge a branch or linked worktree into the current branch with an inferred semantic commit message, preserve a concise source commit list in the body, then clean up the source branch/worktree
+- `skills/pi-session-introspection/SKILL.md` — jq cookbook for analysing Pi agent/subagent session JSONL files (tool usage, thinking, costs, file ops, subagent manifests)
 - `skills/skill-authoring/SKILL.md` — guide for writing well-structured Pi skills
 - `skills/spec-authoring/SKILL.md` — guide for turning feature intent into implementation-ready specs
-- `skills/pi-session-introspection/SKILL.md` — jq cookbook for analysing Pi agent/subagent session JSONL files (tool usage, thinking, costs, file ops, subagent manifests)
-- `skills/merge/SKILL.md` — squash-merge a branch or linked worktree into the current branch with an inferred semantic commit message, preserve a concise source commit list in the body, then clean up the source branch/worktree
 
 ## Development
 

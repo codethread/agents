@@ -2,7 +2,7 @@
 
 > Delegate tasks to specialized subagents with isolated context.
 
-The agent is aware of this tool and will use it when asked to delegate work or run tasks in parallel. It also injects the currently discovered subagents into the system prompt inside `<system_reminder type="available-subagents">...</system_reminder>`, preserving the inner XML list of names and descriptions so the parent agent can choose among them, and direct `--agent` mode wraps the selected agent body inside `<system_reminder type="selected-agent-prompt">...</system_reminder>`. Child subagent processes are marked with `PI_SUBAGENT=1`, which lets extensions hide or reshape behavior for delegated runs. You can guide it by describing the kind of work you want delegated.
+The agent is aware of this tool and will use it when asked to delegate work or run tasks in parallel. It also injects the currently discovered subagents into the system prompt inside `<system_reminder type="available-subagents">...</system_reminder>`, preserving the inner XML list of names and descriptions so the parent agent can choose among them. Agents marked `hidden: true` are still discovered and callable by name, but are omitted from that parent-facing inventory. Direct `--agent` mode still wraps the selected agent body inside `<system_reminder type="selected-agent-prompt">...</system_reminder>`. Child subagent processes are marked with `PI_SUBAGENT=1`, which lets extensions hide or reshape behavior for delegated runs. You can guide it by describing the kind of work you want delegated.
 
 This extension also registers `--agent <name>` for direct agent mode. That flag resolves the named discovered agent and inherits that agent file's runtime config into the top-level Pi session, so `pi --agent scout` talks to the scout instructions directly without going through the `subagent` tool. Today that inherited config includes the agent prompt body, model/thinking, and the exact tool allowlist.
 
@@ -38,7 +38,7 @@ A missing agent name is a hard failure, and Pi also hard-fails when an inherited
 Examples:
 
 - `pi --agent scout "Map the retry flow"`
-- `pi --agent builder --model openai-codex/gpt-5.4 "Implement the planned refactor"`
+- `pi --agent fixer --model openai-codex/gpt-5.4 "Fix typecheck failures after parser refactor"`
 - `pi --agent scout --tools read,bash,edit "Use scout prompt, but replace the inherited tool set"`
 
 | Shape                 | When to use                                     | What happens                |
@@ -86,6 +86,7 @@ Note: there is no extra confirmation prompt in the tool API for project-local ag
 name: my-agent
 description: Short description of what this agent does
 meta: Why this agent exists, for authors only
+hidden: true
 tools: read, bash, edit
 model: sonnet
 ---
@@ -93,18 +94,20 @@ model: sonnet
 You are a specialist in [whatever]. Your job is to...
 ```
 
-| Frontmatter field | Required | Description                                                                                                       |
-| ----------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
-| `name`            | ✅       | Agent identifier (used in tool calls)                                                                             |
-| `description`     | ✅       | Shown to the parent agent for delegation decisions                                                                |
-| `meta`            |          | Author-only note about why the agent exists; ignored by runtime/tool                                              |
-| `tools`           |          | Comma-separated list of tool names available to the agent; built-ins and extension tools share the same namespace |
-| `model`           |          | Model alias or full `provider/model` identifier                                                                   |
+| Frontmatter field | Required | Description                                                                                                               |
+| ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `name`            | ✅       | Agent identifier (used in tool calls)                                                                                     |
+| `description`     | ✅       | Shown to the parent agent for delegation decisions unless the agent is hidden from inventory                              |
+| `meta`            |          | Author-only note about why the agent exists; ignored by runtime/tool                                                      |
+| `hidden`          |          | When `true`, keeps the agent discoverable and callable by name while omitting it from the parent agent's prompt inventory |
+| `tools`           |          | Comma-separated list of tool names available to the agent; built-ins and extension tools share the same namespace         |
+| `model`           |          | Model alias or full `provider/model` identifier                                                                           |
 
 Use canonical Pi tool names in lowercase for new agents. Common built-ins are `read`, `bash`, `edit`, `write`, `grep`, `find`, and `ls`.
 Extension tools such as `subagent` and `questionnaire` are configured through the same `tools` field and are only available when explicitly listed.
 Some legacy Claude-style names are normalized, but prefer the Pi names directly in frontmatter.
 If `tools` is omitted or blank, the agent inherits an empty tool set unless the CLI overrides it with `--tools` or `--no-tools`.
 The optional `meta` field is for maintainers only and is not surfaced to the parent agent via discovery or prompt injection.
+The optional `hidden: true` field hides the agent from the parent agent's `<available_subagents>` inventory, but the agent still exists in discovery output, `debug-agents`, `pi --agent <name>`, and `subagent` task execution when you reference it explicitly by name.
 
 The markdown body below the frontmatter becomes the agent's system prompt.

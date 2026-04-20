@@ -1,7 +1,7 @@
 # System Prompt Assembly Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-18
+**Last Updated:** 2026-04-19
 
 ## 1. Overview
 
@@ -77,8 +77,8 @@ This extension is intentionally self-contained and does not have a dedicated spe
 
 The `subagent` extension discovers bundled, user, and project agents, then appends:
 
-- the agent inventory listing inside `<system_reminder type="available-subagents">`, preserving an inner `<available_subagents>` list
-- the selected-agent prompt body inside `<system_reminder type="selected-agent-prompt">` when direct `--agent` mode is active
+- the agent inventory listing inside `<system_reminder type="available-subagents">`, preserving an inner `<available_subagents>` list and omitting agents marked `hidden: true`
+- the selected-agent prompt body inside `<system_reminder type="selected-agent-prompt">` when direct `--agent` mode is active, including when the selected agent is hidden from inventory
 
 Child specs:
 

@@ -1,5 +1,5 @@
 ---
-name: merge
+name: git-merge
 description: >
   Squash-merges a local branch or linked git worktree into the branch currently checked out
   in this repository, then removes the merged worktree (if any) and deletes the merged local

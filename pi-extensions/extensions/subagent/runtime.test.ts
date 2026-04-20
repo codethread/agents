@@ -15,15 +15,17 @@ describe("buildSingleAgentArgs", () => {
 	});
 
 	it("persists child sessions when a session file is provided", () => {
-		expect(buildSingleAgentArgs("builder", "Implement the fix", "/tmp/subagent.jsonl")).toEqual([
+		expect(
+			buildSingleAgentArgs("fixer", "Fix the typecheck errors", "/tmp/subagent.jsonl"),
+		).toEqual([
 			"--mode",
 			"json",
 			"-p",
 			"--agent",
-			"builder",
+			"fixer",
 			"--session",
 			"/tmp/subagent.jsonl",
-			"Task: Implement the fix",
+			"Task: Fix the typecheck errors",
 		]);
 	});
 });
