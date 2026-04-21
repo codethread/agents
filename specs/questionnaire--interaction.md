@@ -300,7 +300,7 @@ Current implementation note:
 Automated tests live in:
 
 - `pi-extensions/questionnaire/parser.test.ts`
-- `pi-extensions/tldr/summary.test.ts`
+- `pi-extensions/ui/tldr/summary.test.ts`
 
 Verification is manual plus static:
 

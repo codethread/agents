@@ -147,8 +147,8 @@ These surfaces are the main tools for verifying prompt assembly behavior end to 
 | `pi-extensions/dynamic-agents-md/index.ts`           | Template discovery, rendering, and prompt injection.                               |
 | `pi-extensions/project-structure-prompt/index.ts`    | Bounded repo-tree snapshot injection.                                              |
 | `pi-extensions/subagent/index.ts`                    | Agent inventory and selected-agent prompt injection; `subagent` tool registration. |
-| `pi-extensions/read-compact/index.ts`                | `read` tool presentation metadata.                                                 |
-| `pi-extensions/bash-compact/index.ts`                | `bash` tool presentation metadata.                                                 |
+| `pi-extensions/tools/read/index.ts`                  | `read` tool presentation metadata.                                                 |
+| `pi-extensions/tools/bash/index.ts`                  | `bash` tool presentation metadata.                                                 |
 | `pi-extensions/pi-discovery/index.ts`                | User-message context note injection.                                               |
 | `pi-extensions/README.md`                            | Extension index and navigation entry point.                                        |
 | `specs/system-prompt--ownership.md`                  | Child spec for scaffold ownership details.                                         |

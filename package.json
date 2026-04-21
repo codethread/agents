@@ -28,10 +28,9 @@
   },
   "pi": {
     "extensions": [
-      "./pi-extensions/messages",
-      "./pi-extensions/system-prompt",
       "./pi-extensions/tools",
-      "./pi-extensions/ui"
+      "./pi-extensions/ui",
+      "./pi-extensions/system-prompt"
     ],
     "prompts": [
       "./prompts"

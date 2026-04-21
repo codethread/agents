@@ -46,8 +46,8 @@ The `tldr` extension generates a short user-facing catch-up summary for the curr
 
 Implementation is split across:
 
-- `pi-extensions/tldr/`
-- `pi-extensions/tldr/summary.ts`
+- `pi-extensions/ui/tldr/`
+- `pi-extensions/ui/tldr/summary.ts`
 
 ### Extension surface
 
@@ -257,7 +257,7 @@ Behavioral contract:
 
 Automated tests exist for library behavior in:
 
-- `pi-extensions/tldr/summary.test.ts`
+- `pi-extensions/ui/tldr/summary.test.ts`
 
 Covered behaviors include:
 
@@ -280,6 +280,6 @@ Interactive command/UI behavior in `index.ts` is still verified manually.
 ## 8. Code Locations
 
 - `pi-extensions/README.md`
-- `pi-extensions/tldr/`
-- `pi-extensions/tldr/summary.ts`
-- `pi-extensions/tldr/summary.test.ts`
+- `pi-extensions/ui/tldr/`
+- `pi-extensions/ui/tldr/summary.ts`
+- `pi-extensions/ui/tldr/summary.test.ts`

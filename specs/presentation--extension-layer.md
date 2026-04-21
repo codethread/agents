@@ -49,13 +49,13 @@ This package ships a small presentation layer on top of Pi's extension APIs: com
 The presentation layer is split across five pieces:
 
 1. **Compact bash renderer**
-   - `pi-extensions/bash-compact/`
+   - `pi-extensions/tools/bash/`
 2. **Compact read renderer**
-   - `pi-extensions/read-compact/`
+   - `pi-extensions/tools/read/`
 3. **Session footer extension**
-   - `pi-extensions/current-context-footer/`
+   - `pi-extensions/ui/statusline/`
 4. **Shared formatting helpers**
-   - `pi-extensions/current-context-footer/usage-format.ts`
+   - `pi-extensions/ui/statusline/usage-format.ts`
 5. **Theme token mapping**
    - `pi-themes/rose-pine.json`
 
@@ -63,14 +63,14 @@ The presentation layer is split across five pieces:
 
 Both compact tool extensions wrap Pi built-ins and re-register them under the canonical tool names:
 
-- `bash-compact/` uses `createBashTool(process.cwd())`
-- `read-compact/` uses `createReadTool(process.cwd())`
+- `tools/bash/` uses `createBashTool(process.cwd())`
+- `tools/read/` uses `createReadTool(process.cwd())`
 
 Execution semantics stay with the built-ins. Only `renderCall(...)` and `renderResult(...)` are customized.
 
 ### Shared formatting helpers
 
-`current-context-footer/usage-format.ts` exports pure helpers:
+`ui/statusline/usage-format.ts` exports pure helpers:
 
 - `formatTokens(...)`
 - `formatCost(...)`
@@ -228,7 +228,7 @@ function shortenHome(path: string): string;
 
 ### `bash` tool override
 
-Registered by `pi-extensions/bash-compact/`.
+Registered by `pi-extensions/tools/bash/`.
 
 Contract:
 
@@ -238,7 +238,7 @@ Contract:
 
 ### `read` tool override
 
-Registered by `pi-extensions/read-compact/`.
+Registered by `pi-extensions/tools/read/`.
 
 Contract:
 
@@ -249,7 +249,7 @@ Contract:
 
 ### Footer lifecycle hooks
 
-Registered by `pi-extensions/current-context-footer/`:
+Registered by `pi-extensions/ui/statusline/`:
 
 ```ts
 pi.on("session_start", (_event, ctx) => installFooter(ctx));
@@ -268,9 +268,9 @@ pi.on("session_start", (_event, ctx) => installFooter(ctx));
 
 ### Shared formatting API
 
-Exported from `pi-extensions/current-context-footer/usage-format.ts` and consumed by:
+Exported from `pi-extensions/ui/statusline/usage-format.ts` and consumed by:
 
-- `pi-extensions/current-context-footer/`
+- `pi-extensions/ui/statusline/`
 - `pi-extensions/subagent/`
 
 Behavioral contract:
@@ -316,9 +316,9 @@ Current verification is manual plus static:
 ## 9. Code Locations
 
 - `pi-extensions/README.md`
-- `pi-extensions/bash-compact/`
-- `pi-extensions/read-compact/`
-- `pi-extensions/current-context-footer/`
-- `pi-extensions/current-context-footer/usage-format.ts`
+- `pi-extensions/tools/bash/`
+- `pi-extensions/tools/read/`
+- `pi-extensions/ui/statusline/`
+- `pi-extensions/ui/statusline/usage-format.ts`
 - `pi-themes/rose-pine.json`
 - `package.json`

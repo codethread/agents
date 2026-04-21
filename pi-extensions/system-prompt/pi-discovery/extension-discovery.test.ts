@@ -218,7 +218,7 @@ describe("formatters", () => {
 			extensions: [
 				{
 					name: "bash-compact",
-					path: "/repo/pi-extensions/bash-compact/index.ts",
+					path: "/repo/pi-extensions/tools/bash/index.ts",
 					scope: "project" as const,
 					source: "/repo",
 					origin: "package" as const,

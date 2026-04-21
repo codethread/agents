@@ -16,9 +16,9 @@ Small index for the extensions shipped in this package. See each extension folde
 
 | Extension                                                         | Summary                                                 |
 | ----------------------------------------------------------------- | ------------------------------------------------------- |
-| [`read-compact`](./ui/read-compact/README.md)                     | Compact file read display — transparent to the user.    |
-| [`bash-compact`](./ui/bash-compact/README.md)                     | Compact shell output display — transparent to the user. |
-| [`current-context-footer`](./ui/current-context-footer/README.md) | Persistent status bar — transparent to the user.        |
+| [`read`](./tools/read/README.md)                                 | Compact file read display — transparent to the user.    |
+| [`bash`](./tools/bash/README.md)                                 | Compact shell output display — transparent to the user. |
+| [`statusline`](./ui/statusline/README.md)                       | Persistent status bar — transparent to the user.        |
 
 ## System prompt
 
@@ -33,8 +33,8 @@ Small index for the extensions shipped in this package. See each extension folde
 
 | Extension                                                     | Summary                                                        |
 | ------------------------------------------------------------- | -------------------------------------------------------------- |
-| [`tldr`](./messages/tldr/README.md)                           | Generate a catch-up summary of the current session.            |
-| [`tmux-window-title`](./messages/tmux-window-title/README.md) | Set the current tmux window title from the first user message. |
+| [`tldr`](./ui/tldr/README.md)                                 | Generate a catch-up summary of the current session.            |
+| [`tmux-window-title`](./ui/tmux-window-title/README.md)       | Set the current tmux window title from the first user message. |
 
 ## Internal shared code
 
