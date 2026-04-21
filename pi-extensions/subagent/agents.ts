@@ -259,8 +259,8 @@ function findNearestProjectAgentsDir(cwd: string): string | null {
 function findBundledAgentsDir(): string | null {
 	const extensionDir = path.dirname(fileURLToPath(import.meta.url));
 	const candidates = [
-		path.resolve(extensionDir, "../../../pi-agents"),
-		path.resolve(extensionDir, "../../agents"),
+		path.resolve(extensionDir, "../../pi-agents"),
+		path.resolve(extensionDir, "../agents"),
 	];
 
 	for (const candidate of candidates) {

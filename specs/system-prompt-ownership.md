@@ -51,7 +51,7 @@ The extension is a single `before_agent_start` hook with three exported pure fun
 - `buildOwnedPromptAddon(activeTools)` — renders the full `Available tools` + `Guidelines` block inside `<system_reminder type="harness">`.
 - `shouldAppendOwnedPrompt(systemPrompt)` — returns `false` when the Pi default sentinel is present.
 
-See `pi-extensions/extensions/owned-system-prompt/index.ts`.
+See `pi-extensions/owned-system-prompt/index.ts`.
 
 ## 4. Required Setup
 
@@ -79,15 +79,15 @@ If `PI_PACKAGE_DIR` is unset, resolve the path via `import.meta.resolve("@marioz
 
 Automated tests in:
 
-- `pi-extensions/extensions/owned-system-prompt/index.test.ts` — unit tests for helper functions and the full extension lifecycle (sentinel detection, prompt assembly, debug-flag flow, no-op when default prompt is active).
+- `pi-extensions/owned-system-prompt/index.test.ts` — unit tests for helper functions and the full extension lifecycle (sentinel detection, prompt assembly, debug-flag flow, no-op when default prompt is active).
 
 ## 7. Code Locations
 
-| File                                                         | Role                                           |
-| ------------------------------------------------------------ | ---------------------------------------------- |
-| `pi-extensions/extensions/owned-system-prompt/index.ts`      | Extension entry point and all exported helpers |
-| `pi-extensions/extensions/owned-system-prompt/index.test.ts` | Unit and integration tests                     |
-| `pi-extensions/extensions/owned-system-prompt/README.md`     | User setup instructions and debug flag docs    |
+| File                                              | Role                                           |
+| ------------------------------------------------- | ---------------------------------------------- |
+| `pi-extensions/owned-system-prompt/index.ts`      | Extension entry point and all exported helpers |
+| `pi-extensions/owned-system-prompt/index.test.ts` | Unit and integration tests                     |
+| `pi-extensions/owned-system-prompt/README.md`     | User setup instructions and debug flag docs    |
 
 ## 8. Open Questions
 

@@ -50,7 +50,7 @@ function makeStaticDiscovery() {
 		extensions: [
 			{
 				name: "dynamic-agents-md",
-				path: "/pkg/pi-extensions/extensions/dynamic-agents-md/index.ts",
+				path: "/pkg/pi-extensions/dynamic-agents-md/index.ts",
 				scope: "user" as const,
 				source: "npm:@codethread/agents",
 				origin: "package" as const,
@@ -190,7 +190,7 @@ describe("formatters", () => {
 			  - When asked about: extensions (docs/extensions.md, examples/extensions/), themes (docs/themes.md), skills (docs/skills.md), prompt templates (docs/prompt-templates.md), TUI components (docs/tui.md), keybindings (docs/keybindings.md), SDK integrations (docs/sdk.md), custom providers (docs/custom-provider.md), adding models (docs/models.md), pi packages (docs/packages.md)
 			  - When working on pi topics, read the docs and examples, and follow .md cross-references before implementing
 			  - Always read pi .md files completely and follow links to related docs (e.g., tui.md for TUI API details)
-			</pi_source><available_extensions><extension name="dynamic-agents-md" path="/pkg/pi-extensions/extensions/dynamic-agents-md/index.ts" scope="user" source="npm:@codethread/agents" origin="package" baseDir="/pkg" /></available_extensions></pi_extension_discovery>"
+			</pi_source><available_extensions><extension name="dynamic-agents-md" path="/pkg/pi-extensions/dynamic-agents-md/index.ts" scope="user" source="npm:@codethread/agents" origin="package" baseDir="/pkg" /></available_extensions></pi_extension_discovery>"
 		`);
 
 		expect(formatExtensionDiscoveryReport(discovery)).toMatchInlineSnapshot(`
@@ -206,7 +206,7 @@ describe("formatters", () => {
 			    - Always read pi .md files completely and follow links to related docs (e.g., tui.md for TUI API details)
 			  </pi_source>
 			  <available_extensions>
-			    <extension name="dynamic-agents-md" path="/pkg/pi-extensions/extensions/dynamic-agents-md/index.ts" scope="user" source="npm:@codethread/agents" origin="package" baseDir="/pkg" />
+			    <extension name="dynamic-agents-md" path="/pkg/pi-extensions/dynamic-agents-md/index.ts" scope="user" source="npm:@codethread/agents" origin="package" baseDir="/pkg" />
 			  </available_extensions>
 			</pi_extension_discovery>"
 		`);
@@ -218,7 +218,7 @@ describe("formatters", () => {
 			extensions: [
 				{
 					name: "bash-compact",
-					path: "/repo/pi-extensions/extensions/bash-compact/index.ts",
+					path: "/repo/pi-extensions/bash-compact/index.ts",
 					scope: "project" as const,
 					source: "/repo",
 					origin: "package" as const,

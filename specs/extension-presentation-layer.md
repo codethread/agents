@@ -1,7 +1,7 @@
 # Extension Presentation Layer Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-08
+**Last Updated:** 2026-04-20
 
 ## 1. Overview
 
@@ -49,15 +49,15 @@ This package ships a small presentation layer on top of Pi's extension APIs: com
 The presentation layer is split across five pieces:
 
 1. **Compact bash renderer**
-   - `pi-extensions/extensions/bash-compact/`
+   - `pi-extensions/bash-compact/`
 2. **Compact read renderer**
-   - `pi-extensions/extensions/read-compact/`
+   - `pi-extensions/read-compact/`
 3. **Session footer extension**
-   - `pi-extensions/extensions/current-context-footer/`
+   - `pi-extensions/current-context-footer/`
 4. **Shared formatting helpers**
-   - `pi-extensions/extensions/current-context-footer/usage-format.ts`
+   - `pi-extensions/current-context-footer/usage-format.ts`
 5. **Theme token mapping**
-   - `pi-extensions/themes/rose-pine.json`
+   - `pi-themes/rose-pine.json`
 
 ### Compact tool wrappers
 
@@ -228,7 +228,7 @@ function shortenHome(path: string): string;
 
 ### `bash` tool override
 
-Registered by `pi-extensions/extensions/bash-compact/`.
+Registered by `pi-extensions/bash-compact/`.
 
 Contract:
 
@@ -238,7 +238,7 @@ Contract:
 
 ### `read` tool override
 
-Registered by `pi-extensions/extensions/read-compact/`.
+Registered by `pi-extensions/read-compact/`.
 
 Contract:
 
@@ -249,7 +249,7 @@ Contract:
 
 ### Footer lifecycle hooks
 
-Registered by `pi-extensions/extensions/current-context-footer/`:
+Registered by `pi-extensions/current-context-footer/`:
 
 ```ts
 pi.on("session_start", (_event, ctx) => installFooter(ctx));
@@ -268,10 +268,10 @@ pi.on("session_start", (_event, ctx) => installFooter(ctx));
 
 ### Shared formatting API
 
-Exported from `pi-extensions/extensions/current-context-footer/usage-format.ts` and consumed by:
+Exported from `pi-extensions/current-context-footer/usage-format.ts` and consumed by:
 
-- `pi-extensions/extensions/current-context-footer/`
-- `pi-extensions/extensions/subagent/`
+- `pi-extensions/current-context-footer/`
+- `pi-extensions/subagent/`
 
 Behavioral contract:
 
@@ -284,7 +284,7 @@ Behavioral contract:
 
 The package exposes one theme through `package.json#pi.themes`:
 
-- `pi-extensions/themes/rose-pine.json`
+- `pi-themes/rose-pine.json`
 
 Notable semantic roles used directly by this package include:
 
@@ -315,10 +315,10 @@ Current verification is manual plus static:
 
 ## 9. Code Locations
 
-- `pi-extensions/extensions/README.md`
-- `pi-extensions/extensions/bash-compact/`
-- `pi-extensions/extensions/read-compact/`
-- `pi-extensions/extensions/current-context-footer/`
-- `pi-extensions/extensions/current-context-footer/usage-format.ts`
-- `pi-extensions/themes/rose-pine.json`
+- `pi-extensions/README.md`
+- `pi-extensions/bash-compact/`
+- `pi-extensions/read-compact/`
+- `pi-extensions/current-context-footer/`
+- `pi-extensions/current-context-footer/usage-format.ts`
+- `pi-themes/rose-pine.json`
 - `package.json`

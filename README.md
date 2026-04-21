@@ -4,10 +4,10 @@ Pi-specific agent tooling extracted from my dotfiles repo. Still need to port mo
 
 ## Contents
 
-- `pi-extensions/extensions/` — Pi extensions, including tools like `subagent` and `questionnaire`
+- `pi-extensions/` — Pi extensions, including tools like `subagent` and `questionnaire`
 - `pi-agents/` — bundled subagents used by the `subagent` extension
-- `pi-extensions/prompts/` — prompt templates
-- `pi-extensions/themes/` — Pi themes
+- `prompts/` — prompt templates
+- `pi-themes/` — Pi themes
 - `skills/` — reusable Pi skills
 
 **Note on Cache Invalidation:** When working with dynamic context injections and extensions, understand that modifying the system prompt mid-session (or changing the model/provider) completely drops the LLM Prompt Cache. This forces the entire conversation prefix to be reprocessed, increasing latency and cost. Ensure this is a mindful tradeoff in your extension design. See `specs/discovery.md` for detailed cache management and "Lost in the Middle" attention strategies.
@@ -26,7 +26,7 @@ From git later:
 pi install git:github.com/<you>/agents
 ```
 
-Pi loads the package's extensions, prompts, themes, and skills through `package.json#pi`.
+Pi loads the package's extensions from `pi-extensions/`, prompts from `prompts/`, themes from `pi-themes/`, and skills from `skills/` through `package.json#pi`.
 The bundled agents are discovered by the `subagent` extension from `pi-agents/`, so they travel with the package too. Project-specific agents still load from the nearest `.pi/agents/` directory when you run Pi inside another repo. The package also includes a `pi-discovery` extension that watches for explicit `Pi` mentions and appends Pi runtime source paths plus currently discovered extension source paths as a one-shot contextual note on the triggering user message, helping Pi inspect installed implementations directly when users reference them.
 
 This package also ships an `owned-system-prompt` extension. To let it replace Pi's built-in base prompt scaffold, create `~/.pi/agent/SYSTEM.md` containing exactly:
@@ -35,7 +35,7 @@ This package also ships an `owned-system-prompt` extension. To let it replace Pi
 You are an expert coding assistant operating inside pi, a coding agent harness.
 ```
 
-See `pi-extensions/extensions/owned-system-prompt/README.md` for details.
+See `pi-extensions/owned-system-prompt/README.md` for details.
 
 ## Bundled agents
 

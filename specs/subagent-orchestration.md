@@ -7,7 +7,7 @@
 
 ### Purpose
 
-The subagent extension provides a stable runtime for delegating work to isolated Pi subprocesses while preserving enough structure for streaming progress, UI rendering, and post-run inspection. This domain covers the `subagent` tool, the `debug-agents` command, and the direct top-level `--agent <name>` flag in `pi-extensions/extensions/subagent/`.
+The subagent extension provides a stable runtime for delegating work to isolated Pi subprocesses while preserving enough structure for streaming progress, UI rendering, and post-run inspection. This domain covers the `subagent` tool, the `debug-agents` command, and the direct top-level `--agent <name>` flag in `pi-extensions/subagent/`.
 
 ### Goals
 
@@ -20,7 +20,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 
 ### Non-Goals
 
-- Discovering or normalizing agent definitions. That belongs to `pi-extensions/extensions/subagent/agents.ts` and is specified in `specs/agent-discovery-and-config.md`.
+- Discovering or normalizing agent definitions. That belongs to `pi-extensions/subagent/agents.ts` and is specified in `specs/agent-discovery-and-config.md`.
 - Scheduling arbitrarily large workloads. Parallel work is intentionally capped and concurrency-limited.
 - Retrying failed agents, checkpointing intermediate state, or resuming partial runs.
 - Merging multiple agents into a shared in-process context. Isolation is process-based.
@@ -61,7 +61,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 
 ## 3. Architecture
 
-Subagent orchestration lives in `pi-extensions/extensions/subagent/` and sits directly on top of the discovery/config layer from `./agents.js`.
+Subagent orchestration lives in `pi-extensions/subagent/` and sits directly on top of the discovery/config layer from `./agents.js`.
 
 ### Extension surface
 
@@ -207,7 +207,7 @@ The subagent tool owns both call rendering and result rendering.
 
 - `renderCall(...)` prints a compact preview of the requested task list.
 - `renderResult(...)` consumes `SubagentDetails` and renders per-task status/output for running and completed workloads.
-- Shared usage strings come from `formatUsageStats(...)`, which delegates token/cost/model formatting to `pi-extensions/extensions/current-context-footer/usage-format.ts`.
+- Shared usage strings come from `formatUsageStats(...)`, which delegates token/cost/model formatting to `pi-extensions/current-context-footer/usage-format.ts`.
 - Tool-call summaries come from `formatToolCall(...)`, which special-cases built-ins like `bash`, `read`, `write`, `edit`, `find`, and `grep`.
 
 Expanded views use `Container`, `Text`, `Spacer`, and `Markdown` components to show task text, tool-call summaries, markdown-rendered final output, and usage stats. Collapsed views show shorter previews and prompt the user to expand when content was truncated.
@@ -377,12 +377,12 @@ Failure model:
 
 ## 6. Testing
 
-There are currently no automated tests in this repo for `pi-extensions/extensions/subagent/`.
+There are currently no automated tests in this repo for `pi-extensions/subagent/`.
 
 Current verification is a mix of helper-level automation plus manual runtime checks:
 
-- `pi-extensions/extensions/subagent/agents.test.ts` covers direct-agent helper behavior such as selected-agent lookup, runtime-setting extraction, exact tool allowlists, CLI override filtering, and hidden-agent prompt-inventory filtering.
-- `pi-extensions/extensions/subagent/runtime.test.ts` covers child-process argument construction for delegated `--agent` runs.
+- `pi-extensions/subagent/agents.test.ts` covers direct-agent helper behavior such as selected-agent lookup, runtime-setting extraction, exact tool allowlists, CLI override filtering, and hidden-agent prompt-inventory filtering.
+- `pi-extensions/subagent/runtime.test.ts` covers child-process argument construction for delegated `--agent` runs.
 - `debug-agents` exposes the discovery/runtime boundary for inspection.
 - The `subagent` tool exercises subprocess spawning, streaming, confirmation, and rendering in real Pi runs.
 - `pi --agent <name> --debug-prompt` exercises direct-agent prompt inheritance in a top-level session.
@@ -397,8 +397,8 @@ Current verification is a mix of helper-level automation plus manual runtime che
 
 ## 8. Code Locations
 
-- `pi-extensions/extensions/README.md`
-- `pi-extensions/extensions/subagent/`
-- `pi-extensions/extensions/subagent/agents.ts` (runtime input boundary only)
-- `pi-extensions/extensions/current-context-footer/usage-format.ts` (shared usage-display helpers consumed by subagent rendering)
+- `pi-extensions/README.md`
+- `pi-extensions/subagent/`
+- `pi-extensions/subagent/agents.ts` (runtime input boundary only)
+- `pi-extensions/current-context-footer/usage-format.ts` (shared usage-display helpers consumed by subagent rendering)
 - `pi-agents/*.md` (bundled agent definitions executed by this runtime)

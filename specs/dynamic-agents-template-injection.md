@@ -49,8 +49,8 @@ The `dynamic-agents-md` extension appends dynamically rendered prompt text to Pi
 
 Implementation is split across:
 
-- `pi-extensions/extensions/dynamic-agents-md/`
-- `pi-extensions/extensions/dynamic-agents-md/parser.ts`
+- `pi-extensions/dynamic-agents-md/`
+- `pi-extensions/dynamic-agents-md/parser.ts`
 
 ### Template discovery model
 
@@ -292,7 +292,7 @@ Return contract:
 
 ### Extension API surface
 
-Registered by the `pi-extensions/extensions/dynamic-agents-md/` extension:
+Registered by the `pi-extensions/dynamic-agents-md/` extension:
 
 - flag: `--debug-prompt` (bare or with a JSON object string)
 - command: `/debug-prompt`
@@ -307,8 +307,8 @@ No tools are registered.
 
 Automated tests exist in:
 
-- `pi-extensions/extensions/dynamic-agents-md/parser.test.ts`
-- `pi-extensions/extensions/dynamic-agents-md/index.test.ts`
+- `pi-extensions/dynamic-agents-md/parser.test.ts`
+- `pi-extensions/dynamic-agents-md/index.test.ts`
 
 Covered behaviors include:
 
@@ -337,7 +337,7 @@ Full extension lifecycle behavior in `index.ts` still has some manual verificati
 
 ## 8. Code Locations
 
-- `pi-extensions/extensions/README.md`
-- `pi-extensions/extensions/dynamic-agents-md/`
-- `pi-extensions/extensions/dynamic-agents-md/parser.ts`
-- `pi-extensions/extensions/dynamic-agents-md/parser.test.ts`
+- `pi-extensions/README.md`
+- `pi-extensions/dynamic-agents-md/`
+- `pi-extensions/dynamic-agents-md/parser.ts`
+- `pi-extensions/dynamic-agents-md/parser.test.ts`

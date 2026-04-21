@@ -12,6 +12,8 @@
 	],
 	"files": [
 		"pi-extensions",
+		"prompts",
+		"pi-themes",
 		"pi-agents",
 		"skills"
 	],
@@ -26,14 +28,14 @@
 	},
 	"pi": {
 		"extensions": [
-			"./pi-extensions/extensions/owned-system-prompt",
-			"./pi-extensions/extensions"
+			"./pi-extensions/owned-system-prompt",
+			"./pi-extensions"
 		],
 		"prompts": [
-			"./pi-extensions/prompts"
+			"./prompts"
 		],
 		"themes": [
-			"./pi-extensions/themes"
+			"./pi-themes"
 		],
 		"skills": [
 			"./skills"

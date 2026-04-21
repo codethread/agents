@@ -23,7 +23,7 @@ The subagent extension needs a stable way to find agent definitions, normalize t
 
 ### Non-Goals
 
-- Executing agent tasks or managing agent process lifecycle. That belongs to the subagent runtime in `pi-extensions/extensions/subagent/`.
+- Executing agent tasks or managing agent process lifecycle. That belongs to the subagent runtime in `pi-extensions/subagent/`.
 - Validating rich agent schemas beyond the required frontmatter fields. Discovery assumes frontmatter is parseable and that `tools`, when present, behaves like a string.
 - Merging multiple definitions of the same agent across sources. Collisions are resolved by replacement, not composition.
 - Supporting arbitrary external tool names or provider-agnostic model aliasing. Normalization is intentionally narrow and conservative.
@@ -72,7 +72,7 @@ The subagent extension needs a stable way to find agent definitions, normalize t
 
 ## 3. Architecture
 
-Agent discovery is implemented in `pi-extensions/extensions/subagent/agents.ts` and consumed by the subagent runtime in `pi-extensions/extensions/subagent/`.
+Agent discovery is implemented in `pi-extensions/subagent/agents.ts` and consumed by the subagent runtime in `pi-extensions/subagent/`.
 
 ### Discovery pipeline
 
@@ -142,7 +142,7 @@ This means discovery is the configuration boundary; runtime execution trusts the
 
 ## 4. Data Model
 
-Core exported types from `pi-extensions/extensions/subagent/agents.ts`:
+Core exported types from `pi-extensions/subagent/agents.ts`:
 
 ```ts
 export interface AgentConfig {
@@ -317,7 +317,7 @@ If the requested agent name is missing, runtime returns an error containing the 
 
 ## 6. Testing
 
-`pi-extensions/extensions/subagent/agents.test.ts` provides automated coverage for key discovery behavior, including:
+`pi-extensions/subagent/agents.test.ts` provides automated coverage for key discovery behavior, including:
 
 - XML prompt formatting for discovered agents
 - selected-agent prompt formatting and name lookup helpers used by top-level `--agent`
@@ -343,8 +343,8 @@ Additional verification remains code-level and runtime-level:
 
 ## 8. Code Locations
 
-- `pi-extensions/extensions/README.md`
-- `pi-extensions/extensions/subagent/`
-- `pi-extensions/extensions/subagent/agents.ts`
+- `pi-extensions/README.md`
+- `pi-extensions/subagent/`
+- `pi-extensions/subagent/agents.ts`
 - `pi-agents/*.md`
 - `.pi/settings.json` (local development example affecting nearest-settings resolution in this repo)

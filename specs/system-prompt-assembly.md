@@ -140,20 +140,20 @@ These surfaces are the main tools for verifying prompt assembly behavior end to 
 
 ## 8. Code Locations
 
-| File                                                         | Role                                                                               |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| `package.json`                                               | Declares `pi.extensions` load order used by prompt-hook chaining.                  |
-| `pi-extensions/extensions/owned-system-prompt/index.ts`      | Scaffold ownership hook and owned-prompt debug flag.                               |
-| `pi-extensions/extensions/dynamic-agents-md/index.ts`        | Template discovery, rendering, and prompt injection.                               |
-| `pi-extensions/extensions/project-structure-prompt/index.ts` | Bounded repo-tree snapshot injection.                                              |
-| `pi-extensions/extensions/subagent/index.ts`                 | Agent inventory and selected-agent prompt injection; `subagent` tool registration. |
-| `pi-extensions/extensions/read-compact/index.ts`             | `read` tool presentation metadata.                                                 |
-| `pi-extensions/extensions/bash-compact/index.ts`             | `bash` tool presentation metadata.                                                 |
-| `pi-extensions/extensions/pi-discovery/index.ts`             | User-message context note injection.                                               |
-| `pi-extensions/extensions/README.md`                         | Extension index and navigation entry point.                                        |
-| `specs/system-prompt-ownership.md`                           | Child spec for scaffold ownership details.                                         |
-| `specs/dynamic-agents-template-injection.md`                 | Child spec for template-based prompt injection details.                            |
-| `specs/agent-discovery-and-config.md`                        | Child spec for agent discovery details used by subagent prompt assembly.           |
-| `specs/subagent-orchestration.md`                            | Child spec for subagent execution and runtime orchestration.                       |
-| `specs/extension-presentation-layer.md`                      | Child spec for tool presentation metadata and prompt snippets.                     |
-| `specs/pi-extension-discovery.md`                            | Child spec for user-input contextual-note injection.                               |
+| File                                              | Role                                                                               |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `package.json`                                    | Declares `pi.extensions` load order used by prompt-hook chaining.                  |
+| `pi-extensions/owned-system-prompt/index.ts`      | Scaffold ownership hook and owned-prompt debug flag.                               |
+| `pi-extensions/dynamic-agents-md/index.ts`        | Template discovery, rendering, and prompt injection.                               |
+| `pi-extensions/project-structure-prompt/index.ts` | Bounded repo-tree snapshot injection.                                              |
+| `pi-extensions/subagent/index.ts`                 | Agent inventory and selected-agent prompt injection; `subagent` tool registration. |
+| `pi-extensions/read-compact/index.ts`             | `read` tool presentation metadata.                                                 |
+| `pi-extensions/bash-compact/index.ts`             | `bash` tool presentation metadata.                                                 |
+| `pi-extensions/pi-discovery/index.ts`             | User-message context note injection.                                               |
+| `pi-extensions/README.md`                         | Extension index and navigation entry point.                                        |
+| `specs/system-prompt-ownership.md`                | Child spec for scaffold ownership details.                                         |
+| `specs/dynamic-agents-template-injection.md`      | Child spec for template-based prompt injection details.                            |
+| `specs/agent-discovery-and-config.md`             | Child spec for agent discovery details used by subagent prompt assembly.           |
+| `specs/subagent-orchestration.md`                 | Child spec for subagent execution and runtime orchestration.                       |
+| `specs/extension-presentation-layer.md`           | Child spec for tool presentation metadata and prompt snippets.                     |
+| `specs/pi-extension-discovery.md`                 | Child spec for user-input contextual-note injection.                               |

@@ -299,8 +299,8 @@ Current implementation note:
 
 Automated tests live in:
 
-- `pi-extensions/extensions/questionnaire/parser.test.ts`
-- `pi-extensions/extensions/tldr/summary.test.ts`
+- `pi-extensions/questionnaire/parser.test.ts`
+- `pi-extensions/tldr/summary.test.ts`
 
 Verification is manual plus static:
 
@@ -331,8 +331,8 @@ Verification is manual plus static:
 
 ## 8. Code Locations
 
-- `pi-extensions/extensions/questionnaire/`
-- `pi-extensions/extensions/questionnaire/parser.ts`
-- `pi-extensions/extensions/shared/session-transcript.ts`
-- `pi-extensions/extensions/README.md`
+- `pi-extensions/questionnaire/`
+- `pi-extensions/questionnaire/parser.ts`
+- `pi-extensions/shared/session-transcript.ts`
+- `pi-extensions/README.md`
 - `package.json`
