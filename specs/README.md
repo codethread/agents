@@ -27,7 +27,6 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | [subagent--discovery-and-config.md](./subagent--discovery-and-config.md) | Defines how bundled, user, and project agents are discovered, normalized, and handed to subagent runtime execution.                         | `pi-extensions/subagent/`, `pi-agents/*.md`                        |
 | [subagent--orchestration.md](./subagent--orchestration.md)               | Defines subagent runtime execution: mode dispatch, isolated child-process orchestration, streaming updates, confirmation, and UI rendering. | `pi-extensions/subagent/`, `pi-extensions/current-context-footer/` |
-| [claude--sync-integration.md](./claude--sync-integration.md)             | Defines Claude-to-Pi syncing: scope discovery, symlink safety rules, command-name translation, lifecycle gating, and result notifications.  | `pi-extensions/claude-sync/`                                       |
 
 ## Prompt and Context Injection
 

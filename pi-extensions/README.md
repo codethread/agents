@@ -36,12 +36,6 @@ Small index for the extensions shipped in this package. See each extension folde
 | [`tldr`](./messages/tldr/README.md)                           | Generate a catch-up summary of the current session.            |
 | [`tmux-window-title`](./messages/tmux-window-title/README.md) | Set the current tmux window title from the first user message. |
 
-## System
-
-| Extension                                       | Summary                                                               |
-| ----------------------------------------------- | --------------------------------------------------------------------- |
-| [`claude-sync`](./system/claude-sync/README.md) | Synchronize Claude project context with Pi — transparent to the user. |
-
 ## Internal shared code
 
 - [`shared/`](./shared/) — shared utilities used by multiple extensions; not a loadable extension.
