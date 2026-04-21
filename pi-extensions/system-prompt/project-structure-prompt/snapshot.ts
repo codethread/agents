@@ -1,4 +1,4 @@
-import { wrapSystemReminder } from "../shared/xml.js";
+import { wrapSystemReminder } from "../../shared/xml.js";
 
 export const MAX_PROJECT_STRUCTURE_LINES = 200;
 const TREE_TIMEOUT_MS = 30_000;

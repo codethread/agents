@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import nunjucks from "nunjucks";
-import { wrapSystemReminder } from "../shared/xml.js";
+import { wrapSystemReminder } from "../../shared/xml.js";
 
 export type TemplateMatch = {
 	filePath: string;

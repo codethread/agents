@@ -4,7 +4,7 @@ Pi-specific agent tooling extracted from my dotfiles repo. Still need to port mo
 
 ## Contents
 
-- `pi-extensions/` — Pi extensions, including tools like `subagent` and `questionnaire`
+- `pi-extensions/` — Pi extensions grouped into `tools/`, `ui/`, `system-prompt/`, `messages/`, and `system/`
 - `pi-agents/` — bundled subagents used by the `subagent` extension
 - `prompts/` — prompt templates
 - `pi-themes/` — Pi themes
@@ -35,7 +35,7 @@ This package also ships an `owned-system-prompt` extension. To let it replace Pi
 You are an expert coding assistant operating inside pi, a coding agent harness.
 ```
 
-See `pi-extensions/owned-system-prompt/README.md` for details.
+See `pi-extensions/system-prompt/owned-system-prompt/README.md` for details.
 
 ## Bundled agents
 

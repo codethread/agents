@@ -7,6 +7,7 @@ description: >
   running checks, collecting environment facts, orchestrating command-line workflows,
   or writing/editing small scripts to support that shell work.
   Best when shell-heavy execution should be handled in a focused terminal-first context instead of building complex command chains inline.
+  Perfectly usable for large greps to save on your context
 
   Input keywords:
   - depth:

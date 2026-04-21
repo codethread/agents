@@ -6,7 +6,7 @@ import {
 	formatContextDisplay,
 	formatCost,
 	formatModelDisplay,
-} from "../current-context-footer/usage-format.js";
+} from "../../ui/current-context-footer/usage-format.js";
 import type { AgentConfig } from "./agents.js";
 import {
 	RUNNING_EXIT_CODE,

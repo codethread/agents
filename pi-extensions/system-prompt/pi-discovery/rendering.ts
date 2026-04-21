@@ -1,5 +1,5 @@
 import path from "node:path";
-import { formatXmlElement, formatXmlTextElement } from "../shared/xml.js";
+import { formatXmlElement, formatXmlTextElement } from "../../shared/xml.js";
 import type { PiExtensionDiscovery, PiExtensionRecord, PiSourceDiscovery } from "./discovery.js";
 
 const PI_CONTEXT_NOTE =

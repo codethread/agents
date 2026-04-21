@@ -1,6 +1,6 @@
 import type { Model } from "@mariozechner/pi-ai";
 import { z } from "zod";
-import { buildConversationTranscript } from "../shared/session-transcript.js";
+import { buildConversationTranscript } from "../../shared/session-transcript.js";
 
 type ModelLike = Pick<Model<any>, "provider" | "id" | "reasoning">;
 

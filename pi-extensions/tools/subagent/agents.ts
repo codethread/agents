@@ -6,7 +6,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getAgentDir, parseFrontmatter } from "@mariozechner/pi-coding-agent";
-import { wrapSystemReminder } from "../shared/xml.js";
+import { wrapSystemReminder } from "../../shared/xml.js";
 
 export interface AgentConfig {
 	name: string;
@@ -259,8 +259,8 @@ function findNearestProjectAgentsDir(cwd: string): string | null {
 function findBundledAgentsDir(): string | null {
 	const extensionDir = path.dirname(fileURLToPath(import.meta.url));
 	const candidates = [
-		path.resolve(extensionDir, "../../pi-agents"),
-		path.resolve(extensionDir, "../agents"),
+		path.resolve(extensionDir, "../../../pi-agents"),
+		path.resolve(extensionDir, "../../agents"),
 	];
 
 	for (const candidate of candidates) {

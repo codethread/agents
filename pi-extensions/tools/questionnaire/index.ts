@@ -20,7 +20,7 @@ import {
 	type Question,
 	type QuestionInput,
 } from "./parser.js";
-import { buildConversationTranscript } from "../shared/session-transcript.js";
+import { buildConversationTranscript } from "../../shared/session-transcript.js";
 
 interface QuestionnaireResult {
 	questions: Question[];

@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { wrapSystemReminder } from "../shared/xml.js";
+import { wrapSystemReminder } from "../../shared/xml.js";
 
 export const DEFAULT_SYSTEM_PROMPT_SENTINEL =
 	"Pi documentation (read only when the user asks about pi itself, its SDK, extensions, themes, skills, or TUI):";
