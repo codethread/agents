@@ -42,18 +42,7 @@ Own Pi's base prompt scaffold — the tool list and guideline sections — while
 - **Decision:** Debug flag triggers a `ping` turn via `pi.sendUserMessage("ping")` rather than reading the prompt synchronously at `session_start`.
   - **Rationale:** The system prompt is only materialized when a turn starts (`agent_start`). Reading it at `session_start` gives an incomplete view.
 
-## 3. Architecture
-
-The extension is a single `before_agent_start` hook with three exported pure functions used in tests:
-
-- `getOwnedBuiltinTools(activeTools)` — filters active tools to known built-ins in deterministic order.
-- `buildOwnedGuidelines(activeTools)` — assembles the guideline list, adapting bash guidance to the active tool set.
-- `buildOwnedPromptAddon(activeTools)` — renders the full `Available tools` + `Guidelines` block inside `<system_reminder type="harness">`.
-- `shouldAppendOwnedPrompt(systemPrompt)` — returns `false` when the Pi default sentinel is present.
-
-See `pi-extensions/owned-system-prompt/index.ts`.
-
-## 4. Required Setup
+## 3. Required Setup
 
 Users must create `~/.pi/agent/SYSTEM.md` containing:
 
@@ -65,7 +54,7 @@ Pi core treats this as the custom base prompt and still appends context files, s
 
 If the file is absent or the default Pi base prompt is still in effect, the extension silently skips appending (see sentinel detection above).
 
-## 5. Refreshing Built-in Tool Metadata
+## 4. Refreshing Built-in Tool Metadata
 
 Built-in tool strings are manually synced from Pi. On Pi upgrades, re-check:
 
@@ -75,20 +64,14 @@ $PI_PACKAGE_DIR/dist/core/tools/{read,bash,edit,write,grep,find,ls}.js
 
 If `PI_PACKAGE_DIR` is unset, resolve the path via `import.meta.resolve("@mariozechner/pi-coding-agent")`.
 
+## 5. Open Questions
+
+- Should the owned prompt include `promptSnippet` / `promptGuidelines` for custom extension tools (e.g. `subagent`) once Pi exposes that metadata publicly? Likely yes — `subagent` is the strongest candidate since its snippet is semantically important.
+
 ## 6. Testing
 
-Automated tests in:
-
-- `pi-extensions/owned-system-prompt/index.test.ts` — unit tests for helper functions and the full extension lifecycle (sentinel detection, prompt assembly, debug-flag flow, no-op when default prompt is active).
+Automated tests in `pi-extensions/owned-system-prompt/index.test.ts` cover sentinel detection, prompt assembly, debug-flag flow, and the no-op path.
 
 ## 7. Code Locations
 
-| File                                              | Role                                           |
-| ------------------------------------------------- | ---------------------------------------------- |
-| `pi-extensions/owned-system-prompt/index.ts`      | Extension entry point and all exported helpers |
-| `pi-extensions/owned-system-prompt/index.test.ts` | Unit and integration tests                     |
-| `pi-extensions/owned-system-prompt/README.md`     | User setup instructions and debug flag docs    |
-
-## 8. Open Questions
-
-- Should the owned prompt include `promptSnippet` / `promptGuidelines` for custom extension tools (e.g. `subagent`) once Pi exposes that metadata publicly? Likely yes — `subagent` is the strongest candidate since its snippet is semantically important.
+- `pi-extensions/owned-system-prompt/` — extension entry, helpers, tests, README

@@ -1,221 +1,71 @@
 # Pi Extension Discovery Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-18
+**Last Updated:** 2026-04-21
 
 ## 1. Overview
 
 ### Purpose
 
-The `pi-discovery` extension tells Pi where both its runtime/source tree and its currently discovered extension source code live, but only when that context is likely relevant. Instead of appending a compact discovery catalog to every system prompt, it watches raw user input and appends a one-shot contextual note to the first user message whose text contains the standalone, case-sensitive token `Pi`. That injected note is intentionally compact in overall structure so it stays low-noise in the agent-visible prompt while still giving the agent enough runtime/package and extension-discovery context to inspect installed Pi files directly when users reference Pi behavior, prompt variables, or package-provided runtime features.
-
-### Goals
-
-- Expose the active global/project Pi config paths relevant to extension discovery.
-- Expose the preferred Pi package/source root plus key docs/examples/core-tool paths.
-- Discover enabled extension entrypoints without loading them a second time.
-- Include enough provenance metadata for Pi to find the real source tree for each extension without surfacing redundant path labels.
-- Avoid unconditional system-prompt injection for unrelated turns.
-- Inject discovery context only when the user explicitly mentions `Pi`.
-- Fire at most once per extension runtime instance.
-- Provide a lightweight debug command for showing the current catalog to the user without injecting it into agent context.
+The `pi-discovery` extension tells Pi where its runtime/source tree and currently discovered extension source files live — but only when that context is likely relevant. Instead of appending a catalog to every system prompt, it watches raw user input and appends a one-shot contextual note to the first user message whose text contains the standalone, case-sensitive token `Pi`.
 
 ### Non-Goals
 
-- Explaining extension behavior itself. The extension only points Pi at the files so it can inspect them.
+- Explaining extension behavior itself; the extension only points Pi at the files so it can inspect them.
 - Loading or executing extension modules for discovery.
 - Managing extension enable/disable state.
-- Discovering skills, prompts, themes, or agents. This extension is still primarily about Pi runtime + extension source discoverability.
+- Discovering skills, prompts, themes, or agents.
 
 ## 2. Design Decisions
 
 - **Decision:** Discovery uses `DefaultPackageManager.resolve(...)` instead of manual parsing.
-  - **Rationale:** It exactly matches Pi's real extension/package discovery rules, including package manifests, precedence, and path filters.
+  - **Rationale:** Matches Pi's real extension/package discovery rules exactly — package manifests, precedence, path filters.
 
-- **Decision:** Missing configured packages are skipped during discovery.
-  - **Rationale:** This extension is informational; it must not trigger installs as a side effect of prompt rendering.
+- **Decision:** Missing configured packages are skipped (`resolve(async () => "skip")`), never auto-installed.
+  - **Rationale:** This extension is informational; it must not trigger installs as a prompt-rendering side effect.
 
-- **Decision:** The extension uses the `input` event for trigger detection.
-  - **Rationale:** `input` sees the raw user text before skill/template expansion, so the extension can detect a literal `Pi` mention and append context to that same user message.
+- **Decision:** Triggers on the `input` event, not `before_agent_start`.
+  - **Rationale:** `input` sees raw user text before skill/template expansion, so the note can be appended to the same user message.
 
-- **Decision:** Discovery is no longer injected into the system prompt on every turn.
-  - **Rationale:** This avoids polluting unrelated prompts and reduces unnecessary prompt-cache churn while still surfacing the data when the user signals Pi-specific intent.
+- **Decision:** No unconditional system-prompt injection; only appends when the user explicitly says `Pi`.
+  - **Rationale:** Avoids polluting unrelated prompts and reduces prompt-cache churn.
 
-- **Decision:** The contextual-note format remains compact XML, but the injected form preserves multiline prose inside `<pi_source>` while the debug form stays fully multiline.
-  - **Rationale:** The agent-visible injected note should stay small overall, but prose guidance should keep its structure instead of being flattened into a harder-to-read single line.
+- **Decision:** The `Pi` trigger is case-sensitive and single-shot per extension runtime instance.
+  - **Rationale:** Keeps behavior narrow and predictable. Catches explicit references, not every lowercase `pi` substring or follow-up turn. Resets on `/reload`, `/new`, `/resume`, `/fork`.
+
+- **Decision:** A failed discovery lookup does not consume the one-shot trigger.
+  - **Rationale:** Transient resolution failures shouldn't silently lose the user's signal.
+
+- **Decision:** Injected XML is compact overall but `<pi_source>` prose stays multiline; debug form is fully multiline.
+  - **Rationale:** Compact keeps unrelated turns lean; prose guidance needs structure to stay readable.
 
 - **Decision:** Displayed XML omits `runtimePackageDir` and `runtimePackageEntry`.
-  - **Rationale:** Those values are redundant with `inspectPackageDir` for inspection purposes and often point at store/compiled paths that tokenize poorly.
+  - **Rationale:** Redundant with `inspectPackageDir` and often points at store/compiled paths that tokenize poorly.
 
-- **Decision:** The extension exposes Pi runtime/package paths and extension file paths/base directories, not behavior summaries.
-  - **Rationale:** The user goal is source-code discoverability. Once Pi knows where the core package and enabled extensions live, it can inspect the implementation directly.
+- **Decision:** Surface file paths and base directories, not behavior summaries.
+  - **Rationale:** The user goal is source-code discoverability. Once Pi knows where the core package and extensions live, it can inspect directly.
 
-- **Decision:** The `Pi` trigger is case-sensitive and single-shot per extension runtime.
-  - **Rationale:** This keeps the behavior narrow, predictable, and low-noise. The intent is to catch explicit Pi references, not every lowercase `pi` substring or repeated follow-up turn.
+## 3. Injected Note Shape
 
-## 3. Architecture
+The appended `<pi_extension_discovery>` fragment contains:
 
-Implementation is split across:
-
-- `pi-extensions/pi-discovery/`
-- `pi-extensions/pi-discovery/context-note.ts`
-- `pi-extensions/pi-discovery/extension-discovery.ts`
-
-### Discovery model
-
-The extension delegates filesystem/package resolution to Pi's own package-resolution layer:
-
-1. `discoverPiExtensions(cwd, agentDir)` creates a `SettingsManager` for the current cwd and user agent dir.
-2. It creates a `DefaultPackageManager` with that settings manager.
-3. It calls `packageManager.resolve(async () => "skip")` so missing configured packages are skipped instead of being auto-installed.
-4. It filters the resolved extension resources down to `enabled === true`.
-5. It projects each resolved resource into a compact `PiExtensionRecord` with:
-   - inferred extension name
-   - entry file path
-   - scope
-   - normalized provenance source string
-   - origin (`package` vs `top-level`)
-   - base directory when available
-
-For package-origin resources, local package source strings are normalized to absolute paths using the resolved package base dir. During prompt/debug formatting, `source` is omitted when it would be identical to `baseDir`.
-
-Because discovery uses `DefaultPackageManager.resolve(...)`, it follows Pi's real precedence and filtering behavior for:
-
-- `~/.pi/agent/settings.json`
-- `<cwd>/.pi/settings.json`
-- auto-discovered `extensions/` directories
-- package-provided extensions from `settings.json#packages`
-- manifest-based package resource filtering
-
-### Context-note injection lifecycle
-
-The extension caches discovery per cwd for the session runtime and keeps a closure-scoped one-shot flag for whether contextual discovery has already been injected.
-
-- `session_start` kicks off discovery eagerly.
-- `input` inspects raw user text before skill/template expansion.
-- if the input source is `"extension"`, the hook does nothing.
-- if the one-shot flag is already set, the hook does nothing.
-- if the raw text does not contain the standalone, case-sensitive token `Pi`, the hook does nothing.
-- otherwise the hook awaits the cached discovery result, appends a contextual note to the same user message, and marks the one-shot flag as fired.
-
-The appended contextual note contains:
-
-- a `note` attribute on the root `<pi_extension_discovery>` tag with a short instruction telling Pi to inspect Pi source/docs and matching extension source files directly when relevant
+- a `note` attribute telling Pi to inspect source/docs directly when relevant
 - global/project config paths relevant to extension discovery
-- a `<pi_source>...</pi_source>` text block containing the Pi docs/examples guidance text with resolved paths derived from the inspection root
-- one `<extension ... />` entry per enabled extension entrypoint
+- a `<pi_source>` multiline text block with resolved docs/examples/core-tool paths
+- `<available_extensions>` with one self-closing `<extension ... />` per enabled entrypoint
 
-The injected form is compact XML, but the `<pi_source>` text block remains multiline so the prose guidance keeps its structure. This keeps unrelated turns lean while still surfacing extension source locations when the user explicitly signals Pi-specific intent.
+Extension names are derived: `.../foo/index.ts|js` → `foo`; `.../bar.ts|js` → `bar`.
 
-### Agent-instance semantics
+## 4. Debug Surface
 
-The one-shot guard is in-memory only and is scoped to the extension runtime instance.
+`/debug-extensions` formats the current discovery state as multiline XML, shows it UI-only (hidden from agent), falls back to stdout without UI.
 
-Implications:
+## 5. Testing
 
-- it resets on `/reload`
-- it resets when Pi creates a fresh extension runtime for `/new`, `/resume`, or `/fork`
-- it is not persisted into session state
-- a failed discovery lookup should not consume the one-shot trigger
+Automated tests in `pi-extensions/pi-discovery/context-note.test.ts` and `extension-discovery.test.ts` cover name inference, discovery ordering, package-origin metadata, injected/debug XML snapshots, trigger detection (standalone `Pi` vs `pi`/`pilot`/extension-originated input), single-shot behavior, and retry-on-failure.
 
-### Debug surface
+## 6. Code Locations
 
-The extension also registers `/debug-extensions`.
-
-Behavior:
-
-- formats the current discovery state as multiline XML
-- shows it in the UI only, hidden from the agent
-- falls back to stdout when no UI is available
-- omits redundant runtime-package/store paths from displayed XML to reduce token noise
-
-## 4. Data Model
-
-Core types:
-
-```ts
-export interface PiExtensionRecord extends SourceInfo {
-	name: string;
-}
-
-export interface PiSourceDiscovery {
-	inspectPackageDir: string;
-	inspectPackageDirSource: "env" | "runtime-package";
-	runtimePackageDir: string;
-	runtimePackageEntry: string;
-	docsDir: string;
-	examplesDir: string;
-	coreToolsDir: string;
-}
-
-export interface PiExtensionDiscovery {
-	agentDir: string;
-	globalSettingsPath: string;
-	globalExtensionsDir: string;
-	projectConfigDir: string;
-	projectSettingsPath: string;
-	projectExtensionsDir: string;
-	piSource: PiSourceDiscovery;
-	extensions: PiExtensionRecord[];
-}
-```
-
-Derived extension names use this rule:
-
-- `.../foo/index.ts` or `index.js` -> `foo`
-- `.../bar.ts` or `bar.js` -> `bar`
-
-## 5. Interfaces
-
-### `discoverPiExtensions(cwd, agentDir?)`
-
-Returns the resolved discovery snapshot for the working directory.
-
-Behavioral contract:
-
-- uses Pi's real package/resource resolution instead of custom ad hoc parsing
-- skips missing configured packages instead of installing them
-- returns only enabled extension entrypoints
-- preserves Pi precedence ordering from `DefaultPackageManager.resolve(...)`
-
-### `formatExtensionDiscoveryContextNote(discovery)`
-
-Returns a contextual-note fragment structured as:
-
-- a root `<pi_extension_discovery>` element whose `note` attribute carries the injected-context instruction
-- a single `<paths ... />` element with global/project path metadata
-- a single `<pi_source>...</pi_source>` element containing Pi docs/examples guidance text with resolved paths
-- `<available_extensions>` containing one self-closing `<extension ... />` element per discovered extension
-
-This fragment is appended to the triggering user message via the `input` transform path rather than the system prompt.
-
-### `/debug-extensions`
-
-Shows a user-only multiline XML report in the UI.
-
-## 6. Testing
-
-Automated tests live in:
-
-- `pi-extensions/pi-discovery/context-note.test.ts`
-- `pi-extensions/pi-discovery/extension-discovery.test.ts`
-
-Covered behaviors include:
-
-- name inference for `index.ts` vs single-file extensions
-- mixed project/user/package discovery ordering
-- package-origin metadata preservation
-- snapshot coverage for compact injected XML and multiline debug XML, including the `<pi_source>` guidance text
-- trigger detection for standalone `Pi`
-- non-matches for lowercase `pi`, embedded substrings such as `pilot`, and extension-originated input
-- single-shot runtime behavior
-- retry behavior when discovery fails before the one-shot flag is consumed
-
-## 7. Code Locations
-
-- `pi-extensions/README.md`
-- `pi-extensions/pi-discovery/`
-- `pi-extensions/pi-discovery/context-note.ts`
-- `pi-extensions/pi-discovery/context-note.test.ts`
-- `pi-extensions/pi-discovery/extension-discovery.ts`
-- `pi-extensions/pi-discovery/extension-discovery.test.ts`
+- `pi-extensions/pi-discovery/` — extension entry, input-trigger lifecycle, debug command
+- `pi-extensions/pi-discovery/context-note.ts` — contextual-note formatting
+- `pi-extensions/pi-discovery/extension-discovery.ts` — `DefaultPackageManager`-backed discovery

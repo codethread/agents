@@ -52,13 +52,19 @@ If the user gives a feature name, identify which domain it belongs to before nam
 
 ### Spec sizing
 
-Choose the lightest spec shape that still captures the boundary clearly.
+Choose the lightest spec shape that still captures the boundary clearly. **Default to minimal.** A spec competes with the code and tests for a reader's attention; detail that duplicates them is a liability, not a feature.
 
-| Size        | Use when           | Contents                                                                     |
-| ----------- | ------------------ | ---------------------------------------------------------------------------- |
-| Lightweight | Small subsystem    | Sections 1, 2, 4 only. Skip Data Model if types are self-documenting.        |
-| Medium      | Moderate subsystem | All sections, with concrete types and interfaces.                            |
-| Heavyweight | Large domain       | All sections plus Security, Failure Modes, Migration, Performance as needed. |
+Size by module LOC (source lines, excluding tests):
+
+| Module LOC   | Default shape                  | Contents                                                                                                                         |
+| ------------ | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| < 2000       | Minimal                        | Overview (Purpose + Non-Goals) and Design Decisions only. No architecture/data-model/interface prose — the source is short enough to read. |
+| 2000–5000    | Medium                         | Add Architecture summary + Code Locations. Still no type transcriptions or interface prose that tests already encode.            |
+| > 5000       | Heavyweight                    | All sections as needed. Even then, prefer pointers over restatement.                                                             |
+
+Tests count as documentation. If a well-named test file covers a behavior, the spec should not restate it in prose — reference the test file instead.
+
+The threshold is a guide, not a hard rule. A 500-LOC module with a subtle cross-system contract may still need a medium spec; a 3000-LOC module that's mostly boilerplate may still only need a minimal one. Err minimal and grow when readers actually struggle.
 
 ### Spec status values
 
@@ -354,9 +360,10 @@ Transition a spec from Planned/In Progress to Implemented. The goal is to keep w
 For existing code that has no spec. Read the code first, then work backwards.
 
 1. Read the actual implementation thoroughly using the READ_CODE procedure
-2. Identify the non-obvious decisions — anything where the code's what doesn't explain the why
-3. Write the spec following the living-spec density (see Knowledge table)
-4. Prioritize Design Decisions — interview the user if rationale isn't clear from code
+2. **Measure the module's source LOC.** If under ~2000 and tests adequately cover behavior, write a minimal spec: Overview (Purpose, Non-Goals) and Design Decisions only. Stop there — do not generate Architecture, Data Model, or Interface sections that just restate the code.
+3. Identify the non-obvious decisions — anything where the code's what doesn't explain the why
+4. For larger modules, use the living-spec density (see Knowledge table)
+5. Prioritize Design Decisions — interview the user if rationale isn't clear from code
 
 ### Updating SPECS_README
 
@@ -397,7 +404,10 @@ Index rules:
 - Design Decisions must have rationale. A decision without a "why" is useless — the agent can read what from the code.
 - Non-Goals are mandatory. Unbounded specs lead to unbounded implementations.
 - Don't over-spec small things — a 10-line utility doesn't need a spec.
+- **Size threshold:** for modules under ~2000 source LOC, default to a minimal spec (Overview + Design Decisions only). The source is short enough to read directly; tests cover behavior. Grow the spec only when readers demonstrably can't navigate the code without it.
+- Tests are documentation. Don't restate in prose what a well-named test file already asserts — reference the test file.
 - Keep specs under 400 lines for simple systems, under 800 for complex ones. Exception: planning specs for large multi-component systems may legitimately need more.
+- A spec approaching the LOC of its module is a smell — either the spec is restating code or the module is under-factored.
 - One spec per system area. Don't split a single system across multiple specs. Don't combine unrelated systems into one spec.
 - Always update the index. A spec not in SPECS_README effectively doesn't exist for discovery.
 
@@ -414,4 +424,6 @@ Before considering a spec complete, verify:
 - [ ] Code Locations section exists and paths are accurate
 - [ ] SPECS_README index includes an entry for this spec
 - [ ] Spec line count is proportionate to system complexity (not a 1:1 mirror of code)
+- [ ] For modules under ~2000 LOC, spec is minimal (Overview + Design Decisions) unless a specific reader-facing gap justifies more
+- [ ] No prose restates behavior that a well-named test file already covers
 - [ ] Domain name follows stable naming conventions, not feature/chronology-based
