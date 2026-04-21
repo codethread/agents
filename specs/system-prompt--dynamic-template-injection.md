@@ -333,7 +333,7 @@ Full extension lifecycle behavior in `index.ts` still has some manual verificati
 
 - Should `/debug-prompt` clean up its temp file after the editor exits, or is persistence useful for debugging?
 - Should template rendering eventually expose additional structured vars beyond provider/model/cwd/hasUI/isMainAgent/isSubagent/tools/env?
-- Should system-prompt injection remain the long-term strategy despite prompt-cache tradeoffs noted in `specs/discovery.md`?
+- Should system-prompt injection remain the long-term strategy despite prompt-cache tradeoffs noted in `specs/notes--discovery.md`?
 
 ## 8. Code Locations
 

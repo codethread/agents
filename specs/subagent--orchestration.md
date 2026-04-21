@@ -20,7 +20,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 
 ### Non-Goals
 
-- Discovering or normalizing agent definitions. That belongs to `pi-extensions/subagent/agents.ts` and is specified in `specs/agent-discovery-and-config.md`.
+- Discovering or normalizing agent definitions. That belongs to `pi-extensions/subagent/agents.ts` and is specified in `specs/subagent--discovery-and-config.md`.
 - Scheduling arbitrarily large workloads. Parallel work is intentionally capped and concurrency-limited.
 - Retrying failed agents, checkpointing intermediate state, or resuming partial runs.
 - Merging multiple agents into a shared in-process context. Isolation is process-based.
