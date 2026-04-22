@@ -421,7 +421,7 @@ export function formatAgentsForPrompt(agents: AgentConfig[]): string {
 	const lines = [
 		"These are the available subagents with their intended use.",
 		"",
-		"<available_subagents>",
+		"<available-subagents>",
 	];
 
 	for (const agent of visibleAgents) {
@@ -431,6 +431,6 @@ export function formatAgentsForPrompt(agents: AgentConfig[]): string {
 		lines.push("  </subagent>");
 	}
 
-	lines.push("</available_subagents>");
+	lines.push("</available-subagents>");
 	return `\n\n${wrapSystemReminder("available-subagents", lines.join("\n"))}`;
 }

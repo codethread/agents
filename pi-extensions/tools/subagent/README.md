@@ -2,7 +2,7 @@
 
 > Delegate tasks to specialized subagents with isolated context.
 
-The agent is aware of this tool and will use it when asked to delegate work or run tasks in parallel. It also injects the currently discovered subagents into the system prompt inside `<system_reminder type="available-subagents">...</system_reminder>`, preserving the inner XML list of names and descriptions so the parent agent can choose among them. Agents marked `hidden: true` are still discovered and callable by name, but are omitted from that parent-facing inventory. Direct `--agent` mode still wraps the selected agent body inside `<system_reminder type="selected-agent-prompt">...</system_reminder>`. Child subagent processes are marked with `PI_SUBAGENT=1`, which lets extensions hide or reshape behavior for delegated runs. You can guide it by describing the kind of work you want delegated.
+The agent is aware of this tool and will use it when asked to delegate work or run tasks in parallel. It also injects the currently discovered subagents into the system prompt inside `<system-reminder type="available-subagents">...</system-reminder>`, preserving the inner XML list of names and descriptions so the parent agent can choose among them. Agents marked `hidden: true` are still discovered and callable by name, but are omitted from that parent-facing inventory. Direct `--agent` mode still wraps the selected agent body inside `<system-reminder type="selected-agent-prompt">...</system-reminder>`. Child subagent processes are marked with `PI_SUBAGENT=1`, which lets extensions hide or reshape behavior for delegated runs. You can guide it by describing the kind of work you want delegated.
 
 This extension also registers `--agent <name>` for direct agent mode. That flag resolves the named discovered agent and inherits that agent file's runtime config into the top-level Pi session, so `pi --agent scout` talks to the scout instructions directly without going through the `subagent` tool. Today that inherited config includes the agent prompt body, model/thinking, and the exact tool allowlist.
 
@@ -22,7 +22,7 @@ Use `pi --agent <name>` when you want the current top-level session to adopt one
 Discovery and override rules are the same as the `subagent` tool: bundled package agents load first, user agents override package agents, and project agents override both.
 The flag inherits all currently supported runtime-facing agent fields from the selected agent file. Today that means:
 
-- prompt body → appended to the default system prompt inside `<system_reminder type="selected-agent-prompt">...</system_reminder>`
+- prompt body → appended to the default system prompt inside `<system-reminder type="selected-agent-prompt">...</system-reminder>`
 - `model` → applied to the top-level session model
 - `model` thinking suffix (for example `:low`) → applied to Pi thinking level
 - `tools` → applied as the exact active tool set across built-in and extension tools
@@ -108,6 +108,6 @@ Extension tools such as `subagent` and `questionnaire` are configured through th
 Some legacy Claude-style names are normalized, but prefer the Pi names directly in frontmatter.
 If `tools` is omitted or blank, the agent inherits an empty tool set unless the CLI overrides it with `--tools` or `--no-tools`.
 The optional `meta` field is for maintainers only and is not surfaced to the parent agent via discovery or prompt injection.
-The optional `hidden: true` field hides the agent from the parent agent's `<available_subagents>` inventory, but the agent still exists in discovery output, `debug-agents`, `pi --agent <name>`, and `subagent` task execution when you reference it explicitly by name.
+The optional `hidden: true` field hides the agent from the parent agent's `<available-subagents>` inventory, but the agent still exists in discovery output, `debug-agents`, `pi --agent <name>`, and `subagent` task execution when you reference it explicitly by name.
 
 The markdown body below the frontmatter becomes the agent's system prompt.

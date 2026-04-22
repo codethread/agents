@@ -2,7 +2,7 @@
 
 > Append a bounded repository tree snapshot to the system prompt.
 
-At session start, this extension finds the current repo root, counts visible files with `fd -t f`, and when needed counts folders with `fd -t d`, then picks the widest `tree` view that stays within a 200-line budget. The final snapshot is wrapped in `<system_reminder type="project-structure">...</system_reminder>` so it stays isolated from neighboring prompt sections:
+At session start, this extension finds the current repo root, counts visible files with `fd -t f`, and when needed counts folders with `fd -t d`, then picks the widest `tree` view that stays within a 200-line budget. The final snapshot is wrapped in `<system-reminder type="project-structure">...</system-reminder>` so it stays isolated from neighboring prompt sections:
 
 - fewer than 200 files: full `tree`
 - otherwise try `tree -L 3`

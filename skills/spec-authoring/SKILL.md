@@ -56,11 +56,11 @@ Choose the lightest spec shape that still captures the boundary clearly. **Defau
 
 Size by module LOC (source lines, excluding tests):
 
-| Module LOC   | Default shape                  | Contents                                                                                                                         |
-| ------------ | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| < 2000       | Minimal                        | Overview (Purpose + Non-Goals) and Design Decisions only. No architecture/data-model/interface prose — the source is short enough to read. |
-| 2000–5000    | Medium                         | Add Architecture summary + Code Locations. Still no type transcriptions or interface prose that tests already encode.            |
-| > 5000       | Heavyweight                    | All sections as needed. Even then, prefer pointers over restatement.                                                             |
+| Module LOC | Default shape | Contents                                                                                                                                   |
+| ---------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| < 2000     | Minimal       | Overview (Purpose + Non-Goals) and Design Decisions only. No architecture/data-model/interface prose — the source is short enough to read. |
+| 2000–5000  | Medium        | Add Architecture summary + Code Locations. Still no type transcriptions or interface prose that tests already encode.                      |
+| > 5000     | Heavyweight   | All sections as needed. Even then, prefer pointers over restatement.                                                                       |
 
 Tests count as documentation. If a well-named test file covers a behavior, the spec should not restate it in prose — reference the test file instead.
 

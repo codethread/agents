@@ -104,12 +104,12 @@ describe("owned-system-prompt helpers", () => {
 
 	it("renders the owned prompt addon inside a system_reminder XML wrapper", () => {
 		const prompt = buildOwnedPromptAddon(["read", "bash", "edit", "write"]);
-		expect(prompt).toContain('<system_reminder type="harness">');
+		expect(prompt).toContain('<system-reminder type="harness">');
 		expect(prompt).toContain(
 			"Available tools:\n- read: Read file contents\n- bash: Execute bash commands (ls, grep, find, etc.)\n- edit: Make precise file edits with exact text replacement, including multiple disjoint edits in one call\n- write: Create or overwrite files",
 		);
 		expect(prompt).toContain("Guidelines:\n- Use bash for file operations like ls, rg, find");
-		expect(prompt).toContain("</system_reminder>");
+		expect(prompt).toContain("</system-reminder>");
 	});
 
 	it("skips prompt ownership when pi's default base prompt is still present", () => {
@@ -154,7 +154,7 @@ describe("owned-system-prompt extension", () => {
 
 		expect(result).toEqual({
 			systemPrompt: expect.stringContaining(
-				'You are an expert coding assistant operating inside pi, a coding agent harness.\n\n<system_reminder type="harness">\nYou help users by reading files, executing commands, editing code, and writing new files.',
+				'You are an expert coding assistant operating inside pi, a coding agent harness.\n\n<system-reminder type="harness">\nYou help users by reading files, executing commands, editing code, and writing new files.',
 			),
 		});
 		expect(result).toEqual({
@@ -163,8 +163,34 @@ describe("owned-system-prompt extension", () => {
 			),
 		});
 		expect(result).toEqual({
-			systemPrompt: expect.stringContaining("</system_reminder>"),
+			systemPrompt: expect.stringContaining("</system-reminder>"),
 		});
+	});
+
+	it("prefers event.systemPromptOptions.selectedTools over rediscovering active tools", async () => {
+		const { beforeAgentStartHandler, getActiveTools } = setupExtension({
+			activeTools: ["write"],
+		});
+
+		const result = await beforeAgentStartHandler?.(
+			{
+				systemPrompt:
+					"You are an expert coding assistant operating inside pi, a coding agent harness.",
+				systemPromptOptions: {
+					selectedTools: ["read", "bash"],
+				},
+			},
+			makeContext(),
+		);
+
+		expect(getActiveTools).not.toHaveBeenCalled();
+		expect(result).toEqual({
+			systemPrompt: expect.stringContaining(
+				"Available tools:\n- read: Read file contents\n- bash: Execute bash commands (ls, grep, find, etc.)",
+			),
+		});
+		const prompt = (result as { systemPrompt?: string } | undefined)?.systemPrompt ?? "";
+		expect(prompt).not.toContain("- write: Create or overwrite files");
 	});
 
 	it("does not append duplicate sections when pi's default prompt is still active", async () => {

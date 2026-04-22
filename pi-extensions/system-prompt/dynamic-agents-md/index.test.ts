@@ -1,11 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("./parser.js", () => ({
+	renderNearestTemplate: vi.fn(),
+}));
+
 import dynamicAgentsMdExtension, { getTemplateVars, parseDebugPromptOverrides } from "./index.js";
+import { renderNearestTemplate } from "./parser.js";
 
 const originalPiSubagent = process.env.PI_SUBAGENT;
 
 afterEach(() => {
 	if (originalPiSubagent === undefined) delete process.env.PI_SUBAGENT;
 	else process.env.PI_SUBAGENT = originalPiSubagent;
+	vi.clearAllMocks();
 });
 
 describe("parseDebugPromptOverrides", () => {
@@ -69,6 +76,50 @@ describe("debug prompt startup", () => {
 			"Debug prompt mode: starting a ping turn to materialize the prompt.",
 			"info",
 		);
+	});
+});
+
+describe("before_agent_start", () => {
+	it("prefers event.systemPromptOptions.selectedTools over rediscovering active tools", async () => {
+		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
+		const getActiveTools = vi.fn(() => ["read"]);
+		vi.mocked(renderNearestTemplate).mockResolvedValue({
+			renderedPrompt: '<system-reminder type="rules">Prompt</system-reminder>',
+		} as any);
+
+		dynamicAgentsMdExtension({
+			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
+				handlers.set(eventName, handler);
+			},
+			registerFlag: vi.fn(),
+			registerCommand: vi.fn(),
+			getFlag: vi.fn(() => false),
+			getActiveTools,
+			sendUserMessage: vi.fn(),
+		} as any);
+
+		const result = await handlers.get("before_agent_start")?.(
+			{
+				systemPrompt: "Base prompt",
+				systemPromptOptions: {
+					selectedTools: ["bash", "edit"],
+				},
+			},
+			{
+				cwd: "/repo",
+				hasUI: true,
+				model: { provider: "openai", id: "gpt-5" },
+			},
+		);
+
+		expect(renderNearestTemplate).toHaveBeenCalledWith(
+			"/repo",
+			expect.objectContaining({ tools: ["bash", "edit"] }),
+		);
+		expect(getActiveTools).not.toHaveBeenCalled();
+		expect(result).toEqual({
+			systemPrompt: 'Base prompt\n\n<system-reminder type="rules">Prompt</system-reminder>',
+		});
 	});
 });
 

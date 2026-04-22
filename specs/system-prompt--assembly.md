@@ -1,7 +1,7 @@
 # System Prompt Assembly Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-19
+**Last Updated:** 2026-04-21
 
 ## 1. Overview
 
@@ -11,7 +11,7 @@ Document the full system prompt assembly pipeline across Pi core and all prompt-
 
 ### Goals
 
-- Map the complete assembly pipeline from Pi core through extension hooks and tool metadata weaving.
+- Map the complete assembly pipeline from Pi core's prompt builder and structured `systemPromptOptions` inputs through extension hooks and tool metadata weaving.
 - Document ordering constraints that affect prompt composition.
 - Define the two distinct injection mechanisms used by the system.
 - Establish invariants that new prompt-contributing extensions must preserve.
@@ -33,6 +33,9 @@ Document the full system prompt assembly pipeline across Pi core and all prompt-
 - **Decision:** There are two distinct injection paths: `before_agent_start` hook mutations and `registerTool` metadata.
   - **Rationale:** System-prompt text and tool-description metadata are woven into different parts of the final model-facing context and are not governed by the same runtime path.
 
+- **Decision:** Prompt-mutating extensions should prefer `before_agent_start.event.systemPromptOptions` when they need the prompt builder's structured inputs.
+  - **Rationale:** Pi already resolves selected tools, appended prompt text, context files, skills, and cwd before the hook fires. Reusing that structured payload avoids redundant discovery and reduces drift between extension logic and the actual prompt being built.
+
 - **Decision:** User-input transforms such as `pi-discovery` are related but out of scope for system prompt assembly.
   - **Rationale:** They influence the conversation context, but they do not contribute to the system prompt itself.
 
@@ -47,29 +50,31 @@ Pi core establishes the base prompt before any extension hook runs:
 - reads `~/.pi/agent/SYSTEM.md` or the `--system-prompt` flag as the base prompt source
 - appends context files, skills, current date, and current working directory
 - applies `--append-system-prompt` when present
+- exposes the structured prompt-builder inputs to extensions as `event.systemPromptOptions` (`customPrompt`, `selectedTools`, `toolSnippets`, `promptGuidelines`, `appendSystemPrompt`, `cwd`, `contextFiles`, `skills`)
 
-The result is the initial `event.systemPrompt` observed by extensions.
+The result is the initial `event.systemPrompt` observed by extensions plus the structured input bundle they can inspect without re-discovering resources.
 
 ### 3.2 Phase 1: Scaffold Ownership (`owned-system-prompt`)
 
 The `owned-system-prompt` extension detects whether Pi's default scaffold is still present by checking a sentinel string.
 
-- When the user has provided `SYSTEM.md` and the default scaffold is no longer present, the extension appends a package-owned tool list and guidelines block wrapped in `<system_reminder type="harness">`.
+- When the user has provided `SYSTEM.md` and the default scaffold is no longer present, the extension appends a package-owned tool list and guidelines block wrapped in `<system-reminder type="harness">`.
+- The tool list should be derived from `event.systemPromptOptions.selectedTools` when available so the owned scaffold matches the exact prompt-builder selection.
 - This extension MUST run first, because later `before_agent_start` hooks chain from its output.
 
 Child spec: [`specs/system-prompt--ownership.md`](./system-prompt--ownership.md)
 
 ### 3.3 Phase 2: Template Injection (`dynamic-agents-md`)
 
-The `dynamic-agents-md` extension discovers a global `agent.njk` template and the nearest project `.pi/agent.njk`, then renders them with runtime variables such as model, provider, cwd, tools, agent role, and environment values.
+The `dynamic-agents-md` extension discovers a global `agent.njk` template and the nearest project `.pi/agent.njk`, then renders them with runtime variables such as model, provider, cwd, tools, agent role, and environment values. When available, the tool list should come from `event.systemPromptOptions.selectedTools` so template logic sees the same selected tools Pi is about to describe in the prompt.
 
-Each rendered section is appended to `event.systemPrompt` inside its own `<system_reminder type="...">` wrapper: global rules use `type="rules"`, project rules use `type="project-rules"`.
+Each rendered section is appended to `event.systemPrompt` inside its own `<system-reminder type="...">` wrapper: global rules use `type="rules"`, project rules use `type="project-rules"`.
 
 Child spec: [`specs/system-prompt--dynamic-template-injection.md`](./system-prompt--dynamic-template-injection.md)
 
 ### 3.4 Phase 3: Structural Context (`project-structure-prompt`)
 
-The `project-structure-prompt` extension generates a bounded repository tree snapshot and appends it to `event.systemPrompt` inside `<system_reminder type="project-structure">`.
+The `project-structure-prompt` extension generates a bounded repository tree snapshot and appends it to `event.systemPrompt` inside `<system-reminder type="project-structure">`.
 
 This extension is intentionally self-contained and does not have a dedicated spec.
 
@@ -77,8 +82,8 @@ This extension is intentionally self-contained and does not have a dedicated spe
 
 The `subagent` extension discovers bundled, user, and project agents, then appends:
 
-- the agent inventory listing inside `<system_reminder type="available-subagents">`, preserving an inner `<available_subagents>` list and omitting agents marked `hidden: true`
-- the selected-agent prompt body inside `<system_reminder type="selected-agent-prompt">` when direct `--agent` mode is active, including when the selected agent is hidden from inventory
+- the agent inventory listing inside `<system-reminder type="available-subagents">`, preserving an inner `<available-subagents>` list and omitting agents marked `hidden: true`
+- the selected-agent prompt body inside `<system-reminder type="selected-agent-prompt">` when direct `--agent` mode is active, including when the selected agent is hidden from inventory
 
 Child specs:
 
@@ -117,10 +122,10 @@ Child spec: [`specs/pi--extension-discovery.md`](./pi--extension-discovery.md)
 ## 5. Invariants for New Extensions
 
 - Always append to `event.systemPrompt`; never replace it.
+- Prefer `event.systemPromptOptions` over ad hoc rediscovery when you need the prompt builder's structured inputs.
 - Wrap each injected prompt contribution in its own root XML tag so adjacent prose cannot bleed across section boundaries.
 - Return early or no-op when your contribution is empty.
 - Use `--debug-*` flags to surface your prompt contribution for verification.
-- Be aware of prompt-cache implications; see `specs/notes--discovery.md` for the related notes.
 
 ## 6. Debug Surfaces
 

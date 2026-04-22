@@ -68,7 +68,7 @@ Subagent orchestration lives in `pi-extensions/subagent/` and sits directly on t
 `export default function (pi: ExtensionAPI)` registers four entry points:
 
 1. `--agent <name>` CLI flag — validates one requested discovered agent name at session start and applies inherited runtime settings from that agent file unless explicit CLI flags override those fields.
-2. `before_agent_start` hook — discovers agents, appends a `<system_reminder type="available-subagents">` block containing an inner XML `<available_subagents>` list of visible agent names/descriptions to the parent system prompt, and when `--agent` is set appends the selected agent prompt body inside `<system_reminder type="selected-agent-prompt">` too.
+2. `before_agent_start` hook — discovers agents, appends a `<system-reminder type="available-subagents">` block containing an inner XML `<available-subagents>` list of visible agent names/descriptions to the parent system prompt, and when `--agent` is set appends the selected agent prompt body inside `<system-reminder type="selected-agent-prompt">` too.
 3. `debug-agents` command — reports the effective merged agent list plus separate user/project source sections.
 4. `subagent` tool — validates parameters, resolves agents through discovery, executes a `tasks[]` workload (1..N items), and renders results in the Pi TUI.
 
@@ -309,9 +309,9 @@ If a requested agent name is missing, or if a still-inherited agent model cannot
 
 For each turn, `before_agent_start` then:
 
-- appends the normal `<system_reminder type="available-subagents">` wrapper containing the `<available_subagents>` XML catalog for agents not marked `hidden: true`
+- appends the normal `<system-reminder type="available-subagents">` wrapper containing the `<available-subagents>` XML catalog for agents not marked `hidden: true`
 - resolves the current selected agent by name from a fresh discovery snapshot
-- appends that agent's markdown body inside `<system_reminder type="selected-agent-prompt">` to the parent system prompt
+- appends that agent's markdown body inside `<system-reminder type="selected-agent-prompt">` to the parent system prompt
 
 This direct mode reuses discovery semantics from delegated runs and is intended to inherit the selected agent's full runtime behavior surface over time, not just today's prompt/model/tools fields.
 
@@ -374,19 +374,6 @@ Failure model:
 - on completion, update `manifest.json` with usage/cost/timing metadata for persisted subagent runs
 - if an abort signal fires, send `SIGTERM` immediately and schedule a later `SIGKILL` attempt
 - clean up temporary prompt files/directories in a `finally` block regardless of outcome
-
-## 6. Testing
-
-There are currently no automated tests in this repo for `pi-extensions/subagent/`.
-
-Current verification is a mix of helper-level automation plus manual runtime checks:
-
-- `pi-extensions/subagent/agents.test.ts` covers direct-agent helper behavior such as selected-agent lookup, runtime-setting extraction, exact tool allowlists, CLI override filtering, and hidden-agent prompt-inventory filtering.
-- `pi-extensions/subagent/runtime.test.ts` covers child-process argument construction for delegated `--agent` runs.
-- `debug-agents` exposes the discovery/runtime boundary for inspection.
-- The `subagent` tool exercises subprocess spawning, streaming, confirmation, and rendering in real Pi runs.
-- `pi --agent <name> --debug-prompt` exercises direct-agent prompt inheritance in a top-level session.
-- Repo-wide `npm run lint`, `npm run typecheck`, and `npm run test` validate static correctness and package-level tests, but do not assert full orchestration behavior directly.
 
 ## 7. Open Questions
 

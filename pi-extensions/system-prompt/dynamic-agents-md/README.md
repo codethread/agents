@@ -2,14 +2,14 @@
 
 > Render a Nunjucks template into the system prompt.
 
-Searches upward from `cwd` for a template file and appends the rendered result to the system prompt. Each rendered section is wrapped in its own `<system_reminder type="...">` block so prompt prose stays visually and semantically separated from neighboring injections.
+Searches upward from `cwd` for a template file and appends the rendered result to the system prompt. Each rendered section is wrapped in its own `<system-reminder type="...">` block so prompt prose stays visually and semantically separated from neighboring injections.
 
 **Template locations (checked in order):**
 
 1. `.pi/agent.njk` — project-scoped (nearest ancestor)
 2. `~/.pi/agent/agent.njk` — global (user-scoped fallback)
 
-If both exist, both are rendered as separate XML blocks: global inside `<system_reminder type="rules">...</system_reminder>`, project inside `<system_reminder type="project-rules">...</system_reminder>`.
+If both exist, both are rendered as separate XML blocks: global inside `<system-reminder type="rules">...</system-reminder>`, project inside `<system-reminder type="project-rules">...</system-reminder>`.
 
 **Template variables:**
 

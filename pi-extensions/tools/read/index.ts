@@ -1,4 +1,4 @@
-import { createReadToolDefinition, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { createReadTool, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Container, Text } from "@mariozechner/pi-tui";
 
 /**
@@ -11,7 +11,7 @@ function mapReadError(message: string): string {
 }
 
 export default function (pi: ExtensionAPI) {
-	const builtinRead = createReadToolDefinition(process.cwd());
+	const builtinRead = createReadTool(process.cwd());
 
 	pi.registerTool({
 		...builtinRead,

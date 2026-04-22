@@ -54,7 +54,7 @@ function makeDiscovery() {
 function createDeps(): PiDiscoveryContextNoteDeps {
 	return {
 		discoverPiExtensions: vi.fn(),
-		formatExtensionDiscoveryContextNote: vi.fn().mockReturnValue("<pi_extension_discovery />"),
+		formatExtensionDiscoveryContextNote: vi.fn().mockReturnValue("<pi-extension-discovery />"),
 		formatExtensionDiscoveryReport: vi.fn().mockReturnValue("Extensions: ..."),
 		hasStandalonePiTrigger: (text: string) =>
 			/(^|[^\p{L}\p{N}_])Pi(?=$|[^\p{L}\p{N}_])/u.test(text),
@@ -108,7 +108,7 @@ describe("registerPiDiscoveryExtension", () => {
 
 		expect(result).toEqual({
 			action: "transform",
-			text: "How does Pi handle extensions?\n\n<pi_extension_discovery />",
+			text: "How does Pi handle extensions?\n\n<pi-extension-discovery />",
 		});
 		expect(deps.discoverPiExtensions).toHaveBeenCalledWith("/repo");
 		expect(deps.formatExtensionDiscoveryContextNote).toHaveBeenCalledWith(discovery);
@@ -157,7 +157,7 @@ describe("registerPiDiscoveryExtension", () => {
 		expect(first).toEqual({ action: "continue" });
 		expect(second).toEqual({
 			action: "transform",
-			text: "Explain Pi extensions\n\n<pi_extension_discovery />",
+			text: "Explain Pi extensions\n\n<pi-extension-discovery />",
 		});
 		expect(ctx.ui.notify).toHaveBeenCalledWith("[pi-discovery] boom", "warning");
 		expect(deps.discoverPiExtensions).toHaveBeenCalledTimes(2);

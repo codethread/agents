@@ -25,13 +25,13 @@ A structured-input tool for Pi sessions that need user clarification before proc
 - **Decision:** `Other` is always included as the final choice and is no longer configurable per question.
   - **Rationale:** Clarification workflows often need an escape hatch; dropping per-question config simplifies the contract.
 
-- **Decision:** Separate verbose option rendering (rich markdown descriptions) from compact answer parsing (checkbox list inside `<user_response>`).
+- **Decision:** Separate verbose option rendering (rich markdown descriptions) from compact answer parsing (checkbox list inside `<user-response>`).
   - **Rationale:** Agents can write rich option descriptions without making the parser fragile.
 
 - **Decision:** Emit a companion `session-tldr.md` transcript alongside the questionnaire.
   - **Rationale:** Users can navigate both files via normal editor workflows; avoids embedding chat history in the questionnaire itself.
 
-- **Decision:** Treat an empty saved buffer as explicit stop (returns `stopped: true` with a `<system_message>` telling the agent not to acknowledge).
+- **Decision:** Treat an empty saved buffer as explicit stop (returns `stopped: true` with a `<system-message>` telling the agent not to acknowledge).
   - **Rationale:** Clearing a buffer is often easier than finding a dedicated cancel control inside a text editor.
 
 - **Decision:** Failures (no editor, launch error, non-zero exit, signal termination) are represented as cancelled results, not thrown tool errors.
@@ -48,7 +48,7 @@ A structured-input tool for Pi sessions that need user clarification before proc
 Per question the parser requires:
 
 - exactly one question-marker section
-- exactly one `<user_response>` block inside `### Answer:`
+- exactly one `<user-response>` block inside `### Answer:`
 - exactly one checked box
 - checked index within the rendered option range
 - if `Other` is checked, non-empty custom text after trimming (leading `Other:` prefix is stripped)
@@ -58,10 +58,6 @@ Per question the parser requires:
 - Should cancelled rendering surface the underlying reason instead of only `Cancelled`?
 - Should validation errors eventually appear inline beside each question as well as in the top banner?
 - Should the tool preserve the temp file for debugging after repeated failures?
-
-## 5. Testing
-
-Automated tests in `pi-extensions/questionnaire/parser.test.ts` and `pi-extensions/ui/tldr/summary.test.ts`. Manual verification covers editor lifecycle, stop handling, validation retries, and companion transcript rendering.
 
 ## 6. Code Locations
 

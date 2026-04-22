@@ -4,11 +4,11 @@
 def model-completions [] {
 	[
 		"anthropic/claude-haiku-4-5"
-		"anthropic/claude-opus-4-7" # use once github copilot stops support
+		"anthropic/claude-opus-4-7"
 		"anthropic/claude-sonnet-4-6"
 
 		"github-copilot/claude-haiku-4.5"
-		"github-copilot/claude-opus-4.6"
+		# "github-copilot/claude-opus-4.7" # need to pay the pro+ bucks
 		"github-copilot/claude-sonnet-4.6"
 		# "github-copilot/gemini-3-flash-preview"
 		"github-copilot/gemini-3.1-pro-preview"
@@ -17,7 +17,6 @@ def model-completions [] {
 		"openai/gpt-5.4-nano"
 
 		# "openai-codex/gpt-5.3-codex-spark" not yet available outside max sub
-		"openai-codex/gpt-5.3-codex"
 		"openai-codex/gpt-5.4"
 		"openai-codex/gpt-5.4-mini"
 	]

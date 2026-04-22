@@ -35,7 +35,7 @@ function formatExtensionDiscovery(discovery: PiExtensionDiscovery, options: Rend
 	const extensionIndent = options.pretty ? "    " : "";
 	const separator = options.pretty ? "\n" : "";
 	const parts = [
-		formatXmlElement("pi_extension_discovery", { note: options.note }, { selfClosing: false }),
+		formatXmlElement("pi-extension-discovery", { note: options.note }, { selfClosing: false }),
 		formatXmlElement(
 			"paths",
 			{
@@ -48,11 +48,11 @@ function formatExtensionDiscovery(discovery: PiExtensionDiscovery, options: Rend
 			},
 			{ indent },
 		),
-		formatXmlTextElement("pi_source", buildPiSourceText(discovery.piSource), {
+		formatXmlTextElement("pi-source", buildPiSourceText(discovery.piSource), {
 			indent,
 			multiline: true,
 		}),
-		`${indent}<available_extensions>`,
+		`${indent}<available-extensions>`,
 	];
 
 	if (discovery.extensions.length === 0) {
@@ -76,8 +76,8 @@ function formatExtensionDiscovery(discovery: PiExtensionDiscovery, options: Rend
 		}
 	}
 
-	parts.push(`${indent}</available_extensions>`);
-	parts.push("</pi_extension_discovery>");
+	parts.push(`${indent}</available-extensions>`);
+	parts.push("</pi-extension-discovery>");
 	return parts.join(separator);
 }
 

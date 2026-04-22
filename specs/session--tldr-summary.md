@@ -54,11 +54,7 @@ When the chosen model supports reasoning and the preferred thinking level isn't 
 - Should `/tldr` eventually support summarizing another branch or a bounded recent-turns window?
 - Should the transcript builder preserve structured signals (e.g. explicit failure states) that appear outside assistant text?
 
-## 5. Testing
-
-Automated tests in `pi-extensions/ui/tldr/summary.test.ts` cover transcript extraction, malformed-content debug notes, stop/error metadata extraction, unexpected-block detection, and preferred-model selection. Interactive command/UI behavior is verified manually.
-
-## 6. Code Locations
+## 5. Code Locations
 
 - `pi-extensions/ui/tldr/` — extension entry, command, debug flags, UI rendering
 - `pi-extensions/ui/tldr/summary.ts` — transcript extraction, model selection, response parsing

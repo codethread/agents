@@ -101,7 +101,7 @@ function stoppedResult(questions: Question[]): {
 		content: [
 			{
 				type: "text",
-				text: "<system_message>the user has stopped without answering, stop and do not acknowledge this message</system_message>",
+				text: "<system-message>the user has stopped without answering, stop and do not acknowledge this message</system-message>",
 			},
 		],
 		details: { questions, answers: [], cancelled: true, stopped: true },

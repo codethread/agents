@@ -134,7 +134,7 @@ Model alias resolution is intentionally opportunistic:
 The subagent runtime uses discovery results in four places:
 
 - `before_agent_start` discovers agents once and injects a terse XML list of visible subagent names and descriptions into the parent agent system prompt.
-- when `--agent <name>` is set, the same discovery result resolves the selected agent by name, derives inherited runtime settings from that `AgentConfig`, applies model/thinking/tools unless explicit CLI flags override those fields, and appends the agent's `systemPrompt` wrapped in `<system_reminder type="selected-agent-prompt">` to the parent system prompt.
+- when `--agent <name>` is set, the same discovery result resolves the selected agent by name, derives inherited runtime settings from that `AgentConfig`, applies model/thinking/tools unless explicit CLI flags override those fields, and appends the agent's `systemPrompt` wrapped in `<system-reminder type="selected-agent-prompt">` to the parent system prompt.
 - `debug-agents` renders the effective agent list plus source-specific user/project sections.
 - `subagent` execution always uses the effective merged list, while still consulting `source === "project"` for confirmation behavior.
 
@@ -237,9 +237,9 @@ Formats a short human-readable list such as `name (source): description` and rep
 
 Formats discovered subagents for system-prompt injection as:
 
-- an outer `<system_reminder type="available-subagents">` wrapper
+- an outer `<system-reminder type="available-subagents">` wrapper
 - a terse lead-in line: `These are the available subagents with their intended use.`
-- an inner XML list under `<available_subagents>`
+- an inner XML list under `<available-subagents>`
 - one `<subagent>` entry per visible agent containing `<name>` and `<description>` only
 - agents with `hidden: true` are omitted from this prompt-formatting output entirely
 
@@ -282,7 +282,7 @@ If a field remains inherited here, the direct-agent runtime is expected to apply
 Formats one selected discovered agent for direct top-level prompt injection:
 
 - returns `""` when no agent is selected or its `systemPrompt` is blank
-- otherwise returns `"\n\n<system_reminder type=\"selected-agent-prompt\">...` with the original markdown body inside that XML wrapper
+- otherwise returns `"\n\n<system-reminder type=\"selected-agent-prompt\">...` with the original markdown body inside that XML wrapper
 - preserves the original markdown body content so top-level `--agent` uses the same prompt text source as child subagent execution while keeping a hard section boundary
 
 ### Accepted agent frontmatter
@@ -314,26 +314,6 @@ The subagent runtime consumes discovery results as follows:
 - explicit CLI flags override inherited fields on a per-field basis instead of disabling all inheritance
 
 If the requested agent name is missing, runtime returns an error containing the list of available agent names.
-
-## 6. Testing
-
-`pi-extensions/subagent/agents.test.ts` provides automated coverage for key discovery behavior, including:
-
-- XML prompt formatting for discovered agents
-- selected-agent prompt formatting and name lookup helpers used by top-level `--agent`
-- runtime-setting extraction and CLI override filtering helpers used by top-level `--agent`
-- package/user/project override precedence
-- tool normalization and model alias resolution in discovered configs
-- author-only `meta` frontmatter being ignored by runtime-facing discovery output
-- hidden-agent discovery behavior: still discoverable by name, omitted from parent prompt inventory
-- isolation from bundled repo agents when temp dirs are supplied explicitly
-
-Additional verification remains code-level and runtime-level:
-
-- `debug-agents` exposes the effective merged list plus source-specific user/project sections for manual inspection.
-- The `subagent` tool exercises the discovered configuration by spawning child `pi` processes with the resolved model, tool set, and prompt.
-- `pi --agent <name>` exercises the same discovery layer for direct top-level inheritance of prompt/model/thinking/tools.
-- Repo-wide checks (`npm run lint`, `npm run typecheck`, `npm run test`) provide static validation and package-level tests.
 
 ## 7. Open Questions
 

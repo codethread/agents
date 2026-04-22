@@ -14,11 +14,11 @@ Small index for the extensions shipped in this package. See each extension folde
 
 ## UI
 
-| Extension                                                         | Summary                                                 |
-| ----------------------------------------------------------------- | ------------------------------------------------------- |
-| [`read`](./tools/read/README.md)                                 | Compact file read display — transparent to the user.    |
-| [`bash`](./tools/bash/README.md)                                 | Compact shell output display — transparent to the user. |
-| [`statusline`](./ui/statusline/README.md)                       | Persistent status bar — transparent to the user.        |
+| Extension                                 | Summary                                                 |
+| ----------------------------------------- | ------------------------------------------------------- |
+| [`read`](./tools/read/README.md)          | Compact file read display — transparent to the user.    |
+| [`bash`](./tools/bash/README.md)          | Compact shell output display — transparent to the user. |
+| [`statusline`](./ui/statusline/README.md) | Persistent status bar — transparent to the user.        |
 
 ## System prompt
 
@@ -31,10 +31,10 @@ Small index for the extensions shipped in this package. See each extension folde
 
 ## Messages
 
-| Extension                                                     | Summary                                                        |
-| ------------------------------------------------------------- | -------------------------------------------------------------- |
-| [`tldr`](./ui/tldr/README.md)                                 | Generate a catch-up summary of the current session.            |
-| [`tmux-window-title`](./ui/tmux-window-title/README.md)       | Set the current tmux window title from the first user message. |
+| Extension                                               | Summary                                                        |
+| ------------------------------------------------------- | -------------------------------------------------------------- |
+| [`tldr`](./ui/tldr/README.md)                           | Generate a catch-up summary of the current session.            |
+| [`tmux-window-title`](./ui/tmux-window-title/README.md) | Set the current tmux window title from the first user message. |
 
 ## Internal shared code
 

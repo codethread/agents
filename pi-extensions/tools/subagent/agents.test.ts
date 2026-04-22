@@ -96,16 +96,16 @@ describe("formatAgentsForPrompt", () => {
 			[
 				"",
 				"",
-				'<system_reminder type="available-subagents">',
+				'<system-reminder type="available-subagents">',
 				"These are the available subagents with their intended use.",
 				"",
-				"<available_subagents>",
+				"<available-subagents>",
 				"  <subagent>",
 				"    <name>alpha</name>",
 				"    <description>General-purpose helper</description>",
 				"  </subagent>",
-				"</available_subagents>",
-				"</system_reminder>",
+				"</available-subagents>",
+				"</system-reminder>",
 			].join("\n"),
 		);
 	});
@@ -275,7 +275,7 @@ describe("formatSelectedAgentPrompt", () => {
 		};
 
 		expect(formatSelectedAgentPrompt(agent)).toBe(
-			'\n\n<system_reminder type="selected-agent-prompt">\nYou are scout.\nStay concise.\n</system_reminder>',
+			'\n\n<system-reminder type="selected-agent-prompt">\nYou are scout.\nStay concise.\n</system-reminder>',
 		);
 	});
 

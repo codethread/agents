@@ -53,6 +53,8 @@ See `pi-extensions/system-prompt/owned-system-prompt/README.md` for details.
 
 ## Development
 
+The Vitest suite includes both unit/snapshot tests and Pi runtime integration tests backed by `@marcfargas/pi-test-harness`.
+
 ```bash
 pnpm install
 pnpm format

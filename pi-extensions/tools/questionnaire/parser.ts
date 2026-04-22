@@ -104,14 +104,14 @@ export function renderQuestionnaireMarkdown(
 		lines.push("");
 		lines.push("### Answer:");
 		lines.push("");
-		lines.push("<user_response>");
+		lines.push("<user-response>");
 		for (const [optionIndex, option] of question.options.entries()) {
 			lines.push(`- [ ] ${optionIndex + 1}. ${option.label}`);
 		}
 
 		const otherIndex = question.options.length + 1;
 		lines.push(`- [ ] ${otherIndex}. Other:`);
-		lines.push("</user_response>");
+		lines.push("</user-response>");
 	}
 
 	lines.push("");
@@ -255,12 +255,12 @@ export function extractQuestionSection(
 export function extractResponseBlock(
 	section: string,
 ): { responseBlock: string } | { error: string } {
-	const matches = Array.from(section.matchAll(/<user_response>([\s\S]*?)<\/user_response>/g));
+	const matches = Array.from(section.matchAll(/<user-response>([\s\S]*?)<\/user-response>/g));
 	if (matches.length === 0) {
-		return { error: "missing <user_response> block" };
+		return { error: "missing <user-response> block" };
 	}
 	if (matches.length > 1) {
-		return { error: "multiple <user_response> blocks found" };
+		return { error: "multiple <user-response> blocks found" };
 	}
 	return { responseBlock: matches[0][1] };
 }

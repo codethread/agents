@@ -11,7 +11,7 @@ On the first raw user message in an extension runtime that contains standalone, 
 
 - a short `note` attribute telling Pi to inspect these paths directly when relevant
 - global/project Pi config paths relevant to extension discovery
-- a `<pi_source>...</pi_source>` text block containing the Pi docs/examples guidance text and resolved paths; this remains multiline even in the injected agent-visible note so the prose keeps its structure
+- a `<pi-source>...</pi-source>` text block containing the Pi docs/examples guidance text and resolved paths; this remains multiline even in the injected agent-visible note so the prose keeps its structure
 - notably omits redundant runtime-package/store paths from the displayed XML to keep tokenization cleaner
 - enabled extension entrypoint files
 - extension provenance metadata (`scope`, `source`, `origin`, `baseDir`)

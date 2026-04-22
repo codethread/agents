@@ -1,13 +1,13 @@
 # System Prompt Ownership
 
 **Status:** Implemented  
-**Last Updated:** 2026-04-18
+**Last Updated:** 2026-04-21
 
 ## 1. Overview
 
 ### Purpose
 
-Own Pi's base prompt scaffold — the tool list and guideline sections — while preserving normal `before_agent_start` chaining so that later extensions like `dynamic-agents-md` and `subagent` can continue appending to the owned prompt without modification. The owned scaffold itself is wrapped in one `<system_reminder type="harness">` block so later injected prose stays clearly separated.
+Own Pi's base prompt scaffold — the tool list and guideline sections — while preserving normal `before_agent_start` chaining so that later extensions like `dynamic-agents-md` and `subagent` can continue appending to the owned prompt without modification. The owned scaffold itself is wrapped in one `<system-reminder type="harness">` block so later injected prose stays clearly separated. The tool inventory should come from Pi's structured selected-tool set (`event.systemPromptOptions.selectedTools`) when available.
 
 ### Goals
 
@@ -36,6 +36,9 @@ Own Pi's base prompt scaffold — the tool list and guideline sections — while
 - **Decision:** Synthesize the bash guideline conditionally based on whether `grep`, `find`, or `ls` are also active.
   - **Rationale:** When those tools are absent, `bash` is the only file exploration option and the guideline should say so. When they are present, users should prefer the purpose-built tools.
 
+- **Decision:** Prefer `event.systemPromptOptions.selectedTools` over rediscovering active tools when building the owned scaffold.
+  - **Rationale:** Pi's prompt builder already knows which tools are selected for the prompt. Reusing that structured input keeps the owned tool list and guidelines aligned with the actual prompt being assembled.
+
 - **Decision:** This extension must be listed first in `package.json#pi.extensions`.
   - **Rationale:** `before_agent_start` callbacks run in extension load order. A later replacement clobbers earlier mutations, so the ownership extension must run before other prompt-mutating extensions to produce a clean prompt shape.
 
@@ -50,7 +53,7 @@ Users must create `~/.pi/agent/SYSTEM.md` containing:
 You are an expert coding assistant operating inside pi, a coding agent harness.
 ```
 
-Pi core treats this as the custom base prompt and still appends context files, skills, current date, and cwd. The extension then appends the owned tool/guideline sections via `before_agent_start`, wrapped in `<system_reminder type="harness">`.
+Pi core treats this as the custom base prompt and still appends context files, skills, current date, and cwd. The extension then appends the owned tool/guideline sections via `before_agent_start`, wrapped in `<system-reminder type="harness">`.
 
 If the file is absent or the default Pi base prompt is still in effect, the extension silently skips appending (see sentinel detection above).
 
@@ -68,9 +71,6 @@ If `PI_PACKAGE_DIR` is unset, resolve the path via `import.meta.resolve("@marioz
 
 - Should the owned prompt include `promptSnippet` / `promptGuidelines` for custom extension tools (e.g. `subagent`) once Pi exposes that metadata publicly? Likely yes — `subagent` is the strongest candidate since its snippet is semantically important.
 
-## 6. Testing
-
-Automated tests in `pi-extensions/owned-system-prompt/index.test.ts` cover sentinel detection, prompt assembly, debug-flag flow, and the no-op path.
 
 ## 7. Code Locations
 

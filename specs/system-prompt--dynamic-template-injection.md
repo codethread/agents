@@ -7,7 +7,7 @@
 
 ### Purpose
 
-The `dynamic-agents-md` extension appends dynamically rendered prompt text to Pi's system prompt at run start. Supports a global template, a nearest project template, lightweight Nunjucks rendering, and two prompt-debug surfaces.
+The `dynamic-agents-md` extension appends dynamically rendered prompt text to Pi's system prompt at run start. Supports a global template, a nearest project template, lightweight Nunjucks rendering, Pi-provided structured prompt inputs (notably `systemPromptOptions.selectedTools`), and two prompt-debug surfaces.
 
 ### Non-Goals
 
@@ -25,7 +25,7 @@ The `dynamic-agents-md` extension appends dynamically rendered prompt text to Pi
 - **Decision:** Inject into the system prompt, not as a user message.
   - **Rationale:** These rules behave like top-level operating instructions for the agent run.
 
-- **Decision:** Wrap each rendered section in its own `<system_reminder type="rules">` / `<system_reminder type="project-rules">` tag.
+- **Decision:** Wrap each rendered section in its own `<system-reminder type="rules">` / `<system-reminder type="project-rules">` tag.
   - **Rationale:** Explicit section boundaries prevent surrounding prompt prose from bleeding across adjacent injections.
 
 - **Decision:** Strip blank lines aggressively after rendering.
@@ -40,38 +40,46 @@ The `dynamic-agents-md` extension appends dynamically rendered prompt text to Pi
 - **Decision:** `--debug-prompt` triggers a one-shot synthetic `ping` user message and exits after printing the prompt.
   - **Rationale:** The effective prompt only materializes when a turn starts; a forced ping is the cleanest way to capture it non-interactively.
 
+- **Decision:** `before_agent_start` should prefer `event.systemPromptOptions.selectedTools` over rediscovering active tools when populating template vars.
+  - **Rationale:** Pi's prompt builder already resolved the selected tool set. Reusing it keeps template rendering aligned with the actual prompt and avoids duplicate discovery logic.
+
 - **Decision:** `--debug-prompt` accepts a JSON object string whose keys override machine-derived template vars for that debug turn only.
   - **Rationale:** Lets operators inspect how the prompt renders under alternative model/provider/tool contexts without running the full pipeline.
 
 - **Decision:** Non-object-shaped values after `--debug-prompt` are ignored rather than rejected.
   - **Rationale:** Preserves legacy bare-flag invocations like `pi --debug-prompt ping`.
 
-## 3. Prompt Injection Contract
+## 3. Template Variables
+
+The rendered template vars are assembled from runtime state plus Pi's prompt-builder inputs:
+
+- `provider`, `model`, `cwd`, `hasUI`
+- `isMainAgent` / `isSubagent`
+- environment variables
+- `tools`, preferring `event.systemPromptOptions.selectedTools` and falling back to runtime tool discovery only for compatibility
+- optional `--debug-prompt '{...}'` JSON overrides, applied for that debug turn only
+
+## 4. Prompt Injection Contract
 
 When both templates render non-empty output, the injected fragment is:
 
 ```xml
-<system_reminder type="rules">
+<system-reminder type="rules">
 <global rendered text>
-</system_reminder>
+</system-reminder>
 
-<system_reminder type="project-rules">
+<system-reminder type="project-rules">
 <project rendered text>
-</system_reminder>
+</system-reminder>
 ```
 
 When only one template renders non-empty output, that single section is still wrapped in its scope-specific tag. When both are empty, nothing is injected.
 
-## 4. Open Questions
+## 5. Open Questions
 
 - Should `/debug-prompt` clean up its temp file after the editor exits?
-- Should injection remain system-prompt-based long-term given prompt-cache tradeoffs noted in `specs/notes--discovery.md`?
 
-## 5. Testing
-
-Automated tests in `pi-extensions/dynamic-agents-md/parser.test.ts` and `index.test.ts` cover discovery, filter behavior, subagent-vs-main var derivation, blank-line stripping, merge ordering, debug-flag override parsing, and override precedence.
-
-## 6. Code Locations
+## 7. Code Locations
 
 - `pi-extensions/dynamic-agents-md/` — extension entry, lifecycle hooks, debug flag + command
 - `pi-extensions/dynamic-agents-md/parser.ts` — template discovery, rendering, Nunjucks helpers

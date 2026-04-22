@@ -65,5 +65,5 @@ export function wrapXmlTag(
 }
 
 export function wrapSystemReminder(type: string, content: string): string {
-	return wrapXmlTag("system_reminder", content, { type });
+	return wrapXmlTag("system-reminder", content, { type });
 }

@@ -102,6 +102,12 @@ function trimOuterEmptyLines(text: string): string {
 	return text.trim();
 }
 
+function getSelectedToolsFromEvent(event: unknown, getFallbackTools: () => string[]): string[] {
+	const selectedTools = (event as { systemPromptOptions?: { selectedTools?: string[] } })
+		.systemPromptOptions?.selectedTools;
+	return Array.isArray(selectedTools) ? selectedTools : getFallbackTools();
+}
+
 function openExternalEditor(
 	editorCommand: string,
 	filePath: string,
@@ -197,12 +203,13 @@ export default function dynamicAgentsMdExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
+		const selectedTools = getSelectedToolsFromEvent(event, () => pi.getActiveTools());
 		const rendered = await renderNearestTemplate(
 			ctx.cwd,
 			getTemplateVars(
 				{
 					...ctx,
-					tools: pi.getActiveTools(),
+					tools: selectedTools,
 				},
 				printPromptOnNextTurn ? debugPromptOverrides : null,
 			),

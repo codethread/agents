@@ -182,7 +182,7 @@ describe("formatters", () => {
 		const discovery = makeStaticDiscovery();
 
 		expect(formatExtensionDiscoveryContextNote(discovery)).toMatchInlineSnapshot(`
-			"<pi_extension_discovery note="User mentioned Pi. Inspect these Pi/runtime/extension paths directly if relevant."><paths agentDir="/home/user/.pi/agent" globalSettings="/home/user/.pi/agent/settings.json" globalExtensionsDir="/home/user/.pi/agent/extensions" projectConfigDir="/repo/.pi" projectSettings="/repo/.pi/settings.json" projectExtensionsDir="/repo/.pi/extensions" /><pi_source>
+			"<pi-extension-discovery note="User mentioned Pi. Inspect these Pi/runtime/extension paths directly if relevant."><paths agentDir="/home/user/.pi/agent" globalSettings="/home/user/.pi/agent/settings.json" globalExtensionsDir="/home/user/.pi/agent/extensions" projectConfigDir="/repo/.pi" projectSettings="/repo/.pi/settings.json" projectExtensionsDir="/repo/.pi/extensions" /><pi-source>
 			  Pi documentation (read only when the user asks about pi itself, its SDK, extensions, themes, skills, or TUI):
 			  - Main documentation: /pi-source/README.md
 			  - Additional docs: /pi-source/docs
@@ -190,13 +190,13 @@ describe("formatters", () => {
 			  - When asked about: extensions (docs/extensions.md, examples/extensions/), themes (docs/themes.md), skills (docs/skills.md), prompt templates (docs/prompt-templates.md), TUI components (docs/tui.md), keybindings (docs/keybindings.md), SDK integrations (docs/sdk.md), custom providers (docs/custom-provider.md), adding models (docs/models.md), pi packages (docs/packages.md)
 			  - When working on pi topics, read the docs and examples, and follow .md cross-references before implementing
 			  - Always read pi .md files completely and follow links to related docs (e.g., tui.md for TUI API details)
-			</pi_source><available_extensions><extension name="dynamic-agents-md" path="/pkg/pi-extensions/dynamic-agents-md/index.ts" scope="user" source="npm:@codethread/agents" origin="package" baseDir="/pkg" /></available_extensions></pi_extension_discovery>"
+			</pi-source><available-extensions><extension name="dynamic-agents-md" path="/pkg/pi-extensions/dynamic-agents-md/index.ts" scope="user" source="npm:@codethread/agents" origin="package" baseDir="/pkg" /></available-extensions></pi-extension-discovery>"
 		`);
 
 		expect(formatExtensionDiscoveryReport(discovery)).toMatchInlineSnapshot(`
-			"<pi_extension_discovery note="Debug view. Hidden from agent.">
+			"<pi-extension-discovery note="Debug view. Hidden from agent.">
 			  <paths agentDir="/home/user/.pi/agent" globalSettings="/home/user/.pi/agent/settings.json" globalExtensionsDir="/home/user/.pi/agent/extensions" projectConfigDir="/repo/.pi" projectSettings="/repo/.pi/settings.json" projectExtensionsDir="/repo/.pi/extensions" />
-			  <pi_source>
+			  <pi-source>
 			    Pi documentation (read only when the user asks about pi itself, its SDK, extensions, themes, skills, or TUI):
 			    - Main documentation: /pi-source/README.md
 			    - Additional docs: /pi-source/docs
@@ -204,11 +204,11 @@ describe("formatters", () => {
 			    - When asked about: extensions (docs/extensions.md, examples/extensions/), themes (docs/themes.md), skills (docs/skills.md), prompt templates (docs/prompt-templates.md), TUI components (docs/tui.md), keybindings (docs/keybindings.md), SDK integrations (docs/sdk.md), custom providers (docs/custom-provider.md), adding models (docs/models.md), pi packages (docs/packages.md)
 			    - When working on pi topics, read the docs and examples, and follow .md cross-references before implementing
 			    - Always read pi .md files completely and follow links to related docs (e.g., tui.md for TUI API details)
-			  </pi_source>
-			  <available_extensions>
+			  </pi-source>
+			  <available-extensions>
 			    <extension name="dynamic-agents-md" path="/pkg/pi-extensions/dynamic-agents-md/index.ts" scope="user" source="npm:@codethread/agents" origin="package" baseDir="/pkg" />
-			  </available_extensions>
-			</pi_extension_discovery>"
+			  </available-extensions>
+			</pi-extension-discovery>"
 		`);
 	});
 

@@ -254,7 +254,7 @@ describe("renderNearestTemplate", () => {
 			expect(rendered).toEqual({
 				filePath: path.join(root, ".pi", "agent.njk"),
 				renderedPrompt:
-					'<system_reminder type="project-rules">\nProvider: openai\nModel: gpt-5\n</system_reminder>',
+					'<system-reminder type="project-rules">\nProvider: openai\nModel: gpt-5\n</system-reminder>',
 			});
 		} finally {
 			if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
@@ -280,7 +280,7 @@ describe("renderNearestTemplate", () => {
 			expect(rendered).toEqual({
 				filePath: path.join(root, ".pi", "agent.njk"),
 				renderedPrompt:
-					'<system_reminder type="rules">\nUse GitHub globally.\n</system_reminder>\n\n<system_reminder type="project-rules">\nUse issue labels in this repo.\n</system_reminder>',
+					'<system-reminder type="rules">\nUse GitHub globally.\n</system-reminder>\n\n<system-reminder type="project-rules">\nUse issue labels in this repo.\n</system-reminder>',
 			});
 		} finally {
 			if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;

@@ -32,6 +32,9 @@ importers:
       "@eslint/js":
         specifier: ^9.25.1
         version: 9.39.4
+      "@marcfargas/pi-test-harness":
+        specifier: ^0.5.0
+        version: 0.5.0(@mariozechner/pi-agent-core@0.66.1(ws@8.20.0)(zod@4.3.6))(@mariozechner/pi-ai@0.66.1(ws@8.20.0)(zod@4.3.6))(@mariozechner/pi-coding-agent@0.66.1(ws@8.20.0)(zod@4.3.6))
       "@types/node":
         specifier: ^24.0.0
         version: 24.12.2
@@ -453,6 +456,16 @@ packages:
       {
         integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==,
       }
+
+  "@marcfargas/pi-test-harness@0.5.0":
+    resolution:
+      {
+        integrity: sha512-EoF5BXiGRPNlos90UELMQ4jE/YYSPxbxgT/Bp9ZAIGwXh/HXRZBxUN4qscOLitCXw9GqCzctovdMIpo/VCauog==,
+      }
+    peerDependencies:
+      "@mariozechner/pi-agent-core": "*"
+      "@mariozechner/pi-ai": "*"
+      "@mariozechner/pi-coding-agent": ">=0.50.0"
 
   "@mariozechner/clipboard-darwin-arm64@0.3.2":
     resolution:
@@ -3701,6 +3714,12 @@ snapshots:
   "@humanwhocodes/retry@0.4.3": {}
 
   "@jridgewell/sourcemap-codec@1.5.5": {}
+
+  "@marcfargas/pi-test-harness@0.5.0(@mariozechner/pi-agent-core@0.66.1(ws@8.20.0)(zod@4.3.6))(@mariozechner/pi-ai@0.66.1(ws@8.20.0)(zod@4.3.6))(@mariozechner/pi-coding-agent@0.66.1(ws@8.20.0)(zod@4.3.6))":
+    dependencies:
+      "@mariozechner/pi-agent-core": 0.66.1(ws@8.20.0)(zod@4.3.6)
+      "@mariozechner/pi-ai": 0.66.1(ws@8.20.0)(zod@4.3.6)
+      "@mariozechner/pi-coding-agent": 0.66.1(ws@8.20.0)(zod@4.3.6)
 
   "@mariozechner/clipboard-darwin-arm64@0.3.2":
     optional: true

@@ -36,7 +36,7 @@ The `pi-discovery` extension tells Pi where its runtime/source tree and currentl
 - **Decision:** A failed discovery lookup does not consume the one-shot trigger.
   - **Rationale:** Transient resolution failures shouldn't silently lose the user's signal.
 
-- **Decision:** Injected XML is compact overall but `<pi_source>` prose stays multiline; debug form is fully multiline.
+- **Decision:** Injected XML is compact overall but `<pi-source>` prose stays multiline; debug form is fully multiline.
   - **Rationale:** Compact keeps unrelated turns lean; prose guidance needs structure to stay readable.
 
 - **Decision:** Displayed XML omits `runtimePackageDir` and `runtimePackageEntry`.
@@ -47,22 +47,18 @@ The `pi-discovery` extension tells Pi where its runtime/source tree and currentl
 
 ## 3. Injected Note Shape
 
-The appended `<pi_extension_discovery>` fragment contains:
+The appended `<pi-extension-discovery>` fragment contains:
 
 - a `note` attribute telling Pi to inspect source/docs directly when relevant
 - global/project config paths relevant to extension discovery
-- a `<pi_source>` multiline text block with resolved docs/examples/core-tool paths
-- `<available_extensions>` with one self-closing `<extension ... />` per enabled entrypoint
+- a `<pi-source>` multiline text block with resolved docs/examples/core-tool paths
+- `<available-extensions>` with one self-closing `<extension ... />` per enabled entrypoint
 
 Extension names are derived: `.../foo/index.ts|js` → `foo`; `.../bar.ts|js` → `bar`.
 
 ## 4. Debug Surface
 
 `/debug-extensions` formats the current discovery state as multiline XML, shows it UI-only (hidden from agent), falls back to stdout without UI.
-
-## 5. Testing
-
-Automated tests in `pi-extensions/pi-discovery/context-note.test.ts` and `extension-discovery.test.ts` cover name inference, discovery ordering, package-origin metadata, injected/debug XML snapshots, trigger detection (standalone `Pi` vs `pi`/`pilot`/extension-originated input), single-shot behavior, and retry-on-failure.
 
 ## 6. Code Locations
 

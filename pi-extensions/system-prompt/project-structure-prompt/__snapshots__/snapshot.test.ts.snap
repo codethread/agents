@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`buildProjectStructurePrompt > shows the full tree when the repo has fewer than 200 files 1`] = `
-"<system_reminder type="project-structure">
+"<system-reminder type="project-structure">
 ## Project structure
 Use this as a navigation aid only; inspect files before relying on details.
 Visible file count: 199
@@ -11,11 +11,11 @@ Visible file count: 199
 |-- package.json
 \`-- src
 \`\`\`
-</system_reminder>"
+</system-reminder>"
 `;
 
 exports[`buildProjectStructurePrompt > starts at -L 3 and falls back to -L 2 when needed 1`] = `
-"<system_reminder type="project-structure">
+"<system-reminder type="project-structure">
 ## Project structure
 Use this as a navigation aid only; inspect files before relying on details.
 Full project structure not shown (250 files, 40 folders).
@@ -202,11 +202,11 @@ node-177
 node-178
 node-179
 \`\`\`
-</system_reminder>"
+</system-reminder>"
 `;
 
 exports[`buildProjectStructurePrompt > truncates the -L 1 tree when even that exceeds the line budget 1`] = `
-"<system_reminder type="project-structure">
+"<system-reminder type="project-structure">
 ## Project structure
 Use this as a navigation aid only; inspect files before relying on details.
 Full project structure not shown (500 files, 120 folders).
@@ -414,5 +414,5 @@ node-197
 node-198
 node-199
 \`\`\`
-</system_reminder>"
+</system-reminder>"
 `;

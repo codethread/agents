@@ -44,9 +44,6 @@ A small presentation layer on top of Pi's extension APIs: compact renderers for 
 - Should successful `read` ever show an expanded preview, or is complete suppression the long-term contract?
 - `formatContextDisplay(...)` supports `autoCompactEnabled` but the footer ignores it — should another surface consume it?
 
-## 4. Testing
-
-No automated tests cover this layer. Verification is manual + `npm run lint` + `npm run typecheck` + local Pi runs.
 
 ## 5. Code Locations
 

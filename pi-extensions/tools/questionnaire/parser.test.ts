@@ -55,7 +55,7 @@ describe("questionnaire parser", () => {
 		expect(rendered).toContain("```ts\ntype Example = string;\n```");
 		expect(rendered).toContain("### Answer:");
 		expect(rendered).toContain(
-			"<user_response>\n- [ ] 1. Option A: Structured table per extension\n- [ ] 2. Other:",
+			"<user-response>\n- [ ] 1. Option A: Structured table per extension\n- [ ] 2. Other:",
 		);
 	});
 

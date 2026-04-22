@@ -132,6 +132,12 @@ function stripOuterEmptyLines(text: string): string {
 	return text.trim();
 }
 
+function getSelectedToolsFromEvent(event: unknown, getFallbackTools: () => string[]): string[] {
+	const selectedTools = (event as { systemPromptOptions?: { selectedTools?: string[] } })
+		.systemPromptOptions?.selectedTools;
+	return Array.isArray(selectedTools) ? selectedTools : getFallbackTools();
+}
+
 export default function ownedSystemPromptExtension(pi: ExtensionAPI) {
 	let printPromptOnNextTurn = false;
 	let debugPromptTriggered = false;
@@ -175,8 +181,9 @@ export default function ownedSystemPromptExtension(pi: ExtensionAPI) {
 
 	pi.on("before_agent_start", (event) => {
 		if (!shouldAppendOwnedPrompt(event.systemPrompt)) return;
+		const selectedTools = getSelectedToolsFromEvent(event, () => pi.getActiveTools());
 		return {
-			systemPrompt: `${event.systemPrompt}\n\n${buildOwnedPromptAddon(pi.getActiveTools())}`,
+			systemPrompt: `${event.systemPrompt}\n\n${buildOwnedPromptAddon(selectedTools)}`,
 		};
 	});
 }
