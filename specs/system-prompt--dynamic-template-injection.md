@@ -1,13 +1,13 @@
 # Dynamic Agents Template Injection Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-21
+**Last Updated:** 2026-04-22
 
 ## 1. Overview
 
 ### Purpose
 
-The `dynamic-agents-md` extension appends dynamically rendered prompt text to Pi's system prompt at run start. Supports a global template, a nearest project template, lightweight Nunjucks rendering, Pi-provided structured prompt inputs (notably `systemPromptOptions.selectedTools`), and two prompt-debug surfaces.
+The merged `system-prompt` extension's template phase (implemented in `dynamic-agents-md/`) appends dynamically rendered prompt text to Pi's system prompt at run start. Supports a global template, a nearest project template, lightweight Nunjucks rendering, Pi-provided structured prompt inputs (notably `systemPromptOptions.selectedTools`), and the merged prompt-debug surfaces.
 
 ### Non-Goals
 
@@ -40,6 +40,9 @@ The `dynamic-agents-md` extension appends dynamically rendered prompt text to Pi
 - **Decision:** `--debug-prompt` triggers a one-shot synthetic `ping` user message and exits after printing the prompt.
   - **Rationale:** The effective prompt only materializes when a turn starts; a forced ping is the cleanest way to capture it non-interactively.
 
+- **Decision:** `/debug-prompt` reads the last materialized effective prompt from the current session and warns instead of synthesizing a turn when no prompt has materialized yet.
+  - **Rationale:** The slash command should reflect exactly what a real turn used, not silently create a new one.
+
 - **Decision:** `before_agent_start` should prefer `event.systemPromptOptions.selectedTools` over rediscovering active tools when populating template vars.
   - **Rationale:** Pi's prompt builder already resolved the selected tool set. Reusing it keeps template rendering aligned with the actual prompt and avoids duplicate discovery logic.
 
@@ -58,6 +61,7 @@ The rendered template vars are assembled from runtime state plus Pi's prompt-bui
 - environment variables
 - `tools`, preferring `event.systemPromptOptions.selectedTools` and falling back to runtime tool discovery only for compatibility
 - optional `--debug-prompt '{...}'` JSON overrides, applied for that debug turn only
+- cached last-materialized prompt text used by `/debug-prompt`
 
 ## 4. Prompt Injection Contract
 
@@ -77,9 +81,10 @@ When only one template renders non-empty output, that single section is still wr
 
 ## 5. Open Questions
 
-- Should `/debug-prompt` clean up its temp file after the editor exits?
+- Should `/debug-prompt` eventually show prompt-phase diffs in addition to the final materialized prompt?
 
 ## 7. Code Locations
 
-- `pi-extensions/dynamic-agents-md/` — extension entry, lifecycle hooks, debug flag + command
-- `pi-extensions/dynamic-agents-md/parser.ts` — template discovery, rendering, Nunjucks helpers
+- `pi-extensions/system-prompt/index.ts` — merged prompt-layer entrypoint; owns the Pi hooks, single `--debug-prompt` flag, and `/debug-prompt` command that invoke this template phase
+- `pi-extensions/system-prompt/dynamic-agents-md/index.ts` — template rendering and prompt-debug helper utilities
+- `pi-extensions/system-prompt/dynamic-agents-md/parser.ts` — template discovery, rendering, Nunjucks helpers

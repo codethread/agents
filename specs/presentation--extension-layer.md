@@ -44,7 +44,6 @@ A small presentation layer on top of Pi's extension APIs: compact renderers for 
 - Should successful `read` ever show an expanded preview, or is complete suppression the long-term contract?
 - `formatContextDisplay(...)` supports `autoCompactEnabled` but the footer ignores it — should another surface consume it?
 
-
 ## 5. Code Locations
 
 - `pi-extensions/tools/bash/` — compact bash renderer

@@ -20,14 +20,17 @@ Small index for the extensions shipped in this package. See each extension folde
 | [`bash`](./tools/bash/README.md)          | Compact shell output display — transparent to the user. |
 | [`statusline`](./ui/statusline/README.md) | Persistent status bar — transparent to the user.        |
 
+## Context management
+
+| Extension                                                     | Summary                                                                                                            |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [`pi-discovery`](./context-management/pi-discovery/README.md) | One-shot Pi runtime + extension source discovery note injected into user input when the user explicitly says `Pi`. |
+
 ## System prompt
 
-| Extension                                                                        | Summary                                                                                                                                     |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`dynamic-agents-md`](./system-prompt/dynamic-agents-md/README.md)               | Render a Nunjucks template into the system prompt.                                                                                          |
-| [`owned-system-prompt`](./system-prompt/owned-system-prompt/README.md)           | Own Pi's base prompt scaffold while preserving later prompt chaining.                                                                       |
-| [`project-structure-prompt`](./system-prompt/project-structure-prompt/README.md) | Append a bounded repository tree snapshot to the system prompt.                                                                             |
-| [`pi-discovery`](./system-prompt/pi-discovery/README.md)                         | Append Pi runtime source paths plus discovered extension source paths as a one-shot contextual note when the user explicitly mentions `Pi`. |
+| Extension                                    | Summary                                                                                               |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [`system-prompt`](./system-prompt/README.md) | Merged prompt-layer extension: owns the base scaffold and injects rendered rules + project structure. |
 
 ## Messages
 
@@ -38,4 +41,5 @@ Small index for the extensions shipped in this package. See each extension folde
 
 ## Internal shared code
 
+- [`components/`](./components/README.md) — reusable UI components for extensions; not a loadable extension.
 - [`shared/`](./shared/) — shared utilities used by multiple extensions; not a loadable extension.

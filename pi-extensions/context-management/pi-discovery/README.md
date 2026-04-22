@@ -2,6 +2,9 @@
 
 > Append Pi runtime source paths plus discovered extension source paths as a one-shot contextual note when the user explicitly mentions `Pi`.
 
+> [!NOTE]
+> This behavior now ships as its own context-management extension from `index.ts`. That root file owns the Pi event wiring; the sibling modules provide discovery, rendering, and input-transform helpers.
+
 Makes Pi aware of both:
 
 - where the running Pi installation/source tree lives
@@ -32,8 +35,8 @@ The built-in tool prompt metadata manually vendored by `owned-system-prompt` is 
 
 ## Implementation layout
 
-- `index.ts` — Pi extension entry point
-- `context-note.ts` — session warm-up, one-shot input injection, and `/debug-extensions`
+- `index.ts` — Pi-discovery extension entrypoint; owns `session_start`, `input`, and `/debug-extensions`
+- `context-note.ts` — discovery caching, one-shot input injection helpers, and debug-report helpers
 - `extension-discovery.ts` — compatibility export surface for discovery, rendering, and trigger helpers
 - `discovery.ts` — Pi runtime/source and enabled extension discovery
 - `source-utils.ts` — path/source normalization helpers

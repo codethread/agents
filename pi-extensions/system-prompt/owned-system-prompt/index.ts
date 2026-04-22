@@ -1,4 +1,3 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { wrapSystemReminder } from "../../shared/xml.js";
 
 export const DEFAULT_SYSTEM_PROMPT_SENTINEL =
@@ -126,64 +125,4 @@ export function buildOwnedPromptAddon(activeTools: string[]): string {
 
 export function shouldAppendOwnedPrompt(systemPrompt: string): boolean {
 	return !systemPrompt.includes(DEFAULT_SYSTEM_PROMPT_SENTINEL);
-}
-
-function stripOuterEmptyLines(text: string): string {
-	return text.trim();
-}
-
-function getSelectedToolsFromEvent(event: unknown, getFallbackTools: () => string[]): string[] {
-	const selectedTools = (event as { systemPromptOptions?: { selectedTools?: string[] } })
-		.systemPromptOptions?.selectedTools;
-	return Array.isArray(selectedTools) ? selectedTools : getFallbackTools();
-}
-
-export default function ownedSystemPromptExtension(pi: ExtensionAPI) {
-	let printPromptOnNextTurn = false;
-	let debugPromptTriggered = false;
-	let waitForDebugPromptMaterialization: Promise<void> | null = null;
-	let resolveDebugPromptMaterialization: (() => void) | null = null;
-
-	pi.registerFlag("debug-owned-prompt", {
-		description: "Print the current effective system prompt and exit",
-		type: "boolean",
-		default: false,
-	});
-
-	pi.on("session_start", async (_event, ctx) => {
-		if (pi.getFlag("debug-owned-prompt") !== true || debugPromptTriggered) return;
-		debugPromptTriggered = true;
-		printPromptOnNextTurn = true;
-		waitForDebugPromptMaterialization = new Promise<void>((resolve) => {
-			resolveDebugPromptMaterialization = resolve;
-		});
-		if (ctx.hasUI) {
-			ctx.ui.notify(
-				"Debug owned prompt mode: starting a ping turn to materialize the prompt.",
-				"info",
-			);
-		}
-		await pi.sendUserMessage("ping");
-		if (!ctx.hasUI && waitForDebugPromptMaterialization) {
-			await waitForDebugPromptMaterialization;
-		}
-	});
-
-	pi.on("agent_start", (_event, ctx) => {
-		if (!printPromptOnNextTurn) return;
-		printPromptOnNextTurn = false;
-		resolveDebugPromptMaterialization?.();
-		resolveDebugPromptMaterialization = null;
-		waitForDebugPromptMaterialization = null;
-		process.stdout.write(`${stripOuterEmptyLines(ctx.getSystemPrompt())}\n`);
-		process.exit(0);
-	});
-
-	pi.on("before_agent_start", (event) => {
-		if (!shouldAppendOwnedPrompt(event.systemPrompt)) return;
-		const selectedTools = getSelectedToolsFromEvent(event, () => pi.getActiveTools());
-		return {
-			systemPrompt: `${event.systemPrompt}\n\n${buildOwnedPromptAddon(selectedTools)}`,
-		};
-	});
 }

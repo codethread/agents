@@ -1,20 +1,20 @@
 # System Prompt Ownership
 
 **Status:** Implemented  
-**Last Updated:** 2026-04-21
+**Last Updated:** 2026-04-22
 
 ## 1. Overview
 
 ### Purpose
 
-Own Pi's base prompt scaffold — the tool list and guideline sections — while preserving normal `before_agent_start` chaining so that later extensions like `dynamic-agents-md` and `subagent` can continue appending to the owned prompt without modification. The owned scaffold itself is wrapped in one `<system-reminder type="harness">` block so later injected prose stays clearly separated. The tool inventory should come from Pi's structured selected-tool set (`event.systemPromptOptions.selectedTools`) when available.
+Own Pi's base prompt scaffold — the tool list and guideline sections — as the first prompt phase inside the merged `system-prompt` extension, while preserving normal `before_agent_start` chaining so that later behaviors like template injection and `subagent` can continue appending to the owned prompt without modification. The owned scaffold itself is wrapped in one `<system-reminder type="harness">` block so later injected prose stays clearly separated. The tool inventory should come from Pi's structured selected-tool set (`event.systemPromptOptions.selectedTools`) when available.
 
 ### Goals
 
 - Replace Pi's default tool/guideline sections with a controlled, package-owned version.
 - Detect the default Pi base prompt and skip ownership when it is still present, preventing duplicate sections.
 - Adapt guidelines dynamically to the active tool set (e.g. different bash guidance when `grep`/`find`/`ls` are also active).
-- Expose a `--debug-owned-prompt` flag for verifying the final effective prompt.
+- Keep owned-scaffold verification inside the merged prompt-debug surfaces rather than separate behavior-specific flags.
 
 ### Non-Goals
 
@@ -39,11 +39,11 @@ Own Pi's base prompt scaffold — the tool list and guideline sections — while
 - **Decision:** Prefer `event.systemPromptOptions.selectedTools` over rediscovering active tools when building the owned scaffold.
   - **Rationale:** Pi's prompt builder already knows which tools are selected for the prompt. Reusing that structured input keeps the owned tool list and guidelines aligned with the actual prompt being assembled.
 
-- **Decision:** This extension must be listed first in `package.json#pi.extensions`.
-  - **Rationale:** `before_agent_start` callbacks run in extension load order. A later replacement clobbers earlier mutations, so the ownership extension must run before other prompt-mutating extensions to produce a clean prompt shape.
+- **Decision:** This behavior must run first inside the merged `system-prompt` entrypoint, and that merged extension must be listed before later prompt-contributing extensions such as `subagent`.
+  - **Rationale:** The owned scaffold needs to establish the base prompt shape before later appenders chain from it.
 
-- **Decision:** Debug flag triggers a `ping` turn via `pi.sendUserMessage("ping")` rather than reading the prompt synchronously at `session_start`.
-  - **Rationale:** The system prompt is only materialized when a turn starts (`agent_start`). Reading it at `session_start` gives an incomplete view.
+- **Decision:** Owned-scaffold verification should flow through the merged `--debug-prompt` / `/debug-prompt` surfaces rather than a dedicated ownership-only flag.
+  - **Rationale:** Users only need one way to inspect the final prompt, and the owned scaffold is meaningful only as part of that assembled whole.
 
 ## 3. Required Setup
 
@@ -71,7 +71,7 @@ If `PI_PACKAGE_DIR` is unset, resolve the path via `import.meta.resolve("@marioz
 
 - Should the owned prompt include `promptSnippet` / `promptGuidelines` for custom extension tools (e.g. `subagent`) once Pi exposes that metadata publicly? Likely yes — `subagent` is the strongest candidate since its snippet is semantically important.
 
-
 ## 7. Code Locations
 
-- `pi-extensions/owned-system-prompt/` — extension entry, helpers, tests, README
+- `pi-extensions/system-prompt/index.ts` — merged prompt-layer entrypoint; owns the Pi hooks plus the merged prompt-debug surfaces that expose this behavior first
+- `pi-extensions/system-prompt/owned-system-prompt/` — ownership prompt-building helpers, tests, README

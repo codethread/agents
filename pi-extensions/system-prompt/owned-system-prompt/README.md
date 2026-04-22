@@ -2,6 +2,9 @@
 
 > Own Pi's base prompt scaffold while preserving normal `before_agent_start` chaining.
 
+> [!NOTE]
+> This behavior now ships through the merged [`system-prompt`](../README.md) extension entrypoint. Pi event wiring lives in `../index.ts`; this module only exports prompt-building helpers.
+
 This extension assumes you replace Pi's default base prompt with a tiny custom `SYSTEM.md`, then it appends this package's owned tool and guideline sections during `before_agent_start` inside one `<system-reminder type="harness">...</system-reminder>` block.
 
 That keeps later prompt-mutating extensions like `dynamic-agents-md` and `subagent` working unchanged: they see the owned prompt as their input prompt and can continue appending normally.
@@ -28,15 +31,10 @@ The extension appends:
 
 It intentionally does **not** try to reconstruct prompt metadata for custom extension tools, because Pi does not currently expose custom-tool `promptSnippet` / `promptGuidelines` metadata through `pi.getAllTools()`.
 
-## Debug flag
+## Debugging
 
-**Flag:** `--debug-owned-prompt` — prints the current effective system prompt and exits.
-
-Example:
-
-```bash
-pi --debug-owned-prompt ping
-```
+This module no longer exposes its own standalone debug surface.
+Use the merged `system-prompt` extension's `--debug-prompt` flag or `/debug-prompt` command to inspect the final materialized prompt that includes this owned scaffold.
 
 ## Refreshing built-in tool metadata
 

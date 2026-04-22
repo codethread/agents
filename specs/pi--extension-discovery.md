@@ -1,13 +1,13 @@
 # Pi Extension Discovery Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-21
+**Last Updated:** 2026-04-22
 
 ## 1. Overview
 
 ### Purpose
 
-The `pi-discovery` extension tells Pi where its runtime/source tree and currently discovered extension source files live — but only when that context is likely relevant. Instead of appending a catalog to every system prompt, it watches raw user input and appends a one-shot contextual note to the first user message whose text contains the standalone, case-sensitive token `Pi`.
+The `pi-discovery` context-management extension tells Pi where its runtime/source tree and currently discovered extension source files live — but only when that context is likely relevant. Instead of appending a catalog to every system prompt, it watches raw user input and appends a one-shot contextual note to the first user message whose text contains the standalone, case-sensitive token `Pi`.
 
 ### Non-Goals
 
@@ -62,6 +62,7 @@ Extension names are derived: `.../foo/index.ts|js` → `foo`; `.../bar.ts|js` �
 
 ## 6. Code Locations
 
-- `pi-extensions/pi-discovery/` — extension entry, input-trigger lifecycle, debug command
-- `pi-extensions/pi-discovery/context-note.ts` — contextual-note formatting
-- `pi-extensions/pi-discovery/extension-discovery.ts` — `DefaultPackageManager`-backed discovery
+- `pi-extensions/context-management/pi-discovery/index.ts` — Pi-discovery extension entrypoint; owns the `input` hook, session warm-up, and `/debug-extensions`
+- `pi-extensions/context-management/pi-discovery/` — Pi-discovery implementation modules
+- `pi-extensions/context-management/pi-discovery/context-note.ts` — discovery caching, contextual-note injection helpers, and debug-report formatting helpers
+- `pi-extensions/context-management/pi-discovery/extension-discovery.ts` — `DefaultPackageManager`-backed discovery

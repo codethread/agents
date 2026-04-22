@@ -30,7 +30,8 @@
 		"extensions": [
 			"./pi-extensions/tools",
 			"./pi-extensions/ui",
-			"./pi-extensions/system-prompt"
+			"./pi-extensions/context-management",
+			"./pi-extensions/system-prompt/index.ts"
 		],
 		"prompts": [
 			"./prompts"

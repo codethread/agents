@@ -2,6 +2,9 @@
 
 > Render a Nunjucks template into the system prompt.
 
+> [!NOTE]
+> This behavior now ships through the merged [`system-prompt`](../README.md) extension entrypoint. Pi event wiring lives in `../index.ts`; this module owns template rendering and prompt-debug utilities.
+
 Searches upward from `cwd` for a template file and appends the rendered result to the system prompt. Each rendered section is wrapped in its own `<system-reminder type="...">` block so prompt prose stays visually and semantically separated from neighboring injections.
 
 **Template locations (checked in order):**
@@ -64,9 +67,9 @@ Project owner: {{ GIT_AUTHOR_NAME | default("unknown") }}
 - `regex_test(pattern)` — tests a string against a regex. Supports `~/` expansion.
 - `has_tools(toolOrTools)` — returns `true` only when all requested tool names are currently active. Accepts a single string or an array of strings.
 
-**Command:** `/debug-prompt` — opens the fully rendered system prompt in `$VISUAL`/`$EDITOR` for inspection.
+**Command:** `/debug-prompt` — shows the last materialized effective system prompt in the UI. If no message has been sent yet, it warns the user to send one first.
 
-**Flag:** `--debug-prompt` — prints the system prompt and exits (useful for CI/scripting).
+**Flag:** `--debug-prompt` — forces a one-shot `ping` turn, prints the resulting effective system prompt, and exits (useful for CI/scripting).
 
 You can also pass a JSON object to override template vars for debug rendering only:
 
@@ -75,3 +78,5 @@ pi --debug-prompt '{"model":"claude-sonnet"}'
 ```
 
 These overrides are applied on top of the normal vars (`provider`, `model`, `cwd`, `hasUI`, `isMainAgent`, `isSubagent`, `tools`, env vars) only for the debug turn.
+
+Both debug surfaces show the fully assembled prompt text exactly as materialized for the LLM, preserving line breaks even though Pi may compact whitespace internally before transmission.

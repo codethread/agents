@@ -4,7 +4,7 @@ vi.mock("./parser.js", () => ({
 	renderNearestTemplate: vi.fn(),
 }));
 
-import dynamicAgentsMdExtension, { getTemplateVars, parseDebugPromptOverrides } from "./index.js";
+import { getTemplateVars, parseDebugPromptOverrides, renderDynamicAgentsPrompt } from "./index.js";
 import { renderNearestTemplate } from "./parser.js";
 
 const originalPiSubagent = process.env.PI_SUBAGENT;
@@ -52,74 +52,31 @@ describe("parseDebugPromptOverrides", () => {
 	});
 });
 
-describe("debug prompt startup", () => {
-	it("starts a synthetic ping turn during session_start", async () => {
-		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
-		const sendUserMessage = vi.fn();
-		const notify = vi.fn();
-
-		dynamicAgentsMdExtension({
-			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
-				handlers.set(eventName, handler);
-			},
-			registerFlag: vi.fn(),
-			registerCommand: vi.fn(),
-			getFlag: vi.fn((name: string) => name === "debug-prompt"),
-			getActiveTools: vi.fn(() => ["read"]),
-			sendUserMessage,
-		} as any);
-
-		await handlers.get("session_start")?.({}, { hasUI: true, ui: { notify } });
-
-		expect(sendUserMessage).toHaveBeenCalledWith("ping");
-		expect(notify).toHaveBeenCalledWith(
-			"Debug prompt mode: starting a ping turn to materialize the prompt.",
-			"info",
-		);
-	});
-});
-
-describe("before_agent_start", () => {
-	it("prefers event.systemPromptOptions.selectedTools over rediscovering active tools", async () => {
-		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
-		const getActiveTools = vi.fn(() => ["read"]);
+describe("renderDynamicAgentsPrompt", () => {
+	it("renders the nearest template with computed vars", async () => {
 		vi.mocked(renderNearestTemplate).mockResolvedValue({
+			filePath: "/repo/.pi/agent.njk",
 			renderedPrompt: '<system-reminder type="rules">Prompt</system-reminder>',
-		} as any);
+		});
 
-		dynamicAgentsMdExtension({
-			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
-				handlers.set(eventName, handler);
-			},
-			registerFlag: vi.fn(),
-			registerCommand: vi.fn(),
-			getFlag: vi.fn(() => false),
-			getActiveTools,
-			sendUserMessage: vi.fn(),
-		} as any);
-
-		const result = await handlers.get("before_agent_start")?.(
-			{
-				systemPrompt: "Base prompt",
-				systemPromptOptions: {
-					selectedTools: ["bash", "edit"],
-				},
-			},
-			{
-				cwd: "/repo",
-				hasUI: true,
-				model: { provider: "openai", id: "gpt-5" },
-			},
-		);
+		const result = await renderDynamicAgentsPrompt({
+			cwd: "/repo",
+			hasUI: true,
+			tools: ["bash", "edit"],
+			model: { provider: "openai", id: "gpt-5" },
+		});
 
 		expect(renderNearestTemplate).toHaveBeenCalledWith(
 			"/repo",
-			expect.objectContaining({ tools: ["bash", "edit"] }),
+			expect.objectContaining({
+				provider: "openai",
+				model: "gpt-5",
+				cwd: "/repo",
+				hasUI: true,
+				tools: ["bash", "edit"],
+			}),
 		);
-		expect(getActiveTools).not.toHaveBeenCalled();
-		expect(result).toEqual({
-			systemPrompt: 'Base prompt\n\n<system-reminder type="rules">Prompt</system-reminder>',
-		});
+		expect(result).toBe('<system-reminder type="rules">Prompt</system-reminder>');
 	});
 });
 

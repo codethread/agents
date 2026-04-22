@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { registerPiDiscoveryExtension, type PiDiscoveryContextNoteDeps } from "./context-note.js";
+import { createPiDiscoveryController, type PiDiscoveryContextNoteDeps } from "./context-note.js";
 
 interface TestContext {
 	cwd: string;
@@ -7,17 +7,7 @@ interface TestContext {
 	ui: {
 		notify: ReturnType<typeof vi.fn>;
 	};
-	isIdle: () => boolean;
 }
-
-type InputHandler = (
-	event: { text: string; source: string },
-	ctx: TestContext,
-) => Promise<{ action: "continue" } | { action: "transform"; text: string }>;
-type EventHandler = (event: unknown, ctx: TestContext) => unknown | Promise<unknown>;
-type SessionStartHandler = (event: unknown, ctx: TestContext) => unknown | Promise<unknown>;
-type CommandHandler = (args: string, ctx: TestContext) => unknown | Promise<unknown>;
-type RegisteredCommand = { description: string; handler: CommandHandler };
 
 function makeContext(overrides: Partial<TestContext> = {}): TestContext {
 	const notify = vi.fn();
@@ -25,7 +15,6 @@ function makeContext(overrides: Partial<TestContext> = {}): TestContext {
 		cwd: "/repo",
 		hasUI: true,
 		ui: { notify },
-		isIdle: () => true,
 		...overrides,
 	};
 }
@@ -62,33 +51,7 @@ function createDeps(): PiDiscoveryContextNoteDeps {
 	};
 }
 
-function setupExtension(deps: PiDiscoveryContextNoteDeps) {
-	const handlers = new Map<string, EventHandler>();
-	const commands = new Map<string, RegisteredCommand>();
-	const sendUserMessage = vi.fn();
-
-	registerPiDiscoveryExtension(
-		{
-			on(eventName: string, handler: EventHandler) {
-				handlers.set(eventName, handler);
-			},
-			registerCommand(name: string, command: RegisteredCommand) {
-				commands.set(name, command);
-			},
-			sendUserMessage,
-		} as any,
-		deps,
-	);
-
-	return {
-		inputHandler: handlers.get("input") as InputHandler,
-		sessionStartHandler: handlers.get("session_start") as SessionStartHandler,
-		debugExtensionsCommand: commands.get("debug-extensions"),
-		sendUserMessage,
-	};
-}
-
-describe("registerPiDiscoveryExtension", () => {
+describe("createPiDiscoveryController", () => {
 	let deps: PiDiscoveryContextNoteDeps;
 
 	beforeEach(() => {
@@ -98,12 +61,12 @@ describe("registerPiDiscoveryExtension", () => {
 	it("appends a context note to the first user message that mentions Pi", async () => {
 		const discovery = makeDiscovery();
 		vi.mocked(deps.discoverPiExtensions).mockResolvedValue(discovery);
-		const { inputHandler } = setupExtension(deps);
+		const controller = createPiDiscoveryController(deps);
 		const ctx = makeContext();
 
-		const result = await inputHandler(
+		const result = await controller.transformInput(
 			{ text: "How does Pi handle extensions?", source: "interactive" },
-			ctx,
+			ctx as any,
 		);
 
 		expect(result).toEqual({
@@ -114,27 +77,36 @@ describe("registerPiDiscoveryExtension", () => {
 		expect(deps.formatExtensionDiscoveryContextNote).toHaveBeenCalledWith(discovery);
 	});
 
-	it("fires only once per extension runtime instance", async () => {
+	it("fires only once per controller instance", async () => {
 		vi.mocked(deps.discoverPiExtensions).mockResolvedValue(makeDiscovery());
-		const { inputHandler } = setupExtension(deps);
+		const controller = createPiDiscoveryController(deps);
 		const ctx = makeContext();
 
-		await inputHandler({ text: "Tell me about Pi", source: "interactive" }, ctx);
-		const second = await inputHandler({ text: "Pi again", source: "interactive" }, ctx);
+		await controller.transformInput(
+			{ text: "Tell me about Pi", source: "interactive" },
+			ctx as any,
+		);
+		const second = await controller.transformInput(
+			{ text: "Pi again", source: "interactive" },
+			ctx as any,
+		);
 
 		expect(second).toEqual({ action: "continue" });
 		expect(deps.discoverPiExtensions).toHaveBeenCalledTimes(1);
 	});
 
 	it("ignores extension-originated input and lowercase pi", async () => {
-		const { inputHandler } = setupExtension(deps);
+		const controller = createPiDiscoveryController(deps);
 		const ctx = makeContext();
 
-		const fromExtension = await inputHandler(
+		const fromExtension = await controller.transformInput(
 			{ text: "Tell me about Pi", source: "extension" },
-			ctx,
+			ctx as any,
 		);
-		const lowercase = await inputHandler({ text: "tell me about pi", source: "interactive" }, ctx);
+		const lowercase = await controller.transformInput(
+			{ text: "tell me about pi", source: "interactive" },
+			ctx as any,
+		);
 
 		expect(fromExtension).toEqual({ action: "continue" });
 		expect(lowercase).toEqual({ action: "continue" });
@@ -145,13 +117,16 @@ describe("registerPiDiscoveryExtension", () => {
 		vi.mocked(deps.discoverPiExtensions)
 			.mockRejectedValueOnce(new Error("boom"))
 			.mockResolvedValueOnce(makeDiscovery());
-		const { inputHandler } = setupExtension(deps);
+		const controller = createPiDiscoveryController(deps);
 		const ctx = makeContext();
 
-		const first = await inputHandler({ text: "Explain Pi", source: "interactive" }, ctx);
-		const second = await inputHandler(
+		const first = await controller.transformInput(
+			{ text: "Explain Pi", source: "interactive" },
+			ctx as any,
+		);
+		const second = await controller.transformInput(
 			{ text: "Explain Pi extensions", source: "interactive" },
-			ctx,
+			ctx as any,
 		);
 
 		expect(first).toEqual({ action: "continue" });
@@ -163,27 +138,26 @@ describe("registerPiDiscoveryExtension", () => {
 		expect(deps.discoverPiExtensions).toHaveBeenCalledTimes(2);
 	});
 
-	it("warms discovery on session start and reuses the cached result", async () => {
+	it("warms discovery and reuses the cached result", async () => {
 		vi.mocked(deps.discoverPiExtensions).mockResolvedValue(makeDiscovery());
-		const { inputHandler, sessionStartHandler } = setupExtension(deps);
+		const controller = createPiDiscoveryController(deps);
 		const ctx = makeContext();
 
-		await sessionStartHandler({}, ctx);
-		await inputHandler({ text: "Pi please", source: "interactive" }, ctx);
+		controller.prime(ctx.cwd);
+		await Promise.resolve();
+		await controller.transformInput({ text: "Pi please", source: "interactive" }, ctx as any);
 
 		expect(deps.discoverPiExtensions).toHaveBeenCalledTimes(1);
 	});
 
-	it("debug command shows the current discovery report in the UI only", async () => {
+	it("formats the debug report from the cached discovery", async () => {
 		const discovery = makeDiscovery();
 		vi.mocked(deps.discoverPiExtensions).mockResolvedValue(discovery);
-		const { debugExtensionsCommand, sendUserMessage } = setupExtension(deps);
-		const ctx = makeContext({ isIdle: () => true });
+		const controller = createPiDiscoveryController(deps);
 
-		await debugExtensionsCommand?.handler("", ctx);
+		const result = await controller.getDebugReport("/repo");
 
+		expect(result).toBe("Extensions: ...");
 		expect(deps.formatExtensionDiscoveryReport).toHaveBeenCalledWith(discovery);
-		expect(ctx.ui.notify).toHaveBeenCalledWith("Extensions: ...", "info");
-		expect(sendUserMessage).not.toHaveBeenCalled();
 	});
 });

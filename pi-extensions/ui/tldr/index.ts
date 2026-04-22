@@ -1,11 +1,6 @@
 import { complete, type Model } from "@mariozechner/pi-ai";
-import {
-	DynamicBorder,
-	getMarkdownTheme,
-	type ExtensionAPI,
-	type ExtensionContext,
-} from "@mariozechner/pi-coding-agent";
-import { Container, Markdown, matchesKey, Text } from "@mariozechner/pi-tui";
+import { type ExtensionAPI, type ExtensionContext } from "@mariozechner/pi-coding-agent";
+import { showDebugMessage } from "../../components/debug-message/index.js";
 import {
 	buildConversationTranscript,
 	buildTldrPrompt,
@@ -135,37 +130,6 @@ async function generateTldr(ctx: ExtensionContext): Promise<TldrResult | undefin
 	return { transcript, summary: summaryResult.summary, model: summaryResult.model };
 }
 
-async function showTldr(summary: string, model: Model<any>, ctx: ExtensionContext) {
-	if (!ctx.hasUI) {
-		process.stdout.write(`${summary}\n`);
-		return;
-	}
-
-	await ctx.ui.custom((_tui, theme, _kb, done) => {
-		const container = new Container();
-		const mdTheme = getMarkdownTheme();
-
-		container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
-		container.addChild(new Text(theme.fg("accent", theme.bold("TL;DR")), 1, 0));
-		container.addChild(
-			new Text(theme.fg("dim", `using ${formatModelRef(model)} • hidden from agent`), 1, 0),
-		);
-		container.addChild(new Markdown(summary, 1, 1, mdTheme));
-		container.addChild(new Text(theme.fg("dim", "Press Enter or Esc to close"), 1, 0));
-		container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
-
-		return {
-			render: (width: number) => container.render(width),
-			invalidate: () => container.invalidate(),
-			handleInput: (data: string) => {
-				if (matchesKey(data, "enter") || matchesKey(data, "escape")) {
-					done(undefined);
-				}
-			},
-		};
-	});
-}
-
 async function runDebugFlags(
 	ctx: ExtensionContext,
 	options: { printTranscript: boolean; printSummary: boolean },
@@ -229,7 +193,18 @@ export default function tldrExtension(pi: ExtensionAPI) {
 			try {
 				const result = await generateTldr(ctx);
 				if (!result) return;
-				await showTldr(result.summary, result.model, ctx);
+				if (!ctx.hasUI) {
+					process.stdout.write(`${result.summary}\n`);
+					return;
+				}
+				await showDebugMessage(ctx, {
+					headingText: "TL;DR",
+					subheadingText: `using ${formatModelRef(result.model)}`,
+					markdownBody: result.summary,
+					sendMarkdownToAgent: async (markdownBody) => {
+						await pi.sendUserMessage(markdownBody);
+					},
+				});
 			} catch (error) {
 				notify(ctx, getErrorMessage(error), "error");
 			}

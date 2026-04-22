@@ -2,6 +2,9 @@
 
 > Append a bounded repository tree snapshot to the system prompt.
 
+> [!NOTE]
+> This behavior now ships through the merged [`system-prompt`](../README.md) extension entrypoint. Pi event wiring lives in `../index.ts`; this module exports the snapshot builder and cache controller.
+
 At session start, this extension finds the current repo root, counts visible files with `fd -t f`, and when needed counts folders with `fd -t d`, then picks the widest `tree` view that stays within a 200-line budget. The final snapshot is wrapped in `<system-reminder type="project-structure">...</system-reminder>` so it stays isolated from neighboring prompt sections:
 
 - fewer than 200 files: full `tree`
@@ -12,7 +15,7 @@ At session start, this extension finds the current repo root, counts visible fil
 
 The computed block is cached per session and invalidated after `bash` and `write` tool executions so later turns can refresh after structural changes.
 
-**Debug flag:** `--debug-project-structure` — print the computed prompt block and exit.
+Inspect this section through the merged `system-prompt` extension's `--debug-prompt` flag or `/debug-prompt` command.
 
 > [!NOTE]
 > `charset=ascii` is used as it's more token efficient that the pretty charset

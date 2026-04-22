@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import {
 	appendContextNoteToText,
 	discoverPiExtensions,
@@ -16,6 +16,22 @@ export interface PiDiscoveryContextNoteDeps {
 	appendContextNoteToText: (text: string, contextNote: string) => string;
 }
 
+export interface PiDiscoveryInputEvent {
+	text: string;
+	source: string;
+}
+
+export type PiDiscoveryInputResult = { action: "continue" } | { action: "transform"; text: string };
+
+export interface PiDiscoveryController {
+	prime(cwd: string): void;
+	transformInput(
+		event: PiDiscoveryInputEvent,
+		ctx: Pick<ExtensionContext, "cwd" | "hasUI" | "ui">,
+	): Promise<PiDiscoveryInputResult>;
+	getDebugReport(cwd: string): Promise<string>;
+}
+
 const defaultContextNoteDeps: PiDiscoveryContextNoteDeps = {
 	discoverPiExtensions,
 	formatExtensionDiscoveryContextNote,
@@ -24,10 +40,9 @@ const defaultContextNoteDeps: PiDiscoveryContextNoteDeps = {
 	appendContextNoteToText,
 };
 
-export function registerPiDiscoveryExtension(
-	pi: ExtensionAPI,
+export function createPiDiscoveryController(
 	deps: PiDiscoveryContextNoteDeps = defaultContextNoteDeps,
-) {
+): PiDiscoveryController {
 	let cachedCwd: string | null = null;
 	let cachedDiscoveryPromise: Promise<PiExtensionDiscovery> | null = null;
 	let hasInjectedContextNote = false;
@@ -48,50 +63,34 @@ export function registerPiDiscoveryExtension(
 		return cachedPromise;
 	};
 
-	pi.on("session_start", async (_event, ctx) => {
-		void getDiscovery(ctx.cwd);
-	});
+	return {
+		prime(cwd) {
+			void getDiscovery(cwd);
+		},
+		async transformInput(event, ctx) {
+			if (event.source === "extension") return { action: "continue" };
+			if (hasInjectedContextNote) return { action: "continue" };
+			if (!deps.hasStandalonePiTrigger(event.text)) return { action: "continue" };
 
-	pi.on("input", async (event, ctx) => {
-		if (event.source === "extension") return { action: "continue" };
-		if (hasInjectedContextNote) return { action: "continue" };
-		if (!deps.hasStandalonePiTrigger(event.text)) return { action: "continue" };
-
-		try {
-			const discovery = await getDiscovery(ctx.cwd);
-			hasInjectedContextNote = true;
-			return {
-				action: "transform",
-				text: deps.appendContextNoteToText(
-					event.text,
-					deps.formatExtensionDiscoveryContextNote(discovery),
-				),
-			};
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			if (ctx.hasUI) ctx.ui.notify(`[pi-discovery] ${message}`, "warning");
-			return { action: "continue" };
-		}
-	});
-
-	pi.registerCommand("debug-extensions", {
-		description: "Show discovered extension information in the UI only",
-		handler: async (_args, ctx) => {
 			try {
 				const discovery = await getDiscovery(ctx.cwd);
-				const content = deps.formatExtensionDiscoveryReport(discovery);
-
-				if (ctx.hasUI) {
-					ctx.ui.notify(content, "info");
-					return;
-				}
-
-				process.stdout.write(`${content}\n`);
+				hasInjectedContextNote = true;
+				return {
+					action: "transform",
+					text: deps.appendContextNoteToText(
+						event.text,
+						deps.formatExtensionDiscoveryContextNote(discovery),
+					),
+				};
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
-				if (ctx.hasUI) ctx.ui.notify(`[pi-discovery] ${message}`, "error");
-				else process.stderr.write(`[pi-discovery] ${message}\n`);
+				if (ctx.hasUI) ctx.ui.notify(`[pi-discovery] ${message}`, "warning");
+				return { action: "continue" };
 			}
 		},
-	});
+		async getDebugReport(cwd) {
+			const discovery = await getDiscovery(cwd);
+			return deps.formatExtensionDiscoveryReport(discovery);
+		},
+	};
 }
