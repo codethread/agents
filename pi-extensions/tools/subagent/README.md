@@ -4,7 +4,7 @@
 
 Provides two things: the `subagent` tool for delegating work from within a session, and `--agent <name>` for adopting an agent config directly at startup.
 
-Discovered agents are injected into the system prompt as `<system-reminder type="available-subagents">` so the parent agent can choose among them. Agents marked `hidden: true` are callable by name but omitted from that inventory. Child processes are tagged `PI_SUBAGENT=1` so extensions can reshape behavior in delegated runs.
+Discovered agents are injected into the system prompt as `<system-reminder type="available-subagents">` so the parent agent can choose among them. Agents marked `hidden: true` are callable by name but omitted from that inventory. Discovery is evaluated on demand, so edits to agent markdown are picked up on the next call. Child processes are tagged `PI_SUBAGENT=1` so extensions can reshape behavior in delegated runs.
 
 ---
 

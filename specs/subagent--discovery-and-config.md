@@ -14,6 +14,7 @@ The subagent extension needs a stable way to find agent definitions, normalize t
 - Discover agents from bundled package content plus optional user and project directories.
 - Return a uniform `AgentConfig` shape regardless of source file location.
 - Present Pi with one effective merged list of available subagents.
+- Re-read agent markdown on each discovery call so edits take effect without restarting Pi.
 - Allow agents to be hidden from the parent prompt inventory without removing them from discovery or explicit name-based execution.
 - Preserve source metadata for debug output and project-agent confirmation.
 - Allow direct top-level selection of one discovered agent config via `--agent <name>`.
@@ -42,6 +43,9 @@ The subagent extension needs a stable way to find agent definitions, normalize t
 
 - **Decision:** Direct top-level agent mode reuses the same merged discovery result as delegated subagent runs.
   - **Rationale:** `pi --agent <name>` should honor the same package → user → project override semantics as the `subagent` tool and child runtime.
+
+- **Decision:** Agent discovery is evaluated at call time, not cached for the process lifetime.
+  - **Rationale:** Changes to markdown-backed agent definitions should be visible to the next `subagent` invocation, `--agent` lookup, or `/debug-agents` call without a Pi restart.
 
 - **Decision:** Top-level `--agent` inheritance is derived from shared runtime-setting helpers rather than ad hoc field reads in the extension entrypoint.
   - **Rationale:** When new runtime-facing agent fields are added over time, extending the shared helper layer keeps child subagent execution and top-level direct-agent mode aligned.
@@ -114,7 +118,7 @@ Discovery returns multiple views from one pass:
 - `projectAgents` — raw project-local agents for debug inspection
 - `projectAgentsDir` — nearest project agent directory, if present
 
-This keeps Pi-facing behavior simple while preserving source visibility for humans.
+This keeps Pi-facing behavior simple while preserving source visibility for humans. Because discovery is run on demand, markdown edits are picked up on the next call rather than requiring a long-lived cache flush.
 
 ### Settings and model resolution
 
@@ -133,7 +137,7 @@ Model alias resolution is intentionally opportunistic:
 
 The subagent runtime uses discovery results in four places:
 
-- `before_agent_start` discovers agents once and injects a terse XML list of visible subagent names and descriptions into the parent agent system prompt.
+- `before_agent_start` discovers agents on demand and injects a terse XML list of visible subagent names and descriptions into the parent agent system prompt.
 - when `--agent <name>` is set, the same discovery result resolves the selected agent by name, derives inherited runtime settings from that `AgentConfig`, applies model/thinking/tools unless explicit CLI flags override those fields, and appends the agent's `systemPrompt` wrapped in `<system-reminder type="selected-agent-prompt">` to the parent system prompt.
 - `debug-agents` renders the effective agent list plus source-specific user/project sections.
 - `subagent` execution always uses the effective merged list, while still consulting `source === "project"` for confirmation behavior.
@@ -219,6 +223,8 @@ These files use YAML frontmatter for `name`, `description`, optional author-only
 #### `discoverAgents(cwd: string): AgentDiscoveryResult`
 
 Returns the resolved agent catalog for a working directory.
+
+The implementation re-reads markdown files each time it is called; there is no process-lifetime cache of agent bodies or frontmatter.
 
 Behavioral contract:
 
