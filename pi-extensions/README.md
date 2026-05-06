@@ -19,7 +19,8 @@ Small index for the extensions shipped in this package. See each extension folde
 | [`read`](./tools/read/README.md)          | Compact file read display — transparent to the user.                |
 | [`bash`](./tools/bash/README.md)          | Compact shell output display — transparent to the user.             |
 | [`statusline`](./ui/statusline/README.md) | Persistent status bar — transparent to the user.                    |
-| [`theme-sync`](./ui/theme-sync/README.md) | Keep `rose-pine` selected while swapping Dawn/Moon from a sentinel. |
+| [`theme-sync`](./ui/theme-sync/README.md)             | Keep `rose-pine` selected while swapping Dawn/Moon from a sentinel. |
+| [`print-mode-exit`](./ui/print-mode-exit/README.md)   | Force stuck `pi -p` processes to exit after `agent_end`.             |
 
 ## Context management
 
