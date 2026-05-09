@@ -1,0 +1,10 @@
+{
+	"name": "deep-review",
+	"description": "Multi-role code review for a full feature, PR, or session workload. Use `review` for faster/cheaper spot checks. Provide scope anchors: commits/diff, PRD/spec/task files, relevant paths, intent, risks, and validation results. Upfront exploration notes save work because every reviewer receives the same hot context instead of rediscovering it.",
+	"members": [
+		"deep-review-code-smells",
+		"deep-review-project-rules",
+		"deep-review-test-quality",
+		"deep-review-spec-alignment"
+	]
+}

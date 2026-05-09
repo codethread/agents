@@ -50,6 +50,8 @@ See `pi-extensions/system-prompt/README.md` for the merged prompt-layer extensio
 - `pi-agents/scout.md` — fast codebase recon and architecture mapping
 - `pi-agents/fixer.md` — validation repair and scoped mechanical completion agent
 - `pi-agents/hack.md` — shell-first investigation and automation agent
+- `pi-agents/review.md` — faster/cheaper single-agent code review for spot checks
+- `pi-agents/deep-review/` — multi-role review for a full feature, PR, or session workload; pass commits/diff, PRD/spec/task files, relevant paths, intent, risks, validation results, and any upfront exploration notes so each reviewer starts with shared hot context
 
 ## Included skills
 
