@@ -30,6 +30,7 @@ export interface SingleResult {
 	agent: string;
 	agentSource: AgentSource;
 	task: string;
+	resumed?: boolean;
 	exitCode: number;
 	messages: Message[];
 	stderr: string;
@@ -84,6 +85,7 @@ export function createUnknownAgentResult(
 		agent: agentName,
 		agentSource: "unknown",
 		task,
+		resumed: false,
 		exitCode: 1,
 		messages: [],
 		stderr: `Unknown agent: "${agentName}". Available agents: ${available}.`,
@@ -96,6 +98,7 @@ export function createPendingResult(task: TaskRequest): SingleResult {
 		agent: task.agent,
 		agentSource: "unknown",
 		task: task.task,
+		resumed: Boolean(task.resume),
 		exitCode: RUNNING_EXIT_CODE,
 		messages: [],
 		stderr: "",

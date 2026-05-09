@@ -112,6 +112,8 @@ When the parent session is persisted, each subagent run is saved under:
 
 If the parent runs with `--no-session`, subagents also skip persistence and no resume ID is returned.
 
+In the Pi UI, subagent runs are labeled as `(fresh)` or `(resumed)` so follow-up reuse is visible at a glance.
+
 ---
 
 ## Debug

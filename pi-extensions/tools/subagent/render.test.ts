@@ -1,6 +1,13 @@
+import type { Text } from "@mariozechner/pi-tui";
 import { describe, expect, it } from "vitest";
 import type { Message } from "@mariozechner/pi-ai";
-import { getFinalOutput, getParentVisibleResultText } from "./render.js";
+import {
+	getFinalOutput,
+	getParentVisibleResultText,
+	renderSubagentCall,
+	renderSubagentResult,
+} from "./render.js";
+import { RUNNING_EXIT_CODE } from "./types.js";
 
 const makeAssistant = (
 	content: Extract<Message, { role: "assistant" }>["content"],
@@ -37,6 +44,7 @@ const makeToolResult = (
 function makeSingleResult(options: {
 	agent: string;
 	messages?: Message[];
+	resumed?: boolean;
 	exitCode?: number;
 	stderr?: string;
 	errorMessage?: string;
@@ -47,6 +55,7 @@ function makeSingleResult(options: {
 		agent: options.agent,
 		agentSource: "package" as const,
 		task: `Task for ${options.agent}`,
+		resumed: options.resumed ?? false,
 		exitCode: options.exitCode ?? 0,
 		messages: options.messages ?? [],
 		stderr: options.stderr ?? "",
@@ -64,6 +73,11 @@ function makeSingleResult(options: {
 		sessionId: options.sessionId,
 	};
 }
+
+const theme = {
+	fg: (_color: string, text: string) => text,
+	bold: (text: string) => text,
+};
 
 describe("getFinalOutput", () => {
 	it("returns the last assistant text when the child finished with an assistant message", () => {
@@ -163,5 +177,112 @@ describe("parent-visible result text", () => {
 				"Review findings",
 			].join("\n"),
 		);
+	});
+});
+
+describe("renderSubagentCall", () => {
+	it("labels fresh calls clearly", () => {
+		const component = renderSubagentCall(
+			{ agent: "scout", task: "Map auth flow without resume" },
+			theme,
+		) as Text;
+
+		expect(component.render(120).join("\n")).toContain("subagent scout (fresh)");
+	});
+
+	it("labels resumed calls clearly", () => {
+		const component = renderSubagentCall(
+			{ agent: "scout", task: "Follow up", resume: "12345678-1234-1234-1234-123456789abc" },
+			theme,
+		) as Text;
+
+		expect(component.render(120).join("\n")).toContain("subagent scout (resumed)");
+	});
+});
+
+describe("renderSubagentResult", () => {
+	it("renders expanded successful results with a minimal header and no nested summary block", () => {
+		const component = renderSubagentResult(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					results: [
+						makeSingleResult({
+							agent: "scout",
+							resumed: true,
+							messages: [makeAssistant([{ type: "text", text: "## Findings\n\n- done" }])],
+						}),
+					],
+				},
+			},
+			{ expanded: true },
+			theme,
+		) as any;
+
+		expect(component.children).toHaveLength(3);
+		expect(component.children[0].render(120).join("\n")).toContain("✓ subagent scout (resumed)");
+	});
+
+	it("shows no success tick while the subagent is still running", () => {
+		const component = renderSubagentResult(
+			{
+				content: [{ type: "text", text: "running" }],
+				details: {
+					results: [
+						makeSingleResult({
+							agent: "scout",
+							exitCode: RUNNING_EXIT_CODE,
+						}),
+					],
+				},
+			},
+			{ expanded: false },
+			theme,
+		) as Text;
+
+		const output = component.render(120).join("\n");
+		expect(output).toContain("subagent scout (fresh) running");
+		expect(output).not.toContain("✓");
+	});
+
+	it("shows a success tick once the subagent completes", () => {
+		const component = renderSubagentResult(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					results: [
+						makeSingleResult({
+							agent: "scout",
+							messages: [makeAssistant([{ type: "text", text: "done" }])],
+						}),
+					],
+				},
+			},
+			{ expanded: false },
+			theme,
+		) as Text;
+
+		expect(component.render(120).join("\n")).toContain("✓ subagent scout (fresh)");
+	});
+
+	it("shows resumed status once a resumed subagent completes", () => {
+		const component = renderSubagentResult(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					results: [
+						makeSingleResult({
+							agent: "scout",
+							resumed: true,
+							messages: [makeAssistant([{ type: "text", text: "done" }])],
+						}),
+					],
+				},
+			},
+			{ expanded: false },
+			theme,
+		) as Text;
+
+		expect(component.render(120).join("\n")).toContain("✓ subagent scout (resumed)");
 	});
 });
