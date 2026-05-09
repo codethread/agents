@@ -57,11 +57,12 @@ Spawns one `pi` subprocess with an isolated context window. The parent sees only
 	"agent": "scout",
 	"description": "map auth flow",
 	"task": "...",
-	"cwd": "/path"
+	"cwd": "/path",
+	"resume": "optional-id-from-previous-result"
 }
 ```
 
-All four fields (`agent`, `description`, `task`, `cwd`) are required. `description` should be 3–8 words. To run multiple subagents concurrently, dispatch multiple `subagent` tool calls through Pi's normal concurrent tool-call mechanism.
+All four fields (`agent`, `description`, `task`, `cwd`) are required. `resume` is optional; use the exact UUID from the `Subagent resume ID: ...` line or `<subagent-resume-id>...</subagent-resume-id>` tag returned by a previous persisted run to continue that same subagent session. If a follow-up depends on that ID, wait for the first tool result before making the second call; do not dispatch both calls concurrently. Set `resume` for follow-up questions that depend on the subagent's prior findings; omit it when you want a fresh isolated session. Never use a placeholder or empty resume value, and never dispatch the follow-up before the first result returns. `description` should be 3–8 words. For resume reliability, prefer one `subagent` tool call per assistant response. Only dispatch multiple independent subagents concurrently when no later call depends on another run's resume ID.
 
 **Usage hints:**
 
@@ -109,7 +110,7 @@ When the parent session is persisted, each subagent run is saved under:
       <uuid>.jsonl
 ```
 
-If the parent runs with `--no-session`, subagents also skip persistence.
+If the parent runs with `--no-session`, subagents also skip persistence and no resume ID is returned.
 
 ---
 

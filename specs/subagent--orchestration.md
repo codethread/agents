@@ -1,7 +1,7 @@
 # Subagent Orchestration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-04-19
+**Last Updated:** 2026-05-09
 
 ## 1. Overview
 
@@ -12,7 +12,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 ### Goals
 
 - Execute delegated work in isolated child `pi` processes instead of the parent conversation context.
-- Execute exactly one delegated task per `subagent` tool call; concurrent delegation is handled by Pi's normal concurrent tool-call dispatch.
+- Execute exactly one delegated task per `subagent` tool call; concurrent delegation is possible through Pi's normal concurrent tool-call dispatch, but resume-dependent follow-ups must wait for the first result.
 - Stream incremental progress back into the parent tool call while subprocesses are running.
 - Preserve enough metadata per agent run to render useful collapsed and expanded TUI views.
 - Reuse discovered agent configuration from the discovery layer without drifting between direct `--agent` mode and delegated child runs.
@@ -22,7 +22,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 
 - Discovering or normalizing agent definitions. That belongs to `pi-extensions/tools/subagent/agents.ts` and is specified in `specs/subagent--discovery-and-config.md`.
 - Scheduling workloads or batching multiple child agents inside one tool call.
-- Retrying failed agents, checkpointing intermediate state, or resuming partial runs.
+- Retrying failed agents or checkpointing intermediate state.
 - Merging multiple agents into a shared in-process context. Isolation is process-based.
 - Providing a security sandbox stronger than "separate process isolation".
 - Supporting sequential handoff pipelines inside the tool API.
@@ -44,8 +44,8 @@ The subagent extension provides a stable runtime for delegating work to isolated
 - **Decision:** Persist subagent sessions only when the parent session is persisted, and index them via a per-parent manifest.
   - **Rationale:** This preserves legacy ephemeral behavior for non-persisted runs while enabling structured post-run introspection (task summary, model, usage, cost, duration, and session file) whenever a parent session has a durable log.
 
-- **Decision:** The `subagent` tool accepts one task per invocation.
-  - **Rationale:** Pi can dispatch multiple tool calls concurrently, so batching subagents inside this tool duplicates orchestration semantics and hides concurrency from the parent runtime.
+- **Decision:** The `subagent` tool accepts one task per invocation and tells agents to use at most one subagent call per assistant response when resume may be involved.
+  - **Rationale:** Pi can dispatch multiple tool calls concurrently, so batching subagents inside this tool duplicates orchestration semantics. Resume IDs, however, only exist after a prior tool result returns, so follow-up calls must be sequential.
 
 - **Decision:** Pi executes against one merged subagent list rather than exposing source scopes in the tool API.
   - **Rationale:** Source distinctions are useful for debugging and confirmation, but they do not need to complicate normal delegation.
@@ -53,8 +53,8 @@ The subagent extension provides a stable runtime for delegating work to isolated
 - **Decision:** Direct top-level `--agent` mode inherits all currently supported runtime-facing agent settings, while explicit CLI flags override matching fields only.
   - **Rationale:** The flag is meant to make the top-level session behave like the selected agent file, but users still need precise escape hatches for model, thinking, and tools without losing the rest of the inherited behavior. For tools specifically, the override is exact rather than additive: agent-selected tools are skipped entirely when `--tools` or `--no-tools` is present.
 
-- **Decision:** The tool API uses required top-level `agent`, `description`, `task`, and `cwd` fields.
-  - **Rationale:** The input shape matches the single subprocess the tool owns and leaves fan-out to Pi's tool scheduler.
+- **Decision:** The tool API uses required top-level `agent`, `description`, `task`, and `cwd` fields, with optional `resume`.
+  - **Rationale:** The required shape matches the single subprocess the tool owns and leaves fan-out to Pi's tool scheduler. Resume stays opt-in so the parent agent can choose between continuity and a fresh review.
 
 - **Decision:** Rendering emphasizes assistant text and summarized tool calls, but single-run output falls back to the last tool-result text when that is the only final displayable child message.
   - **Rationale:** The tool aims to present concise operator-facing progress and outcomes, while still ensuring the parent agent sees the actual final child result instead of an empty placeholder.
@@ -116,6 +116,7 @@ Behavioral details:
 
 - a placeholder `SingleResult` is created up front with `exitCode: -1` and `agentSource: "unknown"` to support streaming UI updates
 - the final tool response is the child's final displayable message (assistant text, or final tool-result text when the child ends on a tool result)
+- persisted runs append a plain `Subagent resume ID: ...` line and `<subagent-resume-id>...</subagent-resume-id>` to the parent-visible final response
 - failed child runs set the overall tool call `isError` and return the full error text
 
 ### 2.5 Session Logging
@@ -232,6 +233,7 @@ interface SingleResult {
 	stderr: string;
 	usage: UsageStats;
 	sessionFile?: string;
+	sessionId?: string;
 	provider?: string;
 	model?: string;
 	reasoning?: boolean;
@@ -256,6 +258,7 @@ const SubagentParams = Type.Object({
 	description: Type.String(),
 	task: Type.String(),
 	cwd: Type.String(),
+	resume: Type.Optional(Type.String()), // exact value from prior <subagent-resume-id>
 });
 ```
 
@@ -339,6 +342,7 @@ Execution:
 - one child process runs per tool invocation
 - streaming updates report the selected subagent as running
 - final content contains the child's full final displayable output
+- persisted runs append a plain resume-ID line plus a `<subagent-resume-id>` XML tag containing the subagent session ID so the parent can pass it back as `resume` later for follow-up questions that depend on the subagent's prior context
 
 Failure model:
 
@@ -352,6 +356,7 @@ Failure model:
 - otherwise spawn one child Pi process for the run
 - honor the per-run `cwd` supplied in each task item
 - when parent session info is available, create a subagent session path and run with `--session`; otherwise run with `--no-session`
+- when `resume` is provided, invoke Pi with `--session <resume> --session-dir <subagent-dir>` so Pi resolves the existing session by its own session ID
 - on completion, update `manifest.json` with usage/cost/timing metadata for persisted subagent runs
 - if an abort signal fires, send `SIGTERM` immediately and schedule a later `SIGKILL` attempt
 - clean up temporary prompt files/directories in a `finally` block regardless of outcome

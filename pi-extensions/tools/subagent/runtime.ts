@@ -3,7 +3,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Message } from "@mariozechner/pi-ai";
 import { getAgentRuntimeSettings, type AgentConfig } from "./agents.js";
-import { getSubagentSessionPath, updateManifest } from "./session.js";
+import {
+	findSubagentSessionFileById,
+	getSubagentSessionDirForParent,
+	getSubagentSessionPath,
+	updateManifest,
+} from "./session.js";
 import {
 	createEmptyUsage,
 	createUnknownAgentResult,
@@ -31,11 +36,13 @@ export function getPiInvocation(args: string[]): { command: string; args: string
 export function buildSingleAgentArgs(
 	agentName: string,
 	task: string,
-	sessionFile?: string,
+	session?: { file: string } | { id: string; dir: string },
 ): string[] {
 	const args = ["--mode", "json", "-p", "--agent", agentName];
-	if (sessionFile) args.push("--session", sessionFile);
-	else args.push("--no-session");
+	if (session) {
+		if ("file" in session) args.push("--session", session.file);
+		else args.push("--session", session.id, "--session-dir", session.dir);
+	} else args.push("--no-session");
 	args.push(`Task: ${task}`);
 	return args;
 }
@@ -57,17 +64,68 @@ export async function runSingleAgent(
 		| {
 				dir: string;
 				sessionFile: string;
-				sessionId: string;
+				sessionId?: string;
+				cliSession: { file: string } | { id: string; dir: string };
 		  }
 		| undefined;
-	if (parentSessionInfo) {
-		subagentSession = getSubagentSessionPath(
-			parentSessionInfo.sessionFile,
-			parentSessionInfo.sessionId,
-			runCwd,
-		);
+	if (request.resume !== undefined && request.resume.trim() === "") {
+		return {
+			agent: request.agent,
+			agentSource: agent.source,
+			task: request.task,
+			exitCode: 1,
+			messages: [],
+			stderr:
+				"Invalid empty subagent resume ID. Use the exact value from a previous <subagent-resume-id> tag, or omit resume for a fresh session.",
+			usage: createEmptyUsage(),
+		};
 	}
-	const args = buildSingleAgentArgs(agent.name, request.task, subagentSession?.sessionFile);
+	if (request.resume && !parentSessionInfo) {
+		return {
+			agent: request.agent,
+			agentSource: agent.source,
+			task: request.task,
+			exitCode: 1,
+			messages: [],
+			stderr: "Cannot resume a subagent session when the parent session is not persisted.",
+			usage: createEmptyUsage(),
+		};
+	}
+	if (parentSessionInfo) {
+		if (request.resume) {
+			const dir = getSubagentSessionDirForParent(parentSessionInfo.sessionId, runCwd);
+			const sessionFile = await findSubagentSessionFileById(dir, request.resume);
+			if (!sessionFile) {
+				return {
+					agent: request.agent,
+					agentSource: agent.source,
+					task: request.task,
+					exitCode: 1,
+					messages: [],
+					stderr: `Unknown subagent resume ID "${request.resume}" for this parent session and cwd.`,
+					usage: createEmptyUsage(),
+				};
+			}
+			subagentSession = {
+				dir,
+				sessionFile,
+				sessionId: request.resume,
+				cliSession: { id: request.resume, dir },
+			};
+		} else {
+			const nextSession = getSubagentSessionPath(
+				parentSessionInfo.sessionFile,
+				parentSessionInfo.sessionId,
+				runCwd,
+			);
+			subagentSession = {
+				dir: nextSession.dir,
+				sessionFile: nextSession.sessionFile,
+				cliSession: { file: nextSession.sessionFile },
+			};
+		}
+	}
+	const args = buildSingleAgentArgs(agent.name, request.task, subagentSession?.cliSession);
 	const startTime = Date.now();
 
 	const currentResult: SingleResult = {
@@ -79,6 +137,7 @@ export async function runSingleAgent(
 		stderr: "",
 		usage: createEmptyUsage(),
 		sessionFile: subagentSession?.sessionFile,
+		sessionId: subagentSession?.sessionId,
 		thinkingLevel: runtimeSettings.thinkingLevel,
 	};
 
@@ -115,6 +174,12 @@ export async function runSingleAgent(
 				!("type" in event) ||
 				typeof event.type !== "string"
 			) {
+				return;
+			}
+
+			if (event.type === "session" && "id" in event && typeof event.id === "string") {
+				currentResult.sessionId = event.id;
+				emitUpdate();
 				return;
 			}
 
@@ -194,6 +259,10 @@ export async function runSingleAgent(
 	currentResult.exitCode = exitCode;
 	if (wasAborted) throw new Error("Subagent was aborted");
 	if (parentSessionInfo && subagentSession) {
+		const manifestId =
+			currentResult.sessionId ??
+			subagentSession.sessionId ??
+			path.basename(subagentSession.sessionFile, ".jsonl");
 		await updateManifest(
 			subagentSession.dir,
 			{
@@ -202,7 +271,7 @@ export async function runSingleAgent(
 			},
 			runCwd,
 			{
-				id: subagentSession.sessionId,
+				id: manifestId,
 				agent: currentResult.agent,
 				agentSource: currentResult.agentSource,
 				provider: currentResult.provider,

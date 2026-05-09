@@ -11,6 +11,7 @@ export type TaskRequest = {
 	task: string;
 	description: string;
 	cwd: string;
+	resume?: string;
 };
 
 export interface UsageStats {
@@ -34,6 +35,7 @@ export interface SingleResult {
 	stderr: string;
 	usage: UsageStats;
 	sessionFile?: string;
+	sessionId?: string;
 	provider?: string;
 	model?: string;
 	reasoning?: boolean;

@@ -160,7 +160,15 @@ export function getFinalOutput(messages: Message[]): string {
 }
 
 export function getParentVisibleResultText(result: SingleResult): string {
-	return isResultError(result) ? getResultErrorText(result) : getFinalOutput(result.messages);
+	const text = isResultError(result) ? getResultErrorText(result) : getFinalOutput(result.messages);
+	if (!result.sessionId) return text;
+	return [
+		`Subagent resume ID: ${result.sessionId}`,
+		`To ask this same subagent a follow-up, call subagent with resume: "${result.sessionId}".`,
+		`<subagent-resume-id>${result.sessionId}</subagent-resume-id>`,
+		"",
+		text,
+	].join("\n");
 }
 
 export function getDisplayItems(messages: Message[]): DisplayItem[] {

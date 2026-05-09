@@ -41,6 +41,7 @@ function makeSingleResult(options: {
 	stderr?: string;
 	errorMessage?: string;
 	stopReason?: "stop" | "length" | "toolUse" | "error" | "aborted";
+	sessionId?: string;
 }) {
 	return {
 		agent: options.agent,
@@ -60,6 +61,7 @@ function makeSingleResult(options: {
 		},
 		stopReason: options.stopReason,
 		errorMessage: options.errorMessage,
+		sessionId: options.sessionId,
 	};
 }
 
@@ -141,5 +143,25 @@ describe("parent-visible result text", () => {
 				}),
 			),
 		).toBe("first line\nsecond line\nthird line");
+	});
+
+	it("appends the resume ID XML tag when a persisted subagent session exists", () => {
+		expect(
+			getParentVisibleResultText(
+				makeSingleResult({
+					agent: "review",
+					messages: [makeAssistant([{ type: "text", text: "Review findings" }])],
+					sessionId: "subagent-session-123",
+				}),
+			),
+		).toBe(
+			[
+				"Subagent resume ID: subagent-session-123",
+				'To ask this same subagent a follow-up, call subagent with resume: "subagent-session-123".',
+				"<subagent-resume-id>subagent-session-123</subagent-resume-id>",
+				"",
+				"Review findings",
+			].join("\n"),
+		);
 	});
 });
