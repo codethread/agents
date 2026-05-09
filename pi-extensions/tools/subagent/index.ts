@@ -18,10 +18,9 @@ import {
 	getInheritedAgentRuntimeSettings,
 	parseAgentFlagCliOverrides,
 } from "./agents.js";
-import { mapWithConcurrencyLimit, runSingleAgent } from "./runtime.js";
+import { runSingleAgent } from "./runtime.js";
 import {
 	formatDebugSection,
-	formatParallelParentVisibleResult,
 	getAvailableAgentsText,
 	getParentVisibleResultText,
 	getResultErrorText,
@@ -32,14 +31,12 @@ import {
 import {
 	createDetails,
 	createPendingResult,
-	MAX_CONCURRENCY,
-	MAX_PARALLEL_TASKS,
-	RUNNING_EXIT_CODE,
 	type ResolveModelInfo,
 	type SingleResult,
+	type TaskRequest,
 } from "./types.js";
 
-const TaskItem = Type.Object({
+const SubagentParams = Type.Object({
 	agent: Type.String({ description: "Name of the agent to invoke" }),
 	description: Type.String({
 		description:
@@ -47,12 +44,6 @@ const TaskItem = Type.Object({
 	}),
 	task: Type.String({ description: "Task to delegate to the agent" }),
 	cwd: Type.String({ description: "Working directory for the agent process" }),
-});
-
-const SubagentParams = Type.Object({
-	tasks: Type.Array(TaskItem, {
-		description: "Array of {agent, description, task, cwd} to execute",
-	}),
 });
 
 export default function (pi: ExtensionAPI) {
@@ -182,17 +173,16 @@ export default function (pi: ExtensionAPI) {
 		name: "subagent",
 		label: "Subagent",
 		description: [
-			"Delegate tasks to specialized subagents with isolated context.",
-			"Provide a tasks array where each item includes agent, description, task, and cwd.",
-			"A terse description field is required for delegated tasks.",
+			"Delegate one task to a specialized subagent with isolated context.",
+			"Provide agent, description, task, and cwd.",
+			"A terse description field is required for the delegated task.",
 			"Bundled, user, and project agents are discovered automatically.",
 		].join(" "),
-		promptSnippet: "Delegate tasks to specialized subagents",
+		promptSnippet: "Delegate one task to a specialized subagent",
 		// TODO: fix alignment of tools, but right now i prefer my injected context
 		// promptGuidelines: [
 		// 	"Use subagent for giving specific tasks to other agents like scouting the codebase or scripts with noisy feedback loops",
-		// 	"Always provide a terse description (3-8 words) for each delegated task.",
-		// 	"Use a single-item tasks array for focused work; use multiple items for independent parallel tasks.",
+		// 	"Always provide a terse description (3-8 words) for the delegated task.",
 		// ],
 		parameters: SubagentParams,
 
@@ -217,89 +207,38 @@ export default function (pi: ExtensionAPI) {
 				};
 			};
 
-			if (params.tasks.length === 0) {
-				return {
-					content: [
-						{
-							type: "text",
-							text: `Invalid parameters. Provide at least one task. Available agents: ${getAvailableAgentsText(agents)}`,
-						},
-					],
-					details: makeDetails([]),
-				};
-			}
-
-			if (params.tasks.length > MAX_PARALLEL_TASKS) {
-				return {
-					content: [
-						{
-							type: "text",
-							text: `Too many parallel tasks (${params.tasks.length}). Max is ${MAX_PARALLEL_TASKS}.`,
-						},
-					],
-					details: makeDetails([]),
-				};
-			}
-
-			const allResults = params.tasks.map(createPendingResult);
-			const emitParallelUpdate = () => {
+			const request: TaskRequest = params;
+			let currentResult = createPendingResult(request);
+			const emitUpdate = () => {
 				if (!onUpdate) return;
-				const running = allResults.filter((result) => result.exitCode === RUNNING_EXIT_CODE).length;
-				const done = allResults.length - running;
 				onUpdate({
-					content: [
-						{
-							type: "text",
-							text: `Parallel: ${done}/${allResults.length} done, ${running} running...`,
-						},
-					],
-					details: makeDetails([...allResults]),
+					content: [{ type: "text", text: `Subagent ${request.agent} running...` }],
+					details: makeDetails([currentResult]),
 				});
 			};
 
-			const results = await mapWithConcurrencyLimit(
-				params.tasks,
-				MAX_CONCURRENCY,
-				async (task, index) => {
-					const result = await runSingleAgent(
-						agents,
-						task,
-						signal,
-						(partial) => {
-							allResults[index] = partial;
-							emitParallelUpdate();
-						},
-						resolveModelInfo,
-						parentSessionInfo,
-					);
-					allResults[index] = result;
-					emitParallelUpdate();
-					return result;
+			const result = await runSingleAgent(
+				agents,
+				request,
+				signal,
+				(partial) => {
+					currentResult = partial;
+					emitUpdate();
 				},
+				resolveModelInfo,
+				parentSessionInfo,
 			);
+			const results = [result];
 
-			if (results.length === 1) {
-				const result = results[0];
-				if (isResultError(result)) {
-					return {
-						content: [{ type: "text", text: getResultErrorText(result) || "(no output)" }],
-						details: makeDetails(results),
-						isError: true,
-					};
-				}
+			if (isResultError(result)) {
 				return {
-					content: [{ type: "text", text: getParentVisibleResultText(result) || "(no output)" }],
+					content: [{ type: "text", text: getResultErrorText(result) || "(no output)" }],
 					details: makeDetails(results),
+					isError: true,
 				};
 			}
-
 			return {
-				content: [
-					{
-						type: "text",
-						text: formatParallelParentVisibleResult(results),
-					},
-				],
+				content: [{ type: "text", text: getParentVisibleResultText(result) || "(no output)" }],
 				details: makeDetails(results),
 			};
 		},

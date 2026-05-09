@@ -1,8 +1,6 @@
 import type { Message } from "@mariozechner/pi-ai";
 import type { AgentConfig } from "./agents.js";
 
-export const MAX_PARALLEL_TASKS = 8;
-export const MAX_CONCURRENCY = 4;
 export const COLLAPSED_ITEM_COUNT = 10;
 export const RUNNING_EXIT_CODE = -1;
 

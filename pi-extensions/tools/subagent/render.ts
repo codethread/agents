@@ -163,29 +163,6 @@ export function getParentVisibleResultText(result: SingleResult): string {
 	return isResultError(result) ? getResultErrorText(result) : getFinalOutput(result.messages);
 }
 
-function formatParentVisibleSection(
-	label: string,
-	status: "completed" | "failed",
-	text: string,
-): string {
-	const safeText = text || "(no output)";
-	return safeText.includes("\n")
-		? `[${label}] ${status}:\n${safeText}`
-		: `[${label}] ${status}: ${safeText}`;
-}
-
-export function formatParallelParentVisibleResult(results: SingleResult[]): string {
-	const successCount = results.filter((result) => !isResultError(result)).length;
-	const sections = results.map((result) =>
-		formatParentVisibleSection(
-			result.agent,
-			isResultError(result) ? "failed" : "completed",
-			getParentVisibleResultText(result),
-		),
-	);
-	return `Parallel: ${successCount}/${results.length} succeeded\n\n${sections.join("\n\n")}`;
-}
-
 export function getDisplayItems(messages: Message[]): DisplayItem[] {
 	const items: DisplayItem[] = [];
 	for (const msg of messages) {
@@ -246,18 +223,11 @@ export function getResultUsageOptions(result: SingleResult) {
 	};
 }
 
-export function renderSubagentCall(args: { tasks?: TaskRequest[] }, theme: any) {
-	const tasks = args.tasks ?? [];
-	let text =
-		theme.fg("toolTitle", theme.bold("subagent ")) +
-		theme.fg("accent", `parallel (${tasks.length} tasks)`);
-	for (const task of tasks.slice(0, 3)) {
-		const preview = task.task.length > 40 ? `${task.task.slice(0, 40)}...` : task.task;
-		text += `\n  ${theme.fg("accent", task.agent)}${theme.fg("dim", ` ${preview}`)}`;
-	}
-	if (tasks.length > 3) {
-		text += `\n  ${theme.fg("muted", `... +${tasks.length - 3} more`)}`;
-	}
+export function renderSubagentCall(args: Partial<TaskRequest>, theme: any) {
+	const preview = args.task && args.task.length > 40 ? `${args.task.slice(0, 40)}...` : args.task;
+	let text = theme.fg("toolTitle", theme.bold("subagent "));
+	if (args.agent) text += theme.fg("accent", args.agent);
+	if (preview) text += theme.fg("dim", ` ${preview}`);
 	return new Text(text, 0, 0);
 }
 
@@ -312,7 +282,6 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 	const running = details.results.filter(
 		(singleResult) => singleResult.exitCode === RUNNING_EXIT_CODE,
 	).length;
-	const successCount = details.results.filter((singleResult) => singleResult.exitCode === 0).length;
 	const failCount = details.results.filter(
 		(singleResult) => singleResult.exitCode !== RUNNING_EXIT_CODE && isResultError(singleResult),
 	).length;
@@ -322,15 +291,13 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 		: failCount > 0
 			? theme.fg("warning", "◐")
 			: theme.fg("success", "✓");
-	const status = isRunning
-		? `${successCount + failCount}/${details.results.length} done, ${running} running`
-		: `${successCount}/${details.results.length} tasks`;
+	const status = isRunning ? "running" : failCount > 0 ? "failed" : "completed";
 
 	if (expanded && !isRunning) {
 		const container = new Container();
 		container.addChild(
 			new Text(
-				`${icon} ${theme.fg("toolTitle", theme.bold("parallel "))}${theme.fg("accent", status)}`,
+				`${icon} ${theme.fg("toolTitle", theme.bold("subagent "))}${theme.fg("accent", status)}`,
 				0,
 				0,
 			),
@@ -376,7 +343,7 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 		return container;
 	}
 
-	let text = `${icon} ${theme.fg("toolTitle", theme.bold("parallel "))}${theme.fg("accent", status)}`;
+	let text = `${icon} ${theme.fg("toolTitle", theme.bold("subagent "))}${theme.fg("accent", status)}`;
 	for (const singleResult of details.results) {
 		const resultIcon =
 			singleResult.exitCode === RUNNING_EXIT_CODE

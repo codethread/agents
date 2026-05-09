@@ -50,25 +50,23 @@ Canonical Pi tool names: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`. 
 
 ## `subagent` tool
 
-Spawns a `pi` subprocess per task with an isolated context window. The parent sees only each child's final message, not the full transcript.
+Spawns one `pi` subprocess with an isolated context window. The parent sees only the child's final message, not the full transcript.
 
 ```json
 {
-	"tasks": [{ "agent": "scout", "description": "map auth flow", "task": "...", "cwd": "/path" }]
+	"agent": "scout",
+	"description": "map auth flow",
+	"task": "...",
+	"cwd": "/path"
 }
 ```
 
-| Shape     | Behavior                           |
-| --------- | ---------------------------------- |
-| 1 task    | Single focused run                 |
-| 2–8 tasks | Parallel fan-out, max 4 concurrent |
-
-All four fields (`agent`, `description`, `task`, `cwd`) are required per task. `description` should be 3–8 words.
+All four fields (`agent`, `description`, `task`, `cwd`) are required. `description` should be 3–8 words. To run multiple subagents concurrently, dispatch multiple `subagent` tool calls through Pi's normal concurrent tool-call mechanism.
 
 **Usage hints:**
 
 - _"Use the scout agent to map the folder structure"_
-- _"Run lint, typecheck, and test in parallel"_
+- _"Ask fixer to repair the typecheck failure"_
 
 ---
 

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Message } from "@mariozechner/pi-ai";
-import {
-	formatParallelParentVisibleResult,
-	getFinalOutput,
-	getParentVisibleResultText,
-} from "./render.js";
+import { getFinalOutput, getParentVisibleResultText } from "./render.js";
 
 const makeAssistant = (
 	content: Extract<Message, { role: "assistant" }>["content"],
@@ -115,7 +111,7 @@ describe("getFinalOutput", () => {
 });
 
 describe("parent-visible result text", () => {
-	it("returns the full child output for parallel results instead of truncating previews", () => {
+	it("returns the full child output for parent-visible results", () => {
 		const scoutOutput = [
 			"alpha.ts",
 			"beta.ts",
@@ -124,36 +120,15 @@ describe("parent-visible result text", () => {
 			"epsilon.ts",
 			"zeta.ts",
 		].join("\n");
-		const hackOutput = [
-			"README.md",
-			"package.json",
-			"tsconfig.json",
-			"pnpm-lock.yaml",
-			"eslint.config.mjs",
-		].join("\n");
 
 		expect(
-			formatParallelParentVisibleResult([
+			getParentVisibleResultText(
 				makeSingleResult({
 					agent: "scout",
 					messages: [makeAssistant([{ type: "text", text: scoutOutput }])],
 				}),
-				makeSingleResult({
-					agent: "hack",
-					messages: [makeToolResult(hackOutput)],
-				}),
-			]),
-		).toBe(
-			[
-				"Parallel: 2/2 succeeded",
-				"",
-				"[scout] completed:",
-				scoutOutput,
-				"",
-				"[hack] completed:",
-				hackOutput,
-			].join("\n"),
-		);
+			),
+		).toBe(scoutOutput);
 	});
 
 	it("uses full error text for failed child runs", () => {
