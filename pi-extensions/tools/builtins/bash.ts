@@ -16,6 +16,70 @@ function previewLines(text: string, count: number) {
 	return { shown, remaining, total: lines.length };
 }
 
+export function formatBashCommandForDisplay(command: string) {
+	const parts: Array<{ operator?: "&&" | "||"; text: string }> = [];
+	let inSingleQuote = false;
+	let inDoubleQuote = false;
+	let escaped = false;
+	let start = 0;
+
+	for (let index = 0; index < command.length; index += 1) {
+		const char = command[index];
+		const next = command[index + 1];
+
+		if (escaped) {
+			escaped = false;
+			continue;
+		}
+
+		if (char === "\\" && !inSingleQuote) {
+			escaped = true;
+			continue;
+		}
+
+		if (char === "'" && !inDoubleQuote) {
+			inSingleQuote = !inSingleQuote;
+			continue;
+		}
+
+		if (char === '"' && !inSingleQuote) {
+			inDoubleQuote = !inDoubleQuote;
+			continue;
+		}
+
+		if (!inSingleQuote && !inDoubleQuote && (char === "&" || char === "|") && next === char) {
+			const operator = `${char}${next}` as "&&" | "||";
+			parts.push({ text: command.slice(start, index).trimEnd() });
+			start = index + 2;
+			index += 1;
+			parts.push({ operator, text: "" });
+		}
+	}
+
+	const tail = command.slice(start).trimStart();
+	if (parts.length === 0) return command;
+
+	const lines: string[] = [];
+	let pendingOperator: "&&" | "||" | undefined;
+	for (const part of parts) {
+		if (part.operator) {
+			pendingOperator = part.operator;
+			continue;
+		}
+
+		if (pendingOperator) {
+			lines.push(`  ${pendingOperator} ${part.text.trimStart()}`);
+			pendingOperator = undefined;
+		} else {
+			lines.push(part.text);
+		}
+	}
+	if (pendingOperator) lines.push(`  ${pendingOperator} ${tail}`);
+	else lines.push(tail);
+
+	return lines.join("\n");
+}
+
 export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		...createBashTool(process.cwd()),
@@ -24,7 +88,7 @@ export default function (pi: ExtensionAPI) {
 
 		renderCall(args, theme) {
 			let text = theme.fg("toolTitle", theme.bold("$ "));
-			text += theme.fg("accent", args.command || "...");
+			text += theme.fg("accent", args.command ? formatBashCommandForDisplay(args.command) : "...");
 			if (args.timeout) text += theme.fg("muted", ` (timeout: ${args.timeout}s)`);
 			return new Text(text, 0, 0);
 		},

@@ -1,6 +1,6 @@
 # Built-in tool renderers
 
-> Small plugins that replace Pi built-in tool presentation without changing tool behavior.
+> Small plugin that replaces Pi built-in tool presentation without changing tool behavior.
 
 ## `read`
 
