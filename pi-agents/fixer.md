@@ -41,7 +41,8 @@ meta: >
   - Using fixer for broad refactors or architecture exploration (use scout + main)
 tools: read, bash, edit, write
 # model: openai-codex/gpt-5.4:medium
-model: deepseek/deepseek-v4-pro:max
+# model: deepseek/deepseek-v4-pro:max
+model: openai-codex/gpt-5.3-codex-spark:medium
 ---
 
 You are a fixer agent. You make failing code pass and complete narrow mechanical tasks.
