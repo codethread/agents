@@ -1,10 +1,12 @@
 # `subagent`
 
-> Delegate one task to one specialized agent with isolated context.
+> Delegate one task to one specialized agent or swarm with isolated context.
 
-Provides two things: the `subagent` tool for delegating work from within a session, and `--agent <name>` for adopting an agent config directly at startup.
+Provides two things: the `subagent` tool for delegating work from within a session, and `--agent <name>` for adopting a single-agent config directly at startup.
 
-Discovered agents are injected into the system prompt as `<system-reminder type="available-subagents">` so the parent agent can choose among them. Agents marked `hidden: true` are callable by name but omitted from that inventory. Discovery is evaluated on demand, so edits to agent markdown are picked up on the next call. Child processes are tagged `PI_SUBAGENT=1` so extensions can reshape behavior in delegated runs.
+Discovered agents and swarms are injected into the system prompt as `<system-reminder type="available-subagents">` so the parent agent can choose among them. Agents or swarms marked `hidden: true` are callable by name but omitted from that inventory. Discovery is evaluated on demand, so edits to agent markdown or swarm definitions are picked up on the next call. Child processes are tagged `PI_SUBAGENT=1` so extensions can reshape behavior in delegated runs.
+
+Agents are discovered from `agents/` directories, while swarms are discovered from `swarms/` directories; these are separate discovery roots in the same working tree.
 
 ---
 
@@ -14,9 +16,12 @@ Three sources merge in priority order — project wins over user, user wins over
 
 | Source  | Location                                  |
 | ------- | ----------------------------------------- |
-| Package | `pi-agents/` (bundled)                    |
+| Package | `pi-agents/` (bundled agents)             |
 | User    | `~/.pi/agent/agents/`                     |
 | Project | `.pi/agents/` (nearest ancestor of `cwd`) |
+| Swarm   | `.pi/swarms/` (nearest ancestor of `cwd`) |
+
+Swarms are configured in folders that contain a `swarm.json` file. See [Swarm configuration](#swarm-configuration) below.
 
 ---
 
@@ -48,9 +53,39 @@ Canonical Pi tool names: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`. 
 
 ---
 
+## Swarm discovery
+
+A swarm is a named target made of member agent names:
+
+```json
+{
+	"name": "review",
+	"description": "Run the configured review panel",
+	"members": ["correctness-review", "security-review", "maintainability-review"],
+	"hidden": false
+}
+```
+
+Directory layout:
+
+```text
+.pi/swarms/
+  review/
+    swarm.json
+    correctness-review.md
+    security-review.md
+```
+
+`swarm.json` must include `name`, `description`, and `members` (string array of member names).
+Swarms are advertised in the same parent `available-subagents` inventory as single agents.
+Swarm-folder markdown files are loaded as agent configs during discovery and can be referenced by member names.
+Hidden swarms (`hidden: true`) are omitted from that inventory but stay visible in `/debug-agents` output and executable by explicit name.
+
+---
+
 ## `subagent` tool
 
-Spawns one `pi` subprocess with an isolated context window. Each tool call runs exactly one agent task. Pi may dispatch multiple independent `subagent` tool calls concurrently; this extension does not batch or schedule them internally. The parent sees only the child's final message, not the full transcript.
+Spawns one `pi` subprocess with an isolated context window. Each tool call runs one delegated target. When a discovered swarm is provided, the extension dispatches one subprocess per swarm member concurrently in the same call, then aggregates member results. Pi may dispatch multiple independent `subagent` tool calls concurrently; this extension does not batch or schedule them internally. The parent sees only the child's final message, not the full transcript.
 
 ```json
 {
@@ -62,7 +97,28 @@ Spawns one `pi` subprocess with an isolated context window. Each tool call runs 
 }
 ```
 
-All four fields (`agent`, `description`, `task`, `cwd`) are required. `resume` is optional; use the exact UUID from the `Subagent resume ID: ...` line or `<subagent-resume-id>...</subagent-resume-id>` tag returned by a previous persisted run to continue that same subagent session. If a follow-up depends on that ID, wait for the first tool result before making the second call; do not dispatch both calls concurrently. Set `resume` for follow-up questions that depend on the subagent's prior findings; omit it when you want a fresh isolated session. Never use a placeholder or empty resume value, and never dispatch the follow-up before the first result returns. `description` should be 3–8 words. Dispatch multiple independent subagents concurrently as separate tool calls when no later call depends on another run's resume ID.
+All four fields (`agent`, `description`, `task`, `cwd`) are required. `resume` is optional.
+
+- For a follow-up of a single-agent target, provide the exact session UUID in `<subagent-resume-id>`.
+- For a follow-up swarm, provide the prior friendly swarm resume ID (for example `swarm-review-...`).
+- Fresh single-agent calls run as fresh sessions unless the parent prompt appears follow-up-like, in which case the latest prior child session for the same agent is auto-resumed.
+- Fresh swarm calls run as fresh unless the parent prompt appears follow-up-like, in which case the latest prior swarm resume entry is auto-resumed.
+
+If a follow-up depends on that ID, wait for the first tool result before making the second call; do not dispatch both calls concurrently. Never use a placeholder or empty resume value, and never dispatch the follow-up before the first result returns. `description` should be 3–8 words. Dispatch multiple independent subagents concurrently as separate tool calls when no later call depends on another run's resume ID.
+
+A resumed swarm may render missing member sessions as errors when the manifest references a member that no longer has an available session.
+
+Swarm result blocks are emitted as XML member entries with CDATA-wrapped final output:
+
+```xml
+<member name="correctness-review" status="ok"><![CDATA[
+...review output...
+]]></member>
+
+<member name="security-review" status="error" resume="true"><![CDATA[
+No session found for swarm member "security-review" in resume "swarm-review-...".
+]]></member>
+```
 
 **Usage hints:**
 
@@ -102,13 +158,19 @@ pi --agent scout --tools read,bash,edit "Override the inherited tool set"
 
 When the parent session is persisted, each subagent run is saved under:
 
-```
+```text
 ~/.pi/agent/subagent-sessions/
   --<cwd-encoded>--/
     <parent-session-id>/
-      manifest.json        # one entry per run: agent, cost, duration, exit code, session filename
-      <uuid>.jsonl
+      manifest.json            # one entry per single-agent run (agent, cost, duration, exit code, session filename)
+      swarm-manifest.json      # one entry per swarm run (friendly swarm resume ID, target, member sessions)
+      <uuid>.jsonl            # one per single-agent child process session
+      <uuid>.jsonl            # additional files for resumed or parallel member sessions
 ```
+
+Single-agent resumes use exact IDs from `manifest.json` (matched to session files by stored session UUID).
+Swarm resumes use friendly IDs like `swarm-<target>-<uuid>` stored in `swarm-manifest.json`; each entry maps every member to its child session ID and session file.
+A resumed swarm marks only members that successfully loaded a prior child session with `resume="true"`.
 
 If the parent runs with `--no-session`, subagents also skip persistence and no resume ID is returned.
 
@@ -122,4 +184,4 @@ In the Pi UI, subagent runs are labeled as `(fresh)` or `(resumed)` so follow-up
 /debug-agents
 ```
 
-Sends discovered agent inventory into the conversation (all sources, project dir path).
+Sends discovered agent + swarm inventory into the conversation, including effective and user/project sections, project swarm/agent directory paths, and member lists for each swarm.

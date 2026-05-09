@@ -19,17 +19,37 @@ export interface AgentConfig {
 	filePath: string;
 }
 
+export interface SwarmConfig {
+	name: string;
+	description: string;
+	hidden: boolean;
+	members: string[];
+	source: "package" | "user" | "project";
+	filePath: string;
+}
+
 export interface AgentDiscoveryResult {
 	agents: AgentConfig[];
 	userAgents: AgentConfig[];
 	projectAgents: AgentConfig[];
 	projectAgentsDir: string | null;
+	swarms: SwarmConfig[];
+	userSwarms: SwarmConfig[];
+	projectSwarms: SwarmConfig[];
+	projectSwarmsDir: string | null;
 }
+
+export type DelegationTarget =
+	| { kind: "agent"; agent: AgentConfig }
+	| { kind: "swarm"; swarm: SwarmConfig };
 
 export interface AgentDiscoveryOptions {
 	packageAgentsDir?: string | null;
 	userAgentsDir?: string;
 	projectAgentsDir?: string | null;
+	packageSwarmsDir?: string | null;
+	userSwarmsDir?: string;
+	projectSwarmsDir?: string | null;
 	settingsPath?: string | null;
 }
 
@@ -184,6 +204,19 @@ function parseHiddenFrontmatter(value: unknown): boolean {
 	return false;
 }
 
+function parseSwarmMembers(value: unknown): string[] | null {
+	if (!Array.isArray(value)) return null;
+
+	const members: string[] = [];
+	for (const member of value) {
+		if (typeof member !== "string") return null;
+		const trimmed = member.trim();
+		if (trimmed) members.push(trimmed);
+	}
+
+	return members;
+}
+
 function loadAgentsFromDir(
 	dir: string,
 	source: "package" | "user" | "project",
@@ -244,10 +277,88 @@ function isDirectory(p: string): boolean {
 	}
 }
 
+function loadAgentsFromSwarmsDir(
+	dir: string,
+	source: "package" | "user" | "project",
+	settings: PiSettings | null,
+): AgentConfig[] {
+	const agents: AgentConfig[] = [];
+	if (!fs.existsSync(dir)) return agents;
+
+	let entries: fs.Dirent[];
+	try {
+		entries = fs.readdirSync(dir, { withFileTypes: true });
+	} catch {
+		return agents;
+	}
+
+	for (const entry of entries) {
+		if (!entry.isDirectory()) continue;
+		agents.push(...loadAgentsFromDir(path.join(dir, entry.name), source, settings));
+	}
+
+	return agents;
+}
+
+interface SwarmJsonFile {
+	name?: unknown;
+	description?: unknown;
+	hidden?: unknown;
+	members?: unknown;
+}
+
+function loadSwarmsFromDir(dir: string, source: "package" | "user" | "project"): SwarmConfig[] {
+	const swarms: SwarmConfig[] = [];
+	if (!fs.existsSync(dir)) return swarms;
+
+	let entries: fs.Dirent[];
+	try {
+		entries = fs.readdirSync(dir, { withFileTypes: true });
+	} catch {
+		return swarms;
+	}
+
+	for (const entry of entries) {
+		if (!entry.isDirectory()) continue;
+
+		const filePath = path.join(dir, entry.name, "swarm.json");
+		const raw = readJsonFile<SwarmJsonFile>(filePath);
+		if (!raw) continue;
+
+		const name = getFrontmatterString(raw.name);
+		const description = getFrontmatterString(raw.description);
+		const members = parseSwarmMembers(raw.members);
+		if (!name || !description || !members) continue;
+
+		swarms.push({
+			name,
+			description,
+			hidden: parseHiddenFrontmatter(raw.hidden),
+			members,
+			source,
+			filePath,
+		});
+	}
+
+	return swarms;
+}
+
 function findNearestProjectAgentsDir(cwd: string): string | null {
 	let currentDir = cwd;
 	while (true) {
 		const candidate = path.join(currentDir, ".pi", "agents");
+		if (isDirectory(candidate)) return candidate;
+
+		const parentDir = path.dirname(currentDir);
+		if (parentDir === currentDir) return null;
+		currentDir = parentDir;
+	}
+}
+
+function findNearestProjectSwarmsDir(cwd: string): string | null {
+	let currentDir = cwd;
+	while (true) {
+		const candidate = path.join(currentDir, ".pi", "swarms");
 		if (isDirectory(candidate)) return candidate;
 
 		const parentDir = path.dirname(currentDir);
@@ -270,6 +381,10 @@ function findBundledAgentsDir(): string | null {
 	return null;
 }
 
+function findBundledSwarmsDir(): string | null {
+	return findBundledAgentsDir();
+}
+
 export function discoverAgents(
 	cwd: string,
 	options: AgentDiscoveryOptions = {},
@@ -281,29 +396,93 @@ export function discoverAgents(
 		options.projectAgentsDir === undefined
 			? findNearestProjectAgentsDir(cwd)
 			: options.projectAgentsDir;
+	const packageSwarmsDir =
+		options.packageSwarmsDir === undefined ? findBundledSwarmsDir() : options.packageSwarmsDir;
+	const userSwarmsDir = options.userSwarmsDir ?? path.join(getAgentDir(), "swarms");
+	const projectSwarmsDir =
+		options.projectSwarmsDir === undefined
+			? findNearestProjectSwarmsDir(cwd)
+			: options.projectSwarmsDir;
 	const settingsPath =
 		options.settingsPath === undefined ? findNearestSettingsFile(cwd) : options.settingsPath;
 	const settings = settingsPath ? readJsonFile<PiSettings>(settingsPath) : null;
 
-	const packageAgents = packageAgentsDir
-		? loadAgentsFromDir(packageAgentsDir, "package", settings)
-		: [];
-	const userAgents = loadAgentsFromDir(userAgentsDir, "user", settings);
-	const projectAgents = projectAgentsDir
-		? loadAgentsFromDir(projectAgentsDir, "project", settings)
-		: [];
+	const packageAgents = [
+		...(packageAgentsDir ? loadAgentsFromDir(packageAgentsDir, "package", settings) : []),
+		...(packageSwarmsDir ? loadAgentsFromSwarmsDir(packageSwarmsDir, "package", settings) : []),
+	];
+	const packageSwarms = packageSwarmsDir ? loadSwarmsFromDir(packageSwarmsDir, "package") : [];
+
+	const userAgents = [
+		...loadAgentsFromDir(userAgentsDir, "user", settings),
+		...(userSwarmsDir ? loadAgentsFromSwarmsDir(userSwarmsDir, "user", settings) : []),
+	];
+	const userSwarms = userSwarmsDir ? loadSwarmsFromDir(userSwarmsDir, "user") : [];
+
+	const projectAgents = [
+		...(projectAgentsDir ? loadAgentsFromDir(projectAgentsDir, "project", settings) : []),
+		...(projectSwarmsDir ? loadAgentsFromSwarmsDir(projectSwarmsDir, "project", settings) : []),
+	];
+	const projectSwarms = projectSwarmsDir ? loadSwarmsFromDir(projectSwarmsDir, "project") : [];
 
 	const agentMap = new Map<string, AgentConfig>();
 	for (const agent of packageAgents) agentMap.set(agent.name, agent);
 	for (const agent of userAgents) agentMap.set(agent.name, agent);
 	for (const agent of projectAgents) agentMap.set(agent.name, agent);
 
-	return {
+	const swarmMap = new Map<string, SwarmConfig>();
+	for (const swarm of packageSwarms) swarmMap.set(swarm.name, swarm);
+	for (const swarm of userSwarms) swarmMap.set(swarm.name, swarm);
+	for (const swarm of projectSwarms) swarmMap.set(swarm.name, swarm);
+
+	const discovery: AgentDiscoveryResult = {
 		agents: Array.from(agentMap.values()),
 		userAgents,
 		projectAgents,
 		projectAgentsDir,
+		swarms: Array.from(swarmMap.values()),
+		userSwarms,
+		projectSwarms,
+		projectSwarmsDir,
 	};
+	validateDelegationTargets(discovery);
+	return discovery;
+}
+
+function validateDelegationTargets(discovery: AgentDiscoveryResult): void {
+	const agentNames = new Set(discovery.agents.map((agent) => agent.name));
+	for (const swarm of discovery.swarms) {
+		if (agentNames.has(swarm.name)) {
+			throw new Error(
+				`Invalid delegation catalog: "${swarm.name}" is defined as both an agent and a swarm. Agent and swarm names must be unique.`,
+			);
+		}
+	}
+
+	for (const swarm of discovery.swarms) {
+		const seenMembers = new Set<string>();
+		for (const rawMember of swarm.members) {
+			const member = rawMember.trim();
+			if (seenMembers.has(member)) {
+				throw new Error(
+					`Invalid delegation catalog: swarm "${swarm.name}" contains duplicate member "${member}".`,
+				);
+			}
+			seenMembers.add(member);
+
+			const target = findDelegationTarget(discovery, member);
+			if (!target) {
+				throw new Error(
+					`Invalid delegation catalog: swarm "${swarm.name}" has unknown member "${member}".`,
+				);
+			}
+			if (target.kind === "swarm") {
+				throw new Error(
+					`Invalid delegation catalog: swarm "${swarm.name}" has nested swarm member "${member}". Swarm members must be agents.`,
+				);
+			}
+		}
+	}
 }
 
 export function formatAgentList(
@@ -326,6 +505,20 @@ export function findAgentByName(
 	const requestedName = name?.trim();
 	if (!requestedName) return undefined;
 	return agents.find((agent) => agent.name === requestedName);
+}
+
+export function findDelegationTarget(
+	discovery: AgentDiscoveryResult,
+	name: string | undefined | null,
+): DelegationTarget | undefined {
+	const requestedName = name?.trim();
+	if (!requestedName) return undefined;
+	const agent = discovery.agents.find((candidate) => candidate.name === requestedName);
+	if (agent) return { kind: "agent", agent };
+
+	const swarm = discovery.swarms.find((candidate) => candidate.name === requestedName);
+	if (swarm) return { kind: "swarm", swarm };
+	return undefined;
 }
 
 function parseAgentModel(model: string | undefined): {
@@ -414,9 +607,9 @@ function escapeXml(str: string): string {
 	return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export function formatAgentsForPrompt(agents: AgentConfig[]): string {
-	const visibleAgents = agents.filter((agent) => !agent.hidden);
-	if (visibleAgents.length === 0) return "";
+export function formatAgentsForPrompt(agents: AgentConfig[], swarms: SwarmConfig[] = []): string {
+	const visibleTargets = [...agents, ...swarms].filter((target) => !target.hidden);
+	if (visibleTargets.length === 0) return "";
 
 	const lines = [
 		"These are the available subagents with their intended use.",
@@ -424,10 +617,10 @@ export function formatAgentsForPrompt(agents: AgentConfig[]): string {
 		"<available-subagents>",
 	];
 
-	for (const agent of visibleAgents) {
+	for (const target of visibleTargets) {
 		lines.push("  <subagent>");
-		lines.push(`    <name>${escapeXml(agent.name)}</name>`);
-		lines.push(`    <description>${escapeXml(agent.description)}</description>`);
+		lines.push(`    <name>${escapeXml(target.name)}</name>`);
+		lines.push(`    <description>${escapeXml(target.description)}</description>`);
 		lines.push("  </subagent>");
 	}
 

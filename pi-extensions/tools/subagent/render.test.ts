@@ -1,11 +1,15 @@
-import type { Text } from "@mariozechner/pi-tui";
+import type { Container, Text } from "@mariozechner/pi-tui";
+import { Markdown } from "@mariozechner/pi-tui";
 import { describe, expect, it } from "vitest";
 import type { Message } from "@mariozechner/pi-ai";
 import {
 	getFinalOutput,
 	getParentVisibleResultText,
+	getParentVisibleSwarmResultText,
 	renderSubagentCall,
 	renderSubagentResult,
+	formatDebugSwarmSection,
+	formatSwarmResults,
 } from "./render.js";
 import { RUNNING_EXIT_CODE } from "./types.js";
 
@@ -126,6 +130,112 @@ describe("getFinalOutput", () => {
 	});
 });
 
+describe("formatDebugSwarmSection", () => {
+	it("includes source, file path, hidden marker, and members", () => {
+		expect(
+			formatDebugSwarmSection("Available swarms:", [
+				{
+					name: "review",
+					description: "Run parallel checks",
+					source: "user",
+					hidden: false,
+					members: ["alpha", "beta"],
+					filePath: "/tmp/.pi/swarms/review/swarm.json",
+				},
+				{
+					name: "hidden-review",
+					description: "Internal",
+					source: "project",
+					hidden: true,
+					members: ["gamma"],
+					filePath: "/tmp/.pi/swarms/hidden/swarm.json",
+				},
+			]),
+		).toBe(
+			[
+				"Available swarms:",
+				"- review [user]",
+				"  file: /tmp/.pi/swarms/review/swarm.json",
+				"  members: alpha, beta",
+				"- hidden-review [project] (hidden from prompt inventory)",
+				"  file: /tmp/.pi/swarms/hidden/swarm.json",
+				"  members: gamma",
+			].join("\n"),
+		);
+	});
+
+	it("renders as none when no swarms are provided", () => {
+		expect(formatDebugSwarmSection("Available swarms:", [])).toBe(
+			["Available swarms:", "(none)"].join("\n"),
+		);
+	});
+});
+
+describe("formatSwarmResults", () => {
+	it("renders one multiline <member> block per result with escaped names and status", () => {
+		expect(
+			formatSwarmResults([
+				makeSingleResult({
+					agent: "scout & review",
+					messages: [makeAssistant([{ type: "text", text: "Scout done" }])],
+				}),
+				makeSingleResult({
+					agent: "hack",
+					exitCode: 1,
+					errorMessage: "Hack failed",
+				}),
+			]),
+		).toBe(
+			[
+				'<member name="scout &amp; review" status="ok"><![CDATA[',
+				"Scout done",
+				"]]></member>",
+				"",
+				'<member name="hack" status="error"><![CDATA[',
+				"Hack failed",
+				"]]></member>",
+			].join("\n"),
+		);
+	});
+
+	it("splits embedded ]]>'s safely for CDATA", () => {
+		expect(
+			formatSwarmResults([
+				makeSingleResult({
+					agent: "xml-happy",
+					messages: [
+						makeAssistant([{ type: "text", text: "prefix </member> end and ]]> then more" }]),
+					],
+				}),
+			]),
+		).toBe(
+			[
+				'<member name="xml-happy" status="ok"><![CDATA[',
+				"prefix </member> end and ]]]]><![CDATA[> then more",
+				"]]></member>",
+			].join("\n"),
+		);
+	});
+
+	it("includes resume attribute when a swarm member resumed", () => {
+		expect(
+			formatSwarmResults([
+				makeSingleResult({
+					agent: 'core"agent',
+					resumed: true,
+					messages: [],
+				}),
+			]),
+		).toBe(
+			[
+				'<member name="core&quot;agent" status="ok" resume="true"><![CDATA[',
+				"(no output)",
+				"]]></member>",
+			].join("\n"),
+		);
+	});
+});
+
 describe("parent-visible result text", () => {
 	it("returns the full child output for parent-visible results", () => {
 		const scoutOutput = [
@@ -178,6 +288,41 @@ describe("parent-visible result text", () => {
 			].join("\n"),
 		);
 	});
+
+	it("adds one friendly swarm resume ID above swarm member blocks", () => {
+		expect(
+			getParentVisibleSwarmResultText(
+				[
+					makeSingleResult({
+						agent: "scout",
+						messages: [makeAssistant([{ type: "text", text: "Scout done" }])],
+					}),
+					makeSingleResult({
+						agent: "hack",
+						exitCode: 1,
+						errorMessage: "Hack failed",
+					}),
+				],
+				"swarm-review-abc",
+			),
+		).toBe(
+			[
+				"Subagent resume ID: swarm-review-abc",
+				'To ask this same swarm a follow-up, call subagent with resume: "swarm-review-abc".',
+				"<subagent-resume-id>swarm-review-abc</subagent-resume-id>",
+				"",
+				[
+					'<member name="scout" status="ok"><![CDATA[',
+					"Scout done",
+					"]]></member>",
+					"",
+					'<member name="hack" status="error"><![CDATA[',
+					"Hack failed",
+					"]]></member>",
+				].join("\n"),
+			].join("\n"),
+		);
+	});
 });
 
 describe("renderSubagentCall", () => {
@@ -201,7 +346,7 @@ describe("renderSubagentCall", () => {
 });
 
 describe("renderSubagentResult", () => {
-	it("renders expanded successful results with a minimal header and no nested summary block", () => {
+	it("renders expanded successful results as markdown/text", () => {
 		const component = renderSubagentResult(
 			{
 				content: [{ type: "text", text: "done" }],
@@ -217,13 +362,12 @@ describe("renderSubagentResult", () => {
 			},
 			{ expanded: true },
 			theme,
-		) as any;
+		) as unknown as Markdown;
 
-		expect(component.children).toHaveLength(3);
-		expect(component.children[0].render(120).join("\n")).toContain("✓ subagent scout (resumed)");
+		expect(component).toBeInstanceOf(Markdown);
 	});
 
-	it("shows no success tick while the subagent is still running", () => {
+	it("shows running state while the subagent is still running", () => {
 		const component = renderSubagentResult(
 			{
 				content: [{ type: "text", text: "running" }],
@@ -240,12 +384,61 @@ describe("renderSubagentResult", () => {
 			theme,
 		) as Text;
 
+		expect(component.render(120).join("\n")).toContain("(running...)");
+		expect(component.render(120).join("\n")).toContain("(Ctrl+O to expand)");
+	});
+
+	it("renders collapsed single-result output with no status icon", () => {
+		const component = renderSubagentResult(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					results: [
+						makeSingleResult({
+							agent: "scout",
+							messages: [makeAssistant([{ type: "text", text: "done" }])],
+						}),
+					],
+				},
+			},
+			{ expanded: false },
+			theme,
+		) as Text;
+
+		expect(component.render(120).join("\n")).toContain("done");
+		expect(component.render(120).join("\n")).toContain("(Ctrl+O to expand)");
+	});
+
+	it("renders all swarm members in collapsed view", () => {
+		const component = renderSubagentResult(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					results: [
+						makeSingleResult({
+							agent: "scout",
+							messages: [makeAssistant([{ type: "text", text: "scout output" }])],
+						}),
+						makeSingleResult({
+							agent: "hack",
+							exitCode: 1,
+							errorMessage: "hack failed",
+						}),
+					],
+				},
+			},
+			{ expanded: false },
+			theme,
+		) as Text;
+
 		const output = component.render(120).join("\n");
-		expect(output).toContain("subagent scout (fresh) running");
-		expect(output).not.toContain("✓");
+		expect(output).toContain("subagent scout (fresh)");
+		expect(output).toContain("scout output");
+		expect(output).toContain("subagent hack (fresh)");
+		expect(output).toContain("hack failed");
 	});
 
-	it("shows a success tick once the subagent completes", () => {
+	it("renders all swarm members in expanded view", () => {
 		const component = renderSubagentResult(
 			{
 				content: [{ type: "text", text: "done" }],
@@ -253,36 +446,23 @@ describe("renderSubagentResult", () => {
 					results: [
 						makeSingleResult({
 							agent: "scout",
-							messages: [makeAssistant([{ type: "text", text: "done" }])],
+							messages: [makeAssistant([{ type: "text", text: "scout output" }])],
 						}),
-					],
-				},
-			},
-			{ expanded: false },
-			theme,
-		) as Text;
-
-		expect(component.render(120).join("\n")).toContain("✓ subagent scout (fresh)");
-	});
-
-	it("shows resumed status once a resumed subagent completes", () => {
-		const component = renderSubagentResult(
-			{
-				content: [{ type: "text", text: "done" }],
-				details: {
-					results: [
 						makeSingleResult({
-							agent: "scout",
-							resumed: true,
-							messages: [makeAssistant([{ type: "text", text: "done" }])],
+							agent: "security-review",
+							messages: [makeAssistant([{ type: "text", text: "security output" }])],
 						}),
 					],
 				},
 			},
-			{ expanded: false },
+			{ expanded: true },
 			theme,
-		) as Text;
+		) as unknown as Container;
 
-		expect(component.render(120).join("\n")).toContain("✓ subagent scout (resumed)");
+		expect(component.children).toHaveLength(5);
+		expect(component.children[0].render(120).join("\n")).toContain("subagent scout (fresh)");
+		expect(component.children[3].render(120).join("\n")).toContain(
+			"subagent security-review (fresh)",
+		);
 	});
 });

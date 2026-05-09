@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	discoverAgents,
 	findAgentByName,
+	findDelegationTarget,
 	formatAgentsForPrompt,
 	formatSelectedAgentPrompt,
 	getAgentRuntimeSettings,
@@ -12,6 +13,7 @@ import {
 	getInheritedAgentRuntimeSettings,
 	parseAgentFlagCliOverrides,
 	type AgentConfig,
+	type SwarmConfig,
 } from "./agents.js";
 
 const tempDirs: string[] = [];
@@ -65,6 +67,26 @@ function writeAgent(
 	return filePath;
 }
 
+function writeSwarm(
+	dir: string,
+	folderName: string,
+	config: {
+		name: string;
+		description: string;
+		members: string[];
+		hidden?: boolean;
+	},
+): string {
+	const filePath = path.join(dir, folderName, "swarm.json");
+	writeJson(filePath, {
+		name: config.name,
+		description: config.description,
+		members: config.members,
+		...(config.hidden ? { hidden: true } : {}),
+	});
+	return filePath;
+}
+
 describe("formatAgentsForPrompt", () => {
 	it("returns an empty string when no subagents are available", () => {
 		expect(formatAgentsForPrompt([])).toBe("");
@@ -110,6 +132,59 @@ describe("formatAgentsForPrompt", () => {
 		);
 	});
 
+	it("includes visible swarms alongside agents with XML escaping and omits hidden swarms", () => {
+		const agents: AgentConfig[] = [
+			{
+				name: "alpha",
+				description: "General-purpose helper",
+				hidden: false,
+				tools: [],
+				systemPrompt: "prompt",
+				source: "package",
+				filePath: "/tmp/alpha.md",
+			},
+		];
+		const swarms: SwarmConfig[] = [
+			{
+				name: "panel & review",
+				description: "<team> checks",
+				hidden: false,
+				members: ["alpha"],
+				source: "user",
+				filePath: "/tmp/swarms/panel/swarm.json",
+			},
+			{
+				name: "hidden-swarm",
+				description: "Team behind the scenes",
+				hidden: true,
+				members: ["alpha"],
+				source: "project",
+				filePath: "/tmp/swarms/hidden/swarm.json",
+			},
+		];
+
+		expect(formatAgentsForPrompt(agents, swarms)).toBe(
+			[
+				"",
+				"",
+				'<system-reminder type="available-subagents">',
+				"These are the available subagents with their intended use.",
+				"",
+				"<available-subagents>",
+				"  <subagent>",
+				"    <name>alpha</name>",
+				"    <description>General-purpose helper</description>",
+				"  </subagent>",
+				"  <subagent>",
+				"    <name>panel &amp; review</name>",
+				"    <description>&lt;team&gt; checks</description>",
+				"  </subagent>",
+				"</available-subagents>",
+				"</system-reminder>",
+			].join("\n"),
+		);
+	});
+
 	it("returns an empty string when only hidden agents exist", () => {
 		const agents: AgentConfig[] = [
 			{
@@ -123,7 +198,18 @@ describe("formatAgentsForPrompt", () => {
 			},
 		];
 
-		expect(formatAgentsForPrompt(agents)).toBe("");
+		expect(
+			formatAgentsForPrompt(agents, [
+				{
+					name: "hidden-swarm",
+					description: "Hidden review",
+					hidden: true,
+					members: ["hidden-agent"],
+					source: "package",
+					filePath: "/tmp/hidden-swarm/swarm.json",
+				},
+			]),
+		).toBe("");
 	});
 });
 
@@ -295,6 +381,45 @@ describe("formatSelectedAgentPrompt", () => {
 	});
 });
 
+describe("findDelegationTarget", () => {
+	it("finds agent and swarm targets by trimmed name", () => {
+		const root = makeTempDir("subagent-find-delegation-target-");
+		const userAgentsDir = path.join(root, "user-agents");
+		const userSwarmsDir = path.join(root, "user-swarms");
+		const cwd = path.join(root, "workspace");
+
+		writeAgent(userAgentsDir, "alpha.md", {
+			name: "alpha",
+			description: "Agent alpha",
+		});
+		writeSwarm(userSwarmsDir, "team", {
+			name: "team",
+			description: "Agent team",
+			members: ["alpha"],
+		});
+
+		const discovery = discoverAgents(cwd, {
+			packageAgentsDir: path.join(root, "package-agents"),
+			userAgentsDir,
+			projectAgentsDir: null,
+			packageSwarmsDir: null,
+			userSwarmsDir,
+			projectSwarmsDir: null,
+			settingsPath: null,
+		});
+
+		expect(findDelegationTarget(discovery, " alpha ")).toMatchObject({
+			kind: "agent",
+			agent: expect.objectContaining({ name: "alpha" }),
+		});
+		expect(findDelegationTarget(discovery, "team")).toMatchObject({
+			kind: "swarm",
+			swarm: expect.objectContaining({ name: "team" }),
+		});
+		expect(findDelegationTarget(discovery, " \t ")).toBeUndefined();
+	});
+});
+
 describe("discoverAgents", () => {
 	it("discovers agents from temp package, user, and project dirs with override precedence", () => {
 		const root = makeTempDir("subagent-discovery-");
@@ -342,6 +467,7 @@ describe("discoverAgents", () => {
 			packageAgentsDir,
 			userAgentsDir,
 			projectAgentsDir,
+			packageSwarmsDir: null,
 			settingsPath,
 		});
 
@@ -379,6 +505,138 @@ describe("discoverAgents", () => {
 		});
 	});
 
+	it("discovers swarms across package, user, and project dirs with source precedence", () => {
+		const root = makeTempDir("subagent-swarms-precedence-");
+		const packageAgentsDir = path.join(root, "package-agents");
+		const userAgentsDir = path.join(root, "user-agents");
+		const projectAgentsDir = path.join(root, ".pi", "agents");
+		const packageSwarmsDir = path.join(root, "package-swarms");
+		const userSwarmsDir = path.join(root, "user-swarms");
+		const projectSwarmsDir = path.join(root, ".pi", "swarms");
+		const cwd = path.join(root, "apps", "web");
+
+		writeAgent(packageAgentsDir, "alpha.md", {
+			name: "alpha",
+			description: "Package agent",
+			tools: "Read, Bash",
+		});
+		writeAgent(userAgentsDir, "beta.md", {
+			name: "beta",
+			description: "User beta specialist",
+		});
+		writeAgent(projectAgentsDir, "gamma.md", {
+			name: "gamma",
+			description: "Project gamma specialist",
+		});
+		writeAgent(projectAgentsDir, "delta.md", {
+			name: "delta",
+			description: "Project delta specialist",
+		});
+		writeSwarm(packageSwarmsDir, "review", {
+			name: "review",
+			description: "Package review panel",
+			members: ["alpha", "beta"],
+		});
+		writeSwarm(packageSwarmsDir, "audit", {
+			name: "audit",
+			description: "Package audit panel",
+			members: ["alpha"],
+		});
+		writeSwarm(userSwarmsDir, "review", {
+			name: "review",
+			description: "User review panel",
+			members: ["beta", "alpha"],
+		});
+		writeSwarm(projectSwarmsDir, "review", {
+			name: "review",
+			description: "Project review panel",
+			members: ["gamma", "delta", "alpha"],
+		});
+
+		const discovery = discoverAgents(cwd, {
+			packageAgentsDir,
+			userAgentsDir,
+			projectAgentsDir,
+			packageSwarmsDir,
+			userSwarmsDir,
+			projectSwarmsDir,
+			settingsPath: null,
+		});
+
+		expect(discovery.swarms.map((swarm) => swarm.name).sort()).toEqual(["audit", "review"]);
+		expect(discovery.userSwarms.map((swarm) => swarm.name)).toEqual(["review"]);
+		expect(discovery.projectSwarms.map((swarm) => swarm.name)).toEqual(["review"]);
+		expect(discovery.projectSwarmsDir).toBe(projectSwarmsDir);
+
+		const byName = new Map(discovery.swarms.map((swarm) => [swarm.name, swarm]));
+		expect(byName.get("review")).toMatchObject({
+			source: "project",
+			description: "Project review panel",
+			hidden: false,
+			members: ["gamma", "delta", "alpha"],
+		});
+		expect(byName.get("audit")).toMatchObject({
+			source: "package",
+			description: "Package audit panel",
+			hidden: false,
+		});
+	});
+
+	it("loads agents defined in swarm folders before resolving swarm discovery", () => {
+		const root = makeTempDir("subagent-swarms-agents-");
+		const userAgentsDir = path.join(root, "user-agents");
+		const userSwarmsDir = path.join(root, "user-swarms");
+		const cwd = path.join(root, "workspace");
+
+		writeAgent(userSwarmsDir, path.join("review", "security-review.md"), {
+			name: "security-review",
+			description: "Security review specialist",
+			body: "You are security-review.",
+		});
+		writeAgent(userSwarmsDir, path.join("review", "correctness-review.md"), {
+			name: "correctness-review",
+			description: "Correctness review specialist",
+			body: "You are correctness-review.",
+		});
+		const swarmPath = writeSwarm(userSwarmsDir, "review", {
+			name: "review",
+			description: "Project review panel",
+			members: ["correctness-review", "security-review"],
+		});
+
+		const discovery = discoverAgents(cwd, {
+			packageAgentsDir: path.join(root, "package-agents"),
+			userAgentsDir,
+			projectAgentsDir: null,
+			packageSwarmsDir: null,
+			userSwarmsDir,
+			projectSwarmsDir: null,
+			settingsPath: null,
+		});
+
+		const byName = new Map(discovery.agents.map((agent) => [agent.name, agent]));
+		expect(byName.get("security-review")).toMatchObject({
+			source: "user",
+			description: "Security review specialist",
+			filePath: path.join(userSwarmsDir, "review", "security-review.md"),
+		});
+		expect(byName.get("correctness-review")).toMatchObject({
+			source: "user",
+			description: "Correctness review specialist",
+			filePath: path.join(userSwarmsDir, "review", "correctness-review.md"),
+		});
+		expect(discovery.swarms).toEqual([
+			{
+				name: "review",
+				description: "Project review panel",
+				hidden: false,
+				members: ["correctness-review", "security-review"],
+				source: "user",
+				filePath: swarmPath,
+			},
+		]);
+	});
+
 	it("ignores author-only meta frontmatter during discovery and prompt formatting", () => {
 		const root = makeTempDir("subagent-meta-");
 		const packageAgentsDir = path.join(root, "package-agents");
@@ -396,6 +654,7 @@ describe("discoverAgents", () => {
 			packageAgentsDir,
 			userAgentsDir: path.join(root, "user-agents"),
 			projectAgentsDir: null,
+			packageSwarmsDir: null,
 			settingsPath: null,
 		});
 
@@ -432,6 +691,7 @@ describe("discoverAgents", () => {
 			packageAgentsDir,
 			userAgentsDir: path.join(root, "user-agents"),
 			projectAgentsDir: null,
+			packageSwarmsDir: null,
 			settingsPath: null,
 		});
 
@@ -472,6 +732,7 @@ describe("discoverAgents", () => {
 			packageAgentsDir,
 			userAgentsDir,
 			projectAgentsDir: null,
+			packageSwarmsDir: null,
 			settingsPath: null,
 		});
 
@@ -485,6 +746,123 @@ describe("discoverAgents", () => {
 			expect(agent.hidden).toBe(false);
 			expect(agent.tools).toEqual([]);
 		}
+	});
+
+	it("throws when an effective agent and swarm share a name", () => {
+		const root = makeTempDir("subagent-collision-");
+		const packageAgentsDir = path.join(root, "package-agents");
+		const packageSwarmsDir = path.join(root, "package-swarms");
+		const cwd = path.join(root, "workspace");
+
+		writeAgent(packageAgentsDir, "review.md", {
+			name: "review",
+			description: "Package agent",
+		});
+		writeSwarm(packageSwarmsDir, "review", {
+			name: "review",
+			description: "Package review panel",
+			members: [],
+		});
+
+		expect(() =>
+			discoverAgents(cwd, {
+				packageAgentsDir,
+				userAgentsDir: path.join(root, "user-agents"),
+				projectAgentsDir: null,
+				packageSwarmsDir,
+				projectSwarmsDir: null,
+				settingsPath: null,
+			}),
+		).toThrowError(/defined as both an agent and a swarm/i);
+	});
+
+	it("throws when a swarm member is unknown", () => {
+		const root = makeTempDir("subagent-unknown-member-");
+		const packageAgentsDir = path.join(root, "package-agents");
+		const packageSwarmsDir = path.join(root, "package-swarms");
+		const cwd = path.join(root, "workspace");
+
+		writeAgent(packageAgentsDir, "alpha.md", {
+			name: "alpha",
+			description: "Package agent",
+		});
+		writeSwarm(packageSwarmsDir, "review", {
+			name: "review",
+			description: "Package review panel",
+			members: ["alpha", "missing-agent"],
+		});
+
+		expect(() =>
+			discoverAgents(cwd, {
+				packageAgentsDir,
+				userAgentsDir: path.join(root, "user-agents"),
+				projectAgentsDir: null,
+				packageSwarmsDir,
+				projectSwarmsDir: null,
+				settingsPath: null,
+			}),
+		).toThrowError(/unknown member/i);
+	});
+
+	it("throws when a swarm includes nested swarm members", () => {
+		const root = makeTempDir("subagent-nested-member-");
+		const packageAgentsDir = path.join(root, "package-agents");
+		const packageSwarmsDir = path.join(root, "package-swarms");
+		const cwd = path.join(root, "workspace");
+
+		writeAgent(packageAgentsDir, "alpha.md", {
+			name: "alpha",
+			description: "Package agent",
+		});
+		writeSwarm(packageSwarmsDir, "review", {
+			name: "review",
+			description: "Package review panel",
+			members: ["panel"],
+		});
+		writeSwarm(packageSwarmsDir, "panel", {
+			name: "panel",
+			description: "Nested panel",
+			members: ["alpha"],
+		});
+
+		expect(() =>
+			discoverAgents(cwd, {
+				packageAgentsDir,
+				userAgentsDir: path.join(root, "user-agents"),
+				projectAgentsDir: null,
+				packageSwarmsDir,
+				projectSwarmsDir: null,
+				settingsPath: null,
+			}),
+		).toThrowError(/nested swarm member/i);
+	});
+
+	it("throws when a swarm contains duplicate members", () => {
+		const root = makeTempDir("subagent-duplicate-member-");
+		const packageAgentsDir = path.join(root, "package-agents");
+		const packageSwarmsDir = path.join(root, "package-swarms");
+		const cwd = path.join(root, "workspace");
+
+		writeAgent(packageAgentsDir, "alpha.md", {
+			name: "alpha",
+			description: "Package agent",
+		});
+		writeSwarm(packageSwarmsDir, "review", {
+			name: "review",
+			description: "Package review panel",
+			members: ["alpha", "alpha"],
+		});
+
+		expect(() =>
+			discoverAgents(cwd, {
+				packageAgentsDir,
+				userAgentsDir: path.join(root, "user-agents"),
+				projectAgentsDir: null,
+				packageSwarmsDir,
+				projectSwarmsDir: null,
+				settingsPath: null,
+			}),
+		).toThrowError(/duplicate member/i);
 	});
 
 	it("loads bundled repo agents from pi-agents by default", () => {
@@ -504,10 +882,33 @@ describe("discoverAgents", () => {
 			"hack",
 			"review",
 			"scout",
+			"swarm-animal-fact",
+			"swarm-color-fact",
+			"swarm-food-fact",
 		]);
 		for (const agent of bundledAgents) {
-			expect(agent.hidden).toBe(false);
 			expect(agent.filePath).toContain(`${path.sep}pi-agents${path.sep}`);
 		}
+		expect(
+			bundledAgents
+				.filter((agent) => agent.name.startsWith("swarm-"))
+				.every((agent) => agent.hidden),
+		).toBe(true);
+		expect(
+			bundledAgents
+				.filter((agent) => !agent.name.startsWith("swarm-"))
+				.every((agent) => !agent.hidden),
+		).toBe(true);
+
+		expect(discovery.swarms.filter((swarm) => swarm.source === "package")).toContainEqual({
+			name: "swarm",
+			description: "Test swarm that returns one color, food, and animal fact.",
+			hidden: false,
+			members: ["swarm-color-fact", "swarm-food-fact", "swarm-animal-fact"],
+			source: "package",
+			filePath: expect.stringContaining(
+				`${path.sep}pi-agents${path.sep}swarm${path.sep}swarm.json`,
+			),
+		});
 	});
 });

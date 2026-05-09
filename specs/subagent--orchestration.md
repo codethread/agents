@@ -1,13 +1,13 @@
 # Subagent Orchestration Specification
 
-**Status:** Partial
+**Status:** Implemented
 **Last Updated:** 2026-05-09
 
 ## 1. Overview
 
 ### Purpose
 
-The subagent extension provides a stable runtime for delegating work to isolated Pi subprocesses while preserving enough structure for streaming progress, UI rendering, resume, and post-run inspection. This domain covers the `subagent` tool, the `debug-agents` command, and the direct top-level `--agent <name>` flag in `pi-extensions/tools/subagent/`. Today each tool call runs one single-agent target; the planned swarm extension lets the same `agent` parameter resolve to a configured parallel fan-out target.
+The subagent extension provides a stable runtime for delegating work to isolated Pi subprocesses while preserving enough structure for streaming progress, UI rendering, resume, and post-run inspection. This domain covers the `subagent` tool, the `debug-agents` command, and the direct top-level `--agent <name>` flag in `pi-extensions/tools/subagent/`. Each tool call runs one named target; the same `agent` parameter can resolve to a single-agent config or a configured parallel fan-out swarm target.
 
 ### Goals
 
@@ -36,7 +36,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
   - **Rationale:** This gives each delegated task an isolated context window and cleanly separates message streams from the parent conversation.
 
 - **Decision:** Runtime discovery happens once per tool invocation before task execution.
-  - **Rationale:** A single target resolution snapshot keeps execution consistent during the run, including planned swarm member lists and project-agent directory metadata.
+  - **Rationale:** A single target resolution snapshot keeps execution consistent during the run, including current swarm member lists and project-agent directory metadata.
 
 - **Decision:** Child Pi invocations always use JSON mode.
   - **Rationale:** The runtime depends on structured `message_end` and `tool_result_end` events for streaming updates, usage aggregation, and renderer-friendly result logs.
@@ -44,7 +44,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 - **Decision:** Delegated child runs invoke `pi --agent <name>` instead of separately forwarding prompt/model/tools.
   - **Rationale:** This keeps direct top-level mode and delegated child execution on one inheritance path, which is required now that tool selection is an exact allowlist spanning both built-in and extension tools.
 
-- **Decision:** Persist subagent and planned swarm sessions only when the parent session is persisted, and index them via per-parent manifests.
+- **Decision:** Persist single-agent and swarm sessions only when the parent session is persisted, and index them via per-parent manifests.
   - **Rationale:** This preserves legacy ephemeral behavior for non-persisted runs while enabling structured post-run introspection (task summary, model, usage, cost, duration, and session file) whenever a parent session has a durable log.
 
 - **Decision:** The `subagent` tool accepts one delegated target per invocation and relies on Pi's normal multi-tool dispatch for independent target-level concurrency.
@@ -93,7 +93,7 @@ A `subagent` execution follows this flow:
 
 1. Call discovery once for the run.
 2. Validate the single-target payload.
-3. Resolve `params.agent` to either a single agent or a planned swarm.
+3. Resolve `params.agent` to either a single agent or a swarm.
 4. Execute a single-agent target through `runSingleAgent(...)`, or execute a swarm target by launching `runSingleAgent(...)` once per member concurrently.
 5. Stream updates as children emit results.
 6. For each child, `runSingleAgent(...)`:
@@ -103,7 +103,6 @@ A `subagent` execution follows this flow:
    - parses newline-delimited JSON events from stdout
    - accumulates messages, usage, provider/model metadata, and stop/error state
    - emits streaming updates through the tool callback
-   - cleans up temporary prompt files afterward
 7. The tool wraps the child result(s) in `SubagentDetails`, which the renderer uses for collapsed and expanded display.
 
 ### Child process boundary
@@ -111,7 +110,7 @@ A `subagent` execution follows this flow:
 Subprocess execution is intentionally isolated from the parent context:
 
 - the child is launched with `--mode json -p`
-- when the parent session is persisted, each subagent run gets `--session <path>` in a subagent session directory; otherwise it falls back to `--no-session`
+- when the parent session is persisted, each child subagent run gets a session path in a subagent session directory (`--session <path>`); otherwise it falls back to `--no-session`
 - child subagents are marked with `PI_SUBAGENT=1` in the environment so extensions can adjust behavior for delegated runs
 - the selected discovered agent is activated in the child through `--agent <name>`, so prompt/model/thinking/tool inheritance uses the same code path as top-level direct-agent mode
 - the delegated work itself is passed as a single prompt string: `Task: <task>`
@@ -190,7 +189,7 @@ interface Manifest {
 
 `description` is required for every delegated task.
 
-Planned swarm manifest contract:
+Swarm manifest contract:
 
 ```ts
 interface SwarmManifestMember {
@@ -216,7 +215,7 @@ interface SwarmManifest {
 }
 ```
 
-The swarm `id` is a friendly parent-visible resume ID. It does not need to be one of the child session UUIDs.
+The swarm `id` is a friendly parent-visible resume ID (for example `swarm-review-<uuid>`). It maps one-to-many to member `sessionId`/`sessionFile` entries and does not need to match any child session UUID.
 
 Fallback behavior: if the parent has no persisted session file, subagents and swarms use `--no-session` and no manifest is written.
 
@@ -265,21 +264,22 @@ Expanded views use `Container`, `Text`, `Spacer`, and `Markdown` components to s
 Parent-visible swarm output is plain text containing one block per member:
 
 ```xml
-<member name="correctness-review" status="ok">
+<member name="correctness-review" status="ok"><![CDATA[
 ...review content as returned by correctness-review...
-</member>
+]]></member>
 
 <member name="security-review" status="error">
+<![CDATA[
 ...error details, such as API limit hit or no session found...
-</member>
+]]></member>
 ```
 
 For resumed swarm members, include `resume="true"` on members that successfully used an existing child session:
 
 ```xml
-<member name="correctness-review" status="ok" resume="true">
+<member name="correctness-review" status="ok" resume="true"><![CDATA[
 ...follow-up content...
-</member>
+]]></member>
 ```
 
 ## 4. Data Model
@@ -325,7 +325,7 @@ interface SubagentDetails {
 }
 ```
 
-Planned swarm execution can keep using `results: SingleResult[]` for member runs, with additional metadata either on `SubagentDetails` or a sibling swarm details shape:
+Swarm execution keeps using `results: SingleResult[]` for member runs.
 
 ```ts
 interface SwarmRunDetails {
@@ -361,14 +361,14 @@ Notable conventions:
 - `agentSource: "unknown"` is used for unknown-agent failures and for the in-flight placeholder before discovery metadata is available.
 - `exitCode: -1` is reserved for a placeholder entry that is still running.
 - `thinkingLevel` is derived from `agent.model?.split(":").at(1)` before the subprocess runs; resolved provider/model values may later replace runtime display metadata.
-- planned swarm member failures are represented as `SingleResult` values with non-zero `exitCode`; they render as `<member status="error">` rather than being dropped.
+- swarm member failures are represented as `SingleResult` values with non-zero `exitCode`; they render as `<member status="error">` rather than being dropped.
 
 ## 5. Interfaces
 
 ### `--agent <name>` direct mode
 
 At session start, the extension reads the registered `agent` CLI flag.
-If the flag is present, it discovers agents for `ctx.cwd`, validates that the requested name exists in the effective merged single-agent catalog, and exits with an error if it does not. Planned swarm targets are not valid direct `--agent` selections.
+If the flag is present, it discovers agents for `ctx.cwd`, validates that the requested name exists in the effective merged single-agent catalog, and exits with an error if it does not. Swarm targets are not valid direct `--agent` selections.
 
 If the flag is present, the extension then derives inherited runtime settings from the selected `AgentConfig` and applies them to the parent session unless explicit CLI flags override the corresponding field.
 Today that inherited runtime surface includes:
@@ -398,7 +398,7 @@ This direct mode reuses discovery semantics from delegated runs and is intended 
 
 `debug-agents` reads one discovery snapshot and formats a plain-text report containing:
 
-- the effective merged list of available agents and planned swarms
+- the effective merged list of available agents and swarms
 - a separate user-agent section
 - the resolved project agents/swarms directories, if any
 - a separate project-agent section
@@ -422,7 +422,7 @@ const discovery = discoverAgents(ctx.cwd);
 const target = findDelegationTarget(discovery, params.agent);
 ```
 
-Current single-agent execution uses `discovery.agents`. Planned swarm execution resolves `params.agent` against a collision-free target catalog. The runtime does not re-normalize tools or models. It assumes discovery already returned executable `AgentConfig` values and validated swarm membership.
+Current single-agent execution uses `discovery.agents`. Swarm execution resolves `params.agent` against a collision-free target catalog. The runtime does not re-normalize tools or models. It assumes discovery already returned executable `AgentConfig` values and validated swarm membership.
 
 #### Result contract
 
@@ -451,17 +451,17 @@ Failure model:
 - otherwise spawn one child Pi process for the run
 - honor the per-run `cwd` supplied in each task item
 - when parent session info is available, create a subagent session path and run with `--session`; otherwise run with `--no-session`
-- when `resume` is provided for a single-agent target, invoke Pi with `--session <resume> --session-dir <subagent-dir>` so Pi resolves the existing session by its own session ID
+- when `resume` is provided for a single-agent target, invoke Pi with `--session <resume> --session-dir <subagent-dir>` so Pi resolves the exact session ID
 - when no `resume` is provided but the task looks like a follow-up, look up the latest matching agent in `manifest.json` and resume it when available
 - on completion, update `manifest.json` with usage/cost/timing metadata for persisted subagent runs
 - if an abort signal fires, send `SIGTERM` immediately and schedule a later `SIGKILL` attempt
-- clean up temporary prompt files/directories in a `finally` block regardless of outcome
+- persist metadata for completed runs; no process-local resume state is authoritative
 
-### Planned swarm execution helper
+### Swarm execution helper
 
 Swarm execution wraps `runSingleAgent(...)` rather than replacing it:
 
-- resolve the swarm target to an ordered list of member `AgentConfig` values
+- resolve the swarm target to an ordered list of member names and run requests
 - if explicit `resume` is provided, load that friendly swarm ID from `swarm-manifest.json`
 - for each member, derive either an existing child session ID from the swarm manifest or a fresh child session path
 - launch all members concurrently with the same `description`, `task`, and `cwd`

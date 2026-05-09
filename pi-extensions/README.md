@@ -7,21 +7,21 @@ Small index for the extensions shipped in this package. See each extension folde
 
 ## Tools
 
-| Extension                                                  | Summary                                                                                                                  |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| [`subagent`](./tools/subagent/README.md)                   | Delegate one task to a specialized subagent with isolated context, or inherit one discovered agent config via `--agent`. |
-| [`questionnaire`](./tools/questionnaire/README.md)         | Structured question forms opened in your external editor.                                                                |
-| [`interactive-shell`](./tools/interactive-shell/README.md) | Spawn and control interactive shell panes for TUIs, REPLs, dev servers, and watch processes.                             |
+| Extension                                                  | Summary                                                                                                  |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [`subagent`](./tools/subagent/README.md)                   | Delegate to isolated agents or configured swarms, and inherit one discovered agent config via `--agent`. |
+| [`questionnaire`](./tools/questionnaire/README.md)         | Structured question forms opened in your external editor.                                                |
+| [`interactive-shell`](./tools/interactive-shell/README.md) | Spawn and control interactive shell panes for TUIs, REPLs, dev servers, and watch processes.             |
 
 ## UI
 
-| Extension                                                   | Summary                                                             |
-| ----------------------------------------------------------- | ------------------------------------------------------------------- |
+| Extension                                                   | Summary                                                                |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------- |
 | [`builtins`](./tools/builtins/README.md)                    | Compact built-in `read` and `bash` displays — transparent to the user. |
-| [`statusline`](./ui/statusline/README.md)                   | Persistent status bar — transparent to the user.                    |
-| [`theme-sync`](./ui/theme-sync/README.md)                   | Keep `rose-pine` selected while swapping Dawn/Moon from a sentinel. |
-| [`timeline-timestamps`](./ui/timeline-timestamps/README.md) | Show recent tool-call timestamps in the footer.                     |
-| [`print-mode-exit`](./ui/print-mode-exit/README.md)         | Force stuck `pi -p` processes to exit after `agent_end`.            |
+| [`statusline`](./ui/statusline/README.md)                   | Persistent status bar — transparent to the user.                       |
+| [`theme-sync`](./ui/theme-sync/README.md)                   | Keep `rose-pine` selected while swapping Dawn/Moon from a sentinel.    |
+| [`timeline-timestamps`](./ui/timeline-timestamps/README.md) | Show recent tool-call timestamps in the footer.                        |
+| [`print-mode-exit`](./ui/print-mode-exit/README.md)         | Force stuck `pi -p` processes to exit after `agent_end`.               |
 
 ## Context management
 

@@ -7,7 +7,7 @@ import {
 	formatCost,
 	formatModelDisplay,
 } from "../../ui/statusline/usage-format.js";
-import type { AgentConfig } from "./agents.js";
+import type { AgentConfig, SwarmConfig } from "./agents.js";
 import {
 	RUNNING_EXIT_CODE,
 	type DisplayItem,
@@ -159,6 +159,18 @@ export function getFinalOutput(messages: Message[]): string {
 	return "";
 }
 
+function escapeXmlAttributeValue(value: string): string {
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
+}
+
+function toCdataSafeText(value: string): string {
+	return value.replace(/\]\]>/g, "]]" + "]]><![CDATA[>");
+}
+
 export function getParentVisibleResultText(result: SingleResult): string {
 	const text = isResultError(result) ? getResultErrorText(result) : getFinalOutput(result.messages);
 	if (!result.sessionId) return text;
@@ -169,6 +181,39 @@ export function getParentVisibleResultText(result: SingleResult): string {
 		"",
 		text,
 	].join("\n");
+}
+
+export function getParentVisibleSwarmResultText(
+	results: SingleResult[],
+	resumeId?: string,
+): string {
+	const output = formatSwarmResults(results);
+	if (!resumeId) return output;
+	return [
+		`Subagent resume ID: ${resumeId}`,
+		`To ask this same swarm a follow-up, call subagent with resume: "${resumeId}".`,
+		`<subagent-resume-id>${resumeId}</subagent-resume-id>`,
+		"",
+		output,
+	].join("\n");
+}
+
+export function formatSwarmMemberResult(result: SingleResult): string {
+	const status = isResultError(result) ? "error" : "ok";
+	const text = isResultError(result) ? getResultErrorText(result) : getFinalOutput(result.messages);
+	const safeText = text || "(no output)";
+	const safeBody = toCdataSafeText(safeText);
+	const resume = result.resumed ? ' resume="true"' : "";
+	const safeName = escapeXmlAttributeValue(result.agent);
+	return [
+		`<member name="${safeName}" status="${status}"${resume}><![CDATA[`,
+		safeBody,
+		"]]></member>",
+	].join("\n");
+}
+
+export function formatSwarmResults(results: SingleResult[]): string {
+	return results.map(formatSwarmMemberResult).join("\n\n");
 }
 
 export function getDisplayItems(messages: Message[]): DisplayItem[] {
@@ -189,6 +234,10 @@ export function getAvailableAgentsText(agents: AgentConfig[]): string {
 	return agents.map((agent) => `${agent.name} (${agent.source})`).join(", ") || "none";
 }
 
+export function getAvailableSwarmsText(swarms: SwarmConfig[]): string {
+	return swarms.map((swarm) => `${swarm.name} (${swarm.source})`).join(", ") || "none";
+}
+
 export function formatDebugSection(title: string, agents: AgentConfig[]): string {
 	const lines = [title];
 	if (agents.length === 0) {
@@ -204,6 +253,24 @@ export function formatDebugSection(title: string, agents: AgentConfig[]): string
 		if (agent.model) lines.push(`  resolved model: ${agent.model}`);
 		if (agent.tools.length) lines.push(`  normalized tools: ${agent.tools.join(", ")}`);
 		else lines.push("  normalized tools: (empty tool set)");
+	}
+	return lines.join("\n");
+}
+
+export function formatDebugSwarmSection(title: string, swarms: SwarmConfig[]): string {
+	const lines = [title];
+	if (swarms.length === 0) {
+		lines.push("(none)");
+		return lines.join("\n");
+	}
+
+	for (const swarm of swarms) {
+		lines.push(
+			`- ${swarm.name} [${swarm.source}]${swarm.hidden ? " (hidden from prompt inventory)" : ""}`,
+		);
+		lines.push(`  file: ${swarm.filePath}`);
+		if (swarm.members.length) lines.push(`  members: ${swarm.members.join(", ")}`);
+		else lines.push("  members: (none)");
 	}
 	return lines.join("\n");
 }
@@ -239,6 +306,7 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 	}
 
 	const mdTheme = getMarkdownTheme();
+	const hasMultipleResults = details.results.length > 1;
 	const renderDisplayItems = (items: DisplayItem[], limit?: number) => {
 		const toShow = limit ? items.slice(-limit) : items;
 		const skipped = limit && items.length > limit ? items.length - limit : 0;
@@ -254,6 +322,7 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 		}
 		return text.trimEnd();
 	};
+
 	const renderExpandedOutput = (singleResult: SingleResult) => {
 		const finalOutput = isResultError(singleResult)
 			? getResultErrorText(singleResult).trim()
@@ -285,38 +354,71 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 		return container;
 	};
 
-	const singleResult = details.results[0];
-	if (!singleResult) {
-		const text = result.content[0];
-		return new Text(text?.type === "text" ? text.text : "(no output)", 0, 0);
-	}
-
-	const isRunning = singleResult.exitCode === RUNNING_EXIT_CODE;
-	if (expanded && !isRunning) return renderExpandedOutput(singleResult);
-
-	const displayItems = getDisplayItems(singleResult.messages);
-	const finalOutput = isResultError(singleResult)
-		? getResultErrorText(singleResult)
-		: getFinalOutput(singleResult.messages);
-		let text = "";
-	if (displayItems.length === 0) {
-		if (isRunning) {
-			text = theme.fg("muted", "(running...)");
-		} else if (finalOutput) {
-			text = theme.fg(
-				isResultError(singleResult) ? "error" : "toolOutput",
-				finalOutput.split("\n").slice(0, 3).join("\n"),
-			);
-		} else {
-			text = theme.fg("muted", "(no output)");
+	const renderCollapsedOutput = (singleResult: SingleResult) => {
+		const displayItems = getDisplayItems(singleResult.messages);
+		const finalOutput = isResultError(singleResult)
+			? getResultErrorText(singleResult)
+			: getFinalOutput(singleResult.messages);
+		if (displayItems.length === 0) {
+			if (singleResult.exitCode === RUNNING_EXIT_CODE) {
+				return theme.fg("muted", "(running...)");
+			}
+			if (finalOutput) {
+				return theme.fg(
+					isResultError(singleResult) ? "error" : "toolOutput",
+					finalOutput.split("\n").slice(0, 3).join("\n"),
+				);
+			}
+			return theme.fg("muted", "(no output)");
 		}
-	} else {
-		text = renderDisplayItems(displayItems, 5);
+		return renderDisplayItems(displayItems, 5);
+	};
+
+	const renderExpandedResults = () => {
+		const container = new Container();
+		for (let i = 0; i < details.results.length; i++) {
+			const singleResult = details.results[i];
+			container.addChild(
+				new Text(
+					theme.fg(
+						"toolTitle",
+						`subagent ${singleResult.agent} (${getSessionModeLabel(Boolean(singleResult.resumed))})`,
+					),
+					0,
+					0,
+				),
+			);
+			container.addChild(renderExpandedOutput(singleResult));
+			if (i < details.results.length - 1) {
+				container.addChild(new Spacer(1));
+			}
+		}
+		return container;
+	};
+
+	const renderCollapsedResults = () => {
+		const lines: string[] = [];
+		for (const singleResult of details.results) {
+			if (hasMultipleResults) {
+				lines.push(
+					theme.fg(
+						"toolTitle",
+						`subagent ${singleResult.agent} (${getSessionModeLabel(Boolean(singleResult.resumed))})`,
+					),
+				);
+			}
+			lines.push(renderCollapsedOutput(singleResult));
+			if (hasMultipleResults) lines.push("");
+		}
+		if (!expanded) lines.push(theme.fg("muted", "(Ctrl+O to expand)"));
+		return new Text(lines.join("\n").trimEnd(), 0, 0);
+	};
+
+	const hasRunningResult = details.results.some((r) => r.exitCode === RUNNING_EXIT_CODE);
+	if (expanded && !hasRunningResult) {
+		if (hasMultipleResults) return renderExpandedResults();
+		return renderExpandedOutput(details.results[0]);
 	}
-	if (!isRunning) {
-		const usageStr = formatUsageStats(singleResult.usage, getResultUsageOptions(singleResult));
-		if (usageStr) text += `\n\n${theme.fg("dim", usageStr)}`;
-	}
-	if (!expanded) text += `\n${theme.fg("muted", "(Ctrl+O to expand)")}`;
-	return new Text(text, 0, 0);
+
+	return renderCollapsedResults();
 }

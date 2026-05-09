@@ -7,28 +7,43 @@
  * Uses JSON mode to capture structured output from subagents.
  */
 
+import { randomUUID } from "node:crypto";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import {
 	discoverAgents,
 	findAgentByName,
+	findDelegationTarget,
 	formatAgentsForPrompt,
 	formatSelectedAgentPrompt,
 	getAgentActiveTools,
 	getInheritedAgentRuntimeSettings,
 	parseAgentFlagCliOverrides,
 } from "./agents.js";
+import {
+	findSubagentSessionFileById,
+	getLatestSubagentSessionIdForAgent,
+	getLatestSwarmResumeIdForTarget,
+	getSubagentManifestEntryById,
+	getSwarmManifestEntryById,
+	getSubagentSessionDirForParent,
+	updateSwarmManifest,
+} from "./session.js";
 import { runSingleAgent } from "./runtime.js";
 import {
 	formatDebugSection,
+	formatDebugSwarmSection,
 	getAvailableAgentsText,
+	getAvailableSwarmsText,
 	getParentVisibleResultText,
+	getParentVisibleSwarmResultText,
 	isResultError,
 	renderSubagentCall,
 	renderSubagentResult,
 } from "./render.js";
 import {
 	createDetails,
+	createEmptyUsage,
 	createPendingResult,
 	type ResolveModelInfo,
 	type SingleResult,
@@ -36,7 +51,7 @@ import {
 } from "./types.js";
 
 const SubagentParams = Type.Object({
-	agent: Type.String({ description: "Name of the agent to invoke" }),
+	agent: Type.String({ description: "Name of the agent or swarm to invoke" }),
 	description: Type.String({
 		description:
 			"Terse summary of the delegated task (3-8 words), e.g. 'map auth flow in db connector'",
@@ -45,16 +60,57 @@ const SubagentParams = Type.Object({
 	cwd: Type.String({ description: "Working directory for the agent process" }),
 	resume: Type.Optional(
 		Type.String({
-			pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
 			description:
-				"Exact UUID from a previous Subagent resume ID line or <subagent-resume-id> tag. Use this to continue that same subagent session for follow-up questions that depend on prior findings.",
+				"Exact resume ID from a previous Subagent resume ID line or <subagent-resume-id> tag (single-agent UUID or friendly swarm ID). Use this for follow-ups that depend on prior findings.",
 		}),
 	),
 });
 
+export function formatUnknownTargetError(
+	requestedTarget: string,
+	agents: string,
+	swarms: string,
+): string {
+	const requested = requestedTarget.trim();
+	return `Unknown subagent target "${requested}". Available agents: ${agents}. Available swarms: ${swarms}.`;
+}
+
+export function isLikelyFollowUpRequest(task: string, description: string): boolean {
+	const followUpText = `${description}\n${task}`.toLowerCase();
+	return /\b(previous|prior|remember|remembered|context|again|cached|without re-?search|without re-?reading)\b/.test(
+		followUpText,
+	);
+}
+
+export function findSwarmMemberResumeState(
+	members: readonly { name: string; sessionId?: string; sessionFile?: string }[] | undefined,
+	memberName: string,
+) {
+	return members?.find((member) => member.name === memberName);
+}
+
+export function createMissingSwarmMemberResult(
+	params: TaskRequest,
+	memberName: string,
+	resumeId: string,
+	existingMember?: { name: string; sessionId?: string; sessionFile?: string },
+): SingleResult {
+	return {
+		agent: memberName,
+		agentSource: "unknown",
+		task: params.task,
+		resumed: true,
+		exitCode: 1,
+		messages: [],
+		stderr: `No session found for swarm member "${memberName}" in resume "${resumeId}".`,
+		usage: createEmptyUsage(),
+		sessionId: existingMember?.sessionId,
+		sessionFile: existingMember?.sessionFile,
+	};
+}
+
 export default function (pi: ExtensionAPI) {
 	let selectedAgentName: string | undefined;
-	const lastSessionByAgent = new Map<string, string>();
 	let agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
 
 	const failAgentSelection = (
@@ -143,7 +199,7 @@ export default function (pi: ExtensionAPI) {
 	pi.on("before_agent_start", (event, ctx) => {
 		const selected = requireSelectedAgent(ctx);
 		const discovery = selected?.discovery ?? discoverAgents(ctx.cwd);
-		const promptAddon = formatAgentsForPrompt(discovery.agents);
+		const promptAddon = formatAgentsForPrompt(discovery.agents, discovery.swarms);
 		const selectedPromptAddon = formatSelectedAgentPrompt(selected?.agent);
 		if (!promptAddon && !selectedPromptAddon) return;
 		return {
@@ -157,10 +213,16 @@ export default function (pi: ExtensionAPI) {
 			const discovery = discoverAgents(ctx.cwd);
 			const sections = [
 				formatDebugSection("Available agents:", discovery.agents),
+				formatDebugSwarmSection("Available swarms:", discovery.swarms),
 				formatDebugSection("User agents:", discovery.userAgents),
+				formatDebugSwarmSection("User swarms:", discovery.userSwarms),
 				[
 					`Project agents dir: ${discovery.projectAgentsDir ?? "(none)"}`,
 					formatDebugSection("Project agents:", discovery.projectAgents),
+				].join("\n"),
+				[
+					`Project swarms dir: ${discovery.projectSwarmsDir ?? "(none)"}`,
+					formatDebugSwarmSection("Project swarms:", discovery.projectSwarms),
 				].join("\n"),
 			];
 
@@ -180,20 +242,21 @@ export default function (pi: ExtensionAPI) {
 		name: "subagent",
 		label: "Subagent",
 		description: [
-			"Delegate exactly one task to exactly one specialized subagent.",
+			"Delegate one task to one discovered subagent, or one discovered swarm.",
 			"Pi may run independent subagent tool calls concurrently; do not make a resume-dependent follow-up until the prior result returns its Subagent resume ID.",
 			"Provide agent, description, task, and cwd.",
-			"When asking a follow-up of the same subagent, first wait for the prior tool result, then pass resume with the exact ID from its <subagent-resume-id> tag; otherwise a fresh isolated session starts.",
+			"When asking a follow-up of the same delegated target, first wait for the prior tool result, then pass resume with the exact ID from its <subagent-resume-id> tag; otherwise a fresh isolated session starts.",
 			"A terse description field is required for the delegated task.",
 			"Bundled, user, and project agents are discovered automatically.",
 		].join(" "),
 		promptSnippet:
-			"Delegate one task to one subagent. Independent subagent calls may run concurrently. For follow-ups, wait for the prior result, then pass resume from its <subagent-resume-id> tag.",
+			"Delegate one task to one subagent or swarm. Independent subagent calls may run concurrently. For follow-ups, wait for the prior result, then pass resume from its <subagent-resume-id> tag.",
 		promptGuidelines: [
 			"Use subagent for focused delegation to specialists like scout, review, fixer, or hack.",
 			"Each subagent tool call runs one task for one agent. Use multiple independent tool calls when work can run concurrently.",
+			"Swarm calls dispatch all swarm members concurrently in one tool call, each with its own isolated execution.",
 			"Always provide a terse description (3-8 words) for the delegated task.",
-			"If a previous subagent result included <subagent-resume-id> and the next task depends on that same subagent's prior context, set resume to that exact ID.",
+			"If a previous subagent result included <subagent-resume-id> and the next task depends on that same context, set resume to that exact ID.",
 			"Never use placeholder or empty resume values. If you do not have the actual ID yet, call the first subagent and wait for its result before making the follow-up call.",
 			"Do not dispatch a resume follow-up concurrently with the original call; the ID only exists after the first tool result returns.",
 			"Do not omit resume for follow-up questions that ask the same subagent to remember earlier findings.",
@@ -201,12 +264,15 @@ export default function (pi: ExtensionAPI) {
 		parameters: SubagentParams,
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
-			const discovery = discoverAgents(ctx.cwd);
+			const discovery = discoverAgents(params.cwd);
 			const agents = discovery.agents;
 			const parentSessionFile = ctx.sessionManager.getSessionFile();
 			const parentSessionId = ctx.sessionManager.getSessionId();
 			const parentSessionInfo = parentSessionFile
 				? { sessionFile: parentSessionFile, sessionId: parentSessionId, cwd: ctx.cwd }
+				: undefined;
+			const subagentSessionDir = parentSessionInfo
+				? getSubagentSessionDirForParent(parentSessionInfo.sessionId, params.cwd)
 				: undefined;
 			const makeDetails = (results: SingleResult[]) =>
 				createDetails(discovery.projectAgentsDir, results, parentSessionInfo?.sessionId);
@@ -221,15 +287,270 @@ export default function (pi: ExtensionAPI) {
 				};
 			};
 
-			const followUpText = `${params.description}\n${params.task}`.toLowerCase();
-			const looksLikeFollowUp =
-				/\b(previous|prior|remember|remembered|context|again|cached|without re-?search|without re-?reading)\b/.test(
-					followUpText,
+			const target = findDelegationTarget(discovery, params.agent);
+			if (!target) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: formatUnknownTargetError(
+								params.agent,
+								getAvailableAgentsText(discovery.agents),
+								getAvailableSwarmsText(discovery.swarms),
+							),
+						},
+					],
+					details: makeDetails([]),
+					isError: true,
+				};
+			}
+
+			if (target.kind === "swarm") {
+				const followsUp = isLikelyFollowUpRequest(params.task, params.description);
+				const explicitResumeId = params.resume?.trim();
+
+				const explicitSwarmManifestEntry = explicitResumeId
+					? parentSessionInfo && subagentSessionDir
+						? await getSwarmManifestEntryById(subagentSessionDir, explicitResumeId)
+						: undefined
+					: undefined;
+				if (explicitResumeId && !parentSessionInfo) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: "Cannot resume a swarm when the parent session is not persisted.",
+							},
+						],
+						details: makeDetails([]),
+						isError: true,
+					};
+				}
+
+				if (explicitResumeId && !explicitSwarmManifestEntry) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Unknown swarm resume ID "${explicitResumeId}" for target "${target.swarm.name}".`,
+							},
+						],
+						details: makeDetails([]),
+						isError: true,
+					};
+				}
+
+				if (
+					explicitResumeId &&
+					explicitSwarmManifestEntry &&
+					explicitSwarmManifestEntry.target !== target.swarm.name
+				) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Swarm resume ID "${explicitResumeId}" is for target "${explicitSwarmManifestEntry.target}", not "${target.swarm.name}".`,
+							},
+						],
+						details: makeDetails([]),
+						isError: true,
+					};
+				}
+
+				const latestSwarmResumeId =
+					!explicitResumeId && followsUp && parentSessionInfo
+						? await getLatestSwarmResumeIdForTarget(subagentSessionDir!, target.swarm.name)
+						: undefined;
+				const latestSwarmManifestEntry = latestSwarmResumeId
+					? await getSwarmManifestEntryById(subagentSessionDir!, latestSwarmResumeId)
+					: undefined;
+				const latestResumeTargetFound = Boolean(latestSwarmManifestEntry);
+				const freshSwarmResumeId =
+					!explicitResumeId && !latestSwarmResumeId && parentSessionInfo
+						? `swarm-${target.swarm.name.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-|-$/g, "") || "swarm"}-${randomUUID()}`
+						: undefined;
+				const swarmResumeId =
+					explicitResumeId ||
+					(latestResumeTargetFound && latestSwarmResumeId) ||
+					freshSwarmResumeId;
+				const swarmManifestEntry = explicitSwarmManifestEntry || latestSwarmManifestEntry;
+				const resumeManifestEntry = swarmResumeId ? swarmManifestEntry : undefined;
+
+				type SwarmMemberRequestPlan =
+					| { kind: "fresh"; request: TaskRequest }
+					| { kind: "resume"; request: TaskRequest }
+					| { kind: "missing"; result: SingleResult };
+				const memberRequests: SwarmMemberRequestPlan[] = target.swarm.members.map((memberName) => {
+					if (!resumeManifestEntry) {
+						return {
+							kind: "fresh",
+							request: {
+								...params,
+								agent: memberName,
+								resume: undefined,
+							},
+						};
+					}
+
+					const matchingMemberState = findSwarmMemberResumeState(
+						resumeManifestEntry.members,
+						memberName,
+					);
+					if (!matchingMemberState?.sessionId) {
+						return {
+							kind: "missing",
+							result: createMissingSwarmMemberResult(
+								params,
+								memberName,
+								swarmResumeId!,
+								matchingMemberState,
+							),
+						};
+					}
+
+					return {
+						kind: "resume",
+						request: {
+							...params,
+							agent: memberName,
+							resume: matchingMemberState.sessionId,
+						},
+					};
+				});
+				const results: SingleResult[] = memberRequests.map((memberRequest) =>
+					memberRequest.kind === "missing"
+						? memberRequest.result
+						: createPendingResult(memberRequest.request),
 				);
+				const emitUpdate = () => {
+					if (!onUpdate) return;
+					onUpdate({
+						content: [{ type: "text", text: `Subagent ${params.agent} running...` }],
+						details: makeDetails(results),
+					});
+				};
+				emitUpdate();
+
+				const finalResults = await Promise.all(
+					memberRequests.map((memberRequest, index) =>
+						memberRequest.kind === "missing"
+							? Promise.resolve(results[index])
+							: runSingleAgent(
+									agents,
+									memberRequest.request,
+									signal,
+									(partial) => {
+										results[index] = partial;
+										emitUpdate();
+									},
+									resolveModelInfo,
+									parentSessionInfo,
+								),
+					),
+				);
+
+				if (parentSessionInfo && subagentSessionDir && swarmResumeId) {
+					await updateSwarmManifest(
+						subagentSessionDir,
+						{
+							sessionFile: parentSessionInfo.sessionFile,
+							sessionId: parentSessionInfo.sessionId,
+						},
+						params.cwd,
+						{
+							id: swarmResumeId,
+							target: target.swarm.name,
+							description: params.description,
+							prompt: params.task,
+							timestamp: new Date().toISOString(),
+							members: finalResults.map((result, index) => {
+								const previousState = findSwarmMemberResumeState(
+									swarmManifestEntry?.members,
+									target.swarm.members[index],
+								);
+								return {
+									name: result.agent,
+									sessionId: result.sessionId ?? previousState?.sessionId,
+									sessionFile: result.sessionFile ?? (previousState?.sessionFile || undefined),
+									lastExitCode: result.exitCode,
+								};
+							}),
+						},
+					);
+				}
+
+				const swarmText =
+					getParentVisibleSwarmResultText(finalResults, swarmResumeId) || "(no output)";
+				const allFailed = finalResults.length > 0 && finalResults.every(isResultError);
+				return {
+					content: [{ type: "text", text: swarmText }],
+					details: makeDetails(finalResults),
+					isError: allFailed,
+				};
+			}
+
+			const hasExplicitResume = params.resume !== undefined;
+			const explicitResumeId = params.resume?.trim();
+
+			if (hasExplicitResume && explicitResumeId && parentSessionInfo && subagentSessionDir) {
+				const explicitResumeManifest = await getSubagentManifestEntryById(
+					subagentSessionDir,
+					explicitResumeId,
+				);
+				if (!explicitResumeManifest) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Unknown subagent resume ID "${explicitResumeId}" for target "${target.agent.name}".`,
+							},
+						],
+						details: makeDetails([]),
+						isError: true,
+					};
+				}
+				if (explicitResumeManifest.agent !== target.agent.name) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Subagent resume ID "${explicitResumeId}" is for agent "${explicitResumeManifest.agent}", not "${target.agent.name}".`,
+							},
+						],
+						details: makeDetails([]),
+						isError: true,
+					};
+				}
+			}
+
+			const followUpResumeIdFromManifest =
+				!hasExplicitResume &&
+				isLikelyFollowUpRequest(params.task, params.description) &&
+				parentSessionInfo &&
+				subagentSessionDir
+					? await getLatestSubagentSessionIdForAgent(subagentSessionDir, target.agent.name)
+					: undefined;
+			const lastSessionIdFromManifest = followUpResumeIdFromManifest
+				? (await findSubagentSessionFileById(subagentSessionDir!, followUpResumeIdFromManifest))
+					? followUpResumeIdFromManifest
+					: undefined
+				: undefined;
+
 			const request: TaskRequest =
-				!params.resume && looksLikeFollowUp && lastSessionByAgent.has(params.agent)
-					? { ...params, resume: lastSessionByAgent.get(params.agent) }
-					: params;
+				hasExplicitResume && explicitResumeId
+					? {
+							...params,
+							agent: target.agent.name,
+							resume: explicitResumeId,
+						}
+					: lastSessionIdFromManifest
+						? {
+								...params,
+								agent: target.agent.name,
+								resume: lastSessionIdFromManifest,
+							}
+						: { ...params, agent: target.agent.name };
+
 			let currentResult = createPendingResult(request);
 			const emitUpdate = () => {
 				if (!onUpdate) return;
@@ -238,7 +559,6 @@ export default function (pi: ExtensionAPI) {
 					details: makeDetails([currentResult]),
 				});
 			};
-
 			const result = await runSingleAgent(
 				agents,
 				request,
@@ -250,7 +570,6 @@ export default function (pi: ExtensionAPI) {
 				resolveModelInfo,
 				parentSessionInfo,
 			);
-			if (result.sessionId) lastSessionByAgent.set(request.agent, result.sessionId);
 			const results = [result];
 
 			if (isResultError(result)) {

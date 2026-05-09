@@ -1,13 +1,13 @@
 # Agent Discovery and Configuration Specification
 
-**Status:** Partial
+**Status:** Implemented
 **Last Updated:** 2026-05-09
 
 ## 1. Overview
 
 ### Purpose
 
-The subagent extension needs a stable way to find delegation targets, normalize them into Pi-ready runtime configuration, and expose enough metadata for both execution and debugging. Today a target is a markdown-backed agent definition; the planned swarm extension adds named fan-out targets backed by `swarm.json` files. This domain covers how agent and swarm definitions are discovered from package, user, and project locations; how agent frontmatter fields are parsed into `AgentConfig`; how tool and model metadata are normalized; and how the resulting catalog is handed to the subagent runtime.
+The subagent extension needs a stable way to find delegation targets, normalize them into Pi-ready runtime configuration, and expose enough metadata for both execution and debugging. This domain covers markdown-backed agent definitions and named fan-out swarm definitions backed by `swarm.json`; how those definitions are discovered from package, user, and project locations; how agent frontmatter fields are parsed into `AgentConfig`; how tool and model metadata are normalized; and how the resulting catalog is handed to the subagent runtime.
 
 ### Goals
 
@@ -88,7 +88,7 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 
 ## 3. Architecture
 
-Agent discovery is implemented in `pi-extensions/tools/subagent/agents.ts` and consumed by the subagent runtime in `pi-extensions/tools/subagent/`. Swarm discovery is planned for the same discovery boundary so runtime target resolution receives one validated catalog.
+Agent discovery is implemented in `pi-extensions/tools/subagent/agents.ts` and consumed by the subagent runtime in `pi-extensions/tools/subagent/`. Swarm discovery is implemented in the same boundary so runtime target resolution receives one validated catalog.
 
 ### Discovery pipeline
 
@@ -103,8 +103,9 @@ Agent discovery is implemented in `pi-extensions/tools/subagent/agents.ts` and c
 6. `normalizeTools(...)` maps the optional `tools` list into Pi tool names.
 7. `resolveModelAlias(...)` optionally rewrites lightweight model aliases using enabled models from settings.
 8. A `Map<string, AgentConfig>` applies source precedence by agent name and produces the final effective `agents` array.
-9. Planned swarm discovery loads `swarm.json` definitions from source-specific swarm roots, resolves each member name against the effective agent catalog, applies same-kind swarm precedence, and rejects cross-kind name collisions.
-10. The same discovery pass also returns raw `userAgents` and `projectAgents` lists for debug output.
+9. Swarm discovery loads `swarm.json` definitions from source-specific swarm roots and applies same-kind swarm precedence in one merged `swarms` view while still retaining `userSwarms`/`projectSwarms`.
+10. Swarm folder `.md` files are loaded with the same source before swarm merging so a swarm can reference colocated members.
+11. The same discovery pass also returns raw `userAgents` and `projectAgents` lists for debug output.
 
 ### Source locations and precedence
 
@@ -114,7 +115,7 @@ Discovery supports three agent sources:
 - **user** — agents under `~/.pi/agent/agents`
 - **project** — agents under the nearest ancestor `.pi/agents`
 
-Planned swarm sources mirror this model:
+Swarm sources mirror this model:
 
 - **package** — package-provided swarm folders, when shipped
 - **user** — swarm folders under `~/.pi/agent/swarms/<name>/swarm.json`
@@ -135,11 +136,13 @@ There is no field-by-field merge. The later source replaces the earlier same-kin
 Discovery returns multiple views from one pass:
 
 - `agents` — the effective merged list of single-agent targets
-- planned `swarms` — the effective merged list of swarm targets
-- planned `targets` — the effective visible delegation catalog Pi advertises and resolves for the `subagent` tool
+- `swarms` — the effective merged list of swarm targets
 - `userAgents` — raw user-defined agents for debug inspection
 - `projectAgents` — raw project-local agents for debug inspection
+- `userSwarms` — raw user-defined swarms for debug inspection
+- `projectSwarms` — raw project-local swarms for debug inspection
 - `projectAgentsDir` — nearest project agent directory, if present
+- `projectSwarmsDir` — nearest project swarm directory, if present
 
 This keeps Pi-facing behavior simple while preserving source visibility for humans. Because discovery is run on demand, markdown edits are picked up on the next call rather than requiring a long-lived cache flush.
 
@@ -162,10 +165,10 @@ The subagent runtime uses discovery results in four places:
 
 - `before_agent_start` discovers targets on demand and injects a terse XML list of visible subagent/swarm names and descriptions into the parent agent system prompt.
 - when `--agent <name>` is set, the same discovery result resolves the selected single agent by name, derives inherited runtime settings from that `AgentConfig`, applies model/thinking/tools unless explicit CLI flags override those fields, and appends the agent's `systemPrompt` wrapped in `<system-reminder type="selected-agent-prompt">` to the parent system prompt.
-- `debug-agents` renders the effective agent and planned swarm lists plus source-specific user/project sections.
-- `subagent` execution resolves the requested name against the effective target catalog; single-agent targets use the current one-child path, while planned swarm targets fan out through runtime orchestration.
+- `debug-agents` renders the effective agent and swarm lists plus source-specific user/project sections.
+- `subagent` execution resolves the requested name against the effective target catalog; single-agent targets use the current one-child path, while swarm targets fan out through runtime orchestration.
 
-This means discovery is the configuration boundary; runtime execution trusts the normalized `AgentConfig` or planned swarm target it receives.
+This means discovery is the configuration boundary; runtime execution trusts the normalized `AgentConfig` or swarm target it receives.
 
 ## 4. Data Model
 
@@ -188,17 +191,21 @@ export interface AgentDiscoveryResult {
 	userAgents: AgentConfig[];
 	projectAgents: AgentConfig[];
 	projectAgentsDir: string | null;
+	swarms: SwarmConfig[];
+	userSwarms: SwarmConfig[];
+	projectSwarms: SwarmConfig[];
+	projectSwarmsDir: string | null;
 }
 ```
 
-Planned swarm discovery adds a parallel target shape without changing the single-agent config contract:
+Swarm discovery adds a parallel target shape without changing the single-agent config contract:
 
 ```ts
 export interface SwarmConfig {
 	name: string;
 	description: string;
 	hidden: boolean;
-	members: AgentConfig[];
+	members: string[];
 	source: "package" | "user" | "project";
 	filePath: string;
 }
@@ -258,7 +265,7 @@ Bundled agents in this repo demonstrate the file format discovery expects:
 
 These files use YAML frontmatter for `name`, `description`, optional author-only `meta`, optional `hidden`, and optional `tools` / `model`, followed by a markdown prompt body that becomes `systemPrompt`.
 
-Planned swarm folders use `swarm.json` plus optional colocated agent markdown files:
+Swarm folders use `swarm.json` plus optional colocated agent markdown files:
 
 ```text
 .pi/swarms/review/
@@ -288,7 +295,7 @@ Minimal `swarm.json` shape:
 
 Returns the resolved agent catalog for a working directory.
 
-Planned implementation may rename or wrap this API to return a target catalog. The compatibility requirement is that existing single-agent callers can still obtain the effective `agents` list, while the subagent runtime can resolve a requested name to either one `AgentConfig` or one validated `SwarmConfig`.
+The API may be called by legacy single-agent callers and the subagent runtime. Runtime callers can resolve a requested name to either one `AgentConfig` or one validated `SwarmConfig`.
 
 The implementation re-reads markdown files each time it is called; there is no process-lifetime cache of agent bodies or frontmatter.
 
@@ -297,33 +304,39 @@ Behavioral contract:
 - bundled package agents are always considered
 - user agents are always considered
 - project agents are loaded from the nearest ancestor `.pi/agents`, when present
-- planned user/project/package swarms are loaded from source-specific `swarms/<name>/swarm.json` folders
-- planned swarm-local markdown files are loaded before validating that swarm's member list
+- user/project/package swarms are loaded from source-specific `swarms/<name>/swarm.json` folders
+- swarm-local markdown files are loaded before validating that swarm's member list
 - `projectAgentsDir` reports the nearest project agent directory even when no project agents are ultimately loaded
 - unreadable directories, unreadable files, and invalid JSON settings fail closed by omission rather than throwing
 - agent frontmatter is expected to be parseable, and `tools` is expected to be string-like when present; parse/type errors in those paths are not isolated per file by the current implementation
-- planned cross-kind name collisions and unknown swarm members are hard errors surfaced during discovery/session initialization
+- cross-kind name collisions and unknown swarm members are hard errors surfaced during discovery/session initialization
 
 #### `formatAgentList(agents: AgentConfig[], maxItems: number): { text: string; remaining: number }`
 
 Formats a short human-readable list such as `name (source): description` and reports how many items were omitted.
 
-#### `formatAgentsForPrompt(agents: AgentConfig[]): string`
+#### `formatAgentsForPrompt(agents: AgentConfig[], swarms: SwarmConfig[] = []): string`
 
-Formats discovered subagents for system-prompt injection as:
+Formats discovered targets for system-prompt injection as:
 
 - an outer `<system-reminder type="available-subagents">` wrapper
 - a terse lead-in line: `These are the available subagents with their intended use.`
 - an inner XML list under `<available-subagents>`
-- one `<subagent>` entry per visible agent containing `<name>` and `<description>` only
-- agents with `hidden: true` are omitted from this prompt-formatting output entirely
+- one `<subagent>` entry per visible agent or swarm containing `<name>` and `<description>` only
+- agents/swarms with `hidden: true` are omitted from this prompt-formatting output entirely
 
-Planned swarm support should keep the same parent-facing XML shape and include visible swarms as normal `<subagent>` entries. The parent agent should not need to know whether a listed name resolves to one agent or a swarm.
+Swarm targets use the same parent-facing XML shape as single agents.
+The parent agent should not need to know whether a listed name resolves to one agent or a swarm.
 
 #### `findAgentByName(agents: AgentConfig[], name: string | undefined | null): AgentConfig | undefined`
 
 Returns the effective discovered agent whose `name` exactly matches the trimmed requested name.
 Returns `undefined` for blank or missing names.
+
+#### `findDelegationTarget(discovery: AgentDiscoveryResult, name: string | undefined | null): DelegationTarget | undefined`
+
+Resolves a target name to either an agent or swarm entry from the merged catalogs.
+Returns `undefined` for blank names, unknown names, or names that are not present in either effective list.
 
 #### `getAgentRuntimeSettings(agent: AgentConfig): AgentRuntimeSettings`
 
@@ -394,12 +407,12 @@ If the requested single-agent name is missing, runtime returns an error containi
 
 ### Runtime-facing `SwarmConfig` fields
 
-The planned subagent runtime consumes swarm discovery results as follows:
+The subagent runtime consumes swarm discovery results as follows:
 
 - `name` selects the swarm target from the same `agent` tool parameter used for single agents
 - `description` is advertised to the parent in the same available-subagents inventory
 - `hidden` suppresses parent prompt inventory exposure without affecting explicit lookup, debug output, or execution
-- `members` is the validated ordered list of effective agent configs to run concurrently
+- `members` is the validated ordered list of effective agent names to run.
 - `source` and `filePath` appear in debug output and support the same project-source policy hooks as agents
 
 A swarm member must resolve to a single agent, not another swarm. Nested swarms are out of scope until a separate scheduling design exists.
@@ -416,6 +429,6 @@ A swarm member must resolve to a single agent, not another swarm. Nested swarms 
 - `pi-extensions/README.md`
 - `pi-extensions/tools/subagent/`
 - `pi-extensions/tools/subagent/agents.ts`
-- planned swarm discovery module under `pi-extensions/tools/subagent/`
+- `pi-extensions/tools/subagent/index.ts`
 - `pi-agents/*.md`
 - `.pi/settings.json` (local development example affecting nearest-settings resolution in this repo)
