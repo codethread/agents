@@ -1,6 +1,6 @@
 # `subagent`
 
-> Delegate tasks to specialized agents with isolated context.
+> Delegate one task to one specialized agent with isolated context.
 
 Provides two things: the `subagent` tool for delegating work from within a session, and `--agent <name>` for adopting an agent config directly at startup.
 
@@ -50,25 +50,24 @@ Canonical Pi tool names: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`. 
 
 ## `subagent` tool
 
-Spawns a `pi` subprocess per task with an isolated context window. The parent sees only each child's final message, not the full transcript.
+Spawns one `pi` subprocess with an isolated context window. Each tool call runs exactly one agent task. Pi may dispatch multiple independent `subagent` tool calls concurrently; this extension does not batch or schedule them internally. The parent sees only the child's final message, not the full transcript.
 
 ```json
 {
-	"tasks": [{ "agent": "scout", "description": "map auth flow", "task": "...", "cwd": "/path" }]
+	"agent": "scout",
+	"description": "map auth flow",
+	"task": "...",
+	"cwd": "/path",
+	"resume": "optional-id-from-previous-result"
 }
 ```
 
-| Shape     | Behavior                           |
-| --------- | ---------------------------------- |
-| 1 task    | Single focused run                 |
-| 2–8 tasks | Parallel fan-out, max 4 concurrent |
-
-All four fields (`agent`, `description`, `task`, `cwd`) are required per task. `description` should be 3–8 words.
+All four fields (`agent`, `description`, `task`, `cwd`) are required. `resume` is optional; use the exact UUID from the `Subagent resume ID: ...` line or `<subagent-resume-id>...</subagent-resume-id>` tag returned by a previous persisted run to continue that same subagent session. If a follow-up depends on that ID, wait for the first tool result before making the second call; do not dispatch both calls concurrently. Set `resume` for follow-up questions that depend on the subagent's prior findings; omit it when you want a fresh isolated session. Never use a placeholder or empty resume value, and never dispatch the follow-up before the first result returns. `description` should be 3–8 words. Dispatch multiple independent subagents concurrently as separate tool calls when no later call depends on another run's resume ID.
 
 **Usage hints:**
 
 - _"Use the scout agent to map the folder structure"_
-- _"Run lint, typecheck, and test in parallel"_
+- _"Ask fixer to repair the typecheck failure"_
 
 ---
 
@@ -111,7 +110,7 @@ When the parent session is persisted, each subagent run is saved under:
       <uuid>.jsonl
 ```
 
-If the parent runs with `--no-session`, subagents also skip persistence.
+If the parent runs with `--no-session`, subagents also skip persistence and no resume ID is returned.
 
 ---
 

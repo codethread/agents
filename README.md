@@ -58,6 +58,7 @@ See `pi-extensions/system-prompt/README.md` for the merged prompt-layer extensio
 - `skills/pi-session-introspection/SKILL.md` — jq cookbook for analysing Pi agent/subagent session JSONL files (tool usage, thinking, costs, file ops, subagent manifests)
 - `skills/skill-authoring/SKILL.md` — guide for writing well-structured Pi skills
 - `skills/spec-authoring/SKILL.md` — guide for turning feature intent into implementation-ready specs
+- `skills/tmux-pty/SKILL.md` — concise tmux split-pane PTY workflow for spawning interactive or long-running commands, sending literal input, capturing output, focusing panes, and stopping panes
 
 ## Development
 

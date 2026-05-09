@@ -1,5 +1,5 @@
 /**
- * Subagent tool - delegate tasks to specialized agents.
+ * Subagent tool - delegate one task to one specialized agent.
  *
  * Spawns a separate `pi` process for each subagent invocation,
  * giving it an isolated context window.
@@ -18,13 +18,11 @@ import {
 	getInheritedAgentRuntimeSettings,
 	parseAgentFlagCliOverrides,
 } from "./agents.js";
-import { mapWithConcurrencyLimit, runSingleAgent } from "./runtime.js";
+import { runSingleAgent } from "./runtime.js";
 import {
 	formatDebugSection,
-	formatParallelParentVisibleResult,
 	getAvailableAgentsText,
 	getParentVisibleResultText,
-	getResultErrorText,
 	isResultError,
 	renderSubagentCall,
 	renderSubagentResult,
@@ -32,14 +30,12 @@ import {
 import {
 	createDetails,
 	createPendingResult,
-	MAX_CONCURRENCY,
-	MAX_PARALLEL_TASKS,
-	RUNNING_EXIT_CODE,
 	type ResolveModelInfo,
 	type SingleResult,
+	type TaskRequest,
 } from "./types.js";
 
-const TaskItem = Type.Object({
+const SubagentParams = Type.Object({
 	agent: Type.String({ description: "Name of the agent to invoke" }),
 	description: Type.String({
 		description:
@@ -47,16 +43,18 @@ const TaskItem = Type.Object({
 	}),
 	task: Type.String({ description: "Task to delegate to the agent" }),
 	cwd: Type.String({ description: "Working directory for the agent process" }),
-});
-
-const SubagentParams = Type.Object({
-	tasks: Type.Array(TaskItem, {
-		description: "Array of {agent, description, task, cwd} to execute",
-	}),
+	resume: Type.Optional(
+		Type.String({
+			pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+			description:
+				"Exact UUID from a previous Subagent resume ID line or <subagent-resume-id> tag. Use this to continue that same subagent session for follow-up questions that depend on prior findings.",
+		}),
+	),
 });
 
 export default function (pi: ExtensionAPI) {
 	let selectedAgentName: string | undefined;
+	const lastSessionByAgent = new Map<string, string>();
 	let agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
 
 	const failAgentSelection = (
@@ -182,18 +180,24 @@ export default function (pi: ExtensionAPI) {
 		name: "subagent",
 		label: "Subagent",
 		description: [
-			"Delegate tasks to specialized subagents with isolated context.",
-			"Provide a tasks array where each item includes agent, description, task, and cwd.",
-			"A terse description field is required for delegated tasks.",
+			"Delegate exactly one task to exactly one specialized subagent.",
+			"Pi may run independent subagent tool calls concurrently; do not make a resume-dependent follow-up until the prior result returns its Subagent resume ID.",
+			"Provide agent, description, task, and cwd.",
+			"When asking a follow-up of the same subagent, first wait for the prior tool result, then pass resume with the exact ID from its <subagent-resume-id> tag; otherwise a fresh isolated session starts.",
+			"A terse description field is required for the delegated task.",
 			"Bundled, user, and project agents are discovered automatically.",
 		].join(" "),
-		promptSnippet: "Delegate tasks to specialized subagents",
-		// TODO: fix alignment of tools, but right now i prefer my injected context
-		// promptGuidelines: [
-		// 	"Use subagent for giving specific tasks to other agents like scouting the codebase or scripts with noisy feedback loops",
-		// 	"Always provide a terse description (3-8 words) for each delegated task.",
-		// 	"Use a single-item tasks array for focused work; use multiple items for independent parallel tasks.",
-		// ],
+		promptSnippet:
+			"Delegate one task to one subagent. Independent subagent calls may run concurrently. For follow-ups, wait for the prior result, then pass resume from its <subagent-resume-id> tag.",
+		promptGuidelines: [
+			"Use subagent for focused delegation to specialists like scout, review, fixer, or hack.",
+			"Each subagent tool call runs one task for one agent. Use multiple independent tool calls when work can run concurrently.",
+			"Always provide a terse description (3-8 words) for the delegated task.",
+			"If a previous subagent result included <subagent-resume-id> and the next task depends on that same subagent's prior context, set resume to that exact ID.",
+			"Never use placeholder or empty resume values. If you do not have the actual ID yet, call the first subagent and wait for its result before making the follow-up call.",
+			"Do not dispatch a resume follow-up concurrently with the original call; the ID only exists after the first tool result returns.",
+			"Do not omit resume for follow-up questions that ask the same subagent to remember earlier findings.",
+		],
 		parameters: SubagentParams,
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
@@ -217,89 +221,47 @@ export default function (pi: ExtensionAPI) {
 				};
 			};
 
-			if (params.tasks.length === 0) {
-				return {
-					content: [
-						{
-							type: "text",
-							text: `Invalid parameters. Provide at least one task. Available agents: ${getAvailableAgentsText(agents)}`,
-						},
-					],
-					details: makeDetails([]),
-				};
-			}
-
-			if (params.tasks.length > MAX_PARALLEL_TASKS) {
-				return {
-					content: [
-						{
-							type: "text",
-							text: `Too many parallel tasks (${params.tasks.length}). Max is ${MAX_PARALLEL_TASKS}.`,
-						},
-					],
-					details: makeDetails([]),
-				};
-			}
-
-			const allResults = params.tasks.map(createPendingResult);
-			const emitParallelUpdate = () => {
+			const followUpText = `${params.description}\n${params.task}`.toLowerCase();
+			const looksLikeFollowUp =
+				/\b(previous|prior|remember|remembered|context|again|cached|without re-?search|without re-?reading)\b/.test(
+					followUpText,
+				);
+			const request: TaskRequest =
+				!params.resume && looksLikeFollowUp && lastSessionByAgent.has(params.agent)
+					? { ...params, resume: lastSessionByAgent.get(params.agent) }
+					: params;
+			let currentResult = createPendingResult(request);
+			const emitUpdate = () => {
 				if (!onUpdate) return;
-				const running = allResults.filter((result) => result.exitCode === RUNNING_EXIT_CODE).length;
-				const done = allResults.length - running;
 				onUpdate({
-					content: [
-						{
-							type: "text",
-							text: `Parallel: ${done}/${allResults.length} done, ${running} running...`,
-						},
-					],
-					details: makeDetails([...allResults]),
+					content: [{ type: "text", text: `Subagent ${request.agent} running...` }],
+					details: makeDetails([currentResult]),
 				});
 			};
 
-			const results = await mapWithConcurrencyLimit(
-				params.tasks,
-				MAX_CONCURRENCY,
-				async (task, index) => {
-					const result = await runSingleAgent(
-						agents,
-						task,
-						signal,
-						(partial) => {
-							allResults[index] = partial;
-							emitParallelUpdate();
-						},
-						resolveModelInfo,
-						parentSessionInfo,
-					);
-					allResults[index] = result;
-					emitParallelUpdate();
-					return result;
+			const result = await runSingleAgent(
+				agents,
+				request,
+				signal,
+				(partial) => {
+					currentResult = partial;
+					emitUpdate();
 				},
+				resolveModelInfo,
+				parentSessionInfo,
 			);
+			if (result.sessionId) lastSessionByAgent.set(request.agent, result.sessionId);
+			const results = [result];
 
-			if (results.length === 1) {
-				const result = results[0];
-				if (isResultError(result)) {
-					return {
-						content: [{ type: "text", text: getResultErrorText(result) || "(no output)" }],
-						details: makeDetails(results),
-						isError: true,
-					};
-				}
+			if (isResultError(result)) {
 				return {
 					content: [{ type: "text", text: getParentVisibleResultText(result) || "(no output)" }],
 					details: makeDetails(results),
+					isError: true,
 				};
 			}
-
 			return {
-				content: [
-					{
-						type: "text",
-						text: formatParallelParentVisibleResult(results),
-					},
-				],
+				content: [{ type: "text", text: getParentVisibleResultText(result) || "(no output)" }],
 				details: makeDetails(results),
 			};
 		},

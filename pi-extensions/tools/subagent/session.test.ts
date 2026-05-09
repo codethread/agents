@@ -2,7 +2,12 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { getSubagentSessionPath, updateManifest, type ManifestEntry } from "./session.js";
+import {
+	findSubagentSessionFileById,
+	getSubagentSessionPath,
+	updateManifest,
+	type ManifestEntry,
+} from "./session.js";
 
 const tempDirs: string[] = [];
 const originalHome = process.env.HOME;
@@ -73,6 +78,26 @@ describe("getSubagentSessionPath", () => {
 			/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
 		);
 		expect(result.sessionFile).toBe(path.join(expectedDir, `${result.sessionId}.jsonl`));
+	});
+});
+
+describe("findSubagentSessionFileById", () => {
+	it("finds a session file by Pi session header ID prefix", async () => {
+		const dir = makeTempDir("subagent-find-session-");
+		const sessionFile = path.join(dir, "storage-id.jsonl");
+		fs.writeFileSync(
+			sessionFile,
+			`${JSON.stringify({
+				type: "session",
+				version: 3,
+				id: "pi-session-id-123",
+				timestamp: "2026-05-09T00:00:00.000Z",
+				cwd: "/repo/project",
+			})}\n`,
+			"utf8",
+		);
+
+		expect(await findSubagentSessionFileById(dir, "pi-session-id")).toBe(sessionFile);
 	});
 });
 

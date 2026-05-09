@@ -29,21 +29,64 @@ export interface Manifest {
 	subagents: ManifestEntry[];
 }
 
+function getSubagentSessionDir(parentSessionId: string, cwd: string): string {
+	const encodedCwd = `--${cwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
+	const agentDir = path.join(os.homedir(), ".pi", "agent");
+	return path.join(agentDir, "subagent-sessions", encodedCwd, parentSessionId);
+}
+
 export function getSubagentSessionPath(
-	parentSessionFile: string,
+	_parentSessionFile: string,
 	parentSessionId: string,
 	cwd: string,
 ): { dir: string; sessionFile: string; sessionId: string } {
-	const encodedCwd = `--${cwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
-	const agentDir = path.join(os.homedir(), ".pi", "agent");
-	const dir = path.join(agentDir, "subagent-sessions", encodedCwd, parentSessionId);
-	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 	const sessionId = randomUUID();
+	return getSubagentSessionPathForId(parentSessionId, cwd, sessionId);
+}
+
+function getSubagentSessionPathForId(
+	parentSessionId: string,
+	cwd: string,
+	sessionId: string,
+): { dir: string; sessionFile: string; sessionId: string } {
+	const dir = getSubagentSessionDir(parentSessionId, cwd);
+	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 	return {
 		dir,
 		sessionFile: path.join(dir, `${sessionId}.jsonl`),
 		sessionId,
 	};
+}
+
+export function getSubagentSessionDirForParent(parentSessionId: string, cwd: string): string {
+	const dir = getSubagentSessionDir(parentSessionId, cwd);
+	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+	return dir;
+}
+
+export async function findSubagentSessionFileById(
+	dir: string,
+	sessionId: string,
+): Promise<string | undefined> {
+	let files: string[];
+	try {
+		files = await fs.promises.readdir(dir);
+	} catch {
+		return undefined;
+	}
+
+	for (const file of files) {
+		if (!file.endsWith(".jsonl")) continue;
+		try {
+			const sessionFile = path.join(dir, file);
+			const firstLine = (await fs.promises.readFile(sessionFile, "utf8")).split("\n", 1)[0];
+			const header = JSON.parse(firstLine) as { type?: string; id?: string };
+			if (header.type === "session" && header.id?.startsWith(sessionId)) return sessionFile;
+		} catch {
+			// Ignore malformed session files, matching Pi's session listing behavior.
+		}
+	}
+	return undefined;
 }
 
 export async function updateManifest(

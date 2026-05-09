@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Message } from "@mariozechner/pi-ai";
-import {
-	formatParallelParentVisibleResult,
-	getFinalOutput,
-	getParentVisibleResultText,
-} from "./render.js";
+import { getFinalOutput, getParentVisibleResultText } from "./render.js";
 
 const makeAssistant = (
 	content: Extract<Message, { role: "assistant" }>["content"],
@@ -45,6 +41,7 @@ function makeSingleResult(options: {
 	stderr?: string;
 	errorMessage?: string;
 	stopReason?: "stop" | "length" | "toolUse" | "error" | "aborted";
+	sessionId?: string;
 }) {
 	return {
 		agent: options.agent,
@@ -64,6 +61,7 @@ function makeSingleResult(options: {
 		},
 		stopReason: options.stopReason,
 		errorMessage: options.errorMessage,
+		sessionId: options.sessionId,
 	};
 }
 
@@ -115,7 +113,7 @@ describe("getFinalOutput", () => {
 });
 
 describe("parent-visible result text", () => {
-	it("returns the full child output for parallel results instead of truncating previews", () => {
+	it("returns the full child output for parent-visible results", () => {
 		const scoutOutput = [
 			"alpha.ts",
 			"beta.ts",
@@ -124,36 +122,15 @@ describe("parent-visible result text", () => {
 			"epsilon.ts",
 			"zeta.ts",
 		].join("\n");
-		const hackOutput = [
-			"README.md",
-			"package.json",
-			"tsconfig.json",
-			"pnpm-lock.yaml",
-			"eslint.config.mjs",
-		].join("\n");
 
 		expect(
-			formatParallelParentVisibleResult([
+			getParentVisibleResultText(
 				makeSingleResult({
 					agent: "scout",
 					messages: [makeAssistant([{ type: "text", text: scoutOutput }])],
 				}),
-				makeSingleResult({
-					agent: "hack",
-					messages: [makeToolResult(hackOutput)],
-				}),
-			]),
-		).toBe(
-			[
-				"Parallel: 2/2 succeeded",
-				"",
-				"[scout] completed:",
-				scoutOutput,
-				"",
-				"[hack] completed:",
-				hackOutput,
-			].join("\n"),
-		);
+			),
+		).toBe(scoutOutput);
 	});
 
 	it("uses full error text for failed child runs", () => {
@@ -166,5 +143,25 @@ describe("parent-visible result text", () => {
 				}),
 			),
 		).toBe("first line\nsecond line\nthird line");
+	});
+
+	it("appends the resume ID XML tag when a persisted subagent session exists", () => {
+		expect(
+			getParentVisibleResultText(
+				makeSingleResult({
+					agent: "review",
+					messages: [makeAssistant([{ type: "text", text: "Review findings" }])],
+					sessionId: "subagent-session-123",
+				}),
+			),
+		).toBe(
+			[
+				"Subagent resume ID: subagent-session-123",
+				'To ask this same subagent a follow-up, call subagent with resume: "subagent-session-123".',
+				"<subagent-resume-id>subagent-session-123</subagent-resume-id>",
+				"",
+				"Review findings",
+			].join("\n"),
+		);
 	});
 });

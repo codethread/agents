@@ -7,10 +7,11 @@ Small index for the extensions shipped in this package. See each extension folde
 
 ## Tools
 
-| Extension                                          | Summary                                                                                                              |
-| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [`subagent`](./tools/subagent/README.md)           | Delegate tasks to specialized subagents with isolated context, or inherit one discovered agent config via `--agent`. |
-| [`questionnaire`](./tools/questionnaire/README.md) | Structured question forms opened in your external editor.                                                            |
+| Extension                                                  | Summary                                                                                                                  |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| [`subagent`](./tools/subagent/README.md)                   | Delegate one task to a specialized subagent with isolated context, or inherit one discovered agent config via `--agent`. |
+| [`questionnaire`](./tools/questionnaire/README.md)         | Structured question forms opened in your external editor.                                                                |
+| [`interactive-shell`](./tools/interactive-shell/README.md) | Spawn and control interactive shell panes for TUIs, REPLs, dev servers, and watch processes.                             |
 
 ## UI
 

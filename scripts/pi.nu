@@ -7,6 +7,9 @@ def model-completions [] {
 		"anthropic/claude-opus-4-7"
 		"anthropic/claude-sonnet-4-6"
 
+		"deepseek/deepseek-v4-flash"
+		"deepseek/deepseek-v4-pro"
+
 		"github-copilot/claude-haiku-4.5"
 		# "github-copilot/claude-opus-4.7" # need to pay the pro+ bucks
 		"github-copilot/claude-sonnet-4.6"
@@ -16,14 +19,14 @@ def model-completions [] {
 		# "openai/gpt-5.3-codex-spark" not yet available outside max sub
 		"openai/gpt-5.4-nano"
 
-		# "openai-codex/gpt-5.3-codex-spark" not yet available outside max sub
+		"openai-codex/gpt-5.3-codex-spark"
 		"openai-codex/gpt-5.4"
 		"openai-codex/gpt-5.4-mini"
 	]
 }
 
 def provider-completions [] {
-	["anthropic", "github-copilot", "openai", "openai-codex"]
+	["anthropic", "deepseek", "github-copilot", "openai", "openai-codex"]
 }
 
 def thinking-completions [] {
@@ -76,6 +79,7 @@ extern "pi" [
 	--debug-tldr                              # [EXT] Print current session TL;DR and exit
 	--debug-tldr-transcript                   # [EXT] Print transcript used by /tldr and exit
 	--debug-tmux-title                        # [EXT] Print tmux window-title generation details
+	--debug-interactive-shell: string         # [EXT] Run interactive_shell spawn/send/tail/kill directly (optional command)
 	...args: string
 ]
 

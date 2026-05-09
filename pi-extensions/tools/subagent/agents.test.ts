@@ -499,7 +499,12 @@ describe("discoverAgents", () => {
 		});
 
 		const bundledAgents = discovery.agents.filter((agent) => agent.source === "package");
-		expect(bundledAgents.map((agent) => agent.name).sort()).toEqual(["fixer", "hack", "scout"]);
+		expect(bundledAgents.map((agent) => agent.name).sort()).toEqual([
+			"fixer",
+			"hack",
+			"review",
+			"scout",
+		]);
 		for (const agent of bundledAgents) {
 			expect(agent.hidden).toBe(false);
 			expect(agent.filePath).toContain(`${path.sep}pi-agents${path.sep}`);
