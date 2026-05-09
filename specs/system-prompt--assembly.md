@@ -99,13 +99,11 @@ Some extensions register tools with `promptSnippet` and `promptGuidelines`. Pi c
 
 Prompt-contributing tool registrations include:
 
-- `read-compact`
-- `bash-compact`
+- `read`
+- `bash`
 - `subagent`
 
 When the merged `system-prompt` extension's ownership phase is active, it manually vendors built-in tool metadata because Pi does not expose that metadata publicly.
-
-Child spec: [`specs/presentation--extension-layer.md`](./presentation--extension-layer.md)
 
 ### 3.7 Related: User-Input Transforms
 
@@ -156,13 +154,11 @@ These are the only prompt-debug surfaces for the merged extension.
 | `pi-extensions/system-prompt/dynamic-agents-md/index.ts`        | Template rendering and prompt-debug helper utilities.                                                                                                                         |
 | `pi-extensions/system-prompt/project-structure-prompt/index.ts` | Bounded repo-tree snapshot controller and cache helpers.                                                                                                                      |
 | `pi-extensions/context-management/pi-discovery/index.ts`        | Context-management extension entrypoint for Pi-discovery user-input transforms and debug reporting.                                                                           |
-| `pi-extensions/tools/read/index.ts`                             | `read` tool presentation metadata.                                                                                                                                            |
-| `pi-extensions/tools/bash/index.ts`                             | `bash` tool presentation metadata.                                                                                                                                            |
+
 | `pi-extensions/tools/subagent/index.ts`                         | Agent inventory and selected-agent prompt injection; `subagent` tool registration.                                                                                            |
 | `pi-extensions/README.md`                                       | Extension index and navigation entry point.                                                                                                                                   |
 | `specs/system-prompt--ownership.md`                             | Child spec for scaffold ownership details.                                                                                                                                    |
 | `specs/system-prompt--dynamic-template-injection.md`            | Child spec for template-based prompt injection details.                                                                                                                       |
 | `specs/subagent--discovery-and-config.md`                       | Child spec for agent discovery details used by subagent prompt assembly.                                                                                                      |
 | `specs/subagent--orchestration.md`                              | Child spec for subagent execution and runtime orchestration.                                                                                                                  |
-| `specs/presentation--extension-layer.md`                        | Child spec for tool presentation metadata and prompt snippets.                                                                                                                |
 | `specs/pi--extension-discovery.md`                              | Related spec for user-input contextual-note injection handled outside the system-prompt pipeline.                                                                             |

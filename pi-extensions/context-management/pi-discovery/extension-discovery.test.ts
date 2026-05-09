@@ -217,8 +217,8 @@ describe("formatters", () => {
 			...makeStaticDiscovery(),
 			extensions: [
 				{
-					name: "bash-compact",
-					path: "/repo/pi-extensions/tools/bash/index.ts",
+					name: "bash",
+					path: "/repo/pi-extensions/tools/builtins/bash.ts",
 					scope: "project" as const,
 					source: "/repo",
 					origin: "package" as const,

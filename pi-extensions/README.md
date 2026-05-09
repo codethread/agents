@@ -17,8 +17,7 @@ Small index for the extensions shipped in this package. See each extension folde
 
 | Extension                                                   | Summary                                                             |
 | ----------------------------------------------------------- | ------------------------------------------------------------------- |
-| [`read`](./tools/read/README.md)                            | Compact file read display — transparent to the user.                |
-| [`bash`](./tools/bash/README.md)                            | Compact shell output display — transparent to the user.             |
+| [`builtins`](./tools/builtins/README.md)                    | Compact built-in `read` and `bash` displays — transparent to the user. |
 | [`statusline`](./ui/statusline/README.md)                   | Persistent status bar — transparent to the user.                    |
 | [`theme-sync`](./ui/theme-sync/README.md)                   | Keep `rose-pine` selected while swapping Dawn/Moon from a sentinel. |
 | [`timeline-timestamps`](./ui/timeline-timestamps/README.md) | Show recent tool-call timestamps in the footer.                     |
