@@ -1,6 +1,6 @@
 # `subagent`
 
-> Delegate tasks to specialized agents with isolated context.
+> Delegate one task to one specialized agent with isolated context.
 
 Provides two things: the `subagent` tool for delegating work from within a session, and `--agent <name>` for adopting an agent config directly at startup.
 
@@ -50,7 +50,7 @@ Canonical Pi tool names: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`. 
 
 ## `subagent` tool
 
-Spawns one `pi` subprocess with an isolated context window. The parent sees only the child's final message, not the full transcript.
+Spawns one `pi` subprocess with an isolated context window. Each tool call runs exactly one agent task. Pi may dispatch multiple independent `subagent` tool calls concurrently; this extension does not batch or schedule them internally. The parent sees only the child's final message, not the full transcript.
 
 ```json
 {
@@ -62,7 +62,7 @@ Spawns one `pi` subprocess with an isolated context window. The parent sees only
 }
 ```
 
-All four fields (`agent`, `description`, `task`, `cwd`) are required. `resume` is optional; use the exact UUID from the `Subagent resume ID: ...` line or `<subagent-resume-id>...</subagent-resume-id>` tag returned by a previous persisted run to continue that same subagent session. If a follow-up depends on that ID, wait for the first tool result before making the second call; do not dispatch both calls concurrently. Set `resume` for follow-up questions that depend on the subagent's prior findings; omit it when you want a fresh isolated session. Never use a placeholder or empty resume value, and never dispatch the follow-up before the first result returns. `description` should be 3–8 words. For resume reliability, prefer one `subagent` tool call per assistant response. Only dispatch multiple independent subagents concurrently when no later call depends on another run's resume ID.
+All four fields (`agent`, `description`, `task`, `cwd`) are required. `resume` is optional; use the exact UUID from the `Subagent resume ID: ...` line or `<subagent-resume-id>...</subagent-resume-id>` tag returned by a previous persisted run to continue that same subagent session. If a follow-up depends on that ID, wait for the first tool result before making the second call; do not dispatch both calls concurrently. Set `resume` for follow-up questions that depend on the subagent's prior findings; omit it when you want a fresh isolated session. Never use a placeholder or empty resume value, and never dispatch the follow-up before the first result returns. `description` should be 3–8 words. Dispatch multiple independent subagents concurrently as separate tool calls when no later call depends on another run's resume ID.
 
 **Usage hints:**
 

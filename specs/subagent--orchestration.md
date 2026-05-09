@@ -12,11 +12,11 @@ The subagent extension provides a stable runtime for delegating work to isolated
 ### Goals
 
 - Execute delegated work in isolated child `pi` processes instead of the parent conversation context.
-- Execute exactly one delegated task per `subagent` tool call; concurrent delegation is possible through Pi's normal concurrent tool-call dispatch, but resume-dependent follow-ups must wait for the first result.
+- Execute exactly one delegated task per `subagent` tool call; independent concurrent delegation is handled by Pi dispatching multiple subagent tool calls at once, while resume-dependent follow-ups must wait for the first result.
 - Stream incremental progress back into the parent tool call while subprocesses are running.
 - Preserve enough metadata per agent run to render useful collapsed and expanded TUI views.
 - Reuse discovered agent configuration from the discovery layer without drifting between direct `--agent` mode and delegated child runs.
-- Keep the delegation interface consistent and explicit by requiring per-task labels and working directories.
+- Keep the delegation interface consistent and explicit by requiring a per-run label and working directory.
 
 ### Non-Goals
 
@@ -44,7 +44,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 - **Decision:** Persist subagent sessions only when the parent session is persisted, and index them via a per-parent manifest.
   - **Rationale:** This preserves legacy ephemeral behavior for non-persisted runs while enabling structured post-run introspection (task summary, model, usage, cost, duration, and session file) whenever a parent session has a durable log.
 
-- **Decision:** The `subagent` tool accepts one task per invocation and tells agents to use at most one subagent call per assistant response when resume may be involved.
+- **Decision:** The `subagent` tool accepts one task per invocation and relies on Pi's normal multi-tool dispatch for independent concurrency.
   - **Rationale:** Pi can dispatch multiple tool calls concurrently, so batching subagents inside this tool duplicates orchestration semantics. Resume IDs, however, only exist after a prior tool result returns, so follow-up calls must be sequential.
 
 - **Decision:** Pi executes against one merged subagent list rather than exposing source scopes in the tool API.
@@ -200,8 +200,8 @@ For `tool_result_end`, the message is appended to the run log and an update is e
 
 The subagent tool owns both call rendering and result rendering.
 
-- `renderCall(...)` prints a compact preview of the requested task list.
-- `renderResult(...)` consumes `SubagentDetails` and renders per-task status/output for running and completed workloads.
+- `renderCall(...)` prints a compact preview of the requested single task.
+- `renderResult(...)` consumes `SubagentDetails` and renders the single run's status/output for running and completed workloads.
 - Shared usage strings come from `formatUsageStats(...)`, which delegates token/cost/model formatting to `pi-extensions/ui/statusline/usage-format.ts`.
 - Tool-call summaries come from `formatToolCall(...)`, which special-cases built-ins like `bash`, `read`, `write`, `edit`, `find`, and `grep`.
 

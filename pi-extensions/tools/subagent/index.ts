@@ -1,5 +1,5 @@
 /**
- * Subagent tool - delegate tasks to specialized agents.
+ * Subagent tool - delegate one task to one specialized agent.
  *
  * Spawns a separate `pi` process for each subagent invocation,
  * giving it an isolated context window.
@@ -54,7 +54,6 @@ const SubagentParams = Type.Object({
 
 export default function (pi: ExtensionAPI) {
 	let selectedAgentName: string | undefined;
-	let subagentQueue: Promise<void> = Promise.resolve();
 	const lastSessionByAgent = new Map<string, string>();
 	let agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
 
@@ -181,18 +180,18 @@ export default function (pi: ExtensionAPI) {
 		name: "subagent",
 		label: "Subagent",
 		description: [
-			"Delegate exactly one task to exactly one specialized subagent. Call this tool at most once per assistant response.",
-			"IMPORTANT: Never dispatch multiple subagent calls concurrently when one might depend on another. Wait for the first tool result, read its Subagent resume ID, then call again with resume set to that UUID.",
+			"Delegate exactly one task to exactly one specialized subagent.",
+			"Pi may run independent subagent tool calls concurrently; do not make a resume-dependent follow-up until the prior result returns its Subagent resume ID.",
 			"Provide agent, description, task, and cwd.",
 			"When asking a follow-up of the same subagent, first wait for the prior tool result, then pass resume with the exact ID from its <subagent-resume-id> tag; otherwise a fresh isolated session starts.",
 			"A terse description field is required for the delegated task.",
 			"Bundled, user, and project agents are discovered automatically.",
 		].join(" "),
 		promptSnippet:
-			"Delegate one task to one subagent. Use at most once per assistant response. For follow-ups, wait for the prior result, then pass resume from its <subagent-resume-id> tag.",
+			"Delegate one task to one subagent. Independent subagent calls may run concurrently. For follow-ups, wait for the prior result, then pass resume from its <subagent-resume-id> tag.",
 		promptGuidelines: [
 			"Use subagent for focused delegation to specialists like scout, review, fixer, or hack.",
-			"Call subagent at most once per assistant response. If more work remains, wait for the tool result and continue in the next assistant response.",
+			"Each subagent tool call runs one task for one agent. Use multiple independent tool calls when work can run concurrently.",
 			"Always provide a terse description (3-8 words) for the delegated task.",
 			"If a previous subagent result included <subagent-resume-id> and the next task depends on that same subagent's prior context, set resume to that exact ID.",
 			"Never use placeholder or empty resume values. If you do not have the actual ID yet, call the first subagent and wait for its result before making the follow-up call.",
@@ -202,79 +201,69 @@ export default function (pi: ExtensionAPI) {
 		parameters: SubagentParams,
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
-			const previousRun = subagentQueue;
-			let releaseQueue!: () => void;
-			subagentQueue = new Promise((resolve) => {
-				releaseQueue = resolve;
-			});
-			await previousRun;
-			try {
-				const discovery = discoverAgents(ctx.cwd);
-				const agents = discovery.agents;
-				const parentSessionFile = ctx.sessionManager.getSessionFile();
-				const parentSessionId = ctx.sessionManager.getSessionId();
-				const parentSessionInfo = parentSessionFile
-					? { sessionFile: parentSessionFile, sessionId: parentSessionId, cwd: ctx.cwd }
-					: undefined;
-				const makeDetails = (results: SingleResult[]) =>
-					createDetails(discovery.projectAgentsDir, results, parentSessionInfo?.sessionId);
-				const resolveModelInfo: ResolveModelInfo = (provider, model) => {
-					if (!provider || !model) return undefined;
-					const resolved = ctx.modelRegistry.find(provider, model);
-					if (!resolved) return undefined;
-					return {
-						contextWindow: resolved.contextWindow,
-						reasoning: resolved.reasoning,
-						usingSubscription: ctx.modelRegistry.isUsingOAuth(resolved),
-					};
+			const discovery = discoverAgents(ctx.cwd);
+			const agents = discovery.agents;
+			const parentSessionFile = ctx.sessionManager.getSessionFile();
+			const parentSessionId = ctx.sessionManager.getSessionId();
+			const parentSessionInfo = parentSessionFile
+				? { sessionFile: parentSessionFile, sessionId: parentSessionId, cwd: ctx.cwd }
+				: undefined;
+			const makeDetails = (results: SingleResult[]) =>
+				createDetails(discovery.projectAgentsDir, results, parentSessionInfo?.sessionId);
+			const resolveModelInfo: ResolveModelInfo = (provider, model) => {
+				if (!provider || !model) return undefined;
+				const resolved = ctx.modelRegistry.find(provider, model);
+				if (!resolved) return undefined;
+				return {
+					contextWindow: resolved.contextWindow,
+					reasoning: resolved.reasoning,
+					usingSubscription: ctx.modelRegistry.isUsingOAuth(resolved),
 				};
+			};
 
-				const followUpText = `${params.description}\n${params.task}`.toLowerCase();
-				const looksLikeFollowUp =
-					/\b(previous|prior|remember|remembered|context|again|cached|without re-?search|without re-?reading)\b/.test(
-						followUpText,
-					);
-				const request: TaskRequest =
-					!params.resume && looksLikeFollowUp && lastSessionByAgent.has(params.agent)
-						? { ...params, resume: lastSessionByAgent.get(params.agent) }
-						: params;
-				let currentResult = createPendingResult(request);
-				const emitUpdate = () => {
-					if (!onUpdate) return;
-					onUpdate({
-						content: [{ type: "text", text: `Subagent ${request.agent} running...` }],
-						details: makeDetails([currentResult]),
-					});
-				};
-
-				const result = await runSingleAgent(
-					agents,
-					request,
-					signal,
-					(partial) => {
-						currentResult = partial;
-						emitUpdate();
-					},
-					resolveModelInfo,
-					parentSessionInfo,
+			const followUpText = `${params.description}\n${params.task}`.toLowerCase();
+			const looksLikeFollowUp =
+				/\b(previous|prior|remember|remembered|context|again|cached|without re-?search|without re-?reading)\b/.test(
+					followUpText,
 				);
-				if (result.sessionId) lastSessionByAgent.set(request.agent, result.sessionId);
-				const results = [result];
+			const request: TaskRequest =
+				!params.resume && looksLikeFollowUp && lastSessionByAgent.has(params.agent)
+					? { ...params, resume: lastSessionByAgent.get(params.agent) }
+					: params;
+			let currentResult = createPendingResult(request);
+			const emitUpdate = () => {
+				if (!onUpdate) return;
+				onUpdate({
+					content: [{ type: "text", text: `Subagent ${request.agent} running...` }],
+					details: makeDetails([currentResult]),
+				});
+			};
 
-				if (isResultError(result)) {
-					return {
-						content: [{ type: "text", text: getParentVisibleResultText(result) || "(no output)" }],
-						details: makeDetails(results),
-						isError: true,
-					};
-				}
+			const result = await runSingleAgent(
+				agents,
+				request,
+				signal,
+				(partial) => {
+					currentResult = partial;
+					emitUpdate();
+				},
+				resolveModelInfo,
+				parentSessionInfo,
+			);
+			if (result.sessionId) lastSessionByAgent.set(request.agent, result.sessionId);
+			const results = [result];
+
+			if (isResultError(result)) {
 				return {
 					content: [{ type: "text", text: getParentVisibleResultText(result) || "(no output)" }],
 					details: makeDetails(results),
+					isError: true,
 				};
-			} finally {
-				releaseQueue();
 			}
+			return {
+				content: [{ type: "text", text: getParentVisibleResultText(result) || "(no output)" }],
+				details: makeDetails(results),
+			};
 		},
 
 		renderCall(args, theme, _context) {

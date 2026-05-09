@@ -308,7 +308,7 @@ All remaining markdown body content is passed through as the agent system prompt
 
 The subagent runtime consumes discovery results as follows:
 
-- `name` selects the requested agent in single and parallel modes
+- `name` selects the requested agent for one subagent tool invocation
 - `hidden` suppresses parent prompt inventory exposure without affecting explicit lookup, debug output, or execution
 - `source` drives project-agent confirmation and debug output
 - `filePath` appears in debug output
