@@ -12,3 +12,23 @@
     - `pi --model openai/gpt-5.4-nano:low --print ping`: run with a small model and get back a result
     - `pi --no-extensions -e .` disable all extensions but load just the extensions in this repo for isolated testing
 - Always keep the README.md files up-to-date for changes
+
+## writing prompts / skills
+
+Always write prompts and skills as literal messages the agent will receive. The agent cannot tell whether text came from a user typing, a slash prompt, or a script.
+
+Keep prompts self-contained, or reference only things the receiving agent definitely has access to.
+
+Good:
+- "Load `skills/robustness/SKILL.md` before handling edge cases."
+- "Use the `review` subagent for a focused code review."
+- "Use the `read` tool to inspect the selected files."
+- "Complete the selected task slice included below."
+
+Bad:
+- "The loop already selected this in `scripts/afk-loop.nu`."
+- "Continue from the previous `/afk` prompt."
+- "Follow the workflow from the skill that generated this prompt."
+- "Use state from the script/session that invoked you."
+
+If orchestration code performs work before sending a prompt, describe the result, not the orchestrator: say "selected task" rather than "task selected by scripts/foo.nu".
