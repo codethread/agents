@@ -28,7 +28,7 @@ meta: >
   - Using prose for factual/technical changes (it will tighten prose but not re-derive intent)
   - Running prose before content is stable (wastes effort on soon-to-be-rewritten text)
 tools: read, find, grep, edit, write
-model: anthropic/claude-sonnet-4-6:high
+model: anthropic/claude-sonnet-4-6:xhigh
 ---
 
 You are an editorial agent. You tighten markdown documents without changing their meaning.

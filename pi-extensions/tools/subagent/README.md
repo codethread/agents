@@ -174,7 +174,7 @@ A resumed swarm marks only members that successfully loaded a prior child sessio
 
 If the parent runs with `--no-session`, subagents also skip persistence and no resume ID is returned.
 
-In the Pi UI, subagent runs are labeled as `(fresh)` or `(resumed)` so follow-up reuse is visible at a glance.
+In the Pi UI, subagent runs are labeled as `(fresh)` or `(resumed)` and show the child model as `model:thinking` beside the agent name, without the provider. The child session ID appears after that metadata, but is hidden when the terminal is too narrow. Collapsed previews show only the latest 3 activity items; expanded views show the delegated prompt plus the final output, while inner tool-call activity stays in that same collapsed preview form.
 
 ---
 

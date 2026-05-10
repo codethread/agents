@@ -42,7 +42,8 @@ meta: >
 tools: read, bash, edit, write
 # model: openai-codex/gpt-5.4:medium
 # model: deepseek/deepseek-v4-pro:max
-model: openai-codex/gpt-5.3-codex-spark:medium
+# model: openai-codex/gpt-5.3-codex-spark:medium
+model: openai-codex/gpt-5.5:off
 ---
 
 You are a fixer agent. You make failing code pass and complete narrow mechanical tasks.

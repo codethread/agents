@@ -54,6 +54,9 @@ function makeSingleResult(options: {
 	errorMessage?: string;
 	stopReason?: "stop" | "length" | "toolUse" | "error" | "aborted";
 	sessionId?: string;
+	provider?: string;
+	model?: string;
+	thinkingLevel?: string;
 }) {
 	return {
 		agent: options.agent,
@@ -75,6 +78,9 @@ function makeSingleResult(options: {
 		stopReason: options.stopReason,
 		errorMessage: options.errorMessage,
 		sessionId: options.sessionId,
+		provider: options.provider,
+		model: options.model,
+		thinkingLevel: options.thinkingLevel,
 	};
 }
 
@@ -326,27 +332,18 @@ describe("parent-visible result text", () => {
 });
 
 describe("renderSubagentCall", () => {
-	it("labels fresh calls clearly", () => {
+	it("renders no separate call line so the result owns the subagent header", () => {
 		const component = renderSubagentCall(
 			{ agent: "scout", task: "Map auth flow without resume" },
 			theme,
 		) as Text;
 
-		expect(component.render(120).join("\n")).toContain("subagent scout (fresh)");
-	});
-
-	it("labels resumed calls clearly", () => {
-		const component = renderSubagentCall(
-			{ agent: "scout", task: "Follow up", resume: "12345678-1234-1234-1234-123456789abc" },
-			theme,
-		) as Text;
-
-		expect(component.render(120).join("\n")).toContain("subagent scout (resumed)");
+		expect(component.render(120).join("\n")).toBe("");
 	});
 });
 
 describe("renderSubagentResult", () => {
-	it("renders expanded successful results as markdown/text", () => {
+	it("renders expanded results with session id, prompt, and final markdown output", () => {
 		const component = renderSubagentResult(
 			{
 				content: [{ type: "text", text: "done" }],
@@ -355,6 +352,7 @@ describe("renderSubagentResult", () => {
 						makeSingleResult({
 							agent: "scout",
 							resumed: true,
+							sessionId: "session-123",
 							messages: [makeAssistant([{ type: "text", text: "## Findings\n\n- done" }])],
 						}),
 					],
@@ -362,9 +360,14 @@ describe("renderSubagentResult", () => {
 			},
 			{ expanded: true },
 			theme,
-		) as unknown as Markdown;
+		) as unknown as Container;
+		const singleResult = component.children[0] as Container;
 
-		expect(component).toBeInstanceOf(Markdown);
+		expect(singleResult.children[0].render(120).join("\n")).toContain(
+			"subagent scout [session-123] (resumed)",
+		);
+		expect(singleResult.children[2].render(120).join("\n")).toContain("Task for scout");
+		expect(singleResult.children[4]).toBeInstanceOf(Markdown);
 	});
 
 	it("shows running state while the subagent is still running", () => {
@@ -384,11 +387,13 @@ describe("renderSubagentResult", () => {
 			theme,
 		) as Text;
 
-		expect(component.render(120).join("\n")).toContain("(running...)");
-		expect(component.render(120).join("\n")).toContain("(Ctrl+O to expand)");
+		const output = component.render(120).join("\n");
+		expect(output).toContain("subagent scout [pending-session] (fresh)");
+		expect(output).toContain("(running...)");
+		expect(output).toContain("(Ctrl+O to expand)");
 	});
 
-	it("renders collapsed single-result output with no status icon", () => {
+	it("renders collapsed single-result output with header, model, thinking, and session id", () => {
 		const component = renderSubagentResult(
 			{
 				content: [{ type: "text", text: "done" }],
@@ -396,6 +401,10 @@ describe("renderSubagentResult", () => {
 					results: [
 						makeSingleResult({
 							agent: "scout",
+							sessionId: "session-123",
+							provider: "openai",
+							model: "gpt-5.5",
+							thinkingLevel: "low",
 							messages: [makeAssistant([{ type: "text", text: "done" }])],
 						}),
 					],
@@ -405,8 +414,39 @@ describe("renderSubagentResult", () => {
 			theme,
 		) as Text;
 
-		expect(component.render(120).join("\n")).toContain("done");
-		expect(component.render(120).join("\n")).toContain("(Ctrl+O to expand)");
+		const output = component.render(120).join("\n");
+		expect(output).toContain("subagent scout gpt-5.5:low [session-123] (fresh)");
+		expect(output).toContain("> Task for scout");
+		expect(output).not.toContain("openai");
+		expect(output).toContain("done");
+		expect(output).toContain("(Ctrl+O to expand)");
+	});
+
+	it("hides the session id in narrow collapsed headers", () => {
+		const component = renderSubagentResult(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					results: [
+						makeSingleResult({
+							agent: "council-scope-guard",
+							sessionId: "019e12db-c557-70eb-94a3-26b2deb6ba73",
+							provider: "openai",
+							model: "gpt-5.5",
+							thinkingLevel: "low",
+							messages: [makeAssistant([{ type: "text", text: "done" }])],
+						}),
+					],
+				},
+			},
+			{ expanded: false },
+			theme,
+		) as Text;
+
+		const output = component.render(60).join("\n");
+		expect(output).toContain("subagent council-scope-guard gpt-5.5:low (fresh)");
+		expect(output).toContain("> Task for council-scope-guard");
+		expect(output).not.toContain("019e12db");
 	});
 
 	it("renders all swarm members in collapsed view", () => {
@@ -417,6 +457,7 @@ describe("renderSubagentResult", () => {
 					results: [
 						makeSingleResult({
 							agent: "scout",
+							sessionId: "session-scout",
 							messages: [makeAssistant([{ type: "text", text: "scout output" }])],
 						}),
 						makeSingleResult({
@@ -432,9 +473,9 @@ describe("renderSubagentResult", () => {
 		) as Text;
 
 		const output = component.render(120).join("\n");
-		expect(output).toContain("subagent scout (fresh)");
+		expect(output).toContain("subagent scout [session-scout] (fresh)");
 		expect(output).toContain("scout output");
-		expect(output).toContain("subagent hack (fresh)");
+		expect(output).toContain("subagent hack [no-session] (fresh)");
 		expect(output).toContain("hack failed");
 	});
 
@@ -446,10 +487,12 @@ describe("renderSubagentResult", () => {
 					results: [
 						makeSingleResult({
 							agent: "scout",
+							sessionId: "session-scout",
 							messages: [makeAssistant([{ type: "text", text: "scout output" }])],
 						}),
 						makeSingleResult({
 							agent: "security-review",
+							sessionId: "session-security",
 							messages: [makeAssistant([{ type: "text", text: "security output" }])],
 						}),
 					],
@@ -459,10 +502,45 @@ describe("renderSubagentResult", () => {
 			theme,
 		) as unknown as Container;
 
-		expect(component.children).toHaveLength(5);
-		expect(component.children[0].render(120).join("\n")).toContain("subagent scout (fresh)");
-		expect(component.children[3].render(120).join("\n")).toContain(
-			"subagent security-review (fresh)",
+		expect(component.children).toHaveLength(3);
+		expect(component.children[0].render(120).join("\n")).toContain(
+			"subagent scout [session-scout] (fresh)",
 		);
+		expect(component.children[2].render(120).join("\n")).toContain(
+			"subagent security-review [session-security] (fresh)",
+		);
+	});
+
+	it("keeps expanded activity collapsed to the latest three items", () => {
+		const component = renderSubagentResult(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					results: [
+						makeSingleResult({
+							agent: "scout",
+							exitCode: RUNNING_EXIT_CODE,
+							messages: [
+								makeAssistant([
+									{ type: "text", text: "one" },
+									{ type: "text", text: "two" },
+									{ type: "text", text: "three" },
+									{ type: "text", text: "four" },
+								]),
+							],
+						}),
+					],
+				},
+			},
+			{ expanded: true },
+			theme,
+		) as unknown as Container;
+		const singleResult = component.children[0] as Container;
+		const output = singleResult.children[4].render(120).join("\n");
+		expect(output).toContain("... 1 earlier items");
+		expect(output).toContain("two");
+		expect(output).toContain("three");
+		expect(output).toContain("four");
+		expect(output).not.toContain("one");
 	});
 });

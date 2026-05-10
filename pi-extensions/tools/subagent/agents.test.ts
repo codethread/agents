@@ -878,37 +878,72 @@ describe("discoverAgents", () => {
 
 		const bundledAgents = discovery.agents.filter((agent) => agent.source === "package");
 		expect(bundledAgents.map((agent) => agent.name).sort()).toEqual([
+			"council-evidence-scout",
+			"council-scope-guard",
+			"council-simplifier",
+			"council-skeptic",
+			"deep-review-code-smells",
+			"deep-review-project-rules",
+			"deep-review-spec-alignment",
+			"deep-review-test-quality",
 			"fixer",
 			"hack",
 			"review",
 			"scout",
-			"swarm-animal-fact",
-			"swarm-color-fact",
-			"swarm-food-fact",
 		]);
 		for (const agent of bundledAgents) {
 			expect(agent.filePath).toContain(`${path.sep}pi-agents${path.sep}`);
 		}
 		expect(
 			bundledAgents
-				.filter((agent) => agent.name.startsWith("swarm-"))
+				.filter(
+					(agent) => agent.name.startsWith("deep-review-") || agent.name.startsWith("council-"),
+				)
 				.every((agent) => agent.hidden),
 		).toBe(true);
 		expect(
 			bundledAgents
-				.filter((agent) => !agent.name.startsWith("swarm-"))
+				.filter(
+					(agent) => !agent.name.startsWith("deep-review-") && !agent.name.startsWith("council-"),
+				)
 				.every((agent) => !agent.hidden),
 		).toBe(true);
 
-		expect(discovery.swarms.filter((swarm) => swarm.source === "package")).toContainEqual({
-			name: "swarm",
-			description: "Test swarm that returns one color, food, and animal fact.",
-			hidden: false,
-			members: ["swarm-color-fact", "swarm-food-fact", "swarm-animal-fact"],
-			source: "package",
-			filePath: expect.stringContaining(
-				`${path.sep}pi-agents${path.sep}swarm${path.sep}swarm.json`,
-			),
-		});
+		expect(discovery.swarms.filter((swarm) => swarm.source === "package")).toEqual(
+			expect.arrayContaining([
+				{
+					name: "deep-review",
+					description:
+						"Multi-role code review for a full feature, PR, or session workload. Use `review` for faster/cheaper spot checks. Provide scope anchors: commits/diff, PRD/spec/task files, relevant paths, intent, risks, and validation results. Upfront exploration notes save work because every reviewer receives the same hot context instead of rediscovering it.",
+					hidden: false,
+					members: [
+						"deep-review-code-smells",
+						"deep-review-project-rules",
+						"deep-review-test-quality",
+						"deep-review-spec-alignment",
+					],
+					source: "package",
+					filePath: expect.stringContaining(
+						`${path.sep}pi-agents${path.sep}deep-review${path.sep}swarm.json`,
+					),
+				},
+				{
+					name: "council",
+					description:
+						"Multi-role ideation panel for when the main agent has a concrete answer, plan, design, or recommendation and wants another opinion before reporting back to the user. Council runs four members: skeptic challenges assumptions, evidence scout checks what the codebase proves, simplifier proposes lower-cost alternatives, scope guard asks whether this is the right problem and scope. Provide as much useful context as possible: proposed direction, intended outcome, problem being solved, tradeoff/decision to validate, relevant files/specs/code paths, constraints, risks, rejected options, and what kind of help would be useful. Rich context grounds advice in the real choice. Use for non-trivial decisions with genuine uncertainty; skip for factual lookups, trivial confirmations, or questions the user should answer directly.",
+					hidden: false,
+					members: [
+						"council-skeptic",
+						"council-evidence-scout",
+						"council-simplifier",
+						"council-scope-guard",
+					],
+					source: "package",
+					filePath: expect.stringContaining(
+						`${path.sep}pi-agents${path.sep}council${path.sep}swarm.json`,
+					),
+				},
+			]),
+		);
 	});
 });

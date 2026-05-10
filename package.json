@@ -24,7 +24,7 @@
 		"lint:fix": "eslint . --fix",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
-		"check": "pnpm lint && pnpm typecheck && pnpm test && pnpm format"
+		"verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm format"
 	},
 	"pi": {
 		"extensions": [

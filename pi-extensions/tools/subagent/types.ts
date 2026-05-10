@@ -1,7 +1,7 @@
 import type { Message } from "@mariozechner/pi-ai";
 import type { AgentConfig } from "./agents.js";
 
-export const COLLAPSED_ITEM_COUNT = 10;
+export const COLLAPSED_ITEM_COUNT = 3;
 export const RUNNING_EXIT_CODE = -1;
 
 export type AgentSource = AgentConfig["source"] | "unknown";

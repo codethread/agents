@@ -31,7 +31,25 @@ Slice rules:
 - Mark dependencies in YAML `blocked_by`, not in task markdown prose.
 - Put human/architectural uncertainty into `tasks/README.md` context or Developer Notes, not hidden in task scope.
 
-### 4. Create the task plan
+### 4. Classify AFK vs HITL
+
+Classify every slice before writing files:
+
+- **AFK**: safe for an unattended agent loop. The task has a clear contract, enough context, deterministic validation, and can be completed without asking the user for decisions, credentials, design judgment, or external access.
+- **HITL**: requires human interaction before unattended work is safe, such as an architectural decision, product/design choice, unclear acceptance criteria, secret/access setup, manual QA, or choosing between meaningful tradeoffs.
+
+Prefer AFK slices where possible. Do not mark a slice HITL just because it is complex; split complex work into smaller AFK slices instead. Use HITL only when the next safe action genuinely needs a person. HITL slices must still have a concrete completion artifact: a captured decision, reviewed design, provisioned access, manual QA verdict, or clarified acceptance criteria.
+
+Encoding rules:
+
+- Do not add a YAML `type` field. The task index schema is fixed.
+- For AFK tasks, use `status: pending`; use `blocked_by` for dependencies instead of setting dependency-blocked AFK work to `blocked`.
+- For HITL tasks, prefix the `description` with `[HITL]` and set `status: blocked` unless the required human input has already been provided.
+- In each task file, put `Type: AFK` or `Type: HITL` as the first line under `## Scope`.
+- If HITL produces a decision that unlocks implementation, make the decision task HITL and create separate AFK implementation task(s) blocked by that HITL task.
+- Keep human uncertainty out of AFK task scope. If an AFK task would need to ask the user a question, either narrow it until it does not, or introduce a preceding HITL task.
+
+### 5. Create the task plan
 
 Create the files below. Do not ask for approval unless the source context is too ambiguous to produce a safe MVP task plan.
 
@@ -62,7 +80,7 @@ Rules:
 - `description` is short enough to use in a session name.
 - `task_file` points to the detailed task markdown file.
 - `status` is one of: `pending`, `in_progress`, `blocked`, `complete`.
-- New plans start with every task as `pending` unless there is a clear reason otherwise.
+- New plans start with AFK tasks as `pending`; HITL tasks may start as `blocked` when human input is required.
 - `blocked_by` is a list of task ids that must be `complete` before this task can run.
 - Do not add extra fields. Put notes in `tasks/README.md`, not the YAML.
 
@@ -72,7 +90,7 @@ Include:
 
 1. Problem statement / MVP goal.
 2. Important references: specs, PRDs, docs, source files, or discussion artifacts the task plan depends on.
-3. Task strategy: brief explanation of how the slices fit together.
+3. Task strategy: brief explanation of how the slices fit together, including why any HITL slices are required and what AFK work they unlock.
 4. Developer Notes: an append-only section for agents working the loop.
 
 Developer Notes format:
@@ -107,6 +125,7 @@ Each `tasks/<id>-<slug>.md` should include exactly these headings:
 
 Guidance:
 
+- Start `## Scope` with exactly one classification line: `Type: AFK` or `Type: HITL`.
 - Describe end-to-end behavior, not a layer-by-layer checklist.
 - Avoid specific file paths unless they are stable references the implementer must inspect.
 - Acceptance criteria belong in `Done when`.
@@ -120,3 +139,22 @@ Guidance:
 - Create the plan only; do not implement the tasks.
 - Make dependencies explicit and minimal.
 - Do not create speculative future work unless needed to protect the MVP boundary.
+
+## Follow-up changes to an existing plan
+
+The request may be to amend an existing `tasks/` plan instead of creating one from scratch.
+
+When updating an existing plan:
+
+- Read `tasks/index.yml`, `tasks/README.md`, and relevant task files before editing.
+- Preserve task ids, file names, and history for existing tasks unless the task has not started and the change is purely clarifying.
+- Do not edit completed task files except to fix broken formatting or references that prevent the plan from running.
+- Prefer adding new follow-up tasks over rewriting old tasks. Use the next available integer ids; do not use decimal ids like `3.1` because the task index format requires integer ids.
+- If a missed requirement belongs conceptually after task 3, add new tasks with new integer ids and set `blocked_by` to `[3]` or to the specific prerequisite task ids.
+- If a pending task is too broad, narrow that task in place only when no agent has started it; move extracted work into new tasks with new integer ids.
+- If an in-progress or completed task is too broad, leave its published contract intact and add follow-up tasks for the extracted work.
+- Append amendment rationale to `tasks/README.md` Developer Notes. Do not hide important plan changes only in task files.
+
+---
+
+$ARGUMENTS

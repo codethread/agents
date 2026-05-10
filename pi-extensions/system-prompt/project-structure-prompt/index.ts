@@ -28,17 +28,18 @@ export function createProjectStructurePromptController(
 	};
 
 	const getPrompt = (ctx: ProjectStructurePromptContext): Promise<string | null> => {
-		if (cachedPromptPromise && cachedCwd === ctx.cwd) return cachedPromptPromise;
+		const { cwd, hasUI, signal, ui } = ctx;
+		if (cachedPromptPromise && cachedCwd === cwd) return cachedPromptPromise;
 
-		cachedCwd = ctx.cwd;
-		const currentPromise = buildProjectStructurePrompt(ctx.cwd, exec, ctx.signal).catch((error) => {
+		cachedCwd = cwd;
+		const currentPromise = buildProjectStructurePrompt(cwd, exec, signal).catch((error) => {
 			const message = error instanceof Error ? error.message : String(error);
-			if (!warnedCwds.has(ctx.cwd)) {
-				warnedCwds.add(ctx.cwd);
-				if (ctx.hasUI) ctx.ui.notify(`[project-structure-prompt] ${message}`, "warning");
+			if (!warnedCwds.has(cwd)) {
+				warnedCwds.add(cwd);
+				if (hasUI) ui.notify(`[project-structure-prompt] ${message}`, "warning");
 			}
 			if (cachedPromptPromise === currentPromise) cachedPromptPromise = null;
-			if (cachedCwd === ctx.cwd) cachedCwd = null;
+			if (cachedCwd === cwd) cachedCwd = null;
 			return null;
 		});
 

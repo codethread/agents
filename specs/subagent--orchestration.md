@@ -1,7 +1,7 @@
 # Subagent Orchestration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-05-09
+**Last Updated:** 2026-05-10
 
 ## 1. Overview
 
@@ -61,6 +61,9 @@ The subagent extension provides a stable runtime for delegating work to isolated
 
 - **Decision:** Rendering emphasizes assistant text and summarized tool calls, but single-run output falls back to the last tool-result text when that is the only final displayable child message.
   - **Rationale:** The tool aims to present concise operator-facing progress and outcomes, while still ensuring the parent agent sees the actual final child result instead of an empty placeholder.
+
+- **Decision:** Expanded TUI views show the delegated prompt and final output, while inner child activity remains a short collapsed preview.
+  - **Rationale:** Operators primarily need to verify what was asked and what came back. The full inner tool transcript is noisy, so expanded views should not explode into a raw nested session log.
 
 - **Decision:** Swarm results are returned as one concatenated parent-visible response with one XML `<member>` block per member.
   - **Rationale:** The parent agent needs to see which specialist produced each output, including failures, without learning a new nested result schema. Existing tool-result rendering already provides the outer container.
@@ -259,7 +262,7 @@ The subagent tool owns both call rendering and result rendering.
 - Shared usage strings come from `formatUsageStats(...)`, which delegates token/cost/model formatting to `pi-extensions/ui/statusline/usage-format.ts`.
 - Tool-call summaries come from `formatToolCall(...)`, which special-cases built-ins like `bash`, `read`, `write`, `edit`, `find`, and `grep`.
 
-Expanded views use `Container`, `Text`, `Spacer`, and `Markdown` components to show task text, member/agent names, tool-call summaries, markdown-rendered final output, and usage stats. Collapsed views show shorter previews and prompt the user to expand when content was truncated.
+Expanded views use `Container`, `Text`, `Spacer`, and `Markdown` components to show the delegated prompt, member/agent names plus child session IDs, markdown-rendered final output, and usage stats. When a child has no final output yet, expanded views still keep inner activity collapsed to the same short preview used by collapsed mode. Collapsed views show shorter previews and always include an expand hint.
 
 Parent-visible swarm output is plain text containing one block per member:
 
@@ -352,7 +355,7 @@ const SubagentParams = Type.Object({
 Operational constants:
 
 ```ts
-const COLLAPSED_ITEM_COUNT = 10;
+const COLLAPSED_ITEM_COUNT = 3;
 const RUNNING_EXIT_CODE = -1;
 ```
 

@@ -16,6 +16,18 @@ function shortenHome(path: string): string {
 	return path;
 }
 
+export function formatSessionLabel(
+	sessionName: string | null | undefined,
+	sessionId: string | null | undefined,
+): string | null {
+	const name = sessionName ? sanitizeStatusText(sessionName) : "";
+	const id = sessionId ? sanitizeStatusText(sessionId) : "";
+	if (name && id) return `${name} (${id})`;
+	if (name) return name;
+	if (id) return `session ${id}`;
+	return null;
+}
+
 export default function (pi: ExtensionAPI) {
 	const installFooter = (ctx: ExtensionContext) => {
 		ctx.ui.setFooter((tui, theme, footerData) => {
@@ -29,8 +41,14 @@ export default function (pi: ExtensionAPI) {
 					const branch = footerData.getGitBranch();
 					if (branch) pwd = `${pwd} (${branch})`;
 
-					const sessionName = ctx.sessionManager.getSessionName();
-					if (sessionName) pwd = `${pwd} • ${sessionName}`;
+					const sessionLabel = formatSessionLabel(
+						ctx.sessionManager.getSessionName(),
+						typeof (ctx.sessionManager as { getSessionId?: () => string | undefined })
+							.getSessionId === "function"
+							? (ctx.sessionManager as { getSessionId: () => string | undefined }).getSessionId()
+							: undefined,
+					);
+					if (sessionLabel) pwd = `${pwd} • ${sessionLabel}`;
 
 					let totalCost = 0;
 					for (const entry of ctx.sessionManager.getBranch()) {

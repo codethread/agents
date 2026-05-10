@@ -52,6 +52,7 @@ See `pi-extensions/system-prompt/README.md` for the merged prompt-layer extensio
 - `pi-agents/hack.md` — shell-first investigation and automation agent
 - `pi-agents/review.md` — faster/cheaper single-agent code review for spot checks
 - `pi-agents/deep-review/` — multi-role review for a full feature, PR, or session workload; pass commits/diff, PRD/spec/task files, relevant paths, intent, risks, validation results, and any upfront exploration notes so each reviewer starts with shared hot context
+- `pi-agents/council/` — multi-role ideation panel for non-trivial decisions where the main agent wants another opinion before reporting back; includes skeptic, evidence scout, simplifier, and scope guard; pass proposed direction, intended outcome, problem, tradeoff/decision, relevant files/specs/code paths, constraints, risks, rejected options, and desired help
 
 ## Included skills
 

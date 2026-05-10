@@ -1,0 +1,10 @@
+{
+	"name": "council",
+	"description": "Multi-role ideation panel for when the main agent has a concrete answer, plan, design, or recommendation and wants another opinion before reporting back to the user. Council runs four members: skeptic challenges assumptions, evidence scout checks what the codebase proves, simplifier proposes lower-cost alternatives, scope guard asks whether this is the right problem and scope. Provide as much useful context as possible: proposed direction, intended outcome, problem being solved, tradeoff/decision to validate, relevant files/specs/code paths, constraints, risks, rejected options, and what kind of help would be useful. Rich context grounds advice in the real choice. Use for non-trivial decisions with genuine uncertainty; skip for factual lookups, trivial confirmations, or questions the user should answer directly.",
+	"members": [
+		"council-skeptic",
+		"council-evidence-scout",
+		"council-simplifier",
+		"council-scope-guard"
+	]
+}

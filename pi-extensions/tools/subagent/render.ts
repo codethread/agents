@@ -1,7 +1,14 @@
 import * as os from "node:os";
 import type { Message } from "@mariozechner/pi-ai";
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
-import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
+import {
+	Container,
+	Markdown,
+	Spacer,
+	Text,
+	truncateToWidth,
+	visibleWidth,
+} from "@mariozechner/pi-tui";
 import {
 	formatContextDisplay,
 	formatCost,
@@ -9,6 +16,7 @@ import {
 } from "../../ui/statusline/usage-format.js";
 import type { AgentConfig, SwarmConfig } from "./agents.js";
 import {
+	COLLAPSED_ITEM_COUNT,
 	RUNNING_EXIT_CODE,
 	type DisplayItem,
 	type SingleResult,
@@ -289,13 +297,46 @@ function getSessionModeLabel(resumed: boolean | undefined) {
 	return resumed ? "resumed" : "fresh";
 }
 
-export function renderSubagentCall(args: Partial<TaskRequest>, theme: any) {
-	const preview = args.task && args.task.length > 40 ? `${args.task.slice(0, 40)}...` : args.task;
-	let text = theme.fg("toolTitle", theme.bold("subagent "));
-	if (args.agent) text += theme.fg("accent", args.agent);
-	text += theme.fg("dim", ` (${getSessionModeLabel(Boolean(args.resume))})`);
-	if (preview) text += theme.fg("dim", ` ${preview}`);
-	return new Text(text, 0, 0);
+function getSessionIdLabel(result: SingleResult) {
+	if (result.sessionId) return result.sessionId;
+	if (result.exitCode === RUNNING_EXIT_CODE) return "pending-session";
+	return "no-session";
+}
+
+function getSubagentModelLabel(singleResult: SingleResult): string | null {
+	if (!singleResult.model) return null;
+	const model = singleResult.model.split("/").pop() || singleResult.model;
+	return singleResult.thinkingLevel ? `${model}:${singleResult.thinkingLevel}` : model;
+}
+
+function formatSubagentHeader(singleResult: SingleResult, theme: any, width?: number) {
+	const prefix = theme.fg("toolTitle", theme.bold("subagent "));
+	const name = theme.fg("accent", singleResult.agent);
+	const modelLabel = getSubagentModelLabel(singleResult);
+	const model = modelLabel ? theme.fg("accent", ` ${modelLabel}`) : "";
+	const session = theme.fg("dim", ` [${getSessionIdLabel(singleResult)}]`);
+	const mode = theme.fg("dim", ` (${getSessionModeLabel(Boolean(singleResult.resumed))})`);
+	const full = [prefix, name, model, session, mode].join("");
+	if (width === undefined || visibleWidth(full) <= width) return full;
+	return [prefix, name, model, mode].join("");
+}
+
+function renderSubagentHeader(singleResult: SingleResult, theme: any) {
+	return {
+		invalidate() {},
+		render(width: number): string[] {
+			return [truncateToWidth(formatSubagentHeader(singleResult, theme, width), width, "")];
+		},
+	};
+}
+
+function formatPromptBlock(singleResult: SingleResult, theme: any) {
+	const prompt = singleResult.task.trim() || "(no prompt)";
+	return [theme.fg("muted", "prompt"), theme.fg("toolOutput", prompt)].join("\n");
+}
+
+export function renderSubagentCall(_args: Partial<TaskRequest>, _theme: any) {
+	return new Text("", 0, 0);
 }
 
 export function renderSubagentResult(result: any, { expanded }: { expanded: boolean }, theme: any) {
@@ -314,7 +355,7 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 		if (skipped > 0) text += theme.fg("muted", `... ${skipped} earlier items\n`);
 		for (const item of toShow) {
 			if (item.type === "text") {
-				const preview = expanded ? item.text : item.text.split("\n").slice(0, 3).join("\n");
+				const preview = item.text.split("\n").slice(0, 3).join("\n");
 				text += `${theme.fg("toolOutput", preview)}\n`;
 			} else {
 				text += `${theme.fg("muted", "→ ") + formatToolCall(item.name, item.args, theme.fg.bind(theme))}\n`;
@@ -323,38 +364,7 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 		return text.trimEnd();
 	};
 
-	const renderExpandedOutput = (singleResult: SingleResult) => {
-		const finalOutput = isResultError(singleResult)
-			? getResultErrorText(singleResult).trim()
-			: getFinalOutput(singleResult.messages).trim();
-		const usageStr = formatUsageStats(singleResult.usage, getResultUsageOptions(singleResult));
-
-		if (!finalOutput) {
-			const displayItems = getDisplayItems(singleResult.messages);
-			let text =
-				displayItems.length > 0
-					? renderDisplayItems(displayItems)
-					: theme.fg("muted", "(no output)");
-			if (usageStr) text += `\n\n${theme.fg("dim", usageStr)}`;
-			return new Text(text, 0, 0);
-		}
-
-		if (isResultError(singleResult)) {
-			let text = theme.fg("error", finalOutput);
-			if (usageStr) text += `\n\n${theme.fg("dim", usageStr)}`;
-			return new Text(text, 0, 0);
-		}
-
-		if (!usageStr) return new Markdown(finalOutput, 0, 0, mdTheme);
-
-		const container = new Container();
-		container.addChild(new Markdown(finalOutput, 0, 0, mdTheme));
-		container.addChild(new Spacer(1));
-		container.addChild(new Text(theme.fg("dim", usageStr), 0, 0));
-		return container;
-	};
-
-	const renderCollapsedOutput = (singleResult: SingleResult) => {
+	const renderCollapsedActivity = (singleResult: SingleResult) => {
 		const displayItems = getDisplayItems(singleResult.messages);
 		const finalOutput = isResultError(singleResult)
 			? getResultErrorText(singleResult)
@@ -371,54 +381,76 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 			}
 			return theme.fg("muted", "(no output)");
 		}
-		return renderDisplayItems(displayItems, 5);
+		return renderDisplayItems(displayItems, COLLAPSED_ITEM_COUNT);
+	};
+
+	const renderExpandedSingleResult = (singleResult: SingleResult) => {
+		const finalOutput = isResultError(singleResult)
+			? getResultErrorText(singleResult).trim()
+			: getFinalOutput(singleResult.messages).trim();
+		const usageStr = formatUsageStats(singleResult.usage, getResultUsageOptions(singleResult));
+		const container = new Container();
+		container.addChild(renderSubagentHeader(singleResult, theme));
+		container.addChild(new Spacer(1));
+		container.addChild(new Text(formatPromptBlock(singleResult, theme), 0, 0));
+
+		if (singleResult.exitCode !== RUNNING_EXIT_CODE && finalOutput) {
+			container.addChild(new Spacer(1));
+			if (isResultError(singleResult)) {
+				container.addChild(new Text(theme.fg("error", finalOutput), 0, 0));
+			} else {
+				container.addChild(new Markdown(finalOutput, 0, 0, mdTheme));
+			}
+		} else {
+			container.addChild(new Spacer(1));
+			container.addChild(new Text(renderCollapsedActivity(singleResult), 0, 0));
+		}
+
+		if (usageStr) {
+			container.addChild(new Spacer(1));
+			container.addChild(new Text(theme.fg("dim", usageStr), 0, 0));
+		}
+		return container;
 	};
 
 	const renderExpandedResults = () => {
 		const container = new Container();
 		for (let i = 0; i < details.results.length; i++) {
-			const singleResult = details.results[i];
-			container.addChild(
-				new Text(
-					theme.fg(
-						"toolTitle",
-						`subagent ${singleResult.agent} (${getSessionModeLabel(Boolean(singleResult.resumed))})`,
-					),
-					0,
-					0,
-				),
-			);
-			container.addChild(renderExpandedOutput(singleResult));
-			if (i < details.results.length - 1) {
-				container.addChild(new Spacer(1));
-			}
+			container.addChild(renderExpandedSingleResult(details.results[i]));
+			if (i < details.results.length - 1) container.addChild(new Spacer(1));
 		}
 		return container;
 	};
 
-	const renderCollapsedResults = () => {
+	const renderPromptPreview = (singleResult: SingleResult, width?: number) => {
+		const prompt = singleResult.task.trim();
+		if (!prompt) return null;
+		const line = theme.fg("muted", "> ") + theme.fg("toolOutput", prompt.replace(/\s+/g, " "));
+		return width === undefined ? line : truncateToWidth(line, width, theme.fg("dim", "..."));
+	};
+
+	const renderCollapsedResultsText = (width?: number) => {
 		const lines: string[] = [];
 		for (const singleResult of details.results) {
-			if (hasMultipleResults) {
-				lines.push(
-					theme.fg(
-						"toolTitle",
-						`subagent ${singleResult.agent} (${getSessionModeLabel(Boolean(singleResult.resumed))})`,
-					),
-				);
-			}
-			lines.push(renderCollapsedOutput(singleResult));
+			lines.push(formatSubagentHeader(singleResult, theme, width));
+			const promptPreview = renderPromptPreview(singleResult, width);
+			if (promptPreview) lines.push(promptPreview);
+			lines.push(renderCollapsedActivity(singleResult));
 			if (hasMultipleResults) lines.push("");
 		}
 		if (!expanded) lines.push(theme.fg("muted", "(Ctrl+O to expand)"));
-		return new Text(lines.join("\n").trimEnd(), 0, 0);
+		return lines.join("\n").trimEnd();
 	};
 
-	const hasRunningResult = details.results.some((r) => r.exitCode === RUNNING_EXIT_CODE);
-	if (expanded && !hasRunningResult) {
-		if (hasMultipleResults) return renderExpandedResults();
-		return renderExpandedOutput(details.results[0]);
-	}
+	const renderCollapsedResults = () => ({
+		invalidate() {},
+		render(width: number): string[] {
+			return renderCollapsedResultsText(width)
+				.split("\n")
+				.map((line) => truncateToWidth(line, width, ""));
+		},
+	});
 
+	if (expanded) return renderExpandedResults();
 	return renderCollapsedResults();
 }
