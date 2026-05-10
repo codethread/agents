@@ -28,6 +28,7 @@ Small index for the extensions shipped in this package. See each extension folde
 | Extension                                                     | Summary                                                                                                            |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | [`pi-discovery`](./context-management/pi-discovery/README.md) | One-shot Pi runtime + extension source discovery note injected into user input when the user explicitly says `Pi`. |
+| [`session-name`](./context-management/session-name/README.md) | Set Pi's session display name from `--name` so `/tree` and session selectors are easier to scan.                   |
 
 ## System prompt
 
