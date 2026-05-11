@@ -313,7 +313,7 @@ function formatSubagentHeader(singleResult: SingleResult, theme: any, width?: nu
 	const prefix = theme.fg("toolTitle", theme.bold("subagent "));
 	const name = theme.fg("accent", singleResult.agent);
 	const modelLabel = getSubagentModelLabel(singleResult);
-	const model = modelLabel ? theme.fg("accent", ` ${modelLabel}`) : "";
+	const model = modelLabel ? theme.fg("dim", ` ${modelLabel}`) : "";
 	const session = theme.fg("dim", ` [${getSessionIdLabel(singleResult)}]`);
 	const mode = theme.fg("dim", ` (${getSessionModeLabel(Boolean(singleResult.resumed))})`);
 	const full = [prefix, name, model, session, mode].join("");
