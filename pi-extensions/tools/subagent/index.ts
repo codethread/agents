@@ -19,6 +19,7 @@ import {
 	getAgentActiveTools,
 	getInheritedAgentRuntimeSettings,
 	parseAgentFlagCliOverrides,
+	resolveAgentModelCandidate,
 	validateAgentModelPolicies,
 	validateAgentModelPolicy,
 	type AgentConfig,
@@ -224,28 +225,21 @@ export default function (pi: ExtensionAPI) {
 			pi.setActiveTools(activeTools);
 		}
 
-		if (inherited.modelRef) {
-			const [provider, ...idParts] = inherited.modelRef.split("/");
-			const id = idParts.join("/");
-			if (!provider || !id) {
+		if (inherited.modelFlagValue) {
+			let model: unknown;
+			try {
+				model = resolveAgentModelCandidate(inherited.modelFlagValue, ctx.modelRegistry).model;
+			} catch {
 				failAgentSelection(
-					`Agent "${selected.agent.name}" resolved model "${inherited.modelRef}" is not a fully qualified provider/model identifier. Override with --model or update the agent file.`,
+					`Agent "${selected.agent.name}" resolved model "${inherited.modelFlagValue}" is not available in this Pi runtime. Override with --model or update the agent file.`,
 					ctx,
 				);
 			}
 
-			const model = ctx.modelRegistry.find(provider, id);
-			if (!model) {
-				failAgentSelection(
-					`Agent "${selected.agent.name}" resolved model "${inherited.modelRef}" is not available in this Pi runtime. Override with --model or update the agent file.`,
-					ctx,
-				);
-			}
-
-			const didSetModel = await pi.setModel(model!);
+			const didSetModel = await pi.setModel(model! as Parameters<typeof pi.setModel>[0]);
 			if (!didSetModel) {
 				failAgentSelection(
-					`Agent "${selected.agent.name}" requires model "${inherited.modelRef}", but no API key is available. Override with --model or configure credentials.`,
+					`Agent "${selected.agent.name}" requires model "${inherited.modelFlagValue}", but no API key is available. Override with --model or configure credentials.`,
 					ctx,
 				);
 			}

@@ -139,6 +139,96 @@ describe("runSingleAgent model chain", () => {
 		expect(spawnMock.mock.calls[1]?.[1]).toContain("openai/gpt-5.4-mini");
 	});
 
+	it("classifies stopReason error output as a model-chain failure", async () => {
+		spawnMock.mockReset();
+		mockSpawnResult({
+			code: 0,
+			stdoutLines: [
+				{
+					type: "message_end",
+					message: {
+						role: "assistant",
+						content: [{ type: "text", text: "provider error" }],
+						stopReason: "error",
+						errorMessage: "provider service unavailable 503",
+					},
+				},
+			],
+		});
+		mockSpawnResult({
+			code: 0,
+			stdoutLines: [
+				{
+					type: "message_end",
+					message: { role: "assistant", content: [{ type: "text", text: "ok" }] },
+				},
+			],
+		});
+
+		const result = await runSingleAgent(
+			[testAgent([{ id: "provider/a" }])],
+			request,
+			undefined,
+			undefined,
+		);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.attempts).toEqual([
+			{
+				attemptedModel: "provider/a",
+				attempt: 1,
+				success: false,
+				exitCode: 0,
+				error: "provider service unavailable 503",
+				retryable: true,
+			},
+			{ attemptedModel: "provider/a", attempt: 2, success: true, exitCode: 0 },
+		]);
+		expect(spawnMock).toHaveBeenCalledTimes(2);
+	});
+
+	it("uses assistant error text when stopReason error has no structured errorMessage", async () => {
+		spawnMock.mockReset();
+		mockSpawnResult({
+			code: 0,
+			stdoutLines: [
+				{
+					type: "message_end",
+					message: {
+						role: "assistant",
+						content: [{ type: "text", text: "provider service unavailable 503" }],
+						stopReason: "error",
+					},
+				},
+			],
+		});
+		mockSpawnResult({
+			code: 0,
+			stdoutLines: [
+				{
+					type: "message_end",
+					message: { role: "assistant", content: [{ type: "text", text: "ok" }] },
+				},
+			],
+		});
+
+		const result = await runSingleAgent(
+			[testAgent([{ id: "provider/a" }])],
+			request,
+			undefined,
+			undefined,
+		);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.attempts?.[0]).toMatchObject({
+			attemptedModel: "provider/a",
+			success: false,
+			retryable: true,
+			error: "provider service unavailable 503",
+		});
+		expect(spawnMock).toHaveBeenCalledTimes(2);
+	});
+
 	it("advances immediately on deterministic model availability failures", async () => {
 		spawnMock.mockReset();
 		mockSpawnResult({ code: 1, stderr: "model not found" });
@@ -163,6 +253,40 @@ describe("runSingleAgent model chain", () => {
 		expect(spawnMock).toHaveBeenCalledTimes(2);
 		expect(spawnMock.mock.calls[0]?.[1]).toContain("provider/missing");
 		expect(spawnMock.mock.calls[1]?.[1]).toContain("provider/ok");
+	});
+
+	it("skips candidates known invalid by the active model registry", async () => {
+		spawnMock.mockReset();
+		mockSpawnResult({
+			code: 0,
+			stdoutLines: [
+				{
+					type: "message_end",
+					message: { role: "assistant", content: [{ type: "text", text: "ok" }] },
+				},
+			],
+		});
+
+		const result = await runSingleAgent(
+			[testAgent([{ id: "provider/missing" }, { id: "provider/ok" }])],
+			request,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{
+				find: (provider, model) =>
+					provider === "provider" && model === "ok" ? { provider, id: model } : undefined,
+				hasConfiguredAuth: () => true,
+			},
+		);
+
+		expect(result.exitCode).toBe(0);
+		expect(spawnMock).toHaveBeenCalledTimes(1);
+		expect(spawnMock.mock.calls[0]?.[1]).toContain("provider/ok");
+		expect(result.attempts).toEqual([
+			{ attemptedModel: "provider/ok", attempt: 1, success: true, exitCode: 0 },
+		]);
 	});
 
 	it("persists model-chain attempts in the subagent manifest", async () => {
@@ -218,6 +342,12 @@ describe("runSingleAgent model chain", () => {
 			{ attemptedModel: "provider/b", attempt: 1, success: true, exitCode: 0 },
 		]);
 		expect(JSON.stringify(manifest.subagents[0]?.attempts)).not.toContain("ok");
+		const sessionArgs = spawnMock.mock.calls.map((call) => call[1] as string[]);
+		const sessionFiles = sessionArgs.map((args) => args[args.indexOf("--session") + 1]);
+		expect(sessionFiles[0]).not.toBe(sessionFiles[1]);
+		expect(manifest.subagents[0]).toMatchObject({
+			sessionFile: path.basename(sessionFiles[1]!),
+		});
 	});
 
 	it("returns a clear failure after exhausting candidates", async () => {

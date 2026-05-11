@@ -12,6 +12,7 @@ import {
 	getAgentActiveTools,
 	getInheritedAgentRuntimeSettings,
 	parseAgentFlagCliOverrides,
+	resolveAgentModelCandidate,
 	validateAgentModelPolicies,
 	type AgentConfig,
 	type SwarmConfig,
@@ -492,6 +493,13 @@ describe("model policy validation", () => {
 		expect(errors[2]).toContain("has no configured API key/auth");
 	});
 
+	it("resolves unique bare model ids through the same registry path used by direct mode", () => {
+		expect(resolveAgentModelCandidate("gpt-5.4-mini:low", modelRegistry)).toMatchObject({
+			model: { provider: "openai", id: "gpt-5.4-mini" },
+			modelRef: "gpt-5.4-mini",
+		});
+	});
+
 	it("uses first valid declared candidate and candidate-local thinking unless CLI overrides", () => {
 		const agent = makeAgentConfig({
 			name: "selector",
@@ -688,7 +696,7 @@ Mixed body.
 		expect(byName.get("omitted-model")?.modelCandidates).toBeUndefined();
 	});
 
-	it("treats present non-empty false env values as truthy without trimming comparison values", () => {
+	it("treats false-like env values as false without trimming comparison values", () => {
 		const root = makeTempDir("subagent-model-policy-env-");
 		const packageAgentsDir = path.join(root, "package-agents");
 		const cwd = path.join(root, "workspace");
@@ -700,8 +708,10 @@ Mixed body.
 name: env-model
 description: Env model
 model:
-  - id: false-is-truthy
+  - id: false-is-skipped
     when: "$FLAG"
+  - id: negated-false-is-included
+    when: "!$FLAG"
   - id: raw-comparison
     when: "$RAW == ' value '"
 ---
@@ -719,7 +729,7 @@ Env body.
 		});
 
 		expect(discovery.agents[0]?.modelCandidates).toEqual([
-			{ id: "false-is-truthy" },
+			{ id: "negated-false-is-included" },
 			{ id: "raw-comparison" },
 		]);
 	});

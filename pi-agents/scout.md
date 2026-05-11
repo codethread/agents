@@ -33,6 +33,10 @@ meta: >
   - mini performed best but nano did surprisingly well. 
   - Nano didn't follow the output structure, but worth considering for future if costs go up
 tools: read, bash
+model:
+  - id: deepseek/deepseek-v4-flash:high
+    when: "!$IS_WORK"
+  - openai/gpt-5.4-mini:low
 # model: openai-codex/gpt-5.4-mini:low
 ---
 

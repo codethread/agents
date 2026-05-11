@@ -14,7 +14,7 @@ Implement the discovery-boundary parsing path for the unified `model` frontmatte
   - `$VAR == "value"`
   - `$VAR != "value"`
   - single-quoted values as well as double-quoted values
-- Use env truthiness of present plus non-empty raw value; the literal string `false` is truthy.
+- Use env truthiness where missing, empty, `false`, `0`, `no`, and `off` are false; false-like checks are case-insensitive.
 - Ignore surrounding expression whitespace, but do not trim environment variable values before comparisons.
 - Restrict env var names to `[A-Za-z_][A-Za-z0-9_]*`.
 - Reject empty or unsupported `when` expressions with clear config errors.

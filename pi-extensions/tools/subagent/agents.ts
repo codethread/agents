@@ -143,6 +143,11 @@ function readJsonFile<T>(filePath: string): T | null {
 	}
 }
 
+function isTruthyEnvValue(value: string | undefined): boolean {
+	if (value === undefined || value === "") return false;
+	return !new Set(["false", "0", "no", "off"]).has(value.toLowerCase());
+}
+
 function evaluateWhenExpression(expression: string, env: NodeJS.ProcessEnv = process.env): boolean {
 	const trimmed = expression.trim();
 	if (!trimmed) throw new Error("empty when expression");
@@ -150,7 +155,7 @@ function evaluateWhenExpression(expression: string, env: NodeJS.ProcessEnv = pro
 	const truthyMatch = trimmed.match(/^(!?)\$([A-Za-z_][A-Za-z0-9_]*)$/);
 	if (truthyMatch) {
 		const [, negation, name] = truthyMatch;
-		const present = env[name] !== undefined && env[name] !== "";
+		const present = isTruthyEnvValue(env[name]);
 		return negation ? !present : present;
 	}
 
@@ -596,7 +601,7 @@ function getModelId(model: unknown): string | undefined {
 		: undefined;
 }
 
-function resolveCandidateModel(
+export function resolveAgentModelCandidate(
 	candidateId: string,
 	modelRegistry: ModelRegistryLike,
 ): { model: unknown; modelRef: string } {
@@ -631,7 +636,7 @@ export function validateAgentModelPolicy(
 	let validCandidateCount = 0;
 	for (const candidate of agent.modelCandidates) {
 		try {
-			const { model, modelRef } = resolveCandidateModel(candidate.id, modelRegistry);
+			const { model, modelRef } = resolveAgentModelCandidate(candidate.id, modelRegistry);
 			if (modelRegistry.hasConfiguredAuth && !modelRegistry.hasConfiguredAuth(model)) {
 				invalidReasons.push(`candidate "${modelRef}" has no configured API key/auth`);
 			} else {
@@ -655,21 +660,30 @@ export function validateAgentModelPolicies(
 	return agents.flatMap((agent) => validateAgentModelPolicy(agent, modelRegistry));
 }
 
+export function getValidAgentModelCandidates(
+	agent: AgentConfig,
+	modelRegistry: ModelRegistryLike,
+): AgentModelCandidate[] | undefined {
+	if (!agent.modelCandidates) return undefined;
+	const validCandidates: AgentModelCandidate[] = [];
+	for (const candidate of agent.modelCandidates) {
+		try {
+			const { model } = resolveAgentModelCandidate(candidate.id, modelRegistry);
+			if (!modelRegistry.hasConfiguredAuth || modelRegistry.hasConfiguredAuth(model)) {
+				validCandidates.push(candidate);
+			}
+		} catch {
+			// Startup/runtime validation reports traceable policy errors; selection only needs valid candidates.
+		}
+	}
+	return validCandidates;
+}
+
 export function getFirstValidAgentModelCandidate(
 	agent: AgentConfig,
 	modelRegistry: ModelRegistryLike,
 ): AgentModelCandidate | undefined {
-	if (!agent.modelCandidates) return undefined;
-	for (const candidate of agent.modelCandidates) {
-		try {
-			const { model } = resolveCandidateModel(candidate.id, modelRegistry);
-			if (!modelRegistry.hasConfiguredAuth || modelRegistry.hasConfiguredAuth(model))
-				return candidate;
-		} catch {
-			// Startup validation reports the traceable policy error; selection only needs a valid candidate.
-		}
-	}
-	return undefined;
+	return getValidAgentModelCandidates(agent, modelRegistry)?.[0];
 }
 
 export function getInheritedAgentRuntimeSettings(

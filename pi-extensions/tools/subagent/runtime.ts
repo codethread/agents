@@ -6,6 +6,7 @@ import { isContextOverflow } from "@mariozechner/pi-ai";
 import {
 	getAgentRuntimeSettings,
 	getFirstValidAgentModelCandidate,
+	getValidAgentModelCandidates,
 	type AgentConfig,
 	type AgentModelCandidate,
 	type ModelRegistryLike,
@@ -75,8 +76,20 @@ type ModelFailureKind = "success" | "context_overflow" | "deterministic" | "tran
 
 const MAX_TRANSIENT_ATTEMPTS_PER_CANDIDATE = 3;
 
+function getMessageText(message: Message | undefined): string {
+	if (!message || (message.role !== "assistant" && message.role !== "toolResult")) return "";
+	return message.content
+		.filter((part): part is { type: "text"; text: string } => part.type === "text")
+		.map((part) => part.text)
+		.join("");
+}
+
 function getFailureText(result: SingleResult): string {
-	return [result.stderr, result.errorMessage].filter(Boolean).join("\n");
+	const finalMessageText =
+		result.stopReason === "error" && !result.errorMessage
+			? getMessageText(result.messages.at(-1))
+			: "";
+	return [result.stderr, result.errorMessage, finalMessageText].filter(Boolean).join("\n");
 }
 
 function summarizeFailure(result: SingleResult): string | undefined {
@@ -102,9 +115,13 @@ export function classifyModelChainResult(result: SingleResult): ModelFailureKind
 	if (lastAssistant && isContextOverflow(lastAssistant, result.usage.contextWindow)) {
 		return "context_overflow";
 	}
-	if (result.exitCode === 0) return "success";
 
 	const text = getFailureText(result).toLowerCase();
+	if (result.stopReason === "aborted") return "other";
+	if (result.stopReason !== "error" && !result.errorMessage && result.exitCode === 0) {
+		return "success";
+	}
+
 	if (!text) return "other";
 	if (
 		/(context window|context length|context size|prompt is too long|request_too_large|input token count exceeds|maximum prompt length|too large for model|exceeded model token limit)/i.test(
@@ -211,13 +228,29 @@ export async function runSingleAgent(
 			};
 		}
 	}
-	const shouldTrackAttempts = Boolean(agent.modelCandidates?.length);
-	const candidates = agent.modelCandidates?.length ? agent.modelCandidates : [undefined];
+	const validModelCandidates = modelRegistry
+		? getValidAgentModelCandidates(agent, modelRegistry)
+		: agent.modelCandidates;
+	if (agent.modelCandidates && modelRegistry && validModelCandidates?.length === 0) {
+		return {
+			agent: request.agent,
+			agentSource: agent.source,
+			task: request.task,
+			resumed: Boolean(request.resume),
+			exitCode: 1,
+			messages: [],
+			stderr: `Subagent ${agent.name} failed: no valid model candidates available.`,
+			usage: createEmptyUsage(),
+		};
+	}
+	const shouldTrackAttempts = Boolean(validModelCandidates?.length);
+	const candidates = validModelCandidates?.length ? validModelCandidates : [undefined];
 	const startTime = Date.now();
 	const attempts: AttemptMetadata[] = [];
 	let wasAborted = false;
 	let terminalContextOverflow = false;
 	let currentResult: SingleResult | undefined;
+	let finalSubagentSession = subagentSession;
 
 	for (const candidate of candidates) {
 		const maxAttempts = candidate ? MAX_TRANSIENT_ATTEMPTS_PER_CANDIDATE : 1;
@@ -228,11 +261,25 @@ export async function runSingleAgent(
 			const runtimeSettings = getAgentRuntimeSettings(
 				selectedCandidate ? { ...agent, model: selectedCandidate.id } : agent,
 			);
+			const attemptSession =
+				parentSessionInfo && !request.resume && shouldTrackAttempts
+					? (() => {
+							const nextSession = getSubagentSessionPath(
+								parentSessionInfo.sessionFile,
+								parentSessionInfo.sessionId,
+								runCwd,
+							);
+							return {
+								...nextSession,
+								cliSession: { file: nextSession.sessionFile } as const,
+							};
+						})()
+					: subagentSession;
 			const args = buildSingleAgentArgs(
 				agent.name,
 				request.task,
 				selectedCandidate,
-				subagentSession?.cliSession,
+				attemptSession?.cliSession,
 			);
 
 			currentResult = {
@@ -244,8 +291,8 @@ export async function runSingleAgent(
 				messages: [],
 				stderr: "",
 				usage: createEmptyUsage(),
-				sessionFile: subagentSession?.sessionFile,
-				sessionId: subagentSession?.sessionId,
+				sessionFile: attemptSession?.sessionFile,
+				sessionId: attemptSession?.sessionId,
 				thinkingLevel: runtimeSettings.thinkingLevel,
 			};
 
@@ -379,9 +426,11 @@ export async function runSingleAgent(
 				: undefined;
 			if (attemptMetadata) {
 				if (attemptMetadata.success) delete attemptMetadata.error;
+				if (attemptMetadata.retryable === undefined) delete attemptMetadata.retryable;
 				attempts.push(attemptMetadata);
 				currentResult.attempts = attempts;
 			}
+			finalSubagentSession = attemptSession;
 			if (kind === "success" || kind === "other") break;
 			if (kind === "context_overflow") {
 				currentResult.stderr =
@@ -407,13 +456,13 @@ export async function runSingleAgent(
 			currentResult.stderr = `Subagent failed after exhausting model candidates. Attempts: ${attempts.map(formatAttemptFailure).join(" | ")}`;
 		}
 	}
-	if (parentSessionInfo && subagentSession) {
+	if (parentSessionInfo && finalSubagentSession) {
 		const manifestId =
 			currentResult.sessionId ??
-			subagentSession.sessionId ??
-			path.basename(subagentSession.sessionFile, ".jsonl");
+			finalSubagentSession.sessionId ??
+			path.basename(finalSubagentSession.sessionFile, ".jsonl");
 		await updateManifest(
-			subagentSession.dir,
+			finalSubagentSession.dir,
 			{
 				sessionFile: parentSessionInfo.sessionFile,
 				sessionId: parentSessionInfo.sessionId,
@@ -428,7 +477,7 @@ export async function runSingleAgent(
 				thinking: currentResult.thinkingLevel ?? null,
 				description: request.description,
 				prompt: currentResult.task,
-				sessionFile: path.basename(subagentSession.sessionFile),
+				sessionFile: path.basename(finalSubagentSession.sessionFile),
 				timestamp: new Date().toISOString(),
 				exitCode: currentResult.exitCode,
 				usage: {

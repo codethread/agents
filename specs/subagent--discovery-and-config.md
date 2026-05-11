@@ -157,7 +157,7 @@ Discovery accepts only the v1 `when` grammar:
 - `$VAR == "value"`
 - `$VAR != 'value'`
 
-Environment variable names must match `[A-Za-z_][A-Za-z0-9_]*`. Truthiness is presence plus non-empty raw value; the literal string `false` is truthy. Surrounding expression whitespace is ignored, while environment values are compared without trimming.
+Environment variable names must match `[A-Za-z_][A-Za-z0-9_]*`. Truthiness treats missing, empty, `false`, `0`, `no`, and `off` as false; false-like checks are case-insensitive. Surrounding expression whitespace is ignored, while equality comparisons use raw environment values without trimming.
 
 Accepted entries are normalized into `modelCandidates` in declaration order, with duplicate model IDs removed after parsing while preserving the first occurrence. The first candidate is also exposed as `model` so existing runtime-setting helpers keep their single-string behavior until later slices consume the full chain.
 

@@ -3,6 +3,10 @@ name: council-skeptic
 description: Challenges an argument by finding weaknesses, counterarguments, risks, and reasons not to proceed.
 hidden: true
 tools: read, grep, find, ls
+model:
+  - id: deepseek/deepseek-v4-pro:high
+    when: "!$IS_WORK"
+  - openai/gpt-5.5:low
 ---
 
 You are the council skeptic. The parent agent is considering an answer, plan, design, or recommendation and wants another opinion before reporting back to the user.

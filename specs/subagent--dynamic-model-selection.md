@@ -47,8 +47,8 @@ Subagent model selection should be Pi-native, explicit, and environment-aware. A
 - **Decision:** The first `when` grammar supports only `$VAR`, `!$VAR`, `$VAR == "value"`, and `$VAR != "value"`, with single- or double-quoted string literals.
   - **Rationale:** This is enough for profile/work-machine gates while avoiding precedence and mini-language design questions.
 
-- **Decision:** Environment truthiness is presence plus non-empty raw value.
-  - **Rationale:** This matches common env-var convention. The literal string `false` is still truthy; users who need semantic booleans can write equality checks.
+- **Decision:** Environment truthiness treats missing, empty, `false`, `0`, `no`, and `off` as false.
+  - **Rationale:** This keeps `when: "!$IS_WORK"` ergonomic in shells such as Nushell where env vars are commonly set to a string value like `false` instead of being unset.
 
 - **Decision:** Candidate strings use Pi's normal model matching semantics.
   - **Rationale:** The subagent extension should not maintain a parallel model naming layer. If Pi accepts a model string, the subagent config can use it; if Pi cannot resolve it, config validation should report that clearly.
@@ -196,12 +196,12 @@ Supported expressions:
 
 | Form              | Meaning                                      |
 | ----------------- | -------------------------------------------- |
-| `$VAR`            | true when env var exists and is non-empty    |
-| `!$VAR`           | true when env var is missing or empty        |
+| `$VAR`            | true when env var exists and is truthy       |
+| `!$VAR`           | true when env var is missing or false-like   |
 | `$VAR == "value"` | true when raw env value exactly equals value |
 | `$VAR != "value"` | true when raw env value does not equal value |
 
-Single-quoted values are also valid. Env var names must match `[A-Za-z_][A-Za-z0-9_]*`. Surrounding expression whitespace is ignored; env values themselves are not trimmed. Empty or unsupported expressions fail loudly.
+Single-quoted values are also valid. Env var names must match `[A-Za-z_][A-Za-z0-9_]*`. Truthiness treats missing, empty, `false`, `0`, `no`, and `off` as false; false-like checks are case-insensitive. Surrounding expression whitespace is ignored; equality comparisons use raw env values without trimming. Empty or unsupported expressions fail loudly.
 
 ### Direct `--agent` contract
 

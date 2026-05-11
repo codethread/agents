@@ -6,6 +6,7 @@ description: >
   Returns prioritized findings only; does not modify files.
 meta: replacement for codex review
 tools: read, grep, find, ls
+model: openai-codex/gpt-5.4:medium
 # model: github-copilot/gpt-5.4:medium
 ---
 
