@@ -309,6 +309,20 @@ function getSubagentModelLabel(singleResult: SingleResult): string | null {
 	return singleResult.thinkingLevel ? `${model}:${singleResult.thinkingLevel}` : model;
 }
 
+export function formatAttemptSummary(singleResult: SingleResult): string | null {
+	const attempts = singleResult.attempts;
+	if (!attempts?.length) return null;
+	const failedCount = attempts.filter((attempt) => !attempt.success).length;
+	const successfulAttempt = attempts.find((attempt) => attempt.success);
+	const finalAttempt = successfulAttempt ?? attempts.at(-1);
+	if (!finalAttempt) return null;
+	const finalModel = finalAttempt.attemptedModel.split("/").pop() || finalAttempt.attemptedModel;
+	const parts = [`model-chain ${finalModel}`];
+	if (failedCount > 0) parts.push(`${failedCount} failed`);
+	if (!finalAttempt.success && finalAttempt.error) parts.push(finalAttempt.error);
+	return parts.join("; ");
+}
+
 function formatSubagentHeader(singleResult: SingleResult, theme: any, width?: number) {
 	const prefix = theme.fg("toolTitle", theme.bold("subagent "));
 	const name = theme.fg("accent", singleResult.agent);
@@ -389,6 +403,7 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 			? getResultErrorText(singleResult).trim()
 			: getFinalOutput(singleResult.messages).trim();
 		const usageStr = formatUsageStats(singleResult.usage, getResultUsageOptions(singleResult));
+		const attemptStr = formatAttemptSummary(singleResult);
 		const container = new Container();
 		container.addChild(renderSubagentHeader(singleResult, theme));
 		container.addChild(new Spacer(1));
@@ -406,9 +421,11 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 			container.addChild(new Text(renderCollapsedActivity(singleResult), 0, 0));
 		}
 
-		if (usageStr) {
+		if (usageStr || attemptStr) {
 			container.addChild(new Spacer(1));
-			container.addChild(new Text(theme.fg("dim", usageStr), 0, 0));
+			container.addChild(
+				new Text(theme.fg("dim", [usageStr, attemptStr].filter(Boolean).join(" | ")), 0, 0),
+			);
 		}
 		return container;
 	};
@@ -435,6 +452,8 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 			lines.push(formatSubagentHeader(singleResult, theme, width));
 			const promptPreview = renderPromptPreview(singleResult, width);
 			if (promptPreview) lines.push(promptPreview);
+			const attemptSummary = formatAttemptSummary(singleResult);
+			if (attemptSummary) lines.push(theme.fg("dim", attemptSummary));
 			lines.push(renderCollapsedActivity(singleResult));
 			if (hasMultipleResults) lines.push("");
 		}

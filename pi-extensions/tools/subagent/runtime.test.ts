@@ -1,6 +1,9 @@
 import { EventEmitter } from "node:events";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { PassThrough } from "node:stream";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildSingleAgentArgs, runSingleAgent } from "./runtime.js";
 
 const spawnMock = vi.hoisted(() => vi.fn());
@@ -8,6 +11,27 @@ const spawnMock = vi.hoisted(() => vi.fn());
 vi.mock("node:child_process", () => ({
 	spawn: spawnMock,
 }));
+
+const tempDirs: string[] = [];
+const originalHome = process.env.HOME;
+const originalUserProfile = process.env.USERPROFILE;
+
+afterEach(() => {
+	spawnMock.mockReset();
+	if (originalHome === undefined) delete process.env.HOME;
+	else process.env.HOME = originalHome;
+	if (originalUserProfile === undefined) delete process.env.USERPROFILE;
+	else process.env.USERPROFILE = originalUserProfile;
+	for (const dir of tempDirs.splice(0)) {
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+function makeTempDir(prefix: string): string {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+	tempDirs.push(dir);
+	return dir;
+}
 
 function mockSpawnResult(result: { code: number; stderr?: string; stdoutLines?: unknown[] }) {
 	spawnMock.mockImplementationOnce((_command: string, _args: string[]) => {
@@ -72,6 +96,9 @@ describe("runSingleAgent model chain", () => {
 
 		expect(result.exitCode).toBe(0);
 		expect(result.stderr).toBe("");
+		expect(result.attempts).toEqual([
+			{ attemptedModel: "openai/gpt-5.4-mini", attempt: 1, success: true, exitCode: 0 },
+		]);
 		expect(spawnMock).toHaveBeenCalledTimes(1);
 	});
 
@@ -96,6 +123,17 @@ describe("runSingleAgent model chain", () => {
 		);
 
 		expect(result.exitCode).toBe(0);
+		expect(result.attempts).toEqual([
+			{
+				attemptedModel: "openai/gpt-5.4-mini",
+				attempt: 1,
+				success: false,
+				exitCode: 1,
+				error: "provider rate limit 429",
+				retryable: true,
+			},
+			{ attemptedModel: "openai/gpt-5.4-mini", attempt: 2, success: true, exitCode: 0 },
+		]);
 		expect(spawnMock).toHaveBeenCalledTimes(2);
 		expect(spawnMock.mock.calls[0]?.[1]).toContain("openai/gpt-5.4-mini");
 		expect(spawnMock.mock.calls[1]?.[1]).toContain("openai/gpt-5.4-mini");
@@ -125,6 +163,61 @@ describe("runSingleAgent model chain", () => {
 		expect(spawnMock).toHaveBeenCalledTimes(2);
 		expect(spawnMock.mock.calls[0]?.[1]).toContain("provider/missing");
 		expect(spawnMock.mock.calls[1]?.[1]).toContain("provider/ok");
+	});
+
+	it("persists model-chain attempts in the subagent manifest", async () => {
+		const fakeHome = makeTempDir("subagent-runtime-home-");
+		process.env.HOME = fakeHome;
+		process.env.USERPROFILE = fakeHome;
+		mockSpawnResult({ code: 1, stderr: "model not found" });
+		mockSpawnResult({
+			code: 0,
+			stdoutLines: [
+				{ type: "session", id: "child-session-id" },
+				{
+					type: "message_end",
+					message: { role: "assistant", content: [{ type: "text", text: "ok" }] },
+				},
+			],
+		});
+
+		await runSingleAgent(
+			[testAgent([{ id: "provider/a" }, { id: "provider/b" }])],
+			request,
+			undefined,
+			undefined,
+			undefined,
+			{
+				sessionFile: "/tmp/parent.jsonl",
+				sessionId: "parent-session-id",
+				cwd: request.cwd,
+			},
+		);
+
+		const manifestPath = path.join(
+			fakeHome,
+			".pi",
+			"agent",
+			"subagent-sessions",
+			`--${request.cwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`,
+			"parent-session-id",
+			"manifest.json",
+		);
+		const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
+			subagents: Array<{ attempts?: unknown[] }>;
+		};
+		expect(manifest.subagents[0]?.attempts).toEqual([
+			{
+				attemptedModel: "provider/a",
+				attempt: 1,
+				success: false,
+				exitCode: 1,
+				error: "model not found",
+				retryable: false,
+			},
+			{ attemptedModel: "provider/b", attempt: 1, success: true, exitCode: 0 },
+		]);
+		expect(JSON.stringify(manifest.subagents[0]?.attempts)).not.toContain("ok");
 	});
 
 	it("returns a clear failure after exhausting candidates", async () => {

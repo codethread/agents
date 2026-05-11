@@ -26,6 +26,15 @@ export interface UsageStats {
 	turns: number;
 }
 
+export interface AttemptMetadata {
+	attemptedModel: string;
+	attempt: number;
+	success: boolean;
+	exitCode?: number;
+	error?: string;
+	retryable?: boolean;
+}
+
 export interface SingleResult {
 	agent: string;
 	agentSource: AgentSource;
@@ -44,6 +53,7 @@ export interface SingleResult {
 	thinkingLevel?: string;
 	stopReason?: string;
 	errorMessage?: string;
+	attempts?: AttemptMetadata[];
 }
 
 export interface SubagentDetails {

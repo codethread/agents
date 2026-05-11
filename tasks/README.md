@@ -8,7 +8,7 @@ MVP excludes any second model-list field, shell-backed condition evaluation, bro
 
 ## Important references
 
-- `specs/subagent--dynamic-model-selection.md` — planned behavior and decisions.
+- `specs/subagent--dynamic-model-selection.md` — implemented behavior and decisions.
 - `specs/subagent--discovery-and-config.md` — current discovery/config boundary.
 - `specs/subagent--orchestration.md` — current runtime/session/rendering boundary.
 - `pi-extensions/tools/subagent/agents.ts` — agent parsing, config normalization, runtime setting helpers.
@@ -80,3 +80,11 @@ Append notes here. Do not rewrite earlier notes.
 - Success remains transparent: the parent-visible result is the successful child output without attempt chatter. Exhausted model chains return a compact failure string with per-attempt summaries.
 - Provider failure classification is intentionally narrow and uses Pi's `isContextOverflow` helper for assistant-message overflow detection before text matching stderr/error messages.
 - Project rules mention `pnpm check`, but package scripts expose `pnpm verify`; `pnpm check` failed as unavailable, so full validation used `pnpm verify` after targeted runtime tests.
+
+### Task 6 implementation — 2026-05-11
+
+- Model-chain runs now carry compact attempt metadata on `SingleResult` and persisted single-agent manifests: attempted model, per-candidate attempt number, success, exit code, short error summary, and retryable flag.
+- TUI rendering shows concise model-chain metadata for humans while successful parent-visible content remains only the child output plus existing resume text.
+- Docs/specs were updated from planned wording to implemented behavior for dynamic model selection, orchestration manifests, README model policy examples, and discovery boundaries.
+- `pnpm check` is unavailable in this package; validation used targeted subagent runtime/session/render tests plus `pnpm verify`.
+- Deep review noted that retry/advance attempts currently reuse the same persisted child session file; this predates the metadata surface and should be considered in a future runtime/session-isolation hardening slice.

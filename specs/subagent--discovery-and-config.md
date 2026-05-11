@@ -31,7 +31,7 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 - Merging multiple definitions of the same agent across sources. Agent-agent collisions are resolved by replacement, not composition.
 - Executing swarm members, aggregating member output, or managing swarm resume. That belongs to the subagent runtime in `pi-extensions/tools/subagent/`.
 - Supporting arbitrary external tool names. Tool normalization is intentionally narrow and conservative.
-- Validating model candidates against Pi's model registry or implementing model-chain retry behavior; those belong to later dynamic-model-selection phases.
+- Executing model-chain retry behavior; discovery only parses and carries model policy for runtime validation/execution.
 - Exposing user/project/both discovery scopes to Pi-facing runtime selection.
 
 ## 2. Design Decisions
@@ -297,7 +297,7 @@ Minimal `swarm.json` shape:
 
 Returns the resolved agent catalog for a working directory.
 
-The API may be called by legacy single-agent callers and the subagent runtime. Runtime callers can resolve a requested name to either one `AgentConfig` or one validated `SwarmConfig`.
+The API is called by the subagent runtime and by direct `--agent` startup. Runtime callers can resolve a requested name to either one `AgentConfig` or one validated `SwarmConfig`.
 
 The implementation re-reads markdown files each time it is called; there is no process-lifetime cache of agent bodies or frontmatter.
 
@@ -386,7 +386,7 @@ Discovery relies on these frontmatter fields:
 - `meta` — optional author-only string; ignored by discovery/runtime and not exposed to parent agents
 - `hidden` — optional boolean/string flag; truthy `true` hides the agent from parent prompt inventory while keeping it discoverable and callable by explicit name
 - `tools` — optional comma-separated string of tool names; built-ins and extension tools share the same namespace here, and omitted/blank resolves to an empty allowlist
-- `model` — optional string, possibly an alias
+- `model` — optional unified model policy: non-empty string, object with `id` and optional `when`, or non-empty ordered list of strings/objects. Discovery does not rewrite aliases.
 
 All remaining markdown body content is passed through as the agent system prompt.
 

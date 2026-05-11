@@ -6,6 +6,7 @@ import {
 	getFinalOutput,
 	getParentVisibleResultText,
 	getParentVisibleSwarmResultText,
+	formatAttemptSummary,
 	renderSubagentCall,
 	renderSubagentResult,
 	formatDebugSwarmSection,
@@ -57,6 +58,14 @@ function makeSingleResult(options: {
 	provider?: string;
 	model?: string;
 	thinkingLevel?: string;
+	attempts?: {
+		attemptedModel: string;
+		attempt: number;
+		success: boolean;
+		exitCode?: number;
+		error?: string;
+		retryable?: boolean;
+	}[];
 }) {
 	return {
 		agent: options.agent,
@@ -81,6 +90,7 @@ function makeSingleResult(options: {
 		provider: options.provider,
 		model: options.model,
 		thinkingLevel: options.thinkingLevel,
+		attempts: options.attempts,
 	};
 }
 
@@ -263,6 +273,28 @@ describe("parent-visible result text", () => {
 		).toBe(scoutOutput);
 	});
 
+	it("keeps successful attempt metadata out of parent-visible results", () => {
+		expect(
+			getParentVisibleResultText(
+				makeSingleResult({
+					agent: "scout",
+					messages: [makeAssistant([{ type: "text", text: "Scout done" }])],
+					attempts: [
+						{
+							attemptedModel: "provider/a",
+							attempt: 1,
+							success: false,
+							exitCode: 1,
+							error: "model unavailable",
+							retryable: false,
+						},
+						{ attemptedModel: "provider/b", attempt: 1, success: true, exitCode: 0 },
+					],
+				}),
+			),
+		).toBe("Scout done");
+	});
+
 	it("uses full error text for failed child runs", () => {
 		expect(
 			getParentVisibleResultText(
@@ -339,6 +371,29 @@ describe("renderSubagentCall", () => {
 		) as Text;
 
 		expect(component.render(120).join("\n")).toBe("");
+	});
+});
+
+describe("formatAttemptSummary", () => {
+	it("summarizes final model and failed attempt count", () => {
+		expect(
+			formatAttemptSummary(
+				makeSingleResult({
+					agent: "scout",
+					attempts: [
+						{
+							attemptedModel: "provider/first-model",
+							attempt: 1,
+							success: false,
+							exitCode: 1,
+							error: "model not found",
+							retryable: false,
+						},
+						{ attemptedModel: "provider/final-model", attempt: 1, success: true, exitCode: 0 },
+					],
+				}),
+			),
+		).toBe("model-chain final-model; 1 failed");
 	});
 });
 
@@ -447,6 +502,73 @@ describe("renderSubagentResult", () => {
 		expect(output).toContain("subagent council-scope-guard gpt-5.5:low (fresh)");
 		expect(output).toContain("> Task for council-scope-guard");
 		expect(output).not.toContain("019e12db");
+	});
+
+	it("renders compact model-chain metadata in collapsed view", () => {
+		const component = renderSubagentResult(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					results: [
+						makeSingleResult({
+							agent: "scout",
+							messages: [makeAssistant([{ type: "text", text: "done" }])],
+							attempts: [
+								{
+									attemptedModel: "provider/a",
+									attempt: 1,
+									success: false,
+									exitCode: 1,
+									error: "provider unavailable",
+									retryable: true,
+								},
+								{ attemptedModel: "provider/b", attempt: 1, success: true, exitCode: 0 },
+							],
+						}),
+					],
+				},
+			},
+			{ expanded: false },
+			theme,
+		) as Text;
+
+		const output = component.render(120).join("\n");
+		expect(output).toContain("model-chain b; 1 failed");
+		expect(output).toContain("done");
+	});
+
+	it("renders compact model-chain metadata in expanded view", () => {
+		const component = renderSubagentResult(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					results: [
+						makeSingleResult({
+							agent: "scout",
+							messages: [makeAssistant([{ type: "text", text: "done" }])],
+							attempts: [
+								{
+									attemptedModel: "provider/a",
+									attempt: 1,
+									success: false,
+									exitCode: 1,
+									error: "provider unavailable",
+									retryable: true,
+								},
+								{ attemptedModel: "provider/b", attempt: 1, success: true, exitCode: 0 },
+							],
+						}),
+					],
+				},
+			},
+			{ expanded: true },
+			theme,
+		) as unknown as Container;
+		const singleResult = component.children[0] as Container;
+
+		expect(singleResult.children.at(-1)?.render(120).join("\n")).toContain(
+			"model-chain b; 1 failed",
+		);
 	});
 
 	it("renders all swarm members in collapsed view", () => {

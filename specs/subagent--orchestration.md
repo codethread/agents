@@ -1,7 +1,7 @@
 # Subagent Orchestration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-05-10
+**Last Updated:** 2026-05-11
 
 ## 1. Overview
 
@@ -24,7 +24,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 
 - Discovering or normalizing agent/swarm definitions. That belongs to `pi-extensions/tools/subagent/agents.ts` and is specified in `specs/subagent--discovery-and-config.md`.
 - Ad hoc scheduling or batching of arbitrary child agents inside one tool call. Swarm fan-out is allowed only through user-configured named swarm targets.
-- Retrying failed agents or checkpointing intermediate state.
+- Checkpointing intermediate state.
 - Merging multiple agents into a shared in-process context. Isolation is process-based.
 - Providing a security sandbox stronger than "separate process isolation".
 - Supporting sequential handoff pipelines inside the tool API.
@@ -183,6 +183,7 @@ interface ManifestEntry {
 	exitCode: number;
 	usage: { input: number; output: number; cost: number };
 	durationMs: number;
+	attempts?: AttemptMetadata[];
 }
 
 interface Manifest {
@@ -229,7 +230,7 @@ Auto-resume behavior:
 - explicit `resume` always wins
 - for a follow-up-looking single-agent call without `resume`, load `manifest.json` and resume the latest matching prior agent run when available; otherwise run fresh
 - for a follow-up-looking swarm call without `resume`, load `swarm-manifest.json` and resume the latest matching prior swarm target when available; otherwise run fresh
-- process-local caches such as `lastSessionByAgent` are not authoritative and should be removed rather than used as resume state
+- process-local caches such as `lastSessionByAgent` are not authoritative; manifests are the sole source of resume state
 
 ### Streaming event handling
 
@@ -304,6 +305,15 @@ interface UsageStats {
 	turns: number;
 }
 
+interface AttemptMetadata {
+	attemptedModel: string;
+	attempt: number;
+	success: boolean;
+	exitCode?: number;
+	error?: string;
+	retryable?: boolean;
+}
+
 interface SingleResult {
 	agent: string;
 	agentSource: "package" | "user" | "project" | "unknown";
@@ -321,6 +331,7 @@ interface SingleResult {
 	thinkingLevel?: string;
 	stopReason?: string;
 	errorMessage?: string;
+	attempts?: AttemptMetadata[];
 }
 
 interface SubagentDetails {
@@ -365,7 +376,8 @@ Notable conventions:
 
 - `agentSource: "unknown"` is used for unknown-agent failures and for the in-flight placeholder before discovery metadata is available.
 - `exitCode: -1` is reserved for a placeholder entry that is still running.
-- `thinkingLevel` is derived from `agent.model?.split(":").at(1)` before the subprocess runs; resolved provider/model values may later replace runtime display metadata.
+- `thinkingLevel` is derived from the selected model candidate before the subprocess runs; resolved provider/model values may later replace runtime display metadata.
+- `attempts` is compact operational metadata for model-chain runs and never contains full child transcript content.
 - swarm member failures are represented as `SingleResult` values with non-zero `exitCode`; they render as `<member status="error">` rather than being dropped.
 
 ## 5. Interfaces
@@ -478,7 +490,6 @@ Swarm execution wraps `runSingleAgent(...)` rather than replacing it:
 
 - Should invalid-parameter and over-capacity responses be marked as tool errors instead of plain text results?
 - Should the renderer surface structured tool-result messages directly in expanded views, or is assistant text plus tool-call summaries sufficient?
-- Should friendly swarm resume IDs use human-readable prefixes such as `swarm-review-<shortid>`, or plain UUIDs stored in a swarm-specific manifest?
 
 ## 8. Code Locations
 

@@ -166,6 +166,35 @@ describe("updateManifest", () => {
 		});
 	});
 
+	it("persists compact model-chain attempt metadata", async () => {
+		const dir = makeTempDir("subagent-manifest-attempts-");
+		const entry = makeEntry({
+			attempts: [
+				{
+					attemptedModel: "provider/a",
+					attempt: 1,
+					success: false,
+					exitCode: 1,
+					error: "model unavailable",
+					retryable: false,
+				},
+				{ attemptedModel: "provider/b", attempt: 1, success: true, exitCode: 0 },
+			],
+		});
+		const parentInfo = {
+			sessionFile: "/tmp/parent.jsonl",
+			sessionId: "parent-session-id",
+		};
+		const cwd = "/repo/project";
+
+		await updateManifest(dir, parentInfo, cwd, entry);
+
+		const manifest = readManifest(path.join(dir, "manifest.json")) as {
+			subagents: ManifestEntry[];
+		};
+		expect(manifest.subagents[0]?.attempts).toEqual(entry.attempts);
+	});
+
 	it("moves updated ids to the end so explicit resume updates win recency", async () => {
 		const dir = makeTempDir("subagent-manifest-upsert-");
 		const parentInfo = {

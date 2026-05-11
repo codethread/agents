@@ -27,5 +27,5 @@ tasks:
   - id: 6
     description: Surface attempt metadata and docs
     task_file: tasks/006-surface-attempt-metadata-and-docs.md
-    status: pending
+    status: complete
     blocked_by: [5]

@@ -4,6 +4,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { withFileMutationQueue } from "@mariozechner/pi-coding-agent";
 
+import type { AttemptMetadata } from "./types.js";
+
 export interface ManifestEntry {
 	id: string;
 	agent: string;
@@ -18,6 +20,7 @@ export interface ManifestEntry {
 	exitCode: number;
 	usage: { input: number; output: number; cost: number };
 	durationMs: number;
+	attempts?: AttemptMetadata[];
 }
 
 export interface SwarmManifestMember {

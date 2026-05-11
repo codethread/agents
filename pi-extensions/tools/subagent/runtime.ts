@@ -19,6 +19,7 @@ import {
 import {
 	createEmptyUsage,
 	createUnknownAgentResult,
+	type AttemptMetadata,
 	type ParentSessionInfo,
 	type ResolveModelInfo,
 	type SingleResult,
@@ -76,6 +77,22 @@ const MAX_TRANSIENT_ATTEMPTS_PER_CANDIDATE = 3;
 
 function getFailureText(result: SingleResult): string {
 	return [result.stderr, result.errorMessage].filter(Boolean).join("\n");
+}
+
+function summarizeFailure(result: SingleResult): string | undefined {
+	const text = getFailureText(result).replace(/\s+/g, " ").trim();
+	if (!text) return result.exitCode === 0 ? undefined : `exit ${result.exitCode}`;
+	return text.length > 180 ? `${text.slice(0, 177)}...` : text;
+}
+
+function isRetryableFailure(kind: ModelFailureKind): boolean | undefined {
+	if (kind === "transient") return true;
+	if (kind === "deterministic" || kind === "context_overflow") return false;
+	return undefined;
+}
+
+function formatAttemptFailure(attempt: AttemptMetadata): string {
+	return `${attempt.attemptedModel} attempt ${attempt.attempt}: ${attempt.error ?? `exit ${attempt.exitCode ?? "unknown"}`}`;
 }
 
 export function classifyModelChainResult(result: SingleResult): ModelFailureKind {
@@ -194,10 +211,12 @@ export async function runSingleAgent(
 			};
 		}
 	}
+	const shouldTrackAttempts = Boolean(agent.modelCandidates?.length);
 	const candidates = agent.modelCandidates?.length ? agent.modelCandidates : [undefined];
 	const startTime = Date.now();
-	const failures: string[] = [];
+	const attempts: AttemptMetadata[] = [];
 	let wasAborted = false;
+	let terminalContextOverflow = false;
 	let currentResult: SingleResult | undefined;
 
 	for (const candidate of candidates) {
@@ -348,29 +367,44 @@ export async function runSingleAgent(
 			if (wasAborted) throw new Error("Subagent was aborted");
 
 			const kind = classifyModelChainResult(currentResult);
+			const attemptMetadata: AttemptMetadata | undefined = shouldTrackAttempts
+				? {
+						attemptedModel: selectedCandidate?.id ?? "inherited model",
+						attempt,
+						success: kind === "success",
+						exitCode,
+						error: summarizeFailure(currentResult),
+						retryable: isRetryableFailure(kind),
+					}
+				: undefined;
+			if (attemptMetadata) {
+				if (attemptMetadata.success) delete attemptMetadata.error;
+				attempts.push(attemptMetadata);
+				currentResult.attempts = attempts;
+			}
 			if (kind === "success" || kind === "other") break;
 			if (kind === "context_overflow") {
 				currentResult.stderr =
 					"Subagent context window overflow. Reduce the delegated task scope or provide narrower input.";
-				return currentResult;
+				if (attemptMetadata) attemptMetadata.error = summarizeFailure(currentResult);
+				terminalContextOverflow = true;
+				break;
 			}
-			failures.push(
-				`${selectedCandidate?.id ?? "inherited model"} attempt ${attempt}: ${getFailureText(currentResult).trim() || `exit ${exitCode}`}`,
-			);
 			if (kind === "deterministic") break;
 			if (kind === "transient" && attempt < maxAttempts) continue;
 			break;
 		}
 		if (!currentResult) continue;
 		const kind = classifyModelChainResult(currentResult);
-		if (kind === "success" || kind === "other") break;
+		if (kind === "success" || kind === "other" || terminalContextOverflow) break;
 	}
 
 	if (!currentResult) throw new Error("Subagent did not run");
+	if (attempts.length) currentResult.attempts = attempts;
 	if (classifyModelChainResult(currentResult) !== "success" && agent.modelCandidates?.length) {
 		const terminalKind = classifyModelChainResult(currentResult);
 		if (terminalKind !== "other" && terminalKind !== "context_overflow") {
-			currentResult.stderr = `Subagent failed after exhausting model candidates. Attempts: ${failures.join(" | ")}`;
+			currentResult.stderr = `Subagent failed after exhausting model candidates. Attempts: ${attempts.map(formatAttemptFailure).join(" | ")}`;
 		}
 	}
 	if (parentSessionInfo && subagentSession) {
@@ -403,6 +437,7 @@ export async function runSingleAgent(
 					cost: currentResult.usage.cost,
 				},
 				durationMs: Date.now() - startTime,
+				...(currentResult.attempts ? { attempts: currentResult.attempts } : {}),
 			},
 		);
 	}

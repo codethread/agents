@@ -66,7 +66,7 @@ model:
 
 Supported `when` expressions are `$VAR`, `!$VAR`, `$VAR == "value"`, and `$VAR != 'value'`. Env vars are truthy when present and non-empty; the literal string `false` is truthy. Invalid declared model policy fails startup instead of silently inheriting a model. Declared candidates are checked against Pi's active model registry; if no candidate is valid for the current runtime, startup fails with the agent name and source path.
 
-Delegated `subagent` calls validate model policy only for the requested target. A hot-reloaded unrelated broken agent does not block a valid selected agent. When the target has declared candidates, the child `pi` process still runs with `--agent <name>` and also receives each selected candidate as explicit `--model`; candidate-local thinking is passed as `--thinking` only when the candidate includes a thinking suffix. Transient provider failures (timeouts/network interruptions, rate limits/429s, and 5xx/overloaded/unavailable responses) retry the same candidate up to three total attempts, then advance. Deterministic provider/model availability failures (auth/API key, unavailable/not found/gated models, quota/funds exhaustion) advance immediately. Context-window overflow is terminal and asks the caller to reduce scope; task, tool, validation, aborted, and ordinary non-provider failures do not advance the model chain. Success returns only the successful child output, without attempt chatter. Agents that omit `model` keep the inherited/default child invocation with no explicit model or thinking flags from this feature. Swarms validate each member independently: valid members run, invalid members return `<member status="error">` blocks, and the swarm still succeeds when at least one member returns output.
+Delegated `subagent` calls validate model policy only for the requested target. A hot-reloaded unrelated broken agent does not block a valid selected agent. When the target has declared candidates, the child `pi` process still runs with `--agent <name>` and also receives each selected candidate as explicit `--model`; candidate-local thinking is passed as `--thinking` only when the candidate includes a thinking suffix. Transient provider failures (timeouts/network interruptions, rate limits/429s, and 5xx/overloaded/unavailable responses) retry the same candidate up to three total attempts, then advance. Deterministic provider/model availability failures (auth/API key, unavailable/not found/gated models, quota/funds exhaustion) advance immediately. Context-window overflow is terminal and asks the caller to reduce scope; task, tool, validation, aborted, and ordinary non-provider failures do not advance the model chain. Success returns only the successful child output, without attempt chatter. Compact attempt metadata is kept for humans in the UI/session manifest: attempted model, per-candidate attempt number, success, exit code, short error summary, and retryable marker. Agents that omit `model` keep the inherited/default child invocation with no explicit model or thinking flags from this feature. Swarms validate each member independently: valid members run, invalid members return `<member status="error">` blocks, and the swarm still succeeds when at least one member returns output.
 
 ---
 
@@ -179,11 +179,13 @@ When the parent session is persisted, each subagent run is saved under:
 ~/.pi/agent/subagent-sessions/
   --<cwd-encoded>--/
     <parent-session-id>/
-      manifest.json            # one entry per single-agent run (agent, cost, duration, exit code, session filename)
+      manifest.json            # one entry per single-agent run (agent, cost, duration, exit code, session filename, compact attempts)
       swarm-manifest.json      # one entry per swarm run (friendly swarm resume ID, target, member sessions)
       <uuid>.jsonl            # one per single-agent child process session
       <uuid>.jsonl            # additional files for resumed or parallel member sessions
 ```
+
+Single-agent manifests include compact model-chain attempt records when a chain ran. They do not duplicate child transcripts; the `.jsonl` session files remain the transcript source.
 
 Single-agent resumes use exact IDs from `manifest.json` (matched to session files by stored session UUID).
 Swarm resumes use friendly IDs like `swarm-<target>-<uuid>` stored in `swarm-manifest.json`; each entry maps every member to its child session ID and session file.
@@ -191,7 +193,7 @@ A resumed swarm marks only members that successfully loaded a prior child sessio
 
 If the parent runs with `--no-session`, subagents also skip persistence and no resume ID is returned.
 
-In the Pi UI, subagent runs are labeled as `(fresh)` or `(resumed)` and show the child model as `model:thinking` beside the agent name, without the provider. The child session ID appears after that metadata, but is hidden when the terminal is too narrow. Collapsed previews show only the latest 3 activity items; expanded views show the delegated prompt plus the final output, while inner tool-call activity stays in that same collapsed preview form.
+In the Pi UI, subagent runs are labeled as `(fresh)` or `(resumed)` and show the child model as `model:thinking` beside the agent name, without the provider. Model-chain runs also show concise operational metadata such as the final attempted candidate and failed attempt count. The child session ID appears after that metadata, but is hidden when the terminal is too narrow. Collapsed previews show only the latest 3 activity items; expanded views show the delegated prompt plus the final output, while inner tool-call activity stays in that same collapsed preview form.
 
 ---
 

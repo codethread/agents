@@ -1,6 +1,6 @@
 # Subagent Dynamic Model Selection Specification
 
-**Status:** Planned; Phase 1 discovery parsing/validation, runtime explicit candidate launch, and delegated model-chain attempt loop implemented
+**Status:** Implemented
 **Last Updated:** 2026-05-11
 
 ## 1. Overview
@@ -24,8 +24,8 @@ Subagent model selection should be Pi-native, explicit, and environment-aware. A
 
 - Introducing any second model-list frontmatter field.
 - Implementing a shell-backed condition language.
-- Adding a general-purpose expression evaluator with `&&`, `||`, regexes, arithmetic, functions, or parentheses in the first version.
-- Adding per-call model override parameters to the `subagent` tool in the first version.
+- Adding a general-purpose expression evaluator with `&&`, `||`, regexes, arithmetic, functions, or parentheses.
+- Adding per-call model override parameters to the `subagent` tool.
 - Retrying direct top-level `pi --agent <name>` generation after the main session has started.
 - Using custom model-name alias rewrites in the subagent extension.
 - Treating task/tool/test failures as model availability failures.
@@ -38,7 +38,7 @@ Subagent model selection should be Pi-native, explicit, and environment-aware. A
 - **Decision:** Omitted `model` means inherit parent/default Pi model, while present-but-empty or present-but-gated-out model policy fails loudly.
   - **Rationale:** Inheritance must be intentional and unambiguous. Once an author declares model policy, silently falling back to an inherited provider could violate work/home routing expectations.
 
-- **Decision:** Model objects support only `id` and optional `when` in the first version.
+- **Decision:** Model objects support only `id` and optional `when`.
   - **Rationale:** Unknown keys are more likely typos than future intent. Rejecting them at the config boundary keeps invalid states out of runtime execution.
 
 - **Decision:** `when` is evaluated by a tiny in-repo parser, not `bash -c` and not a broad npm expression dependency.
@@ -62,7 +62,7 @@ Subagent model selection should be Pi-native, explicit, and environment-aware. A
 - **Decision:** Delegated subagent runtime owns the model-chain attempt loop.
   - **Rationale:** The parent process can keep attempts transparent to the caller, aggregate metadata, choose the next candidate, and preserve one final result contract.
 
-- **Decision:** Direct `pi --agent <name>` applies filtering and chooses the first valid candidate, but does not retry/advance after top-level generation starts in the first version.
+- **Decision:** Direct `pi --agent <name>` applies filtering and chooses the first valid candidate, but does not retry/advance after top-level generation starts.
   - **Rationale:** Extension startup can select an initial model, but cannot cleanly restart the main agent request after an API failure without deeper Pi lifecycle support.
 
 - **Decision:** CLI model/provider overrides disable agent-declared model policy for direct `--agent` mode.
@@ -150,7 +150,7 @@ Classification should prefer existing Pi utilities when available, especially Pi
 
 ## 4. Data Model
 
-Planned internal concepts live in the subagent extension rather than in public tool parameters:
+Internal concepts live in the subagent extension rather than in public tool parameters:
 
 - normalized candidate: exact model flag value plus optional parsed thinking level
 - agent config: optional ordered candidates, absent when `model` is omitted
@@ -160,7 +160,7 @@ Attempt metadata should stay compact:
 
 ```ts
 {
-  model: string;
+  attemptedModel: string;
   attempt: number;
   success: boolean;
   exitCode?: number;
@@ -212,7 +212,7 @@ Direct top-level agent mode:
 - applies candidate thinking only when the selected candidate includes an explicit thinking suffix
 - treats explicit `--model`, `-m`, or `--provider` as suppressing model-policy application for the selected agent
 - fails hard if the selected inherited candidate cannot be applied
-- does not retry/advance after the main generation request starts in the first version
+- does not retry/advance after the main generation request starts
 
 ### `subagent` tool contract
 
@@ -220,31 +220,16 @@ The public tool schema remains unchanged. Model-chain behavior is transparent to
 
 Human/session/debug surfaces may show compact attempt summaries such as candidate used and number of failed attempts.
 
-## 6. Implementation Phases
+## 6. Testing
 
-### Phase 1: Config parsing and validation
+Core behavior is covered by focused subagent tests:
 
-- [x] Add parser for `model` string/list/object shapes.
-- [x] Add tiny `when` parser/evaluator with focused tests.
-- [x] Remove extension-local model alias rewriting.
-- [x] Normalize candidates at discovery time.
-- [x] Add strict startup/direct-mode validation paths and clear error messages.
-- [x] Add runtime target-scoped validation paths for delegated subagent calls.
+- `agents.test.ts` covers model-policy shape parsing, `when` grammar, validation, and direct-mode candidate selection.
+- `runtime.test.ts` covers explicit candidate invocation, retry/advance classification, terminal context overflow, transparent success, compact failure summaries, and manifest attempt persistence.
+- `render.test.ts` covers parent-visible output boundaries and human-facing model-chain summaries.
+- `session.test.ts` covers manifest serialization for compact attempt metadata.
 
-### Phase 2: Runtime candidate attempts
-
-- [x] Teach delegated child invocation to accept an explicit candidate model/thinking per attempt.
-- [x] Add attempt loop with three total transient attempts per candidate.
-- [x] Classify context overflow as terminal.
-- [x] Classify deterministic provider/model failures as immediate advance.
-- [x] Preserve transparent agent-visible response semantics.
-
-### Phase 3: Metadata, rendering, and docs
-
-- [ ] Add compact attempt metadata to result/session types.
-- [ ] Update render/debug output to expose human-facing model-chain metadata without adding it to agent-visible content.
-- [ ] Update bundled agent examples where useful.
-- [ ] Update subagent README/spec references after implementation.
+Full package validation uses `pnpm verify`.
 
 ## 7. Open Questions
 
@@ -254,7 +239,7 @@ Human/session/debug surfaces may show compact attempt summaries such as candidat
 
 ## 8. Code Locations
 
-Planned changes are expected in:
+Implementation lives in:
 
 - `pi-extensions/tools/subagent/agents.ts`
 - `pi-extensions/tools/subagent/runtime.ts`
