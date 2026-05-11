@@ -3,8 +3,12 @@ import type { AgentConfig, SwarmConfig } from "./agents.js";
 import type { TaskRequest } from "./types.js";
 import {
 	createMissingSwarmMemberResult,
+	createRuntimeModelPolicyFailureResult,
 	findSwarmMemberResumeState,
+	formatRuntimeModelPolicyError,
 	formatUnknownTargetError,
+	getStartupModelPolicyErrors,
+	hasAllSwarmMembersFailed,
 	isLikelyFollowUpRequest,
 } from "./index.js";
 import { getAvailableAgentsText, getAvailableSwarmsText } from "./render.js";
@@ -88,6 +92,131 @@ describe("swarm helper functions", () => {
 			sessionId: "old-session-id",
 			sessionFile: "old.jsonl",
 		});
+	});
+});
+
+describe("runtime model policy validation", () => {
+	const modelRegistry = {
+		find: (provider: string, model: string) =>
+			provider === "openai" && model === "gpt-5.4-mini" ? { provider, id: model } : undefined,
+		getAll: () => [{ provider: "openai", id: "gpt-5.4-mini" }],
+		hasConfiguredAuth: () => true,
+	};
+
+	it("validates only the requested target and ignores unrelated invalid agents", () => {
+		const valid = {
+			...makeAgent("valid", "project"),
+			model: "openai/gpt-5.4-mini:low",
+			modelCandidates: [{ id: "openai/gpt-5.4-mini:low" }],
+		};
+		const unrelatedInvalid = {
+			...makeAgent("broken", "project"),
+			modelPolicyError: 'Invalid model policy for agent "broken" at /tmp/broken.md: bad',
+		};
+
+		expect(formatRuntimeModelPolicyError(valid, modelRegistry)).toBeUndefined();
+		expect(formatRuntimeModelPolicyError(unrelatedInvalid, modelRegistry)).toContain(
+			"Subagent broken failed",
+		);
+	});
+
+	it("scopes delegated child startup validation to the selected --agent", () => {
+		const selected = {
+			...makeAgent("valid", "project"),
+			model: "openai/gpt-5.4-mini:low",
+			modelCandidates: [{ id: "openai/gpt-5.4-mini:low" }],
+		};
+		const unrelatedInvalid = {
+			...makeAgent("broken", "project"),
+			modelPolicyError: 'Invalid model policy for agent "broken" at /tmp/broken.md: bad',
+		};
+		const discovery = {
+			agents: [selected, unrelatedInvalid],
+			userAgents: [],
+			projectAgents: [selected, unrelatedInvalid],
+			projectAgentsDir: "/tmp/.pi/agents",
+			swarms: [],
+			userSwarms: [],
+			projectSwarms: [],
+			projectSwarmsDir: null,
+		};
+
+		expect(getStartupModelPolicyErrors(discovery, modelRegistry, "valid", true)).toEqual([]);
+		expect(getStartupModelPolicyErrors(discovery, modelRegistry, "valid", false)).toEqual([
+			'Invalid model policy for agent "broken" at /tmp/broken.md: bad',
+		]);
+	});
+
+	it("returns a clear failure result for an invalid requested single agent", () => {
+		const invalid = {
+			...makeAgent("broken", "user"),
+			modelPolicyError: 'Invalid model policy for agent "broken" at /tmp/broken.md: bad',
+		};
+
+		const result = createRuntimeModelPolicyFailureResult(
+			{ agent: "broken", description: "run broken", task: "Do work", cwd: "/repo" },
+			invalid,
+			modelRegistry,
+		);
+
+		expect(result).toMatchObject({
+			agent: "broken",
+			agentSource: "user",
+			exitCode: 1,
+			stderr: expect.stringContaining("Subagent broken failed"),
+		});
+		expect(result?.stderr).toContain("/tmp/broken.md");
+	});
+
+	it("represents invalid swarm members as member-level failures", () => {
+		const invalidMember = {
+			...makeAgent("invalid-member", "project"),
+			model: "missing/model:high",
+			modelCandidates: [{ id: "missing/model:high" }],
+		};
+
+		const result = createRuntimeModelPolicyFailureResult(
+			{ agent: "invalid-member", description: "run swarm", task: "Review", cwd: "/repo" },
+			invalidMember,
+			modelRegistry,
+		);
+
+		expect(result).toMatchObject({ agent: "invalid-member", exitCode: 1 });
+		expect(result?.stderr).toContain("Subagent invalid-member failed");
+		expect(result?.stderr).toContain("no valid model candidates");
+	});
+
+	it("keeps mixed-validity swarm results as partial success", () => {
+		const validResult = {
+			agent: "valid-member",
+			agentSource: "project" as const,
+			task: "Review",
+			exitCode: 0,
+			messages: [],
+			stderr: "",
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				cost: 0,
+				contextTokens: 0,
+				turns: 0,
+			},
+		};
+		const invalidMember = {
+			...makeAgent("invalid-member", "project"),
+			model: "missing/model:high",
+			modelCandidates: [{ id: "missing/model:high" }],
+		};
+		const invalidResult = createRuntimeModelPolicyFailureResult(
+			{ agent: "invalid-member", description: "run swarm", task: "Review", cwd: "/repo" },
+			invalidMember,
+			modelRegistry,
+		)!;
+
+		expect(hasAllSwarmMembersFailed([validResult, invalidResult])).toBe(false);
+		expect(hasAllSwarmMembersFailed([invalidResult])).toBe(true);
 	});
 });
 

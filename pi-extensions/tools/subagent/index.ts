@@ -20,6 +20,9 @@ import {
 	getInheritedAgentRuntimeSettings,
 	parseAgentFlagCliOverrides,
 	validateAgentModelPolicies,
+	validateAgentModelPolicy,
+	type AgentConfig,
+	type ModelRegistryLike,
 } from "./agents.js";
 import {
 	findSubagentSessionFileById,
@@ -110,6 +113,60 @@ export function createMissingSwarmMemberResult(
 	};
 }
 
+export function formatRuntimeModelPolicyError(
+	agent: AgentConfig,
+	modelRegistry: ModelRegistryLike,
+): string | undefined {
+	const errors = validateAgentModelPolicy(agent, modelRegistry);
+	if (errors.length === 0) return undefined;
+	return `Subagent ${agent.name} failed: ${errors.join("; ")}`;
+}
+
+export function createRuntimeModelPolicyFailureResult(
+	params: TaskRequest,
+	agent: AgentConfig,
+	modelRegistry: ModelRegistryLike,
+): SingleResult | undefined {
+	const error = formatRuntimeModelPolicyError(agent, modelRegistry);
+	if (!error) return undefined;
+	return {
+		agent: agent.name,
+		agentSource: agent.source,
+		task: params.task,
+		resumed: Boolean(params.resume),
+		exitCode: 1,
+		messages: [],
+		stderr: error,
+		usage: createEmptyUsage(),
+	};
+}
+
+export function getStartupModelPolicyErrors(
+	discovery: ReturnType<typeof discoverAgents>,
+	modelRegistry: ModelRegistryLike,
+	selectedAgentName: string | undefined,
+	isSubagentChild: boolean,
+): string[] {
+	if (isSubagentChild && selectedAgentName) {
+		const selectedAgent = findAgentByName(discovery.agents, selectedAgentName);
+		return selectedAgent ? validateAgentModelPolicy(selectedAgent, modelRegistry) : [];
+	}
+
+	const allDiscoveredAgents = [
+		...discovery.agents,
+		...discovery.userAgents,
+		...discovery.projectAgents,
+	];
+	return validateAgentModelPolicies(
+		Array.from(new Map(allDiscoveredAgents.map((agent) => [agent.filePath, agent])).values()),
+		modelRegistry,
+	);
+}
+
+export function hasAllSwarmMembersFailed(results: SingleResult[]): boolean {
+	return results.length > 0 && results.every(isResultError);
+}
+
 export default function (pi: ExtensionAPI) {
 	let selectedAgentName: string | undefined;
 	let agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
@@ -139,15 +196,14 @@ export default function (pi: ExtensionAPI) {
 	const validateStartupModelPolicies = (
 		discovery: ReturnType<typeof discoverAgents>,
 		ctx: Pick<ExtensionContext, "modelRegistry" | "hasUI" | "ui">,
+		selectedName: string | undefined,
+		isSubagentChild: boolean,
 	) => {
-		const allDiscoveredAgents = [
-			...discovery.agents,
-			...discovery.userAgents,
-			...discovery.projectAgents,
-		];
-		const errors = validateAgentModelPolicies(
-			Array.from(new Map(allDiscoveredAgents.map((agent) => [agent.filePath, agent])).values()),
+		const errors = getStartupModelPolicyErrors(
+			discovery,
 			ctx.modelRegistry,
+			selectedName,
+			isSubagentChild,
 		);
 		if (errors.length > 0) {
 			failAgentSelection(`Invalid subagent model configuration:\n${errors.join("\n")}`, ctx);
@@ -211,8 +267,9 @@ export default function (pi: ExtensionAPI) {
 		const agentFlag = pi.getFlag("agent");
 		selectedAgentName = typeof agentFlag === "string" ? agentFlag.trim() : undefined;
 		const discovery = discoverAgents(ctx.cwd);
-		validateStartupModelPolicies(discovery, ctx);
+		const isSubagentChild = process.env.PI_SUBAGENT === "1";
 		if (!selectedAgentName) {
+			validateStartupModelPolicies(discovery, ctx, selectedAgentName, isSubagentChild);
 			selectedAgentName = undefined;
 			return;
 		}
@@ -224,6 +281,7 @@ export default function (pi: ExtensionAPI) {
 				ctx,
 			);
 		}
+		validateStartupModelPolicies(discovery, ctx, selectedAgentName, isSubagentChild);
 		await applySelectedAgentSettings(ctx, { agent: agent!, discovery });
 	});
 
@@ -412,6 +470,16 @@ export default function (pi: ExtensionAPI) {
 					| { kind: "resume"; request: TaskRequest }
 					| { kind: "missing"; result: SingleResult };
 				const memberRequests: SwarmMemberRequestPlan[] = target.swarm.members.map((memberName) => {
+					const memberAgent = agents.find((agent) => agent.name === memberName);
+					if (memberAgent) {
+						const invalidMemberResult = createRuntimeModelPolicyFailureResult(
+							{ ...params, agent: memberName },
+							memberAgent,
+							ctx.modelRegistry,
+						);
+						if (invalidMemberResult) return { kind: "missing", result: invalidMemberResult };
+					}
+
 					if (!resumeManifestEntry) {
 						return {
 							kind: "fresh",
@@ -512,11 +580,24 @@ export default function (pi: ExtensionAPI) {
 
 				const swarmText =
 					getParentVisibleSwarmResultText(finalResults, swarmResumeId) || "(no output)";
-				const allFailed = finalResults.length > 0 && finalResults.every(isResultError);
+				const allFailed = hasAllSwarmMembersFailed(finalResults);
 				return {
 					content: [{ type: "text", text: swarmText }],
 					details: makeDetails(finalResults),
 					isError: allFailed,
+				};
+			}
+
+			const invalidSingleResult = createRuntimeModelPolicyFailureResult(
+				{ ...params, agent: target.agent.name },
+				target.agent,
+				ctx.modelRegistry,
+			);
+			if (invalidSingleResult) {
+				return {
+					content: [{ type: "text", text: getParentVisibleResultText(invalidSingleResult) }],
+					details: makeDetails([invalidSingleResult]),
+					isError: true,
 				};
 			}
 

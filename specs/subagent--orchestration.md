@@ -138,6 +138,8 @@ Behavioral details:
 - persisted single-agent runs append a plain `Subagent resume ID: ...` line and `<subagent-resume-id>...</subagent-resume-id>` to the parent-visible final response
 - persisted swarm runs append one friendly swarm resume ID using the same parent-facing resume tag convention; the friendly ID maps to all member sessions in the swarm manifest
 - failed single-agent child runs set the overall tool call `isError` and return the full error text
+- runtime model-policy validation is scoped to the requested single agent or requested swarm members; unrelated invalid discovered agents do not block a delegated run
+- invalid swarm member model policy is represented as that member's failed `SingleResult`, so valid members can still run
 - swarm runs with at least one successful member return partial output without marking the whole tool call as an error; an all-failed swarm may set `isError`
 
 ### Session logging

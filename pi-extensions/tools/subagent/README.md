@@ -66,6 +66,8 @@ model:
 
 Supported `when` expressions are `$VAR`, `!$VAR`, `$VAR == "value"`, and `$VAR != 'value'`. Env vars are truthy when present and non-empty; the literal string `false` is truthy. Invalid declared model policy fails startup instead of silently inheriting a model. Declared candidates are checked against Pi's active model registry; if no candidate is valid for the current runtime, startup fails with the agent name and source path.
 
+Delegated `subagent` calls validate model policy only for the requested target. A hot-reloaded unrelated broken agent does not block a valid selected agent. Swarms validate each member independently: valid members run, invalid members return `<member status="error">` blocks, and the swarm still succeeds when at least one member returns output.
+
 ---
 
 ## Swarm discovery
@@ -121,7 +123,7 @@ All four fields (`agent`, `description`, `task`, `cwd`) are required. `resume` i
 
 If a follow-up depends on that ID, wait for the first tool result before making the second call; do not dispatch both calls concurrently. Never use a placeholder or empty resume value, and never dispatch the follow-up before the first result returns. `description` should be 3–8 words. Dispatch multiple independent subagents concurrently as separate tool calls when no later call depends on another run's resume ID.
 
-A resumed swarm may render missing member sessions as errors when the manifest references a member that no longer has an available session.
+A resumed swarm may render missing member sessions as errors when the manifest references a member that no longer has an available session. Runtime model-policy failures are rendered the same way for individual swarm members, preserving partial results from valid members.
 
 Swarm result blocks are emitted as XML member entries with CDATA-wrapped final output:
 

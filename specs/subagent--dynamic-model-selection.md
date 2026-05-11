@@ -1,6 +1,6 @@
 # Subagent Dynamic Model Selection Specification
 
-**Status:** Planned; Phase 1 discovery parsing and startup/direct validation implemented
+**Status:** Planned; Phase 1 discovery parsing, startup/direct validation, and runtime-scoped validation implemented
 **Last Updated:** 2026-05-11
 
 ## 1. Overview
@@ -229,7 +229,7 @@ Human/session/debug surfaces may show compact attempt summaries such as candidat
 - [x] Remove extension-local model alias rewriting.
 - [x] Normalize candidates at discovery time.
 - [x] Add strict startup/direct-mode validation paths and clear error messages.
-- [ ] Add runtime target-scoped validation paths for delegated subagent calls.
+- [x] Add runtime target-scoped validation paths for delegated subagent calls.
 
 ### Phase 2: Runtime candidate attempts
 

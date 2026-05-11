@@ -12,7 +12,7 @@ tasks:
   - id: 3
     description: Scope runtime model validation
     task_file: tasks/003-scope-runtime-model-validation.md
-    status: pending
+    status: complete
     blocked_by: [2]
   - id: 4
     description: Run child with explicit candidates

@@ -59,3 +59,9 @@ Append notes here. Do not rewrite earlier notes.
 - Direct `--agent` selection now uses the first registry-valid declared candidate unless `--model`, `-m`, or `--provider` suppresses agent model inheritance; candidate-local thinking is skipped when `--thinking` is explicit.
 - Bundled repo agents omit `model` so normal startup does not require provider-specific credentials unrelated to the active environment.
 - Repo-root startup smoke check passed with `pi --model openai/gpt-5.4-nano:low --print ping`; full validation used `pnpm verify`.
+
+### Task 3 implementation — 2026-05-11
+
+- Parent `subagent` execution now validates model policy only for the selected single target or selected swarm members, using the same `validateAgentModelPolicy` registry/auth checks as startup.
+- Delegated child `PI_SUBAGENT=1 --agent <name>` startup validates only that selected agent so unrelated hot-reloaded invalid agents do not kill a valid runtime call.
+- Invalid swarm members become member-level failed results; valid members still launch and preserve existing partial swarm success behavior.
