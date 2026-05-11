@@ -1,6 +1,6 @@
 # Subagent Dynamic Model Selection Specification
 
-**Status:** Planned
+**Status:** Planned; Phase 1 discovery parsing partially implemented
 **Last Updated:** 2026-05-11
 
 ## 1. Overview
@@ -224,10 +224,10 @@ Human/session/debug surfaces may show compact attempt summaries such as candidat
 
 ### Phase 1: Config parsing and validation
 
-- [ ] Add parser for `model` string/list/object shapes.
-- [ ] Add tiny `when` parser/evaluator with focused tests.
-- [ ] Remove extension-local model alias rewriting.
-- [ ] Normalize candidates at discovery time.
+- [x] Add parser for `model` string/list/object shapes.
+- [x] Add tiny `when` parser/evaluator with focused tests.
+- [x] Remove extension-local model alias rewriting.
+- [x] Normalize candidates at discovery time.
 - [ ] Add strict startup/runtime validation paths and clear error messages.
 
 ### Phase 2: Runtime candidate attempts

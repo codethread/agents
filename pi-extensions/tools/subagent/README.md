@@ -34,22 +34,37 @@ description: Short description shown to the parent agent
 meta: Author-only note; ignored by runtime
 hidden: true
 tools: read, bash, edit
-model: sonnet
+model: openai/gpt-5.4-mini:low
 ---
 
 You are a specialist in [whatever]...
 ```
 
-| Field         | Required | Notes                                                                                          |
-| ------------- | :------: | ---------------------------------------------------------------------------------------------- |
-| `name`        |    ✅    | Identifier used in tool calls and `--agent`                                                    |
-| `description` |    ✅    | Shown to parent agent unless `hidden: true`                                                    |
-| `meta`        |          | Author note; not surfaced to runtime or parent                                                 |
-| `hidden`      |          | Hides from inventory; agent remains discoverable and callable                                  |
-| `tools`       |          | Comma-separated. Omit → empty tool set. Extension tools (`subagent`) must be listed explicitly |
-| `model`       |          | Alias (`sonnet`) or qualified `provider/model`. Append `:low` etc. for thinking level          |
+| Field         | Required | Notes                                                                                                                                                                                           |
+| ------------- | :------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        |    ✅    | Identifier used in tool calls and `--agent`                                                                                                                                                     |
+| `description` |    ✅    | Shown to parent agent unless `hidden: true`                                                                                                                                                     |
+| `meta`        |          | Author note; not surfaced to runtime or parent                                                                                                                                                  |
+| `hidden`      |          | Hides from inventory; agent remains discoverable and callable                                                                                                                                   |
+| `tools`       |          | Comma-separated. Omit → empty tool set. Extension tools (`subagent`) must be listed explicitly                                                                                                  |
+| `model`       |          | Optional model policy. Omit to inherit the parent/default model. Use a non-empty string, `{ id, when? }`, or a non-empty ordered list of strings/objects. Append `:low` etc. for thinking level |
 
 Canonical Pi tool names: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`. Some legacy Claude names are normalized but prefer Pi names.
+
+Model policy examples:
+
+```yaml
+model: openai/gpt-5.4-mini:low
+```
+
+```yaml
+model:
+  - id: deepseek/deepseek-v4:high
+    when: "!$IS_WORK"
+  - openai/gpt-5.4-mini:low
+```
+
+Supported `when` expressions are `$VAR`, `!$VAR`, `$VAR == "value"`, and `$VAR != 'value'`. Env vars are truthy when present and non-empty; the literal string `false` is truthy. Invalid declared model policy is kept as an agent config error for startup/runtime validation instead of silently inheriting a model.
 
 ---
 

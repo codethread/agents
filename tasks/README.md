@@ -45,3 +45,10 @@ Append notes here. Do not rewrite earlier notes.
 - Runtime model-chain behavior should remain transparent to the calling agent; human/debug/session surfaces may show compact operational metadata.
 - Keep `subagent` tool parameters unchanged for the MVP.
 - Model-policy parsing should preserve per-agent errors so startup can fail globally while runtime hot reload can fail only the requested target/member.
+
+### Task 1 implementation — 2026-05-11
+
+- Discovery now parses `model` into `modelCandidates` while preserving `agent.model` as the first accepted candidate for existing runtime-setting helpers.
+- Malformed declared model policy is stored per agent as `modelPolicyError`; strict startup/runtime enforcement remains for later slices.
+- Extension-local Claude/OpenAI alias rewriting was removed from the subagent parsing path; model strings are passed through for Pi resolution later.
+- Project rules mention `pnpm check`, but package scripts expose `pnpm verify`; `pnpm check` was unavailable, so full validation used `pnpm verify`.

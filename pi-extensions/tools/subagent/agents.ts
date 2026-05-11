@@ -14,6 +14,8 @@ export interface AgentConfig {
 	hidden: boolean;
 	tools: string[];
 	model?: string;
+	modelCandidates?: AgentModelCandidate[];
+	modelPolicyError?: string;
 	systemPrompt: string;
 	source: "package" | "user" | "project";
 	filePath: string;
@@ -51,6 +53,7 @@ export interface AgentDiscoveryOptions {
 	userSwarmsDir?: string;
 	projectSwarmsDir?: string | null;
 	settingsPath?: string | null;
+	env?: NodeJS.ProcessEnv;
 }
 
 export type AgentThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
@@ -94,10 +97,8 @@ const CLAUDE_TOOL_MAP: Record<string, string | null> = {
 	skill: null,
 };
 
-interface PiSettings {
-	defaultProvider?: string;
-	defaultModel?: string;
-	enabledModels?: string[];
+export interface AgentModelCandidate {
+	id: string;
 }
 
 const THINKING_LEVELS = new Set<AgentThinkingLevel>([
@@ -136,62 +137,89 @@ function readJsonFile<T>(filePath: string): T | null {
 	}
 }
 
-function findNearestSettingsFile(cwd: string): string | null {
-	let currentDir = cwd;
-	while (true) {
-		const candidate = path.join(currentDir, ".pi", "settings.json");
-		if (fs.existsSync(candidate)) return candidate;
+function evaluateWhenExpression(expression: string, env: NodeJS.ProcessEnv = process.env): boolean {
+	const trimmed = expression.trim();
+	if (!trimmed) throw new Error("empty when expression");
 
-		const parentDir = path.dirname(currentDir);
-		if (parentDir === currentDir) break;
-		currentDir = parentDir;
+	const truthyMatch = trimmed.match(/^(!?)\$([A-Za-z_][A-Za-z0-9_]*)$/);
+	if (truthyMatch) {
+		const [, negation, name] = truthyMatch;
+		const present = env[name] !== undefined && env[name] !== "";
+		return negation ? !present : present;
 	}
 
-	const userSettings = path.join(getAgentDir(), "settings.json");
-	if (fs.existsSync(userSettings)) return userSettings;
-	return null;
-}
-
-function pickPreferredModel(models: string[], preferMini: boolean): string | undefined {
-	if (models.length === 0) return undefined;
-	if (preferMini) return models.find((m) => m.toLowerCase().includes("mini")) ?? models[0];
-	return models.find((m) => !m.toLowerCase().includes("mini")) ?? models[0];
-}
-
-function resolveModelAlias(
-	model: string | undefined,
-	settings: PiSettings | null,
-): string | undefined {
-	if (!model) return undefined;
-
-	const trimmed = model.trim();
-	if (!trimmed) return undefined;
-	if (trimmed.includes("/")) return trimmed;
-
-	const lower = trimmed.toLowerCase();
-	const enabled = settings?.enabledModels?.filter((m): m is string => typeof m === "string") ?? [];
-	const openAiEnabled = enabled.filter(
-		(m) => m.startsWith("openai-codex/") || m.startsWith("openai/"),
+	const comparisonMatch = trimmed.match(
+		/^\$([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=)\s*(?:"([^"]*)"|'([^']*)')$/,
 	);
-
-	if (openAiEnabled.length === 0) return trimmed;
-
-	const defaultQualified =
-		settings?.defaultProvider && settings?.defaultModel
-			? `${settings.defaultProvider}/${settings.defaultModel}`
-			: undefined;
-	const defaultEnabled =
-		defaultQualified && openAiEnabled.includes(defaultQualified) ? defaultQualified : undefined;
-
-	const fallbackLarge = defaultEnabled ?? pickPreferredModel(openAiEnabled, false);
-	const fallbackMini = pickPreferredModel(openAiEnabled, true) ?? fallbackLarge;
-
-	if (lower.includes("haiku")) return fallbackMini;
-	if (lower.includes("sonnet") || lower.includes("opus") || lower.startsWith("claude")) {
-		return fallbackLarge;
+	if (comparisonMatch) {
+		const [, name, operator, doubleQuoted, singleQuoted] = comparisonMatch;
+		const expected = doubleQuoted ?? singleQuoted ?? "";
+		const actual = env[name];
+		const equal = actual === expected;
+		return operator === "==" ? equal : !equal;
 	}
 
-	return trimmed;
+	throw new Error(`unsupported when expression "${expression}"`);
+}
+
+function parseModelPolicy(
+	value: unknown,
+	agentName: string,
+	filePath: string,
+	env: NodeJS.ProcessEnv = process.env,
+): { model?: string; modelCandidates?: AgentModelCandidate[]; modelPolicyError?: string } {
+	if (value === undefined) return {};
+
+	try {
+		const entries = Array.isArray(value) ? value : [value];
+		if (entries.length === 0) throw new Error("model list must not be empty");
+
+		const candidates: AgentModelCandidate[] = [];
+		const seen = new Set<string>();
+		for (const entry of entries) {
+			const candidate = parseModelCandidate(entry, env);
+			if (!candidate) continue;
+			if (seen.has(candidate.id)) continue;
+			seen.add(candidate.id);
+			candidates.push(candidate);
+		}
+
+		if (candidates.length === 0) throw new Error("model policy leaves no candidates after gating");
+
+		return { model: candidates[0]?.id, modelCandidates: candidates };
+	} catch (error) {
+		const reason = error instanceof Error ? error.message : String(error);
+		return {
+			modelPolicyError: `Invalid model policy for agent "${agentName}" at ${filePath}: ${reason}`,
+		};
+	}
+}
+
+function parseModelCandidate(entry: unknown, env: NodeJS.ProcessEnv): AgentModelCandidate | null {
+	if (typeof entry === "string") {
+		const id = entry.trim();
+		if (!id) throw new Error("model id must be a non-empty string");
+		return { id };
+	}
+
+	if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+		throw new Error("model entries must be strings or objects");
+	}
+
+	const raw = entry as Record<string, unknown>;
+	const unknownKeys = Object.keys(raw).filter((key) => key !== "id" && key !== "when");
+	if (unknownKeys.length > 0) {
+		throw new Error(`model object has unknown key(s): ${unknownKeys.join(", ")}`);
+	}
+
+	if (typeof raw.id !== "string" || !raw.id.trim()) {
+		throw new Error("model object id must be a non-empty string");
+	}
+	if (raw.when !== undefined && typeof raw.when !== "string") {
+		throw new Error("model object when must be a string");
+	}
+	if (raw.when !== undefined && !evaluateWhenExpression(raw.when, env)) return null;
+	return { id: raw.id.trim() };
 }
 
 function getFrontmatterString(value: unknown): string | undefined {
@@ -220,7 +248,7 @@ function parseSwarmMembers(value: unknown): string[] | null {
 function loadAgentsFromDir(
 	dir: string,
 	source: "package" | "user" | "project",
-	settings: PiSettings | null,
+	env: NodeJS.ProcessEnv,
 ): AgentConfig[] {
 	const agents: AgentConfig[] = [];
 	if (!fs.existsSync(dir)) return agents;
@@ -254,12 +282,14 @@ function loadAgentsFromDir(
 			.map((tool: string) => tool.trim())
 			.filter(Boolean);
 
+		const parsedModel = parseModelPolicy(frontmatter.model, name, filePath, env);
+
 		agents.push({
 			name,
 			description,
 			hidden: parseHiddenFrontmatter(frontmatter.hidden),
 			tools: normalizeTools(parsedTools),
-			model: resolveModelAlias(getFrontmatterString(frontmatter.model), settings),
+			...parsedModel,
 			systemPrompt: body,
 			source,
 			filePath,
@@ -280,7 +310,7 @@ function isDirectory(p: string): boolean {
 function loadAgentsFromSwarmsDir(
 	dir: string,
 	source: "package" | "user" | "project",
-	settings: PiSettings | null,
+	env: NodeJS.ProcessEnv,
 ): AgentConfig[] {
 	const agents: AgentConfig[] = [];
 	if (!fs.existsSync(dir)) return agents;
@@ -294,7 +324,7 @@ function loadAgentsFromSwarmsDir(
 
 	for (const entry of entries) {
 		if (!entry.isDirectory()) continue;
-		agents.push(...loadAgentsFromDir(path.join(dir, entry.name), source, settings));
+		agents.push(...loadAgentsFromDir(path.join(dir, entry.name), source, env));
 	}
 
 	return agents;
@@ -403,25 +433,23 @@ export function discoverAgents(
 		options.projectSwarmsDir === undefined
 			? findNearestProjectSwarmsDir(cwd)
 			: options.projectSwarmsDir;
-	const settingsPath =
-		options.settingsPath === undefined ? findNearestSettingsFile(cwd) : options.settingsPath;
-	const settings = settingsPath ? readJsonFile<PiSettings>(settingsPath) : null;
+	const env = options.env ?? process.env;
 
 	const packageAgents = [
-		...(packageAgentsDir ? loadAgentsFromDir(packageAgentsDir, "package", settings) : []),
-		...(packageSwarmsDir ? loadAgentsFromSwarmsDir(packageSwarmsDir, "package", settings) : []),
+		...(packageAgentsDir ? loadAgentsFromDir(packageAgentsDir, "package", env) : []),
+		...(packageSwarmsDir ? loadAgentsFromSwarmsDir(packageSwarmsDir, "package", env) : []),
 	];
 	const packageSwarms = packageSwarmsDir ? loadSwarmsFromDir(packageSwarmsDir, "package") : [];
 
 	const userAgents = [
-		...loadAgentsFromDir(userAgentsDir, "user", settings),
-		...(userSwarmsDir ? loadAgentsFromSwarmsDir(userSwarmsDir, "user", settings) : []),
+		...loadAgentsFromDir(userAgentsDir, "user", env),
+		...(userSwarmsDir ? loadAgentsFromSwarmsDir(userSwarmsDir, "user", env) : []),
 	];
 	const userSwarms = userSwarmsDir ? loadSwarmsFromDir(userSwarmsDir, "user") : [];
 
 	const projectAgents = [
-		...(projectAgentsDir ? loadAgentsFromDir(projectAgentsDir, "project", settings) : []),
-		...(projectSwarmsDir ? loadAgentsFromSwarmsDir(projectSwarmsDir, "project", settings) : []),
+		...(projectAgentsDir ? loadAgentsFromDir(projectAgentsDir, "project", env) : []),
+		...(projectSwarmsDir ? loadAgentsFromSwarmsDir(projectSwarmsDir, "project", env) : []),
 	];
 	const projectSwarms = projectSwarmsDir ? loadSwarmsFromDir(projectSwarmsDir, "project") : [];
 

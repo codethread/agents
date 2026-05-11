@@ -1,7 +1,7 @@
 # Agent Discovery and Configuration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-05-09
+**Last Updated:** 2026-05-11
 
 ## 1. Overview
 
@@ -21,7 +21,7 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 - Preserve source metadata for debug output and project-agent confirmation.
 - Allow direct top-level selection of one discovered agent config via `--agent <name>`.
 - Normalize legacy Claude-flavored tool names while treating agent `tools` as an exact allowlist across built-in and extension tools.
-- Resolve lightweight model aliases into enabled OpenAI-backed models when local settings make that possible.
+- Parse declared model policy at the discovery boundary into ordered candidates and per-agent config errors.
 - Apply deterministic source precedence so agent name collisions resolve predictably.
 
 ### Non-Goals
@@ -30,7 +30,8 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 - Validating rich agent schemas beyond the required frontmatter fields. Discovery assumes frontmatter is parseable and that `tools`, when present, behaves like a string.
 - Merging multiple definitions of the same agent across sources. Agent-agent collisions are resolved by replacement, not composition.
 - Executing swarm members, aggregating member output, or managing swarm resume. That belongs to the subagent runtime in `pi-extensions/tools/subagent/`.
-- Supporting arbitrary external tool names or provider-agnostic model aliasing. Normalization is intentionally narrow and conservative.
+- Supporting arbitrary external tool names. Tool normalization is intentionally narrow and conservative.
+- Validating model candidates against Pi's model registry or implementing model-chain retry behavior; those belong to later dynamic-model-selection phases.
 - Exposing user/project/both discovery scopes to Pi-facing runtime selection.
 
 ## 2. Design Decisions
@@ -71,11 +72,11 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 - **Decision:** Tool normalization is only lossy for unsupported Claude-only aliases.
   - **Rationale:** Known Claude aliases should map to Pi equivalents, unsupported Claude tools such as `task`, `websearch`, `webfetch`, and `skill` should be dropped, and all other tool names should be preserved so extension-defined tools remain configurable from agent frontmatter.
 
-- **Decision:** Claude-family model aliases are rewritten only when local OpenAI-backed models are enabled.
-  - **Rationale:** This preserves author intent for portable agent files while still allowing bundled agents authored with Claude-style names like `sonnet` or `haiku` to run in Pi environments backed by OpenAI/OpenAI Codex models.
+- **Decision:** Discovery does not rewrite model aliases.
+  - **Rationale:** Agent model strings should use Pi's normal model resolution path. Keeping alias policy out of the subagent extension avoids a second model naming layer.
 
-- **Decision:** Settings lookup is based on the caller's working directory, not the agent file's location.
-  - **Rationale:** Discovery behaves like the rest of Pi configuration resolution: the active workspace determines settings for the whole run.
+- **Decision:** Declared `model` policy is parsed at the discovery boundary and malformed policy is recorded per agent.
+  - **Rationale:** Discovery can preserve enough error detail for strict startup validation and target-scoped runtime validation without aborting every snapshot unconditionally.
 
 - **Decision:** Agents and swarms share one effective delegation namespace, and cross-kind name collisions are hard errors.
   - **Rationale:** The parent agent calls a single `agent` field and should not have to reason about target kinds. Failing during discovery/session initialization avoids a runtime surprise where `review` sometimes means one agent and sometimes means a fan-out swarm.
@@ -96,16 +97,15 @@ Agent discovery is implemented in `pi-extensions/tools/subagent/agents.ts` and c
    - bundled package agents from `findBundledAgentsDir()`
    - user agents from `path.join(getAgentDir(), "agents")`
    - project agents from the nearest ancestor `.pi/agents` directory via `findNearestProjectAgentsDir(cwd)`
-2. The same call also resolves settings with `findNearestSettingsFile(cwd)`, preferring the nearest ancestor `.pi/settings.json` and falling back to the user settings file under `getAgentDir()`.
-3. Each discovered directory is loaded through `loadAgentsFromDir(dir, source, settings)`.
-4. Each markdown file is parsed with `parseFrontmatter(...)`.
-5. Required frontmatter fields plus optional runtime visibility metadata are projected into `AgentConfig`, while the markdown body becomes `systemPrompt`.
-6. `normalizeTools(...)` maps the optional `tools` list into Pi tool names.
-7. `resolveModelAlias(...)` optionally rewrites lightweight model aliases using enabled models from settings.
-8. A `Map<string, AgentConfig>` applies source precedence by agent name and produces the final effective `agents` array.
-9. Swarm discovery loads `swarm.json` definitions from source-specific swarm roots and applies same-kind swarm precedence in one merged `swarms` view while still retaining `userSwarms`/`projectSwarms`.
-10. Swarm folder `.md` files are loaded with the same source before swarm merging so a swarm can reference colocated members.
-11. The same discovery pass also returns raw `userAgents` and `projectAgents` lists for debug output.
+2. Each discovered directory is loaded through `loadAgentsFromDir(dir, source, env)`.
+3. Each markdown file is parsed with `parseFrontmatter(...)`.
+4. Required frontmatter fields plus optional runtime visibility metadata are projected into `AgentConfig`, while the markdown body becomes `systemPrompt`.
+5. `normalizeTools(...)` maps the optional `tools` list into Pi tool names.
+6. `parseModelPolicy(...)` parses optional `model` frontmatter into ordered `modelCandidates`, preserves the first accepted candidate as `model`, or records `modelPolicyError` on that agent.
+7. A `Map<string, AgentConfig>` applies source precedence by agent name and produces the final effective `agents` array.
+8. Swarm discovery loads `swarm.json` definitions from source-specific swarm roots and applies same-kind swarm precedence in one merged `swarms` view while still retaining `userSwarms`/`projectSwarms`.
+9. Swarm folder `.md` files are loaded with the same source before swarm merging so a swarm can reference colocated members.
+10. The same discovery pass also returns raw `userAgents` and `projectAgents` lists for debug output.
 
 ### Source locations and precedence
 
@@ -146,18 +146,24 @@ Discovery returns multiple views from one pass:
 
 This keeps Pi-facing behavior simple while preserving source visibility for humans. Because discovery is run on demand, markdown edits are picked up on the next call rather than requiring a long-lived cache flush.
 
-### Settings and model resolution
+### Model policy parsing
 
-Settings are not loaded per source directory. A single nearest settings file is chosen for the current working directory, then applied to every discovered agent during that discovery pass.
+The public model field remains `model`. Omitted `model` means the agent inherits the parent/default Pi model and produces no candidates. Present `model` may be a non-empty string, an object with `id` and optional `when`, or a non-empty list of strings and/or objects.
 
-Model alias resolution is intentionally opportunistic:
+Discovery accepts only the v1 `when` grammar:
 
-- fully qualified models containing `/` are left unchanged
-- blank or missing model values become `undefined`
-- if no enabled `openai/` or `openai-codex/` models are configured, aliases are left unchanged
-- `haiku`-like aliases prefer a model containing `mini`
-- `sonnet`, `opus`, and `claude*` aliases prefer a non-`mini` enabled OpenAI model
-- the configured default provider/model is preferred only when it is both fully qualified and present in `enabledModels`
+- `$VAR`
+- `!$VAR`
+- `$VAR == "value"`
+- `$VAR != 'value'`
+
+Environment variable names must match `[A-Za-z_][A-Za-z0-9_]*`. Truthiness is presence plus non-empty raw value; the literal string `false` is truthy. Surrounding expression whitespace is ignored, while environment values are compared without trimming.
+
+Accepted entries are normalized into `modelCandidates` in declaration order, with duplicate model IDs removed after parsing while preserving the first occurrence. The first candidate is also exposed as `model` so existing runtime-setting helpers keep their single-string behavior until later slices consume the full chain.
+
+Malformed declared policy does not abort the whole discovery snapshot. Instead, the affected agent carries a `modelPolicyError` with a clear reason. Invalid cases include empty model lists, unsupported `when` expressions, unknown object keys, missing or blank `id`, and policies that leave no candidates after gating.
+
+Discovery does not rewrite aliases such as `sonnet` or `haiku`; model strings are passed through for Pi model resolution later.
 
 ### Runtime integration boundary
 
@@ -175,12 +181,18 @@ This means discovery is the configuration boundary; runtime execution trusts the
 Core exported types from `pi-extensions/tools/subagent/agents.ts`:
 
 ```ts
+export interface AgentModelCandidate {
+	id: string;
+}
+
 export interface AgentConfig {
 	name: string;
 	description: string;
 	hidden: boolean;
 	tools: string[];
 	model?: string;
+	modelCandidates?: AgentModelCandidate[];
+	modelPolicyError?: string;
 	systemPrompt: string;
 	source: "package" | "user" | "project";
 	filePath: string;
@@ -216,16 +228,6 @@ export type DelegationTarget =
 ```
 
 The exact exported names may differ, but the runtime boundary is: discovery returns validated single-agent targets and validated swarm targets in one collision-free namespace.
-
-Settings shape used during discovery:
-
-```ts
-interface PiSettings {
-	defaultProvider?: string;
-	defaultModel?: string;
-	enabledModels?: string[];
-}
-```
 
 Supported canonical built-in tools and Claude-to-Pi normalization table:
 

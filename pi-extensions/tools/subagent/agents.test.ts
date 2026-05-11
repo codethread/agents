@@ -87,6 +87,13 @@ function writeSwarm(
 	return filePath;
 }
 
+function writeRawAgent(dir: string, fileName: string, content: string): string {
+	const filePath = path.join(dir, fileName);
+	fs.mkdirSync(path.dirname(filePath), { recursive: true });
+	fs.writeFileSync(filePath, content, "utf-8");
+	return filePath;
+}
+
 describe("formatAgentsForPrompt", () => {
 	it("returns an empty string when no subagents are available", () => {
 		expect(formatAgentsForPrompt([])).toBe("");
@@ -483,7 +490,8 @@ describe("discoverAgents", () => {
 			filePath: packageAgentPath,
 			hidden: false,
 			tools: ["read", "bash"],
-			model: "openai/gpt-5.4",
+			model: "sonnet",
+			modelCandidates: [{ id: "sonnet" }],
 		});
 		expect(byName.get("gamma")).toMatchObject({
 			source: "user",
@@ -503,6 +511,232 @@ describe("discoverAgents", () => {
 			source: "project",
 			filePath: projectAgentPath,
 		});
+	});
+
+	it("parses model policy strings, objects, gated lists, deduplication, and omitted inheritance", () => {
+		const root = makeTempDir("subagent-model-policy-");
+		const packageAgentsDir = path.join(root, "package-agents");
+		const cwd = path.join(root, "workspace");
+
+		writeAgent(packageAgentsDir, "string.md", {
+			name: "string-model",
+			description: "String model",
+			model: "openai/gpt-5.4-mini:low",
+		});
+		writeRawAgent(
+			packageAgentsDir,
+			"object.md",
+			`---
+name: object-model
+description: Object model
+model:
+  id: deepseek/deepseek-v4:high
+  when: " $WORK_PROFILE == 'home' "
+---
+Object body.
+`,
+		);
+		writeRawAgent(
+			packageAgentsDir,
+			"mixed.md",
+			`---
+name: mixed-model
+description: Mixed model
+model:
+  - openai/gpt-5.4-mini:low
+  - id: ignored/model
+    when: "$DISABLED"
+  - id: openai/gpt-5.4-mini:low
+  - id: openai/gpt-5.4:high
+    when: '$WORK_PROFILE != "office"'
+---
+Mixed body.
+`,
+		);
+		writeAgent(packageAgentsDir, "omitted.md", {
+			name: "omitted-model",
+			description: "Omitted model",
+		});
+
+		const discovery = discoverAgents(cwd, {
+			packageAgentsDir,
+			userAgentsDir: path.join(root, "user-agents"),
+			projectAgentsDir: null,
+			packageSwarmsDir: null,
+			settingsPath: null,
+			env: { WORK_PROFILE: "home", DISABLED: "" },
+		});
+		const byName = new Map(discovery.agents.map((agent) => [agent.name, agent]));
+
+		expect(byName.get("string-model")).toMatchObject({
+			model: "openai/gpt-5.4-mini:low",
+			modelCandidates: [{ id: "openai/gpt-5.4-mini:low" }],
+		});
+		expect(byName.get("object-model")).toMatchObject({
+			model: "deepseek/deepseek-v4:high",
+			modelCandidates: [{ id: "deepseek/deepseek-v4:high" }],
+		});
+		expect(byName.get("mixed-model")?.modelCandidates).toEqual([
+			{ id: "openai/gpt-5.4-mini:low" },
+			{ id: "openai/gpt-5.4:high" },
+		]);
+		expect(byName.get("omitted-model")?.model).toBeUndefined();
+		expect(byName.get("omitted-model")?.modelCandidates).toBeUndefined();
+	});
+
+	it("treats present non-empty false env values as truthy without trimming comparison values", () => {
+		const root = makeTempDir("subagent-model-policy-env-");
+		const packageAgentsDir = path.join(root, "package-agents");
+		const cwd = path.join(root, "workspace");
+
+		writeRawAgent(
+			packageAgentsDir,
+			"env.md",
+			`---
+name: env-model
+description: Env model
+model:
+  - id: false-is-truthy
+    when: "$FLAG"
+  - id: raw-comparison
+    when: "$RAW == ' value '"
+---
+Env body.
+`,
+		);
+
+		const discovery = discoverAgents(cwd, {
+			packageAgentsDir,
+			userAgentsDir: path.join(root, "user-agents"),
+			projectAgentsDir: null,
+			packageSwarmsDir: null,
+			settingsPath: null,
+			env: { FLAG: "false", RAW: " value " },
+		});
+
+		expect(discovery.agents[0]?.modelCandidates).toEqual([
+			{ id: "false-is-truthy" },
+			{ id: "raw-comparison" },
+		]);
+	});
+
+	it("records model-policy config errors per agent", () => {
+		const root = makeTempDir("subagent-model-policy-errors-");
+		const packageAgentsDir = path.join(root, "package-agents");
+		const cwd = path.join(root, "workspace");
+
+		writeRawAgent(
+			packageAgentsDir,
+			"empty-list.md",
+			`---
+name: empty-list
+description: Empty list
+model: []
+---
+Body.
+`,
+		);
+		writeRawAgent(
+			packageAgentsDir,
+			"unknown-key.md",
+			`---
+name: unknown-key
+description: Unknown key
+model:
+  id: model-a
+  extra: nope
+---
+Body.
+`,
+		);
+		writeRawAgent(
+			packageAgentsDir,
+			"blank-id.md",
+			`---
+name: blank-id
+description: Blank id
+model:
+  id: "   "
+---
+Body.
+`,
+		);
+		writeRawAgent(
+			packageAgentsDir,
+			"bad-when.md",
+			`---
+name: bad-when
+description: Bad when
+model:
+  id: model-a
+  when: "$1BAD"
+---
+Body.
+`,
+		);
+		writeRawAgent(
+			packageAgentsDir,
+			"missing-id.md",
+			`---
+name: missing-id
+description: Missing id
+model:
+  when: "$HOME_PROFILE"
+---
+Body.
+`,
+		);
+		writeRawAgent(
+			packageAgentsDir,
+			"gated-out.md",
+			`---
+name: gated-out
+description: Gated out
+model:
+  - id: model-a
+    when: "!$HOME_PROFILE"
+---
+Body.
+`,
+		);
+		writeAgent(packageAgentsDir, "valid.md", {
+			name: "valid",
+			description: "Valid agent",
+			model: "model-b",
+		});
+
+		const discovery = discoverAgents(cwd, {
+			packageAgentsDir,
+			userAgentsDir: path.join(root, "user-agents"),
+			projectAgentsDir: null,
+			packageSwarmsDir: null,
+			settingsPath: null,
+			env: { HOME_PROFILE: "1" },
+		});
+		const byName = new Map(discovery.agents.map((agent) => [agent.name, agent]));
+
+		expect(byName.get("valid")?.modelPolicyError).toBeUndefined();
+		expect(byName.get("empty-list")?.modelPolicyError).toContain("model list must not be empty");
+		expect(byName.get("unknown-key")?.modelPolicyError).toContain("unknown key(s): extra");
+		expect(byName.get("blank-id")?.modelPolicyError).toContain("id must be a non-empty string");
+		expect(byName.get("bad-when")?.modelPolicyError).toContain(
+			'unsupported when expression "$1BAD"',
+		);
+		expect(byName.get("missing-id")?.modelPolicyError).toContain("id must be a non-empty string");
+		expect(byName.get("gated-out")?.modelPolicyError).toContain(
+			"leaves no candidates after gating",
+		);
+		for (const name of [
+			"empty-list",
+			"unknown-key",
+			"blank-id",
+			"bad-when",
+			"missing-id",
+			"gated-out",
+		]) {
+			expect(byName.get(name)?.modelPolicyError).toMatch(/Invalid model policy/);
+			expect(byName.get(name)?.modelCandidates).toBeUndefined();
+		}
 	});
 
 	it("discovers swarms across package, user, and project dirs with source precedence", () => {
