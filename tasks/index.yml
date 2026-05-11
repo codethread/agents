@@ -17,7 +17,7 @@ tasks:
   - id: 4
     description: Run child with explicit candidates
     task_file: tasks/004-run-child-with-explicit-candidates.md
-    status: pending
+    status: complete
     blocked_by: [3]
   - id: 5
     description: Advance through model chain

@@ -2,7 +2,13 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Message } from "@mariozechner/pi-ai";
-import { getAgentRuntimeSettings, type AgentConfig } from "./agents.js";
+import {
+	getAgentRuntimeSettings,
+	getFirstValidAgentModelCandidate,
+	type AgentConfig,
+	type AgentModelCandidate,
+	type ModelRegistryLike,
+} from "./agents.js";
 import {
 	findSubagentSessionFileById,
 	getSubagentSessionDirForParent,
@@ -36,9 +42,25 @@ export function getPiInvocation(args: string[]): { command: string; args: string
 export function buildSingleAgentArgs(
 	agentName: string,
 	task: string,
+	candidate?: AgentModelCandidate,
 	session?: { file: string } | { id: string; dir: string },
 ): string[] {
 	const args = ["--mode", "json", "-p", "--agent", agentName];
+	if (candidate) {
+		const settings = getAgentRuntimeSettings({
+			name: agentName,
+			description: "",
+			hidden: false,
+			tools: [],
+			model: candidate.id,
+			systemPrompt: "",
+			source: "package",
+			filePath: "",
+		});
+		if (!settings.modelRef) throw new Error(`model candidate for agent "${agentName}" is empty`);
+		args.push("--model", settings.modelRef);
+		if (settings.thinkingLevel) args.push("--thinking", settings.thinkingLevel);
+	}
 	if (session) {
 		if ("file" in session) args.push("--session", session.file);
 		else args.push("--session", session.id, "--session-dir", session.dir);
@@ -54,11 +76,11 @@ export async function runSingleAgent(
 	onUpdate: ((result: SingleResult) => void) | undefined,
 	resolveModelInfo?: ResolveModelInfo,
 	parentSessionInfo?: ParentSessionInfo,
+	modelRegistry?: ModelRegistryLike,
 ): Promise<SingleResult> {
 	const agent = agents.find((candidate) => candidate.name === request.agent);
 	if (!agent) return createUnknownAgentResult(request.agent, request.task, agents);
 
-	const runtimeSettings = getAgentRuntimeSettings(agent);
 	const runCwd = request.cwd;
 	let subagentSession:
 		| {
@@ -128,7 +150,18 @@ export async function runSingleAgent(
 			};
 		}
 	}
-	const args = buildSingleAgentArgs(agent.name, request.task, subagentSession?.cliSession);
+	const selectedCandidate = modelRegistry
+		? getFirstValidAgentModelCandidate(agent, modelRegistry)
+		: agent.modelCandidates?.[0];
+	const runtimeSettings = getAgentRuntimeSettings(
+		selectedCandidate ? { ...agent, model: selectedCandidate.id } : agent,
+	);
+	const args = buildSingleAgentArgs(
+		agent.name,
+		request.task,
+		selectedCandidate,
+		subagentSession?.cliSession,
+	);
 	const startTime = Date.now();
 
 	const currentResult: SingleResult = {

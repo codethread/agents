@@ -65,3 +65,11 @@ Append notes here. Do not rewrite earlier notes.
 - Parent `subagent` execution now validates model policy only for the selected single target or selected swarm members, using the same `validateAgentModelPolicy` registry/auth checks as startup.
 - Delegated child `PI_SUBAGENT=1 --agent <name>` startup validates only that selected agent so unrelated hot-reloaded invalid agents do not kill a valid runtime call.
 - Invalid swarm members become member-level failed results; valid members still launch and preserve existing partial swarm success behavior.
+
+### Task 4 implementation — 2026-05-11
+
+- `runSingleAgent` now passes the first normalized model candidate into child argument construction; omitted `model` still produces the previous no-explicit-model invocation.
+- Child args keep `--agent <name>` and add explicit `--model <modelRef>` plus `--thinking <level>` only when the selected candidate carries a recognized thinking suffix, which lets the child direct-agent path suppress recursive model-policy inheritance via the existing CLI override detection.
+- Resume/session argument ordering and behavior are preserved for fresh, persisted, and resumed child sessions.
+- Project rules mention `pnpm check`, but package scripts expose `pnpm verify`; full validation used `pnpm verify` after targeted runtime tests.
+- Deep review caught that runtime should choose the first registry/auth-valid candidate, not the raw first normalized entry; `runSingleAgent` now receives the active model registry and uses the shared direct-mode selection helper.

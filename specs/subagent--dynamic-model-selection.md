@@ -1,6 +1,6 @@
 # Subagent Dynamic Model Selection Specification
 
-**Status:** Planned; Phase 1 discovery parsing, startup/direct validation, and runtime-scoped validation implemented
+**Status:** Planned; Phase 1 discovery parsing/validation and runtime explicit first-candidate launch implemented
 **Last Updated:** 2026-05-11
 
 ## 1. Overview
@@ -132,7 +132,7 @@ For a single-agent delegated run:
 
 1. Resolve the target from the runtime discovery snapshot.
 2. If the agent has no model candidates, invoke child Pi with inherited/default model behavior as today.
-3. If the agent has candidates, run child Pi with the first candidate's explicit `--model` and explicit `--thinking` only when the candidate includes a thinking suffix.
+3. If the agent has candidates, run child Pi with `--agent <name>`, the first candidate's explicit `--model`, and explicit `--thinking` only when the candidate includes a thinking suffix. The explicit CLI model suppresses agent-declared model inheritance inside the child process, avoiding recursive selection.
 4. Let child Pi and Pi's internal retry/compaction behavior finish first.
 5. Classify the final child result.
 6. On success, return the final displayable output and record attempt metadata.
@@ -233,7 +233,7 @@ Human/session/debug surfaces may show compact attempt summaries such as candidat
 
 ### Phase 2: Runtime candidate attempts
 
-- [ ] Teach delegated child invocation to accept an explicit candidate model/thinking per attempt.
+- [x] Teach delegated child invocation to accept an explicit candidate model/thinking per attempt.
 - [ ] Add attempt loop with three total transient attempts per candidate.
 - [ ] Classify context overflow as terminal.
 - [ ] Classify deterministic provider/model failures as immediate advance.

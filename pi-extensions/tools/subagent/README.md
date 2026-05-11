@@ -66,7 +66,7 @@ model:
 
 Supported `when` expressions are `$VAR`, `!$VAR`, `$VAR == "value"`, and `$VAR != 'value'`. Env vars are truthy when present and non-empty; the literal string `false` is truthy. Invalid declared model policy fails startup instead of silently inheriting a model. Declared candidates are checked against Pi's active model registry; if no candidate is valid for the current runtime, startup fails with the agent name and source path.
 
-Delegated `subagent` calls validate model policy only for the requested target. A hot-reloaded unrelated broken agent does not block a valid selected agent. Swarms validate each member independently: valid members run, invalid members return `<member status="error">` blocks, and the swarm still succeeds when at least one member returns output.
+Delegated `subagent` calls validate model policy only for the requested target. A hot-reloaded unrelated broken agent does not block a valid selected agent. When the target has declared candidates, the child `pi` process still runs with `--agent <name>` and also receives the selected candidate as explicit `--model`; candidate-local thinking is passed as `--thinking` only when the candidate includes a thinking suffix. Agents that omit `model` keep the inherited/default child invocation with no explicit model or thinking flags from this feature. Swarms validate each member independently: valid members run, invalid members return `<member status="error">` blocks, and the swarm still succeeds when at least one member returns output.
 
 ---
 

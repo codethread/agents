@@ -544,6 +544,7 @@ export default function (pi: ExtensionAPI) {
 									},
 									resolveModelInfo,
 									parentSessionInfo,
+									ctx.modelRegistry,
 								),
 					),
 				);
@@ -681,6 +682,7 @@ export default function (pi: ExtensionAPI) {
 				},
 				resolveModelInfo,
 				parentSessionInfo,
+				ctx.modelRegistry,
 			);
 			const results = [result];
 
