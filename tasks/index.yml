@@ -1,0 +1,31 @@
+tasks:
+  - id: 1
+    description: Parse gated model policy
+    task_file: tasks/001-parse-gated-model-policy.md
+    status: pending
+    blocked_by: []
+  - id: 2
+    description: Enforce startup model validation
+    task_file: tasks/002-enforce-startup-model-validation.md
+    status: pending
+    blocked_by: [1]
+  - id: 3
+    description: Scope runtime model validation
+    task_file: tasks/003-scope-runtime-model-validation.md
+    status: pending
+    blocked_by: [2]
+  - id: 4
+    description: Run child with explicit candidates
+    task_file: tasks/004-run-child-with-explicit-candidates.md
+    status: pending
+    blocked_by: [3]
+  - id: 5
+    description: Advance through model chain
+    task_file: tasks/005-advance-through-model-chain.md
+    status: pending
+    blocked_by: [4]
+  - id: 6
+    description: Surface attempt metadata and docs
+    task_file: tasks/006-surface-attempt-metadata-and-docs.md
+    status: pending
+    blocked_by: [5]
