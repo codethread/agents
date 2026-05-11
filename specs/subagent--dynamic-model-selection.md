@@ -1,6 +1,6 @@
 # Subagent Dynamic Model Selection Specification
 
-**Status:** Planned; Phase 1 discovery parsing partially implemented
+**Status:** Planned; Phase 1 discovery parsing and startup/direct validation implemented
 **Last Updated:** 2026-05-11
 
 ## 1. Overview
@@ -123,7 +123,7 @@ Discovery normalizes all present shapes into an ordered internal candidate list.
 5. Drop candidates whose `when` evaluates false.
 6. Deduplicate remaining candidates by resolved candidate identity, preserving first occurrence.
 7. Validate remaining candidates against Pi model resolution/availability where the extension has registry access.
-8. If `model` was present and no valid candidates remain, record a traceable model-policy error with agent name, file path, and reason.
+8. If `model` was present and no valid candidates remain, startup/direct-mode validation reports a traceable model-policy error with agent name, file path, and reason.
 9. Store normalized candidates or the per-agent model-policy error on `AgentConfig` for startup validation, runtime target-scoped validation, and debug surfaces.
 
 ### Delegated runtime flow
@@ -228,7 +228,8 @@ Human/session/debug surfaces may show compact attempt summaries such as candidat
 - [x] Add tiny `when` parser/evaluator with focused tests.
 - [x] Remove extension-local model alias rewriting.
 - [x] Normalize candidates at discovery time.
-- [ ] Add strict startup/runtime validation paths and clear error messages.
+- [x] Add strict startup/direct-mode validation paths and clear error messages.
+- [ ] Add runtime target-scoped validation paths for delegated subagent calls.
 
 ### Phase 2: Runtime candidate attempts
 

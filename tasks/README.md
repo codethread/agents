@@ -52,3 +52,10 @@ Append notes here. Do not rewrite earlier notes.
 - Malformed declared model policy is stored per agent as `modelPolicyError`; strict startup/runtime enforcement remains for later slices.
 - Extension-local Claude/OpenAI alias rewriting was removed from the subagent parsing path; model strings are passed through for Pi resolution later.
 - Project rules mention `pnpm check`, but package scripts expose `pnpm verify`; `pnpm check` was unavailable, so full validation used `pnpm verify`.
+
+### Task 2 implementation — 2026-05-11
+
+- Startup now validates all discovered agent model policies against the active model registry and fails loudly with agent/source-path errors when declared policies are malformed or have no valid candidate.
+- Direct `--agent` selection now uses the first registry-valid declared candidate unless `--model`, `-m`, or `--provider` suppresses agent model inheritance; candidate-local thinking is skipped when `--thinking` is explicit.
+- Bundled repo agents omit `model` so normal startup does not require provider-specific credentials unrelated to the active environment.
+- Repo-root startup smoke check passed with `pi --model openai/gpt-5.4-nano:low --print ping`; full validation used `pnpm verify`.

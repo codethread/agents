@@ -64,7 +64,7 @@ model:
   - openai/gpt-5.4-mini:low
 ```
 
-Supported `when` expressions are `$VAR`, `!$VAR`, `$VAR == "value"`, and `$VAR != 'value'`. Env vars are truthy when present and non-empty; the literal string `false` is truthy. Invalid declared model policy is kept as an agent config error for startup/runtime validation instead of silently inheriting a model.
+Supported `when` expressions are `$VAR`, `!$VAR`, `$VAR == "value"`, and `$VAR != 'value'`. Env vars are truthy when present and non-empty; the literal string `false` is truthy. Invalid declared model policy fails startup instead of silently inheriting a model. Declared candidates are checked against Pi's active model registry; if no candidate is valid for the current runtime, startup fails with the agent name and source path.
 
 ---
 
@@ -147,8 +147,8 @@ No session found for swarm member "security-review" in resume "swarm-review-..."
 Adopts a discovered agent's config into the current top-level session:
 
 - prompt body → appended as `<system-reminder type="selected-agent-prompt">`
-- `model` → session model
-- `model` thinking suffix (`:low`) → Pi thinking level
+- `model` → first valid declared candidate for the active Pi runtime
+- selected candidate thinking suffix (`:low`) → Pi thinking level
 - `tools` → active tool set
 
 Explicit CLI flags always win over inherited agent fields:
@@ -159,7 +159,7 @@ Explicit CLI flags always win over inherited agent fields:
 | `--thinking`            | inherited thinking level |
 | `--tools`, `--no-tools` | inherited tool set       |
 
-A missing agent name or unresolvable model is a hard failure (pass `--model` to override).
+A missing agent name, invalid declared model policy, unavailable candidate chain, or missing credentials while applying the selected candidate is a hard failure. Pass `--model` or `--provider` to suppress agent-declared model policy for direct mode.
 
 ```sh
 pi --agent scout "Map the retry flow"

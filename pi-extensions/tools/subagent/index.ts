@@ -19,6 +19,7 @@ import {
 	getAgentActiveTools,
 	getInheritedAgentRuntimeSettings,
 	parseAgentFlagCliOverrides,
+	validateAgentModelPolicies,
 } from "./agents.js";
 import {
 	findSubagentSessionFileById,
@@ -135,11 +136,33 @@ export default function (pi: ExtensionAPI) {
 		return { agent: agent!, discovery };
 	};
 
-	const applySelectedAgentSettings = async (ctx: ExtensionContext) => {
-		const selected = requireSelectedAgent(ctx);
-		if (!selected) return;
+	const validateStartupModelPolicies = (
+		discovery: ReturnType<typeof discoverAgents>,
+		ctx: Pick<ExtensionContext, "modelRegistry" | "hasUI" | "ui">,
+	) => {
+		const allDiscoveredAgents = [
+			...discovery.agents,
+			...discovery.userAgents,
+			...discovery.projectAgents,
+		];
+		const errors = validateAgentModelPolicies(
+			Array.from(new Map(allDiscoveredAgents.map((agent) => [agent.filePath, agent])).values()),
+			ctx.modelRegistry,
+		);
+		if (errors.length > 0) {
+			failAgentSelection(`Invalid subagent model configuration:\n${errors.join("\n")}`, ctx);
+		}
+	};
 
-		const inherited = getInheritedAgentRuntimeSettings(selected.agent, agentFlagCliOverrides);
+	const applySelectedAgentSettings = async (
+		ctx: ExtensionContext,
+		selected: NonNullable<ReturnType<typeof requireSelectedAgent>>,
+	) => {
+		const inherited = getInheritedAgentRuntimeSettings(
+			selected.agent,
+			agentFlagCliOverrides,
+			ctx.modelRegistry,
+		);
 		const activeTools = getAgentActiveTools(inherited.tools, pi.getAllTools());
 		if (activeTools !== undefined) {
 			pi.setActiveTools(activeTools);
@@ -187,13 +210,21 @@ export default function (pi: ExtensionAPI) {
 		agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
 		const agentFlag = pi.getFlag("agent");
 		selectedAgentName = typeof agentFlag === "string" ? agentFlag.trim() : undefined;
+		const discovery = discoverAgents(ctx.cwd);
+		validateStartupModelPolicies(discovery, ctx);
 		if (!selectedAgentName) {
 			selectedAgentName = undefined;
 			return;
 		}
 
-		requireSelectedAgent(ctx);
-		await applySelectedAgentSettings(ctx);
+		const agent = findAgentByName(discovery.agents, selectedAgentName);
+		if (!agent) {
+			failAgentSelection(
+				`Unknown agent "${selectedAgentName}". Available agents: ${getAvailableAgentsText(discovery.agents)}`,
+				ctx,
+			);
+		}
+		await applySelectedAgentSettings(ctx, { agent: agent!, discovery });
 	});
 
 	pi.on("before_agent_start", (event, ctx) => {

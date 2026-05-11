@@ -7,7 +7,7 @@ tasks:
   - id: 2
     description: Enforce startup model validation
     task_file: tasks/002-enforce-startup-model-validation.md
-    status: pending
+    status: complete
     blocked_by: [1]
   - id: 3
     description: Scope runtime model validation

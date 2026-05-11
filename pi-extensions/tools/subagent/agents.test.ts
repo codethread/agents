@@ -12,6 +12,7 @@ import {
 	getAgentActiveTools,
 	getInheritedAgentRuntimeSettings,
 	parseAgentFlagCliOverrides,
+	validateAgentModelPolicies,
 	type AgentConfig,
 	type SwarmConfig,
 } from "./agents.js";
@@ -33,6 +34,20 @@ function makeTempDir(prefix: string): string {
 function writeJson(filePath: string, value: unknown): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
 	fs.writeFileSync(filePath, `${JSON.stringify(value, null, "\t")}\n`, "utf-8");
+}
+
+function makeAgentConfig(overrides: Partial<AgentConfig> & Pick<AgentConfig, "name">): AgentConfig {
+	const { name, ...rest } = overrides;
+	return {
+		name,
+		description: `${name} specialist`,
+		hidden: false,
+		tools: [],
+		systemPrompt: `You are ${name}.`,
+		source: "package",
+		filePath: `/tmp/${name}.md`,
+		...rest,
+	};
 }
 
 function writeAgent(
@@ -350,7 +365,7 @@ describe("getInheritedAgentRuntimeSettings", () => {
 			tools: undefined,
 			modelFlagValue: undefined,
 			modelRef: undefined,
-			thinkingLevel: "low",
+			thinkingLevel: undefined,
 		});
 	});
 });
@@ -424,6 +439,95 @@ describe("findDelegationTarget", () => {
 			swarm: expect.objectContaining({ name: "team" }),
 		});
 		expect(findDelegationTarget(discovery, " \t ")).toBeUndefined();
+	});
+});
+
+describe("model policy validation", () => {
+	const modelRegistry = {
+		find: (provider: string, model: string) =>
+			provider === "openai" && ["gpt-5.4-mini", "gpt-5.4", "no-auth"].includes(model)
+				? { provider, id: model }
+				: undefined,
+		getAll: () => [
+			{ provider: "openai", id: "gpt-5.4-mini" },
+			{ provider: "openai", id: "gpt-5.4" },
+			{ provider: "openai", id: "no-auth" },
+		],
+		hasConfiguredAuth: (model: unknown) =>
+			typeof model === "object" && model !== null && "id" in model && model.id !== "no-auth",
+	};
+
+	it("reports malformed and unavailable declared policies while omitted model inherits", () => {
+		const agents: AgentConfig[] = [
+			makeAgentConfig({ name: "omitted", model: undefined, modelCandidates: undefined }),
+			makeAgentConfig({
+				name: "bad-config",
+				modelPolicyError: "Invalid model policy for bad-config",
+			}),
+			makeAgentConfig({
+				name: "unavailable",
+				model: "deepseek/deepseek-v4:high",
+				modelCandidates: [{ id: "deepseek/deepseek-v4:high" }],
+			}),
+			makeAgentConfig({
+				name: "no-auth",
+				model: "openai/no-auth:low",
+				modelCandidates: [{ id: "openai/no-auth:low" }],
+			}),
+			makeAgentConfig({
+				name: "valid",
+				model: "gpt-5.4-mini:low",
+				modelCandidates: [{ id: "gpt-5.4-mini:low" }],
+			}),
+		];
+
+		const errors = validateAgentModelPolicies(agents, modelRegistry);
+
+		expect(errors).toHaveLength(3);
+		expect(errors[0]).toBe("Invalid model policy for bad-config");
+		expect(errors[1]).toContain('agent "unavailable"');
+		expect(errors[1]).toContain("/tmp/unavailable.md");
+		expect(errors[1]).toContain('candidate "deepseek/deepseek-v4" is not available');
+		expect(errors[2]).toContain('agent "no-auth"');
+		expect(errors[2]).toContain("has no configured API key/auth");
+	});
+
+	it("uses first valid declared candidate and candidate-local thinking unless CLI overrides", () => {
+		const agent = makeAgentConfig({
+			name: "selector",
+			model: "missing/model:high",
+			modelCandidates: [
+				{ id: "missing/model:high" },
+				{ id: "openai/gpt-5.4-mini:low" },
+				{ id: "openai/gpt-5.4:high" },
+			],
+		});
+
+		expect(
+			getInheritedAgentRuntimeSettings(
+				agent,
+				{ hasModelOverride: false, hasThinkingOverride: false, hasToolsOverride: false },
+				modelRegistry,
+			),
+		).toMatchObject({
+			modelFlagValue: "openai/gpt-5.4-mini:low",
+			modelRef: "openai/gpt-5.4-mini",
+			thinkingLevel: "low",
+		});
+		const modelOverrideSettings = getInheritedAgentRuntimeSettings(
+			agent,
+			{ hasModelOverride: true, hasThinkingOverride: false, hasToolsOverride: false },
+			modelRegistry,
+		);
+		expect(modelOverrideSettings.modelFlagValue).toBeUndefined();
+		expect(modelOverrideSettings.thinkingLevel).toBeUndefined();
+		expect(
+			getInheritedAgentRuntimeSettings(
+				agent,
+				{ hasModelOverride: false, hasThinkingOverride: true, hasToolsOverride: false },
+				modelRegistry,
+			).thinkingLevel,
+		).toBeUndefined();
 	});
 });
 

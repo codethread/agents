@@ -72,6 +72,12 @@ export interface AgentFlagCliOverrides {
 	hasToolsOverride: boolean;
 }
 
+export interface ModelRegistryLike {
+	find(provider: string, model: string): unknown;
+	getAll?(): unknown[];
+	hasConfiguredAuth?(model: unknown): boolean;
+}
+
 interface ToolLike {
 	name: string;
 	sourceInfo: {
@@ -584,17 +590,109 @@ export function getAgentRuntimeSettings(agent: AgentConfig): AgentRuntimeSetting
 	};
 }
 
+function getModelId(model: unknown): string | undefined {
+	return typeof model === "object" && model !== null && "id" in model
+		? String((model as { id: unknown }).id)
+		: undefined;
+}
+
+function resolveCandidateModel(
+	candidateId: string,
+	modelRegistry: ModelRegistryLike,
+): { model: unknown; modelRef: string } {
+	const { modelRef } = parseAgentModel(candidateId);
+	if (!modelRef) throw new Error(`model candidate "${candidateId}" is empty`);
+
+	const [provider, ...idParts] = modelRef.split("/");
+	const id = idParts.join("/");
+	if (provider && id) {
+		const model = modelRegistry.find(provider, id);
+		if (!model) throw new Error(`candidate "${modelRef}" is not available in this Pi runtime`);
+		return { model, modelRef };
+	}
+
+	const bareMatches =
+		modelRegistry.getAll?.().filter((model) => getModelId(model) === modelRef) ?? [];
+	if (bareMatches.length === 1) return { model: bareMatches[0]!, modelRef };
+	if (bareMatches.length > 1) {
+		throw new Error(`candidate "${modelRef}" is ambiguous across providers`);
+	}
+	throw new Error(`candidate "${modelRef}" is not available in this Pi runtime`);
+}
+
+export function validateAgentModelPolicy(
+	agent: AgentConfig,
+	modelRegistry: ModelRegistryLike,
+): string[] {
+	if (agent.modelPolicyError) return [agent.modelPolicyError];
+	if (!agent.modelCandidates) return [];
+
+	const invalidReasons: string[] = [];
+	let validCandidateCount = 0;
+	for (const candidate of agent.modelCandidates) {
+		try {
+			const { model, modelRef } = resolveCandidateModel(candidate.id, modelRegistry);
+			if (modelRegistry.hasConfiguredAuth && !modelRegistry.hasConfiguredAuth(model)) {
+				invalidReasons.push(`candidate "${modelRef}" has no configured API key/auth`);
+			} else {
+				validCandidateCount++;
+			}
+		} catch (error) {
+			invalidReasons.push(error instanceof Error ? error.message : String(error));
+		}
+	}
+
+	if (validCandidateCount > 0) return [];
+	return [
+		`Invalid model policy for agent "${agent.name}" at ${agent.filePath}: no valid model candidates (${invalidReasons.join("; ")})`,
+	];
+}
+
+export function validateAgentModelPolicies(
+	agents: AgentConfig[],
+	modelRegistry: ModelRegistryLike,
+): string[] {
+	return agents.flatMap((agent) => validateAgentModelPolicy(agent, modelRegistry));
+}
+
+export function getFirstValidAgentModelCandidate(
+	agent: AgentConfig,
+	modelRegistry: ModelRegistryLike,
+): AgentModelCandidate | undefined {
+	if (!agent.modelCandidates) return undefined;
+	for (const candidate of agent.modelCandidates) {
+		try {
+			const { model } = resolveCandidateModel(candidate.id, modelRegistry);
+			if (!modelRegistry.hasConfiguredAuth || modelRegistry.hasConfiguredAuth(model))
+				return candidate;
+		} catch {
+			// Startup validation reports the traceable policy error; selection only needs a valid candidate.
+		}
+	}
+	return undefined;
+}
+
 export function getInheritedAgentRuntimeSettings(
 	agent: AgentConfig,
 	cliOverrides: AgentFlagCliOverrides,
+	modelRegistry?: ModelRegistryLike,
 ): AgentRuntimeSettings {
-	const settings = getAgentRuntimeSettings(agent);
+	const selectedCandidate =
+		!cliOverrides.hasModelOverride && modelRegistry
+			? getFirstValidAgentModelCandidate(agent, modelRegistry)
+			: undefined;
+	const settings = getAgentRuntimeSettings(
+		selectedCandidate ? { ...agent, model: selectedCandidate.id } : agent,
+	);
 	return {
 		systemPrompt: settings.systemPrompt,
 		tools: cliOverrides.hasToolsOverride ? undefined : settings.tools,
 		modelFlagValue: cliOverrides.hasModelOverride ? undefined : settings.modelFlagValue,
 		modelRef: cliOverrides.hasModelOverride ? undefined : settings.modelRef,
-		thinkingLevel: cliOverrides.hasThinkingOverride ? undefined : settings.thinkingLevel,
+		thinkingLevel:
+			cliOverrides.hasModelOverride || cliOverrides.hasThinkingOverride
+				? undefined
+				: settings.thinkingLevel,
 	};
 }
 
