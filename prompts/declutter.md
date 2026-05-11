@@ -17,3 +17,5 @@ Remove cruft that was introduced or made obvious during the session:
 Keep the code focused on what it does now. Git history preserves what changed; comments should not narrate previous implementations.
 
 Do not use this pass to start new feature work, refactor unrelated code, or broaden scope. If something is uncertain, leave it and mention it briefly instead of guessing.
+
+If this session, or recent sessions used `tasks/` or `tasks/index.yml` and **all** work is now complete with no outstanding comments that need picking up, you can safely delete the tasks folder
