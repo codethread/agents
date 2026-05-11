@@ -1,6 +1,6 @@
 # Subagent Dynamic Model Selection Specification
 
-**Status:** Planned; Phase 1 discovery parsing/validation and runtime explicit first-candidate launch implemented
+**Status:** Planned; Phase 1 discovery parsing/validation, runtime explicit candidate launch, and delegated model-chain attempt loop implemented
 **Last Updated:** 2026-05-11
 
 ## 1. Overview
@@ -234,10 +234,10 @@ Human/session/debug surfaces may show compact attempt summaries such as candidat
 ### Phase 2: Runtime candidate attempts
 
 - [x] Teach delegated child invocation to accept an explicit candidate model/thinking per attempt.
-- [ ] Add attempt loop with three total transient attempts per candidate.
-- [ ] Classify context overflow as terminal.
-- [ ] Classify deterministic provider/model failures as immediate advance.
-- [ ] Preserve transparent agent-visible response semantics.
+- [x] Add attempt loop with three total transient attempts per candidate.
+- [x] Classify context overflow as terminal.
+- [x] Classify deterministic provider/model failures as immediate advance.
+- [x] Preserve transparent agent-visible response semantics.
 
 ### Phase 3: Metadata, rendering, and docs
 

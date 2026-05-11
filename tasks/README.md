@@ -73,3 +73,10 @@ Append notes here. Do not rewrite earlier notes.
 - Resume/session argument ordering and behavior are preserved for fresh, persisted, and resumed child sessions.
 - Project rules mention `pnpm check`, but package scripts expose `pnpm verify`; full validation used `pnpm verify` after targeted runtime tests.
 - Deep review caught that runtime should choose the first registry/auth-valid candidate, not the raw first normalized entry; `runSingleAgent` now receives the active model registry and uses the shared direct-mode selection helper.
+
+### Task 5 implementation — 2026-05-11
+
+- Delegated single-agent runs now loop over declared model candidates, retry transient provider failures up to three total attempts per candidate, advance immediately on deterministic provider/model availability failures, and stop on context overflow with a reduce-scope message.
+- Success remains transparent: the parent-visible result is the successful child output without attempt chatter. Exhausted model chains return a compact failure string with per-attempt summaries.
+- Provider failure classification is intentionally narrow and uses Pi's `isContextOverflow` helper for assistant-message overflow detection before text matching stderr/error messages.
+- Project rules mention `pnpm check`, but package scripts expose `pnpm verify`; `pnpm check` failed as unavailable, so full validation used `pnpm verify` after targeted runtime tests.

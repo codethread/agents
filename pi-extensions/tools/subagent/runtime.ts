@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Message } from "@mariozechner/pi-ai";
+import { isContextOverflow } from "@mariozechner/pi-ai";
 import {
 	getAgentRuntimeSettings,
 	getFirstValidAgentModelCandidate,
@@ -67,6 +68,49 @@ export function buildSingleAgentArgs(
 	} else args.push("--no-session");
 	args.push(`Task: ${task}`);
 	return args;
+}
+
+type ModelFailureKind = "success" | "context_overflow" | "deterministic" | "transient" | "other";
+
+const MAX_TRANSIENT_ATTEMPTS_PER_CANDIDATE = 3;
+
+function getFailureText(result: SingleResult): string {
+	return [result.stderr, result.errorMessage].filter(Boolean).join("\n");
+}
+
+export function classifyModelChainResult(result: SingleResult): ModelFailureKind {
+	const lastAssistant = [...result.messages]
+		.reverse()
+		.find((message): message is Message & { role: "assistant" } => message.role === "assistant");
+	if (lastAssistant && isContextOverflow(lastAssistant, result.usage.contextWindow)) {
+		return "context_overflow";
+	}
+	if (result.exitCode === 0) return "success";
+
+	const text = getFailureText(result).toLowerCase();
+	if (!text) return "other";
+	if (
+		/(context window|context length|context size|prompt is too long|request_too_large|input token count exceeds|maximum prompt length|too large for model|exceeded model token limit)/i.test(
+			text,
+		)
+	) {
+		return "context_overflow";
+	}
+	if (
+		/(invalid api key|api key.*invalid|missing api key|no api key|unauthorized api|api.*unauthorized|model.*not found|not found.*model|model.*unavailable|model.*gated|access.*model|insufficient_quota|insufficient funds|billing.*provider|provider.*billing|credits exhausted|funds exhausted)/i.test(
+			text,
+		)
+	) {
+		return "deterministic";
+	}
+	if (
+		/(request timed out|api.*timeout|provider.*timeout|econnreset|enotfound|rate limit|429.*(provider|api|model)|provider.*429|api.*429|provider.*5\d\d|api.*5\d\d|5\d\d.*(provider|api|model)|overloaded|temporarily unavailable|provider.*service unavailable|api.*service unavailable|service unavailable.*(provider|api|model))/i.test(
+			text,
+		)
+	) {
+		return "transient";
+	}
+	return "other";
 }
 
 export async function runSingleAgent(
@@ -150,151 +194,185 @@ export async function runSingleAgent(
 			};
 		}
 	}
-	const selectedCandidate = modelRegistry
-		? getFirstValidAgentModelCandidate(agent, modelRegistry)
-		: agent.modelCandidates?.[0];
-	const runtimeSettings = getAgentRuntimeSettings(
-		selectedCandidate ? { ...agent, model: selectedCandidate.id } : agent,
-	);
-	const args = buildSingleAgentArgs(
-		agent.name,
-		request.task,
-		selectedCandidate,
-		subagentSession?.cliSession,
-	);
+	const candidates = agent.modelCandidates?.length ? agent.modelCandidates : [undefined];
 	const startTime = Date.now();
-
-	const currentResult: SingleResult = {
-		agent: request.agent,
-		agentSource: agent.source,
-		task: request.task,
-		resumed: Boolean(request.resume),
-		exitCode: 0,
-		messages: [],
-		stderr: "",
-		usage: createEmptyUsage(),
-		sessionFile: subagentSession?.sessionFile,
-		sessionId: subagentSession?.sessionId,
-		thinkingLevel: runtimeSettings.thinkingLevel,
-	};
-
-	const emitUpdate = () => onUpdate?.({ ...currentResult, messages: [...currentResult.messages] });
-
+	const failures: string[] = [];
 	let wasAborted = false;
+	let currentResult: SingleResult | undefined;
 
-	const exitCode = await new Promise<number>((resolve) => {
-		const invocation = getPiInvocation(args);
-		const proc = spawn(invocation.command, invocation.args, {
-			cwd: runCwd,
-			shell: false,
-			stdio: ["ignore", "pipe", "pipe"],
-			env: {
-				...process.env,
-				PI_SUBAGENT: "1",
-			},
-		});
-		let buffer = "";
+	for (const candidate of candidates) {
+		const maxAttempts = candidate ? MAX_TRANSIENT_ATTEMPTS_PER_CANDIDATE : 1;
+		for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+			const selectedCandidate =
+				candidate ??
+				(modelRegistry ? getFirstValidAgentModelCandidate(agent, modelRegistry) : undefined);
+			const runtimeSettings = getAgentRuntimeSettings(
+				selectedCandidate ? { ...agent, model: selectedCandidate.id } : agent,
+			);
+			const args = buildSingleAgentArgs(
+				agent.name,
+				request.task,
+				selectedCandidate,
+				subagentSession?.cliSession,
+			);
 
-		const processLine = (line: string) => {
-			if (!line.trim()) return;
-
-			let event: unknown;
-			try {
-				event = JSON.parse(line);
-			} catch {
-				return;
-			}
-
-			if (
-				typeof event !== "object" ||
-				event === null ||
-				!("type" in event) ||
-				typeof event.type !== "string"
-			) {
-				return;
-			}
-
-			if (event.type === "session" && "id" in event && typeof event.id === "string") {
-				currentResult.sessionId = event.id;
-				emitUpdate();
-				return;
-			}
-
-			if (event.type === "message_end" && "message" in event && event.message) {
-				const msg = event.message as Message;
-				currentResult.messages.push(msg);
-
-				if (msg.role === "assistant") {
-					currentResult.usage.turns++;
-					const usage = msg.usage;
-					if (usage) {
-						currentResult.usage.input += usage.input || 0;
-						currentResult.usage.output += usage.output || 0;
-						currentResult.usage.cacheRead += usage.cacheRead || 0;
-						currentResult.usage.cacheWrite += usage.cacheWrite || 0;
-						currentResult.usage.cost += usage.cost?.total || 0;
-						currentResult.usage.contextTokens = usage.totalTokens || 0;
-					}
-					if (msg.provider) currentResult.provider = msg.provider;
-					if (msg.model) currentResult.model = msg.model;
-					const modelInfo = resolveModelInfo?.(currentResult.provider, currentResult.model);
-					if (modelInfo) {
-						currentResult.usage.contextWindow = modelInfo.contextWindow;
-						currentResult.reasoning = modelInfo.reasoning;
-						currentResult.usingSubscription = modelInfo.usingSubscription;
-					}
-					if (currentResult.usage.contextWindow && currentResult.usage.contextTokens > 0) {
-						currentResult.usage.contextPercent =
-							(currentResult.usage.contextTokens / currentResult.usage.contextWindow) * 100;
-					}
-					if (msg.stopReason) currentResult.stopReason = msg.stopReason;
-					if (msg.errorMessage) currentResult.errorMessage = msg.errorMessage;
-				}
-				emitUpdate();
-				return;
-			}
-
-			if (event.type === "tool_result_end" && "message" in event && event.message) {
-				currentResult.messages.push(event.message as Message);
-				emitUpdate();
-			}
-		};
-
-		proc.stdout.on("data", (data) => {
-			buffer += data.toString();
-			const lines = buffer.split("\n");
-			buffer = lines.pop() || "";
-			for (const line of lines) processLine(line);
-		});
-
-		proc.stderr.on("data", (data) => {
-			currentResult.stderr += data.toString();
-		});
-
-		proc.on("close", (code) => {
-			if (buffer.trim()) processLine(buffer);
-			resolve(code ?? 0);
-		});
-
-		proc.on("error", () => {
-			resolve(1);
-		});
-
-		if (signal) {
-			const killProc = () => {
-				wasAborted = true;
-				proc.kill("SIGTERM");
-				setTimeout(() => {
-					if (!proc.killed) proc.kill("SIGKILL");
-				}, 5000);
+			currentResult = {
+				agent: request.agent,
+				agentSource: agent.source,
+				task: request.task,
+				resumed: Boolean(request.resume),
+				exitCode: 0,
+				messages: [],
+				stderr: "",
+				usage: createEmptyUsage(),
+				sessionFile: subagentSession?.sessionFile,
+				sessionId: subagentSession?.sessionId,
+				thinkingLevel: runtimeSettings.thinkingLevel,
 			};
-			if (signal.aborted) killProc();
-			else signal.addEventListener("abort", killProc, { once: true });
-		}
-	});
 
-	currentResult.exitCode = exitCode;
-	if (wasAborted) throw new Error("Subagent was aborted");
+			const result = currentResult;
+			const emitUpdate = () => onUpdate?.({ ...result, messages: [...result.messages] });
+
+			const exitCode = await new Promise<number>((resolve) => {
+				const invocation = getPiInvocation(args);
+				const proc = spawn(invocation.command, invocation.args, {
+					cwd: runCwd,
+					shell: false,
+					stdio: ["ignore", "pipe", "pipe"],
+					env: {
+						...process.env,
+						PI_SUBAGENT: "1",
+					},
+				});
+				let buffer = "";
+
+				const processLine = (line: string) => {
+					if (!line.trim()) return;
+
+					let event: unknown;
+					try {
+						event = JSON.parse(line);
+					} catch {
+						return;
+					}
+
+					if (
+						typeof event !== "object" ||
+						event === null ||
+						!("type" in event) ||
+						typeof event.type !== "string"
+					) {
+						return;
+					}
+
+					if (event.type === "session" && "id" in event && typeof event.id === "string") {
+						result.sessionId = event.id;
+						emitUpdate();
+						return;
+					}
+
+					if (event.type === "message_end" && "message" in event && event.message) {
+						const msg = event.message as Message;
+						result.messages.push(msg);
+
+						if (msg.role === "assistant") {
+							result.usage.turns++;
+							const usage = msg.usage;
+							if (usage) {
+								result.usage.input += usage.input || 0;
+								result.usage.output += usage.output || 0;
+								result.usage.cacheRead += usage.cacheRead || 0;
+								result.usage.cacheWrite += usage.cacheWrite || 0;
+								result.usage.cost += usage.cost?.total || 0;
+								result.usage.contextTokens = usage.totalTokens || 0;
+							}
+							if (msg.provider) result.provider = msg.provider;
+							if (msg.model) result.model = msg.model;
+							const modelInfo = resolveModelInfo?.(result.provider, result.model);
+							if (modelInfo) {
+								result.usage.contextWindow = modelInfo.contextWindow;
+								result.reasoning = modelInfo.reasoning;
+								result.usingSubscription = modelInfo.usingSubscription;
+							}
+							if (result.usage.contextWindow && result.usage.contextTokens > 0) {
+								result.usage.contextPercent =
+									(result.usage.contextTokens / result.usage.contextWindow) * 100;
+							}
+							if (msg.stopReason) result.stopReason = msg.stopReason;
+							if (msg.errorMessage) result.errorMessage = msg.errorMessage;
+						}
+						emitUpdate();
+						return;
+					}
+
+					if (event.type === "tool_result_end" && "message" in event && event.message) {
+						result.messages.push(event.message as Message);
+						emitUpdate();
+					}
+				};
+
+				proc.stdout.on("data", (data) => {
+					buffer += data.toString();
+					const lines = buffer.split("\n");
+					buffer = lines.pop() || "";
+					for (const line of lines) processLine(line);
+				});
+
+				proc.stderr.on("data", (data) => {
+					result.stderr += data.toString();
+				});
+
+				proc.on("close", (code) => {
+					if (buffer.trim()) processLine(buffer);
+					resolve(code ?? 0);
+				});
+
+				proc.on("error", () => {
+					resolve(1);
+				});
+
+				if (signal) {
+					const killProc = () => {
+						wasAborted = true;
+						proc.kill("SIGTERM");
+						setTimeout(() => {
+							if (!proc.killed) proc.kill("SIGKILL");
+						}, 5000);
+					};
+					if (signal.aborted) killProc();
+					else signal.addEventListener("abort", killProc, { once: true });
+				}
+			});
+
+			currentResult.exitCode = exitCode;
+			if (wasAborted) throw new Error("Subagent was aborted");
+
+			const kind = classifyModelChainResult(currentResult);
+			if (kind === "success" || kind === "other") break;
+			if (kind === "context_overflow") {
+				currentResult.stderr =
+					"Subagent context window overflow. Reduce the delegated task scope or provide narrower input.";
+				return currentResult;
+			}
+			failures.push(
+				`${selectedCandidate?.id ?? "inherited model"} attempt ${attempt}: ${getFailureText(currentResult).trim() || `exit ${exitCode}`}`,
+			);
+			if (kind === "deterministic") break;
+			if (kind === "transient" && attempt < maxAttempts) continue;
+			break;
+		}
+		if (!currentResult) continue;
+		const kind = classifyModelChainResult(currentResult);
+		if (kind === "success" || kind === "other") break;
+	}
+
+	if (!currentResult) throw new Error("Subagent did not run");
+	if (classifyModelChainResult(currentResult) !== "success" && agent.modelCandidates?.length) {
+		const terminalKind = classifyModelChainResult(currentResult);
+		if (terminalKind !== "other" && terminalKind !== "context_overflow") {
+			currentResult.stderr = `Subagent failed after exhausting model candidates. Attempts: ${failures.join(" | ")}`;
+		}
+	}
 	if (parentSessionInfo && subagentSession) {
 		const manifestId =
 			currentResult.sessionId ??
