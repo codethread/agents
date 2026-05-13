@@ -1,16 +1,12 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
-	buildRosePineTheme,
+	getThemeNameForMode,
 	getThemeSentinelPath,
 	parseThemeMode,
 	resolveThemeMode,
 } from "./theme.js";
-
-const themeDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../../pi-themes");
 
 describe("getThemeSentinelPath", () => {
 	it("uses XDG_STATE_HOME when present", () => {
@@ -44,20 +40,9 @@ describe("resolveThemeMode", () => {
 	});
 });
 
-describe("buildRosePineTheme", () => {
-	it("loads the dawn palette as runtime rose-pine", () => {
-		const theme = buildRosePineTheme(themeDir, "light", "truecolor");
-
-		expect(theme.name).toBe("rose-pine");
-		expect(theme.getFgAnsi("accent")).toBe("\u001b[38;2;184;92;88m");
-		expect(theme.getBgAnsi("userMessageBg")).toBe("\u001b[48;2;244;237;232m");
-	});
-
-	it("loads the moon palette as runtime rose-pine", () => {
-		const theme = buildRosePineTheme(themeDir, "dark", "truecolor");
-
-		expect(theme.name).toBe("rose-pine");
-		expect(theme.getFgAnsi("accent")).toBe("\u001b[38;2;196;167;231m");
-		expect(theme.getBgAnsi("userMessageBg")).toBe("\u001b[48;2;47;44;71m");
+describe("getThemeNameForMode", () => {
+	it("maps sentinel modes to package theme names", () => {
+		expect(getThemeNameForMode("light")).toBe("rose-pine-dawn");
+		expect(getThemeNameForMode("dark")).toBe("rose-pine-moon");
 	});
 });

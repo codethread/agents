@@ -1,18 +1,14 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import {
-	buildRosePineTheme,
+	getThemeNameForMode,
 	getThemeSentinelPath,
 	resolveThemeMode,
 	type ThemeMode,
 } from "./theme.js";
 
 const EXTENSION_NAME = "theme-sync";
-const extensionDir = dirname(fileURLToPath(import.meta.url));
-const themeDir = resolve(extensionDir, "../../../pi-themes");
 
 function log(ctx: ExtensionContext, message: string, level: "info" | "warning" | "error" = "info") {
 	const line = `${EXTENSION_NAME}: ${message}`;
@@ -50,10 +46,10 @@ export default function themeSyncExtension(pi: ExtensionAPI) {
 		}
 		if (mode === lastAppliedMode) return;
 
-		const theme = buildRosePineTheme(themeDir, mode, ctx.ui.theme.getColorMode());
-		const result = ctx.ui.setTheme(theme);
+		const themeName = getThemeNameForMode(mode);
+		const result = ctx.ui.setTheme(themeName);
 		if (!result.success) {
-			log(ctx, `failed to apply ${mode} theme: ${result.error ?? "unknown error"}`, "warning");
+			log(ctx, `failed to apply ${themeName}: ${result.error ?? "unknown error"}`, "warning");
 			return;
 		}
 
