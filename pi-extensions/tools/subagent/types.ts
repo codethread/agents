@@ -1,4 +1,4 @@
-import type { Message } from "@mariozechner/pi-ai";
+import type { Message } from "@earendil-works/pi-ai";
 import type { AgentConfig } from "./agents.js";
 
 export const COLLAPSED_ITEM_COUNT = 3;

@@ -2,8 +2,8 @@ import {
 	DynamicBorder,
 	getMarkdownTheme,
 	type ExtensionContext,
-} from "@mariozechner/pi-coding-agent";
-import { Container, Markdown, matchesKey, Text } from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-coding-agent";
+import { Container, Markdown, matchesKey, Text } from "@earendil-works/pi-tui";
 import { openMarkdownInExternalEditor } from "./external-editor.js";
 
 type DebugMessageAction = "close" | "openInEditor" | "sendToAgent";

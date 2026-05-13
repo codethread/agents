@@ -1,7 +1,7 @@
-import type { Container, Text } from "@mariozechner/pi-tui";
-import { Markdown } from "@mariozechner/pi-tui";
+import type { Container, Text } from "@earendil-works/pi-tui";
+import { Markdown } from "@earendil-works/pi-tui";
 import { describe, expect, it } from "vitest";
-import type { Message } from "@mariozechner/pi-ai";
+import type { Message } from "@earendil-works/pi-ai";
 import {
 	getFinalOutput,
 	getParentVisibleResultText,

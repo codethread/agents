@@ -1,6 +1,6 @@
 import * as os from "node:os";
-import type { Message } from "@mariozechner/pi-ai";
-import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
+import type { Message } from "@earendil-works/pi-ai";
+import { getMarkdownTheme } from "@earendil-works/pi-coding-agent";
 import {
 	Container,
 	Markdown,
@@ -8,7 +8,7 @@ import {
 	Text,
 	truncateToWidth,
 	visibleWidth,
-} from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-tui";
 import {
 	formatContextDisplay,
 	formatCost,

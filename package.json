@@ -24,7 +24,8 @@
 		"lint:fix": "eslint . --fix",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
-		"verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm format"
+		"check": "pnpm lint && pnpm typecheck && pnpm test && pnpm format",
+		"verify": "pnpm check"
 	},
 	"pi": {
 		"extensions": [
@@ -44,15 +45,15 @@
 		]
 	},
 	"peerDependencies": {
-		"@mariozechner/pi-agent-core": "*",
-		"@mariozechner/pi-ai": "*",
-		"@mariozechner/pi-coding-agent": "*",
-		"@mariozechner/pi-tui": "*",
+		"@earendil-works/pi-agent-core": "*",
+		"@earendil-works/pi-ai": "*",
+		"@earendil-works/pi-coding-agent": "*",
+		"@earendil-works/pi-tui": "*",
 		"@sinclair/typebox": "*"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.25.1",
-		"@marcfargas/pi-test-harness": "^0.5.0",
+		"@gaodes/pi-test-harness": "^1.0.2",
 		"@types/node": "^24.0.0",
 		"@types/nunjucks": "^3.2.6",
 		"eslint": "^9.25.1",

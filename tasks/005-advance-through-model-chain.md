@@ -50,5 +50,5 @@ Implement the delegated runtime model-chain attempt loop. This slice should make
 - `pi-extensions/tools/subagent/runtime.ts`
 - `pi-extensions/tools/subagent/render.ts`
 - `pi-extensions/tools/subagent/types.ts`
-- `node_modules/@mariozechner/pi-ai/dist/utils/overflow.d.ts`
+- `node_modules/@earendil-works/pi-ai/dist/utils/overflow.d.ts`
 - `skills/robustness/SKILL.md`

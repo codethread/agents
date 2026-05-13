@@ -1,5 +1,5 @@
-import { createReadTool, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { Container, Text } from "@mariozechner/pi-tui";
+import { createReadTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Container, Text } from "@earendil-works/pi-tui";
 
 /**
  * Compact read renderer.

@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { Message } from "@mariozechner/pi-ai";
-import { isContextOverflow } from "@mariozechner/pi-ai";
+import type { Message } from "@earendil-works/pi-ai";
+import { isContextOverflow } from "@earendil-works/pi-ai";
 import {
 	getAgentRuntimeSettings,
 	getFirstValidAgentModelCandidate,

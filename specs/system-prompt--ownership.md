@@ -65,7 +65,7 @@ Built-in tool strings are manually synced from Pi. On Pi upgrades, re-check:
 $PI_PACKAGE_DIR/dist/core/tools/{read,bash,edit,write,grep,find,ls}.js
 ```
 
-If `PI_PACKAGE_DIR` is unset, resolve the path via `import.meta.resolve("@mariozechner/pi-coding-agent")`.
+If `PI_PACKAGE_DIR` is unset, resolve the path via `import.meta.resolve("@earendil-works/pi-coding-agent")`.
 
 ## 5. Open Questions
 

@@ -65,7 +65,7 @@ See `pi-extensions/system-prompt/README.md` for the merged prompt-layer extensio
 
 ## Development
 
-The Vitest suite includes both unit/snapshot tests and Pi runtime integration tests backed by `@marcfargas/pi-test-harness`.
+The Vitest suite includes both unit/snapshot tests and Pi runtime integration tests backed by `@gaodes/pi-test-harness`.
 
 ```bash
 pnpm install

@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createTestSession, says, type TestSession, when } from "@marcfargas/pi-test-harness";
+import { createTestSession, says, type TestSession, when } from "@gaodes/pi-test-harness";
 import piDiscoveryExtension from "./index.js";
 
 const CUSTOM_SYSTEM_PROMPT =

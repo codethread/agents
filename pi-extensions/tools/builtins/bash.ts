@@ -1,6 +1,6 @@
-import type { BashToolDetails, ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { createBashTool } from "@mariozechner/pi-coding-agent";
-import { Text } from "@mariozechner/pi-tui";
+import type { BashToolDetails, ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createBashTool } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 
 const COLLAPSED_LINES = 5;
 

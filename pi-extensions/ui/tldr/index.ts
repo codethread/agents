@@ -1,5 +1,5 @@
-import { complete, type Model } from "@mariozechner/pi-ai";
-import { type ExtensionAPI, type ExtensionContext } from "@mariozechner/pi-coding-agent";
+import { complete, type Model } from "@earendil-works/pi-ai";
+import { type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { showDebugMessage } from "../../components/debug-message/index.js";
 import {
 	buildConversationTranscript,

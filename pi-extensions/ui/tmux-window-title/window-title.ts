@@ -1,4 +1,4 @@
-import type { Model } from "@mariozechner/pi-ai";
+import type { Model } from "@earendil-works/pi-ai";
 import { z } from "zod";
 
 type ModelLike = Pick<Model<any>, "provider" | "id" | "reasoning">;

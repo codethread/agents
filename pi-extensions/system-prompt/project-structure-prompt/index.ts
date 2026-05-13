@@ -1,4 +1,4 @@
-import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { buildProjectStructurePrompt, type ExecLike } from "./snapshot.js";
 
 export const INVALIDATING_TOOLS = new Set(["bash", "write"]);

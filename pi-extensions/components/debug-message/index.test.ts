@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@mariozechner/pi-tui", async (importOriginal) => {
+vi.mock("@earendil-works/pi-tui", async (importOriginal) => {
 	const actual = (await importOriginal()) as Record<string, unknown>;
 	return {
 		...actual,

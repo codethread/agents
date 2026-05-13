@@ -2,7 +2,7 @@ import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
 	ExtensionContext,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 
 const STATE_ENTRY_TYPE = "timeline-timestamps";
 const TOOL_CALL_ENTRY_TYPE = "timeline-timestamps-tool-call";

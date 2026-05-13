@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type * as PiAi from "@mariozechner/pi-ai";
+import type * as PiAi from "@earendil-works/pi-ai";
 
-vi.mock("@mariozechner/pi-ai", async (importOriginal) => {
+vi.mock("@earendil-works/pi-ai", async (importOriginal) => {
 	const actual = await importOriginal<typeof PiAi>();
 	return {
 		...actual,
@@ -9,14 +9,8 @@ vi.mock("@mariozechner/pi-ai", async (importOriginal) => {
 	};
 });
 
-import { complete } from "@mariozechner/pi-ai";
-import {
-	calls,
-	createTestSession,
-	says,
-	type TestSession,
-	when,
-} from "@marcfargas/pi-test-harness";
+import { complete } from "@earendil-works/pi-ai";
+import { calls, createTestSession, says, type TestSession, when } from "@gaodes/pi-test-harness";
 import tldrExtension from "./index.js";
 const TLDR_MODEL = {
 	provider: "openai",

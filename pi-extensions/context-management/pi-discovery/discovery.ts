@@ -4,7 +4,7 @@ import {
 	SettingsManager,
 	getAgentDir,
 	type SourceInfo,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import {
 	expandHomePrefix,
 	getExtensionNameFromPath,
@@ -43,7 +43,7 @@ export interface PiExtensionDiscovery {
 
 export function discoverPiSource(): PiSourceDiscovery {
 	const runtimePackageEntry = pathFromModuleSpecifier(
-		import.meta.resolve("@mariozechner/pi-coding-agent"),
+		import.meta.resolve("@earendil-works/pi-coding-agent"),
 	);
 	const runtimePackageDir = path.resolve(path.dirname(runtimePackageEntry), "..");
 	const inspectPackageDirFromEnv = process.env.PI_PACKAGE_DIR
