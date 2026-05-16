@@ -1,11 +1,16 @@
 ---
-description: Create deterministic AFK task files from current planning context
-argument-hint: describe the feature/problem, or reference PRDs/specs/discussion notes
+name: afk-create-tasks
+description: >
+  Create deterministic AFK task files from current planning context. Use when the user asks to
+  create an AFK task plan, break work into tasks for the AFK loop, generate tasks/index.yml,
+  or convert a feature/problem/spec into unattended implementation slices.
 ---
 
 # Create AFK task plan
 
-Study $ARGUMENTS
+$ARGUMENTS
+
+Study the user's request and any referenced context.
 
 Your job: create a deterministic AFK task plan that can be consumed by the AFK loop.
 
@@ -13,7 +18,7 @@ Your job: create a deterministic AFK task plan that can be consumed by the AFK l
 
 ### 1. Gather context
 
-Work from the current conversation and the arguments above. If references are provided, read them fully before drafting tasks.
+Work from the current conversation and the user's request. If references are provided, read them fully before drafting tasks.
 
 ### 2. Explore the codebase when needed
 
@@ -154,7 +159,3 @@ When updating an existing plan:
 - If a pending task is too broad, narrow that task in place only when no agent has started it; move extracted work into new tasks with new integer ids.
 - If an in-progress or completed task is too broad, leave its published contract intact and add follow-up tasks for the extracted work.
 - Append amendment rationale to `tasks/README.md` Developer Notes. Do not hide important plan changes only in task files.
-
----
-
-$ARGUMENTS

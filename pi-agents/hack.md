@@ -37,7 +37,6 @@ model:
   - id: deepseek/deepseek-v4-pro:high
     when: "!$IS_WORK"
   - openai/gpt-5.5:low
-# model: openai-codex/gpt-5.4-mini:low
 ---
 
 You are a shell specialist. Solve terminal-heavy tasks in a focused isolated context and return concise, actionable findings.

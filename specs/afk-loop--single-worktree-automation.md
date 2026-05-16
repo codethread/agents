@@ -13,7 +13,7 @@ The system is intentionally split across a shell loop, deterministic task files,
 
 ### Goals
 
-- Consume a deterministic `tasks/index.yml` format created by `prompts/afk-create-tasks.md`.
+- Consume a deterministic `tasks/index.yml` format created using `skills/afk-create-tasks/SKILL.md`.
 - Distinguish unattended AFK slices from human-in-the-loop (HITL) slices without expanding the machine-readable YAML schema.
 - Select one runnable `pending` or `in_progress` task slice per Pi session, then loop until blocked or exhausted.
 - Treat `BLOCKED` and `NO_TASKS_REMAIN` as stop tokens even if the model includes surrounding text; any other successful `/afk` output is treated as a success summary.
@@ -68,7 +68,7 @@ The system is intentionally split across a shell loop, deterministic task files,
 The AFK loop system consists of:
 
 - `scripts/afk-loop.nu` — task selection, orchestration loop, Pi process handling, retry counter, stop-token detection, smoke/refine/finalise sequencing, and git cleanliness verification.
-- `prompts/afk-create-tasks.md` — creates `tasks/index.yml`, `tasks/README.md`, and per-task markdown files in the deterministic queue format.
+- `skills/afk-create-tasks/SKILL.md` — creates `tasks/index.yml`, `tasks/README.md`, and per-task markdown files in the deterministic queue format.
 - `prompts/afk.md` — scripted single-slice implementation contract for a task preselected by the loop.
 - `prompts/hitl.md` — human-in-the-loop single-tick prompt with task selection and normal conversational reporting.
 - `prompts/afk-finalise.md` — final worktree cleanup contract after smoke/refine leave uncommitted changes.
@@ -124,7 +124,7 @@ Intentional differences:
 ## 6. Code Locations
 
 - `scripts/afk-loop.nu`
-- `prompts/afk-create-tasks.md`
+- `skills/afk-create-tasks/SKILL.md`
 - `prompts/afk.md`
 - `prompts/hitl.md`
 - `prompts/afk-finalise.md`
