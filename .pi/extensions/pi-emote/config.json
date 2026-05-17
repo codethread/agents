@@ -1,0 +1,4 @@
+{
+	"size": 6,
+	"terminals": [{ "match": "tmux", "render": "kitty-unicode" }]
+}

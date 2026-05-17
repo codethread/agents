@@ -19,6 +19,7 @@ Small index for the extensions shipped in this package. See each extension folde
 | ----------------------------------------------------------- | ---------------------------------------------------------------------- |
 | [`builtins`](./tools/builtins/README.md)                    | Compact built-in `read` and `bash` displays — transparent to the user. |
 | [`statusline`](./ui/statusline/README.md)                   | Persistent status bar — transparent to the user.                       |
+| [`emote`](./ui/emote/README.md)                             | Kitty-first animated avatar widget vendored from pi-emote.             |
 | [`theme-sync`](./ui/theme-sync/README.md)                   | Keep `rose-pine` selected while swapping Dawn/Moon from a sentinel.    |
 | [`timeline-timestamps`](./ui/timeline-timestamps/README.md) | Show recent tool-call timestamps in the footer.                        |
 | [`print-mode-exit`](./ui/print-mode-exit/README.md)         | Force stuck `pi -p` processes to exit after `agent_end`.               |

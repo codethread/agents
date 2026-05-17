@@ -79,6 +79,7 @@ extern "pi" [
 	--debug-tldr                              # [EXT] Print current session TL;DR and exit
 	--debug-tldr-transcript                   # [EXT] Print transcript used by /tldr and exit
 	--debug-tmux-title                        # [EXT] Print tmux window-title generation details
+	--debug-emote                             # [EXT] Write emote widget debug logs
 	--debug-interactive-shell: string         # [EXT] Run interactive_shell spawn/send/tail/kill directly (optional command)
 	--name: string                           # [EXT] Set the session display name shown in /tree and selectors
 	--debug-session-name                     # [EXT] Print resolved --name session display name and exit
