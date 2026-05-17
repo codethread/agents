@@ -59,6 +59,9 @@ export interface SingleResult {
 export interface SubagentDetails {
 	projectAgentsDir: string | null;
 	parentSessionId?: string;
+	targetName?: string;
+	startedAt?: number;
+	completedAt?: number;
 	results: SingleResult[];
 }
 
@@ -120,10 +123,12 @@ export function createDetails(
 	projectAgentsDir: string | null,
 	results: SingleResult[],
 	parentSessionId?: string,
+	options: { targetName?: string; startedAt?: number; completedAt?: number } = {},
 ): SubagentDetails {
 	return {
 		projectAgentsDir,
 		parentSessionId,
+		...options,
 		results,
 	};
 }

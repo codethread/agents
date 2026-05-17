@@ -144,7 +144,10 @@ export function formatToolCall(
 }
 
 export function isResultError(result: SingleResult): boolean {
-	return result.exitCode !== 0 || result.stopReason === "error" || result.stopReason === "aborted";
+	return (
+		result.exitCode !== RUNNING_EXIT_CODE &&
+		(result.exitCode !== 0 || result.stopReason === "error" || result.stopReason === "aborted")
+	);
 }
 
 export function getResultErrorText(result: SingleResult): string {
@@ -323,9 +326,32 @@ export function formatAttemptSummary(singleResult: SingleResult): string | null 
 	return parts.join("; ");
 }
 
+function getResultStatus(result: SingleResult): "running" | "error" | "complete" {
+	if (result.exitCode === RUNNING_EXIT_CODE) return "running";
+	return isResultError(result) ? "error" : "complete";
+}
+
+function getStatusColor(result: SingleResult): "error" | "success" | "warning" {
+	const status = getResultStatus(result);
+	if (status === "error") return "error";
+	if (status === "running") return "warning";
+	return "success";
+}
+
+function formatDuration(startedAt: number | undefined, completedAt: number | undefined): string {
+	if (!startedAt) return "";
+	const elapsedMs = Math.max(0, (completedAt ?? Date.now()) - startedAt);
+	const totalSeconds = Math.floor(elapsedMs / 1000);
+	const minutes = Math.floor(totalSeconds / 60);
+	const seconds = totalSeconds % 60;
+	return minutes > 0
+		? `${minutes}:${seconds.toString().padStart(2, "0")}`
+		: `00:${seconds.toString().padStart(2, "0")}s`;
+}
+
 function formatSubagentHeader(singleResult: SingleResult, theme: any, width?: number) {
 	const prefix = theme.fg("toolTitle", theme.bold("subagent "));
-	const name = theme.fg("accent", singleResult.agent);
+	const name = theme.fg(getStatusColor(singleResult), singleResult.agent);
 	const modelLabel = getSubagentModelLabel(singleResult);
 	const model = modelLabel ? theme.fg("dim", ` ${modelLabel}`) : "";
 	const session = theme.fg("dim", ` [${getSessionIdLabel(singleResult)}]`);
@@ -446,7 +472,78 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 		return width === undefined ? line : truncateToWidth(line, width, theme.fg("dim", "..."));
 	};
 
+	const renderPromptLines = (prompt: string, limit: number | undefined, width?: number) => {
+		const normalized = prompt.trim() || "(no prompt)";
+		const rawLines = normalized
+			.split("\n")
+			.flatMap((line) => line.match(/.{1,100}(?:\s|$)/g) ?? [line]);
+		const lines = limit ? rawLines.slice(0, limit) : rawLines;
+		return lines.map((line, index) => {
+			const suffix = limit && index === lines.length - 1 && rawLines.length > limit ? "..." : "";
+			const rendered =
+				theme.fg("muted", "> ") + theme.fg("toolOutput", `${line.trimEnd()}${suffix}`);
+			return width === undefined
+				? rendered
+				: truncateToWidth(rendered, width, theme.fg("dim", "..."));
+		});
+	};
+
+	const renderSwarmHeader = (width?: number) => {
+		const mode = details.results.some((result) => result.resumed) ? "resumed" : "fresh";
+		const statusColor = details.results.some(isResultError)
+			? "error"
+			: details.results.some((result) => result.exitCode === RUNNING_EXIT_CODE)
+				? "accent"
+				: "success";
+		const duration = formatDuration(details.startedAt, details.completedAt);
+		const line = [
+			theme.fg("toolTitle", theme.bold("subagent ")),
+			theme.fg(statusColor, details.targetName ?? details.results[0]?.agent ?? "swarm"),
+			theme.fg("dim", ` (${mode})`),
+			duration ? theme.fg("dim", ` ${duration}`) : "",
+		].join("");
+		return width === undefined ? line : truncateToWidth(line, width, "");
+	};
+
+	const renderSwarmMemberLine = (singleResult: SingleResult, width?: number) => {
+		const modelLabel = getSubagentModelLabel(singleResult);
+		const status =
+			getResultStatus(singleResult) === "error"
+				? "x"
+				: getResultStatus(singleResult) === "running"
+					? "…"
+					: "✓";
+		const line = [
+			"   ",
+			theme.fg(getStatusColor(singleResult), singleResult.agent.padEnd(24)),
+			theme.fg(getStatusColor(singleResult), ` ${status}`),
+			modelLabel ? theme.fg("dim", ` ${modelLabel}`) : "",
+			theme.fg("dim", ` [${getSessionIdLabel(singleResult)}]`),
+		].join("");
+		return width === undefined ? line : truncateToWidth(line, width, "");
+	};
+
+	const renderSwarmResultsText = (
+		width: number | undefined,
+		promptLineLimit: number | undefined,
+	) => {
+		const lines = [
+			renderSwarmHeader(width),
+			...renderPromptLines(details.results[0]?.task ?? "", promptLineLimit, width),
+		];
+		for (const singleResult of details.results) {
+			lines.push(renderSwarmMemberLine(singleResult, width));
+			if (isResultError(singleResult)) {
+				const error = getResultErrorText(singleResult).trim();
+				if (error) lines.push(theme.fg("error", `     x: ${error.split("\n")[0]}`));
+			}
+		}
+		if (!expanded) lines.push("", theme.fg("muted", "(Ctrl+O to expand)"));
+		return lines.join("\n").trimEnd();
+	};
+
 	const renderCollapsedResultsText = (width?: number) => {
+		if (hasMultipleResults) return renderSwarmResultsText(width, expanded ? undefined : 4);
 		const lines: string[] = [];
 		for (const singleResult of details.results) {
 			lines.push(formatSubagentHeader(singleResult, theme, width));
@@ -455,7 +552,6 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 			const attemptSummary = formatAttemptSummary(singleResult);
 			if (attemptSummary) lines.push(theme.fg("dim", attemptSummary));
 			lines.push(renderCollapsedActivity(singleResult));
-			if (hasMultipleResults) lines.push("");
 		}
 		if (!expanded) lines.push(theme.fg("muted", "(Ctrl+O to expand)"));
 		return lines.join("\n").trimEnd();
@@ -470,6 +566,8 @@ export function renderSubagentResult(result: any, { expanded }: { expanded: bool
 		},
 	});
 
+	if (expanded && hasMultipleResults)
+		return new Text(renderSwarmResultsText(undefined, undefined), 0, 0);
 	if (expanded) return renderExpandedResults();
 	return renderCollapsedResults();
 }

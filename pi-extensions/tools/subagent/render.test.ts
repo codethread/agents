@@ -595,10 +595,11 @@ describe("renderSubagentResult", () => {
 		) as Text;
 
 		const output = component.render(120).join("\n");
-		expect(output).toContain("subagent scout [session-scout] (fresh)");
-		expect(output).toContain("scout output");
-		expect(output).toContain("subagent hack [no-session] (fresh)");
-		expect(output).toContain("hack failed");
+		expect(output).toContain("subagent scout (fresh)");
+		expect(output).toContain("> Task for scout");
+		expect(output).toContain("scout                    ✓ [session-scout]");
+		expect(output).toContain("hack                     x [no-session]");
+		expect(output).toContain("x: hack failed");
 	});
 
 	it("renders all swarm members in expanded view", () => {
@@ -622,15 +623,13 @@ describe("renderSubagentResult", () => {
 			},
 			{ expanded: true },
 			theme,
-		) as unknown as Container;
+		) as Text;
 
-		expect(component.children).toHaveLength(3);
-		expect(component.children[0].render(120).join("\n")).toContain(
-			"subagent scout [session-scout] (fresh)",
-		);
-		expect(component.children[2].render(120).join("\n")).toContain(
-			"subagent security-review [session-security] (fresh)",
-		);
+		const output = component.render(120).join("\n");
+		expect(output).toContain("subagent scout (fresh)");
+		expect(output).toContain("> Task for scout");
+		expect(output).toContain("scout                    ✓ [session-scout]");
+		expect(output).toContain("security-review          ✓ [session-security]");
 	});
 
 	it("keeps expanded activity collapsed to the latest three items", () => {

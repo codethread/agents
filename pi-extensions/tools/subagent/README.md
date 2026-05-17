@@ -125,6 +125,8 @@ If a follow-up depends on that ID, wait for the first tool result before making 
 
 A resumed swarm may render missing member sessions as errors when the manifest references a member that no longer has an available session. Runtime model-policy failures are rendered the same way for individual swarm members, preserving partial results from valid members.
 
+Collapsed swarm UI shows one swarm-level header, a four-line preview of the shared prompt, a ticking total duration, compact member status lines, and inline member errors. Expanding the tool result shows the full shared prompt and full error lines.
+
 Swarm result blocks are emitted as XML member entries with CDATA-wrapped final output:
 
 ```xml

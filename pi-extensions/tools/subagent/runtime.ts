@@ -18,6 +18,7 @@ import {
 	updateManifest,
 } from "./session.js";
 import {
+	RUNNING_EXIT_CODE,
 	createEmptyUsage,
 	createUnknownAgentResult,
 	type AttemptMetadata,
@@ -287,7 +288,7 @@ export async function runSingleAgent(
 				agentSource: agent.source,
 				task: request.task,
 				resumed: Boolean(request.resume),
-				exitCode: 0,
+				exitCode: RUNNING_EXIT_CODE,
 				messages: [],
 				stderr: "",
 				usage: createEmptyUsage(),

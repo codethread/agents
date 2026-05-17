@@ -357,8 +357,14 @@ export default function (pi: ExtensionAPI) {
 			const subagentSessionDir = parentSessionInfo
 				? getSubagentSessionDirForParent(parentSessionInfo.sessionId, params.cwd)
 				: undefined;
-			const makeDetails = (results: SingleResult[]) =>
-				createDetails(discovery.projectAgentsDir, results, parentSessionInfo?.sessionId);
+			const toolStartedAt = Date.now();
+			let toolCompletedAt: number | undefined;
+			const makeDetails = (results: SingleResult[], targetName = params.agent) =>
+				createDetails(discovery.projectAgentsDir, results, parentSessionInfo?.sessionId, {
+					targetName,
+					startedAt: toolStartedAt,
+					completedAt: toolCompletedAt,
+				});
 			const resolveModelInfo: ResolveModelInfo = (provider, model) => {
 				if (!provider || !model) return undefined;
 				const resolved = ctx.modelRegistry.find(provider, model);
@@ -576,9 +582,10 @@ export default function (pi: ExtensionAPI) {
 				const swarmText =
 					getParentVisibleSwarmResultText(finalResults, swarmResumeId) || "(no output)";
 				const allFailed = hasAllSwarmMembersFailed(finalResults);
+				toolCompletedAt = Date.now();
 				return {
 					content: [{ type: "text", text: swarmText }],
-					details: makeDetails(finalResults),
+					details: makeDetails(finalResults, target.swarm.name),
 					isError: allFailed,
 				};
 			}
@@ -679,17 +686,18 @@ export default function (pi: ExtensionAPI) {
 				ctx.modelRegistry,
 			);
 			const results = [result];
+			toolCompletedAt = Date.now();
 
 			if (isResultError(result)) {
 				return {
 					content: [{ type: "text", text: getParentVisibleResultText(result) || "(no output)" }],
-					details: makeDetails(results),
+					details: makeDetails(results, target.agent.name),
 					isError: true,
 				};
 			}
 			return {
 				content: [{ type: "text", text: getParentVisibleResultText(result) || "(no output)" }],
-				details: makeDetails(results),
+				details: makeDetails(results, target.agent.name),
 			};
 		},
 
