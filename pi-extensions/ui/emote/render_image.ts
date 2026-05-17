@@ -28,7 +28,7 @@ export interface ImageDims {
 }
 
 /**
- * Base class for image-protocol renderers (Kitty, iTerm2).
+ * Base class for Kitty image-protocol renderers.
  * Handles frame loading, caching, and selection logic.
  * Subclasses implement encoding and cleanup.
  */
@@ -61,9 +61,6 @@ export abstract class BaseImageRenderer implements Renderer {
 		this.resetCache();
 	}
 
-	/** Whether the cursor advances past the image after rendering. */
-	protected abstract cursorAdvances: boolean;
-
 	/** Padding mode for the widget: "spaces" (default) or "skip" (cursor-right). */
 	protected padMode: "spaces" | "skip" = "spaces";
 
@@ -79,9 +76,7 @@ export abstract class BaseImageRenderer implements Renderer {
 	abstract dispose(): void;
 
 	protected show(base64: string, force = false): boolean {
-		// For protocols where cursor advances (iTerm2), always re-encode to produce
-		// a unique sequence — prevents the TUI diff engine from skipping the line.
-		if (!force && !this.cursorAdvances && base64 === this.lastShownBase64) return true;
+		if (!force && base64 === this.lastShownBase64) return true;
 		this.lastShownBase64 = base64;
 
 		const dims = getImageDimensions(base64, "image/png") ?? { widthPx: 510, heightPx: 510 };
@@ -105,7 +100,6 @@ export abstract class BaseImageRenderer implements Renderer {
 				kind: "image",
 				sequence,
 				rows,
-				cursorAdvances: this.cursorAdvances,
 				padMode: this.padMode,
 			};
 		} else {

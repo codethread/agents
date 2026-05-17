@@ -10,9 +10,6 @@ import { resolveEmoteSet, findEmoteSetDir, loadEmotesConfig } from "./emotes.js"
 import { KittyRenderer } from "./render_kitty.js";
 import { TmuxKittyRenderer } from "./render_tmux_kitty.js";
 import { TmuxKittyUnicodeRenderer } from "./render_tmux_kitty_unicode.js";
-import { ITermRenderer } from "./render_iterm.js";
-import { TmuxITermRenderer } from "./render_tmux_iterm.js";
-import { AsciiRenderer } from "./render_ascii.js";
 import { Animator } from "./animator.js";
 import { createWidgetFactory } from "./widget.js";
 import { resolveRenderer } from "./terminal.js";
@@ -48,16 +45,7 @@ function createRendererFromResolved(resolved: ResolvedRenderer, size: number): R
 		log(`createRenderer: using KittyRenderer`);
 		return new KittyRenderer(size);
 	}
-	if (protocol === "iterm2") {
-		if (multiplexer === "tmux") {
-			log(`createRenderer: using TmuxITermRenderer`);
-			return new TmuxITermRenderer(size);
-		}
-		log(`createRenderer: using ITermRenderer`);
-		return new ITermRenderer(size);
-	}
-	log(`createRenderer: using AsciiRenderer`);
-	return new AsciiRenderer();
+	throw new Error(`Unsupported emote renderer protocol: ${protocol}`);
 }
 
 const DEBUG_EMOTE_FLAG = "debug-emote";
@@ -89,18 +77,7 @@ export default function (pi: ExtensionAPI) {
 	function loadEmoteSet(setName: string) {
 		currentEmoteSet = setName;
 
-		// "ascii" emote set forces AsciiRenderer regardless of terminal
-		if (setName === "ascii") {
-			if (!(renderer instanceof AsciiRenderer)) {
-				renderer = new AsciiRenderer();
-				animator.setRenderer(renderer);
-			}
-			renderer.loadFrames("", extDir);
-			animator.setEmotesConfig({});
-			return;
-		}
-
-		// Non-ascii set: ensure we're using the capability-based renderer
+		// Ensure we're using the capability-based renderer
 		const detected = createRendererFromResolved(lastResolved, getInitialSize(config.size));
 		if (renderer.constructor !== detected.constructor) {
 			renderer = detected;
@@ -148,8 +125,7 @@ export default function (pi: ExtensionAPI) {
 
 		if (lastResolved.warning) {
 			ctx.ui.notify(lastResolved.warning, lastResolved.warningLevel);
-		} else if (renderer instanceof AsciiRenderer) {
-			ctx.ui.notify("[pi-emote] No image protocol detected \u2014 using ASCII emotes.", "warning");
+			return;
 		}
 
 		ctxRef = ctx;

@@ -79,7 +79,6 @@ export function discoverFrames(emoteSetDir: string): Map<EmoteState, FrameSet> {
 		"read",
 		"write",
 		"tool",
-		"success",
 		"failure",
 		"compact",
 	];

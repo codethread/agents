@@ -6,7 +6,6 @@ export type EmoteState =
 	| "read"
 	| "write"
 	| "tool"
-	| "success"
 	| "failure"
 	| "compact";
 
@@ -18,7 +17,7 @@ export interface Config {
 	size: SizeConfig;
 	readingSpeed: number;
 	hideBelow: number;
-	holdDuration: { hi: number; success: number; failure: number };
+	holdDuration: { hi: number; failure: number };
 	blinkInterval: [number, number];
 	talkTickMs: number;
 	cycleMs: number;
@@ -33,12 +32,12 @@ export interface EmoteMapping {
 
 export interface TerminalMapping {
 	match: string;
-	render: "kitty" | "kitty-unicode" | "iterm2" | "ascii" | "auto";
+	render: "kitty" | "kitty-unicode";
 }
 
 export interface ResolvedRenderer {
-	protocol: "kitty" | "kitty-unicode" | "iterm2" | "ascii";
-	multiplexer: "tmux" | "screen" | "zellij" | null;
+	protocol: "kitty" | "kitty-unicode" | "none";
+	multiplexer: "tmux" | null;
 	warning: string | null;
 	warningLevel: "warning" | "info";
 }

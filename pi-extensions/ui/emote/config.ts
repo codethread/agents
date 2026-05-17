@@ -41,17 +41,14 @@ const DEFAULTS: Config = {
 	size: 8,
 	readingSpeed: 4,
 	hideBelow: 80,
-	holdDuration: { hi: 2000, success: 1200, failure: 1200 },
+	holdDuration: { hi: 2000, failure: 1200 },
 	blinkInterval: [3000, 6000],
 	talkTickMs: 120,
 	cycleMs: 500,
 	emotes: [{ model: "*", "emote-set": "default" }],
 	terminals: [
-		{ match: "zellij", render: "ascii" },
-		{ match: "tmux", render: "ascii" },
-		{ match: "screen", render: "ascii" },
-		{ match: "wezterm", render: "iterm2" },
-		{ match: "ghostty", render: "kitty" },
+		{ match: "kitty", render: "kitty" },
+		{ match: "tmux", render: "kitty-unicode" },
 	],
 };
 

@@ -43,7 +43,6 @@ function buildKittySequence(base64: string, params: Record<string, string | numb
  */
 export class KittyRenderer extends BaseImageRenderer {
 	readonly imageId: number;
-	protected cursorAdvances = false;
 
 	constructor(size: number) {
 		super(size);

@@ -172,10 +172,6 @@ export class Animator {
 			case "tool":
 				this.enterCycle(state);
 				break;
-			case "success":
-				this.enterHold(state, this.config.holdDuration.success, this.holdNextState);
-				this.holdNextState = "idle";
-				break;
 			case "failure":
 				this.enterHold(state, this.config.holdDuration.failure, this.holdNextState);
 				this.holdNextState = "idle";

@@ -2,7 +2,7 @@
 
 Vendored from `pi-emote` and adapted for this package layout.
 
-Animated avatar widget above the editor. It reacts to session state: startup, idle, thinking, talking, read/write/tool calls, success/failure, and compaction.
+Animated avatar widget above the editor. It reacts to session state: startup, idle, thinking, talking, read/write/tool calls, failures, and compaction.
 
 ## Local defaults
 
@@ -36,13 +36,9 @@ Run Pi with `--debug-emote` or set `"debug": true` in config. Logs are written t
 
 ## Emote sets
 
-Bundled sets:
+Bundled set:
 
 - `default`
-- `ascii`
-- `aza_choi`
-- `aza_choi_nobg`
-- `test`
 
 Model-to-set mapping uses glob patterns in config:
 

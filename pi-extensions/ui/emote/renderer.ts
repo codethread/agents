@@ -2,30 +2,21 @@ import type { EmoteState, EmotesConfig } from "./types.js";
 import type { TUI } from "@earendil-works/pi-tui";
 
 /**
- * A rendered frame — either an image sequence (Kitty/iTerm2) or plain text lines.
- *
- * For image frames:
- * - `cursorAdvances`: whether the terminal cursor moves past the image after rendering.
- *   Kitty with moveCursor=false does NOT advance; iTerm2 always advances.
- *   The widget uses this to decide whether to add padding after the image sequence.
+ * A rendered frame — either a Kitty image sequence or Kitty Unicode placeholder lines.
  */
 export type RenderedFrame =
 	| {
 			kind: "image";
 			sequence: string;
 			rows: number;
-			cursorAdvances: boolean;
 			padMode?: "spaces" | "skip";
 	  }
-	| { kind: "text"; lines: string[] }
 	| { kind: "placeholder"; lines: string[]; rows: number };
 
 /**
  * Renderer interface — abstracts how emote frames are loaded, stored, and displayed.
  *
- * Implementations:
- * - ImageRenderer (render_image.ts): Kitty/iTerm2 image protocols
- * - AsciiRenderer (render_ascii.ts): plain text fallback
+ * Implementations use Kitty image protocols directly or through tmux passthrough.
  */
 export interface Renderer {
 	/** Set the TUI reference for requesting re-renders. */

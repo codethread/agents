@@ -102,77 +102,6 @@ function renderKittyFrame(
 }
 
 /**
- * iTerm2 image layout — text first, image last.
- *
- * The TUI processes lines top-to-bottom, erasing each with \x1b[2K before
- * writing. By placing the image on the LAST widget row with cursor-up
- * positioning, the image is rendered AFTER all line clears. It extends
- * downward over rows that already have text, filling the image area
- * (cols 1–size) without being erased. Text in cols (size+1)+ is preserved.
- *
- * Layout: frame.rows total (frame.rows-1 text rows + 1 image row).
- */
-function renderITermFrame(
-	frame: RenderedFrame & { kind: "image" },
-	width: number,
-	config: RenderConfig,
-	infoLines: string[],
-	borderColor: (s: string) => string,
-): string[] {
-	const sep = borderColor("│");
-	const size = config.size;
-	const skipPad = `\x1b[${1 + size}C`;
-	const lines: string[] = [];
-
-	for (let i = 0; i < frame.rows; i++) {
-		if (i < frame.rows - 1) {
-			// Text rows: cursor-right past image area, then info
-			lines.push(`${skipPad} ${sep} ${infoLines[i] ?? ""}`);
-		} else {
-			// Last row: cursor-up to first text row, place image, then text
-			// After the image, cursor returns to this row (last image row, col 0).
-			const up = frame.rows > 1 ? `\x1b[${frame.rows - 1}A` : "";
-			lines.push(`${up}\x1b[1C${frame.sequence} ${sep} ${infoLines[i] ?? ""}`);
-		}
-	}
-
-	return lines;
-}
-
-function renderTextFrame(
-	frame: RenderedFrame & { kind: "text" },
-	width: number,
-	config: RenderConfig,
-	infoLines: string[],
-	borderColor: (s: string) => string,
-): string[] {
-	const sep = borderColor("│");
-	const leftMargin = " ";
-	const avatarPad = " ".repeat(config.size);
-
-	// Place emote text on the 3rd row (index 2), vertically centered in a
-	// block tall enough to hold the info panel (min 4 rows to match image size).
-	const emoteLines = frame.lines;
-	const emoteRow = 2;
-	const rowCount = Math.max(emoteRow + emoteLines.length, infoLines.length, 4);
-	const lines: string[] = [];
-
-	for (let i = 0; i < rowCount; i++) {
-		const emoteIdx = i - emoteRow;
-		const emote = emoteIdx >= 0 && emoteIdx < emoteLines.length ? emoteLines[emoteIdx] : "";
-		const emoteWidth = visibleWidth(emote);
-		// Center the emote within config.size columns
-		const totalPad = config.size - emoteWidth;
-		const padLeft = totalPad > 0 ? " ".repeat(Math.floor(totalPad / 2)) : "";
-		const padRight = totalPad > 0 ? " ".repeat(Math.ceil(totalPad / 2)) : "";
-		const cell = emote ? `${padLeft}${emote}${padRight}` : avatarPad;
-		lines.push(`${leftMargin}${cell} ${sep} ${infoLines[i] ?? ""}`);
-	}
-
-	return lines;
-}
-
-/**
  * Unicode placeholder layout: placeholder text lines fill rows 0–N.
  * Each line is already config.size wide (placeholder chars). Info beside it.
  */
@@ -253,15 +182,9 @@ export function createWidgetFactory(deps: WidgetDeps) {
 				lines.push(border);
 
 				if (frame.kind === "image") {
-					if (frame.cursorAdvances) {
-						lines.push(...renderITermFrame(frame, width, renderConfig, infoLines, borderColor));
-					} else {
-						lines.push(...renderKittyFrame(frame, width, renderConfig, infoLines, borderColor));
-					}
-				} else if (frame.kind === "placeholder") {
-					lines.push(...renderPlaceholderFrame(frame, width, renderConfig, infoLines, borderColor));
+					lines.push(...renderKittyFrame(frame, width, renderConfig, infoLines, borderColor));
 				} else {
-					lines.push(...renderTextFrame(frame, width, renderConfig, infoLines, borderColor));
+					lines.push(...renderPlaceholderFrame(frame, width, renderConfig, infoLines, borderColor));
 				}
 
 				return lines;

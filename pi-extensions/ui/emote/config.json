@@ -10,7 +10,6 @@
 	"hideBelow": 0,
 	"holdDuration": {
 		"hi": 2000,
-		"success": 1200,
 		"failure": 1200
 	},
 	"blinkInterval": [3000, 6000],
