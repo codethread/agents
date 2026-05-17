@@ -29,6 +29,11 @@ function toolNameToState(toolName: string): EmoteState {
 	}
 }
 
+function getInitialSize(size: number | Record<string, number | null>): number {
+	if (typeof size === "number") return size;
+	return Object.values(size).find((value): value is number => typeof value === "number") ?? 6;
+}
+
 function createRendererFromResolved(resolved: ResolvedRenderer, size: number): Renderer {
 	const { protocol, multiplexer } = resolved;
 	if (protocol === "kitty-unicode") {
@@ -77,7 +82,7 @@ export default function (pi: ExtensionAPI) {
 	let ctxRef: any = null;
 	let widgetActive = false;
 	let lastResolved = resolveRenderer(config.terminals, userConfiguredTerminals);
-	let renderer = createRendererFromResolved(lastResolved, config.size);
+	let renderer = createRendererFromResolved(lastResolved, getInitialSize(config.size));
 
 	const animator = new Animator(config, renderer);
 
@@ -96,7 +101,7 @@ export default function (pi: ExtensionAPI) {
 		}
 
 		// Non-ascii set: ensure we're using the capability-based renderer
-		const detected = createRendererFromResolved(lastResolved, config.size);
+		const detected = createRendererFromResolved(lastResolved, getInitialSize(config.size));
 		if (renderer.constructor !== detected.constructor) {
 			renderer = detected;
 			animator.setRenderer(renderer);
@@ -138,7 +143,7 @@ export default function (pi: ExtensionAPI) {
 
 		// Re-create renderer in case terminal capabilities changed
 		lastResolved = resolveRenderer(config.terminals, userConfiguredTerminals);
-		renderer = createRendererFromResolved(lastResolved, config.size);
+		renderer = createRendererFromResolved(lastResolved, getInitialSize(config.size));
 		animator.setRenderer(renderer);
 
 		if (lastResolved.warning) {

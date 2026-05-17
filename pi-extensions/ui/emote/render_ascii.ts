@@ -99,6 +99,10 @@ export class AsciiRenderer implements Renderer {
 		this.tuiRef = tui;
 	}
 
+	setSize(_size: number) {
+		// ASCII frames are fixed-width text.
+	}
+
 	loadFrames(_emoteSetDir: string, extDir: string) {
 		// Look for ascii/fallback.yaml in standard locations
 		const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? "";

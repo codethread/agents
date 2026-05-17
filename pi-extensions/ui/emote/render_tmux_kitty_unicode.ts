@@ -210,6 +210,12 @@ export class TmuxKittyUnicodeRenderer implements Renderer {
 		return this.currentFrame;
 	}
 
+	setSize(size: number) {
+		if (this.size === size) return;
+		this.size = size;
+		this.resetCache();
+	}
+
 	private show(base64: string, force = false): boolean {
 		if (!force && base64 === this.lastShownBase64) return true;
 		this.lastShownBase64 = base64;

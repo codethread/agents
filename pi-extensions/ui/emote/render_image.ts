@@ -55,6 +55,12 @@ export abstract class BaseImageRenderer implements Renderer {
 		return this.currentFrame;
 	}
 
+	setSize(size: number) {
+		if (this.size === size) return;
+		this.size = size;
+		this.resetCache();
+	}
+
 	/** Whether the cursor advances past the image after rendering. */
 	protected abstract cursorAdvances: boolean;
 

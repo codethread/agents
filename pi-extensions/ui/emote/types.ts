@@ -10,10 +10,12 @@ export type EmoteState =
 	| "failure"
 	| "compact";
 
+export type SizeConfig = number | Record<string, number | null>;
+
 export interface Config {
 	enabled: boolean;
 	debug: boolean;
-	size: number;
+	size: SizeConfig;
 	readingSpeed: number;
 	hideBelow: number;
 	holdDuration: { hi: number; success: number; failure: number };

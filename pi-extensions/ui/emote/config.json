@@ -1,9 +1,13 @@
 {
 	"enabled": true,
 	"debug": false,
-	"size": 8,
+	"size": {
+		"0": null,
+		"40": 6,
+		"70": 8
+	},
 	"readingSpeed": 4,
-	"hideBelow": 40,
+	"hideBelow": 0,
 	"holdDuration": {
 		"hi": 2000,
 		"success": 1200,

@@ -37,6 +37,9 @@ export interface Renderer {
 	/** Get the current rendered frame (for the widget to read). */
 	getRenderedFrame(): RenderedFrame | null;
 
+	/** Set desired avatar width in terminal columns. */
+	setSize(size: number): void;
+
 	/** Show a specific named frame for a state. Returns false if not found. */
 	showFrame(state: EmoteState, name: string, force?: boolean): boolean;
 

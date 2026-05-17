@@ -75,6 +75,11 @@ export class Animator {
 		this.renderer.resetCache();
 	}
 
+	setRenderSize(size: number) {
+		this.renderer.setSize(size);
+		this.renderer.showRandomFrame(this.currentState, true);
+	}
+
 	disposeRenderer() {
 		this.renderer.dispose();
 	}

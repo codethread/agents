@@ -1,8 +1,10 @@
 import { visibleWidth, truncateToWidth } from "@earendil-works/pi-tui";
-import type { Config } from "./types.js";
+import type { Config, SizeConfig } from "./types.js";
 import type { Animator } from "./animator.js";
 import type { RenderedFrame } from "./renderer.js";
 import { log } from "./log.js";
+
+type RenderConfig = Omit<Config, "size"> & { size: number };
 
 // --- Token formatting ---
 
@@ -15,7 +17,13 @@ function formatTokens(count: number): string {
 
 // --- Info panel ---
 
-function buildInfoLines(width: number, config: Config, ctxRef: any, pi: any, theme: any): string[] {
+function buildInfoLines(
+	width: number,
+	config: RenderConfig,
+	ctxRef: any,
+	pi: any,
+	theme: any,
+): string[] {
 	const lines: string[] = [];
 	if (!ctxRef) return lines;
 
@@ -70,7 +78,7 @@ function buildInfoLines(width: number, config: Config, ctxRef: any, pi: any, the
 function renderKittyFrame(
 	frame: RenderedFrame & { kind: "image" },
 	width: number,
-	config: Config,
+	config: RenderConfig,
 	infoLines: string[],
 	borderColor: (s: string) => string,
 ): string[] {
@@ -107,7 +115,7 @@ function renderKittyFrame(
 function renderITermFrame(
 	frame: RenderedFrame & { kind: "image" },
 	width: number,
-	config: Config,
+	config: RenderConfig,
 	infoLines: string[],
 	borderColor: (s: string) => string,
 ): string[] {
@@ -134,7 +142,7 @@ function renderITermFrame(
 function renderTextFrame(
 	frame: RenderedFrame & { kind: "text" },
 	width: number,
-	config: Config,
+	config: RenderConfig,
 	infoLines: string[],
 	borderColor: (s: string) => string,
 ): string[] {
@@ -171,7 +179,7 @@ function renderTextFrame(
 function renderPlaceholderFrame(
 	frame: RenderedFrame & { kind: "placeholder" },
 	width: number,
-	config: Config,
+	config: RenderConfig,
 	infoLines: string[],
 	borderColor: (s: string) => string,
 ): string[] {
@@ -196,7 +204,20 @@ export interface WidgetDeps {
 	getCurrentEmoteSet: () => string;
 }
 
+function resolveAvatarSize(width: number, sizeConfig: SizeConfig): number | null {
+	if (typeof sizeConfig === "number") return sizeConfig;
+
+	let resolved: number | null = null;
+	for (const [minWidthText, size] of Object.entries(sizeConfig)) {
+		const minWidth = Number(minWidthText);
+		if (!Number.isFinite(minWidth)) continue;
+		if (minWidth <= width) resolved = size;
+	}
+	return resolved;
+}
+
 export function createWidgetFactory(deps: WidgetDeps) {
+	let activeAvatarSize: number | null = null;
 	return (_tui: any, theme: any) => {
 		deps.animator.setTui(_tui);
 		return {
@@ -205,6 +226,14 @@ export function createWidgetFactory(deps: WidgetDeps) {
 
 				if (width < config.hideBelow) return [];
 
+				const avatarSize = resolveAvatarSize(width, config.size);
+				if (avatarSize === null) return [];
+				if (avatarSize !== activeAvatarSize) {
+					activeAvatarSize = avatarSize;
+					animator.setRenderSize(avatarSize);
+				}
+
+				const renderConfig: RenderConfig = { ...config, size: avatarSize };
 				const frame = animator.getRenderedFrame();
 				if (!frame) {
 					log(`render: no frame`);
@@ -218,21 +247,21 @@ export function createWidgetFactory(deps: WidgetDeps) {
 					(theme as any).getThinkingBorderColor?.(thinkingLevel) ??
 					((s: string) => theme.fg("border", s));
 				const border = borderColor("─".repeat(width));
-				const infoLines = buildInfoLines(width, config, deps.getCtxRef(), deps.pi, theme);
+				const infoLines = buildInfoLines(width, renderConfig, deps.getCtxRef(), deps.pi, theme);
 
 				const lines: string[] = [];
 				lines.push(border);
 
 				if (frame.kind === "image") {
 					if (frame.cursorAdvances) {
-						lines.push(...renderITermFrame(frame, width, config, infoLines, borderColor));
+						lines.push(...renderITermFrame(frame, width, renderConfig, infoLines, borderColor));
 					} else {
-						lines.push(...renderKittyFrame(frame, width, config, infoLines, borderColor));
+						lines.push(...renderKittyFrame(frame, width, renderConfig, infoLines, borderColor));
 					}
 				} else if (frame.kind === "placeholder") {
-					lines.push(...renderPlaceholderFrame(frame, width, config, infoLines, borderColor));
+					lines.push(...renderPlaceholderFrame(frame, width, renderConfig, infoLines, borderColor));
 				} else {
-					lines.push(...renderTextFrame(frame, width, config, infoLines, borderColor));
+					lines.push(...renderTextFrame(frame, width, renderConfig, infoLines, borderColor));
 				}
 
 				return lines;

@@ -11,6 +11,20 @@ This package assumes Kitty:
 - direct Kitty: `kitty`
 - tmux in Kitty: `kitty-unicode`
 
+Avatar size can be a number or a responsive width map:
+
+```json
+{
+	"size": {
+		"0": null,
+		"40": 6,
+		"70": 8
+	}
+}
+```
+
+For width maps, the greatest key `<=` terminal width wins. `null` hides the widget.
+
 Config defaults live in [`config.json`](./config.json). Override globally or per project:
 
 - `~/.pi/agent/extensions/pi-emote/config.json`
