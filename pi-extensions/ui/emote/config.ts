@@ -45,6 +45,7 @@ const DEFAULTS: Config = {
 	blinkInterval: [3000, 6000],
 	talkTickMs: 120,
 	cycleMs: 500,
+	textEllipsis: "$",
 	emotes: [{ model: "*", "emote-set": "default" }],
 	terminals: [
 		{ match: "kitty", render: "kitty" },

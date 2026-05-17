@@ -1,71 +1,34 @@
-import { visibleWidth, truncateToWidth } from "@earendil-works/pi-tui";
+import { truncateToWidth } from "@earendil-works/pi-tui";
+import { renderStatuslineItems } from "../statusline/index.js";
+import { layoutFlexTextItems } from "./flex-layout.js";
 import type { Config, SizeConfig } from "./types.js";
 import type { Animator } from "./animator.js";
 import type { RenderedFrame } from "./renderer.js";
 import { log } from "./log.js";
 
 type RenderConfig = Omit<Config, "size"> & { size: number };
+export type EmoteWidgetPlacement = "aboveEditor" | "belowEditor";
 
-// --- Token formatting ---
+// --- Canvas panel ---
 
-function formatTokens(count: number): string {
-	if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
-	if (count >= 10_000) return `${Math.round(count / 1000)}k`;
-	if (count >= 1_000) return `${(count / 1000).toFixed(1)}k`;
-	return count.toString();
+function buildCanvasItems(width: number, deps: WidgetDeps, theme: any): string[] {
+	const ctx = deps.getCtxRef();
+	const footerData = deps.getFooterData();
+	if (!ctx || !footerData || width <= 0) return [];
+	return renderStatuslineItems({ ctx, pi: deps.pi, footerData, theme, width });
 }
 
-// --- Info panel ---
-
-function buildInfoLines(
+function buildCanvasLines(
 	width: number,
-	config: RenderConfig,
-	ctxRef: any,
-	pi: any,
+	rows: number,
+	deps: WidgetDeps,
 	theme: any,
+	config: RenderConfig,
 ): string[] {
-	const lines: string[] = [];
-	if (!ctxRef) return lines;
-
-	const model = ctxRef.model;
-	let modelStr = model?.name ?? "no model";
-	const thinkingLevel = pi.getThinkingLevel?.() ?? "high";
-	if (model?.reasoning) {
-		modelStr += ` • ${thinkingLevel}`;
-	}
-	lines.push(theme.bold(modelStr));
-
-	const usage = ctxRef.getContextUsage?.();
-	if (usage) {
-		const pct = usage.percent !== null ? `${usage.percent.toFixed(1)}%` : "?";
-		const tokens = usage.tokens !== null ? formatTokens(usage.tokens) : "?";
-		const window = formatTokens(usage.contextWindow);
-		lines.push(`Context: ${tokens}/${window} (${pct})`);
-	}
-
-	let totalInput = 0;
-	let totalOutput = 0;
-	let totalCost = 0;
-	try {
-		for (const entry of ctxRef.sessionManager.getEntries()) {
-			if (entry.type === "message" && entry.message.role === "assistant") {
-				totalInput += entry.message.usage?.input ?? 0;
-				totalOutput += entry.message.usage?.output ?? 0;
-				totalCost += entry.message.usage?.cost?.total ?? 0;
-			}
-		}
-	} catch {
-		/* ignore if not available */
-	}
-
-	lines.push(`↑${formatTokens(totalInput)} ↓${formatTokens(totalOutput)}`);
-
-	lines.push(`$${totalCost.toFixed(3)}`);
-
-	const infoWidth = width - config.size - 5;
-	return lines.map((l) => {
-		if (visibleWidth(l) > infoWidth) return truncateToWidth(l, infoWidth, "…");
-		return l;
+	return layoutFlexTextItems(buildCanvasItems(width, deps, theme), {
+		width,
+		rows,
+		ellipsis: theme.fg("dim", config.textEllipsis),
 	});
 }
 
@@ -83,7 +46,7 @@ function renderKittyFrame(
 	borderColor: (s: string) => string,
 ): string[] {
 	const sep = borderColor("│");
-	const leftMargin = " ";
+	const leftMargin = "";
 	const avatarPad = " ".repeat(config.size);
 	const avatarSkip = `\x1b[${config.size}C`;
 	const useSkip = frame.padMode === "skip";
@@ -92,9 +55,9 @@ function renderKittyFrame(
 	for (let i = 0; i < frame.rows; i++) {
 		if (i === 0) {
 			const pad = useSkip ? avatarSkip : avatarPad;
-			lines.push(leftMargin + frame.sequence + `${pad} ${sep} ${infoLines[i] ?? ""}`);
+			lines.push(leftMargin + frame.sequence + `${pad}${sep}${infoLines[i] ?? ""}`);
 		} else {
-			lines.push(`${leftMargin}${avatarPad} ${sep} ${infoLines[i] ?? ""}`);
+			lines.push(`${leftMargin}${avatarPad}${sep}${infoLines[i] ?? ""}`);
 		}
 	}
 
@@ -113,11 +76,11 @@ function renderPlaceholderFrame(
 	borderColor: (s: string) => string,
 ): string[] {
 	const sep = borderColor("│");
-	const leftMargin = " ";
+	const leftMargin = "";
 	const lines: string[] = [];
 
 	for (let i = 0; i < frame.rows; i++) {
-		lines.push(`${leftMargin}${frame.lines[i] ?? ""} ${sep} ${infoLines[i] ?? ""}`);
+		lines.push(`${leftMargin}${frame.lines[i] ?? ""}${sep}${infoLines[i] ?? ""}`);
 	}
 
 	return lines;
@@ -131,6 +94,8 @@ export interface WidgetDeps {
 	pi: any;
 	getCtxRef: () => any;
 	getCurrentEmoteSet: () => string;
+	getFooterData: () => any;
+	placement: EmoteWidgetPlacement;
 }
 
 function resolveAvatarSize(width: number, sizeConfig: SizeConfig): number | null {
@@ -156,7 +121,12 @@ export function createWidgetFactory(deps: WidgetDeps) {
 				if (width < config.hideBelow) return [];
 
 				const avatarSize = resolveAvatarSize(width, config.size);
-				if (avatarSize === null) return [];
+				if (avatarSize === null) {
+					activeAvatarSize = null;
+					return buildCanvasItems(width, deps, theme).map((line) =>
+						truncateToWidth(line, width, theme.fg("dim", config.textEllipsis)),
+					);
+				}
 				if (avatarSize !== activeAvatarSize) {
 					activeAvatarSize = avatarSize;
 					animator.setRenderSize(avatarSize);
@@ -176,18 +146,20 @@ export function createWidgetFactory(deps: WidgetDeps) {
 					(theme as any).getThinkingBorderColor?.(thinkingLevel) ??
 					((s: string) => theme.fg("border", s));
 				const border = borderColor("─".repeat(width));
-				const infoLines = buildInfoLines(width, renderConfig, deps.getCtxRef(), deps.pi, theme);
+				const infoLines = buildCanvasLines(
+					width - renderConfig.size - 1,
+					frame.rows,
+					deps,
+					theme,
+					renderConfig,
+				);
 
-				const lines: string[] = [];
-				lines.push(border);
+				const contentLines =
+					frame.kind === "image"
+						? renderKittyFrame(frame, width, renderConfig, infoLines, borderColor)
+						: renderPlaceholderFrame(frame, width, renderConfig, infoLines, borderColor);
 
-				if (frame.kind === "image") {
-					lines.push(...renderKittyFrame(frame, width, renderConfig, infoLines, borderColor));
-				} else {
-					lines.push(...renderPlaceholderFrame(frame, width, renderConfig, infoLines, borderColor));
-				}
-
-				return lines;
+				return deps.placement === "belowEditor" ? contentLines : [...contentLines, border];
 			},
 			invalidate() {},
 			dispose() {

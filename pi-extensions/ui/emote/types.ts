@@ -21,6 +21,7 @@ export interface Config {
 	blinkInterval: [number, number];
 	talkTickMs: number;
 	cycleMs: number;
+	textEllipsis: string;
 	emotes: EmoteMapping[];
 	terminals: TerminalMapping[];
 }

@@ -11,8 +11,9 @@ import { KittyRenderer } from "./render_kitty.js";
 import { TmuxKittyRenderer } from "./render_tmux_kitty.js";
 import { TmuxKittyUnicodeRenderer } from "./render_tmux_kitty_unicode.js";
 import { Animator } from "./animator.js";
-import { createWidgetFactory } from "./widget.js";
+import { createWidgetFactory, type EmoteWidgetPlacement } from "./widget.js";
 import { resolveRenderer } from "./terminal.js";
+import { buildEmoteGenPrompt } from "./emote-gen-prompt.js";
 
 function toolNameToState(toolName: string): EmoteState {
 	switch (toolName) {
@@ -52,11 +53,26 @@ const DEBUG_EMOTE_FLAG = "debug-emote";
 
 export default function (pi: ExtensionAPI) {
 	const extDir = dirname(fileURLToPath(import.meta.url));
+	const widgetPlacement: EmoteWidgetPlacement = "belowEditor";
 
 	pi.registerFlag(DEBUG_EMOTE_FLAG, {
 		description: "Write pi-emote debug logs to pi-extensions/ui/emote/debug.log",
 		type: "boolean",
 		default: false,
+	});
+
+	pi.registerCommand("emote-gen-prompt", {
+		description: "Generate temporary image prompts for a Pi emote set",
+		handler: async (args, ctx) => {
+			const prompt = buildEmoteGenPrompt(args);
+			if (!ctx.isIdle()) {
+				pi.sendUserMessage(prompt, { deliverAs: "followUp" });
+				if (ctx.hasUI) ctx.ui.notify("Queued emote prompt generation as follow-up", "info");
+				return;
+			}
+
+			await pi.sendUserMessage(prompt);
+		},
 	});
 
 	let cwd = process.cwd();
@@ -68,6 +84,7 @@ export default function (pi: ExtensionAPI) {
 	// Emote set state
 	let currentEmoteSet = "default";
 	let ctxRef: any = null;
+	let footerDataRef: any = null;
 	let widgetActive = false;
 	let lastResolved = resolveRenderer(config.terminals, userConfiguredTerminals);
 	let renderer = createRendererFromResolved(lastResolved, getInitialSize(config.size));
@@ -140,6 +157,19 @@ export default function (pi: ExtensionAPI) {
 		);
 		loadEmoteSet(setName);
 
+		// MVP: move the footer renderer into the emote widget canvas and hide the real footer.
+		ctx.ui.setFooter((tui, _theme, footerData) => {
+			footerDataRef = footerData;
+			const unsubscribe = footerData.onBranchChange(() => tui.requestRender());
+			return {
+				dispose: unsubscribe,
+				invalidate() {},
+				render() {
+					return [];
+				},
+			};
+		});
+
 		// Create widget
 		ctx.ui.setWidget(
 			"emote",
@@ -149,8 +179,10 @@ export default function (pi: ExtensionAPI) {
 				pi,
 				getCtxRef: () => ctxRef,
 				getCurrentEmoteSet: () => currentEmoteSet,
+				getFooterData: () => footerDataRef,
+				placement: widgetPlacement,
 			}),
-			{ placement: "aboveEditor" },
+			{ placement: widgetPlacement },
 		);
 
 		widgetActive = true;
@@ -165,7 +197,9 @@ export default function (pi: ExtensionAPI) {
 			widgetActive = false;
 		}
 		animator.setTui(null);
+		ctx.ui.setFooter(undefined);
 		ctxRef = null;
+		footerDataRef = null;
 	});
 
 	pi.on("model_select", async (event) => {

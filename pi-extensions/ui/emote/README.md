@@ -30,6 +30,8 @@ Config defaults live in [`config.json`](./config.json). Override globally or per
 - `~/.pi/agent/extensions/pi-emote/config.json`
 - `.pi/extensions/pi-emote/config.json`
 
+Text beside the avatar is laid out as flex items. Each item starts on its own line; when the avatar has fewer rows than items, bottom items move upward and share a line with whitespace between them. If a shared line is too narrow, items are truncated with `textEllipsis` (default `$`; set it to `...`, a Nerd Font glyph, etc.).
+
 ## Debug
 
 Run Pi with `--debug-emote` or set `"debug": true` in config. Logs are written to `pi-extensions/ui/emote/debug.log`.
@@ -49,6 +51,18 @@ Model-to-set mapping uses glob patterns in config:
 ```
 
 Custom sets can be placed at `.pi/extensions/pi-emote/emotes/<name>/` or `~/.pi/agent/extensions/pi-emote/emotes/<name>/`.
+
+## `/emote-gen-prompt <guidance>`
+
+Sends the current model a prompt-template task for generating temporary image-generation prompt files matching the bundled emote style. The guidance changes the character design while preserving the 128x128 retro handheld pixel-art constraints.
+
+Example:
+
+```text
+/emote-gen-prompt a pikachu-like creature with large expressive eyes and green skin
+```
+
+The model is instructed to write markdown prompts under `tmp/emote-gen/default/` for every bundled frame and list the created prompt files. It does not generate images directly.
 
 ## License
 
