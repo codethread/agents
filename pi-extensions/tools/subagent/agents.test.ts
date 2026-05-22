@@ -315,18 +315,18 @@ describe("parseAgentFlagCliOverrides", () => {
 });
 
 describe("getAgentActiveTools", () => {
-	it("treats the inherited tool list as the exact active set across built-in and extension tools", () => {
+	it("treats the inherited tool list as the exact active set across built-in and custom extension tools", () => {
 		expect(
 			getAgentActiveTools(
-				["read", "questionnaire"],
+				["read", "custom-tool"],
 				[
 					{ name: "read", sourceInfo: { source: "builtin" } },
 					{ name: "bash", sourceInfo: { source: "builtin" } },
-					{ name: "questionnaire", sourceInfo: { source: "/repo/questionnaire.ts" } },
+					{ name: "custom-tool", sourceInfo: { source: "/repo/custom-tool.ts" } },
 					{ name: "subagent", sourceInfo: { source: "/repo/subagent.ts" } },
 				],
 			),
-		).toEqual(["read", "questionnaire"]);
+		).toEqual(["read", "custom-tool"]);
 	});
 
 	it("filters out requested tools that are not actually available in the runtime", () => {
@@ -573,7 +573,7 @@ describe("discoverAgents", () => {
 		writeAgent(userAgentsDir, "gamma.md", {
 			name: "gamma",
 			description: "User-only agent",
-			tools: "Glob, Questionnaire, Subagent",
+			tools: "Glob, Custom-Tool, Subagent",
 		});
 		const projectAgentPath = writeAgent(projectAgentsDir, "shared.md", {
 			name: "shared",
@@ -608,7 +608,7 @@ describe("discoverAgents", () => {
 		expect(byName.get("gamma")).toMatchObject({
 			source: "user",
 			hidden: false,
-			tools: ["find", "questionnaire", "subagent"],
+			tools: ["find", "custom-tool", "subagent"],
 		});
 		expect(byName.get("shared")).toMatchObject({
 			source: "project",

@@ -44,7 +44,6 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 
 ## Presentation and UX
 
-| Spec                                                             | Purpose                                                                                                                                                       | Code                           |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| [questionnaire--interaction.md](./questionnaire--interaction.md) | Defines the questionnaire tool as an external-editor-backed markdown form, including question normalization, validation retries, parsing, and result display. | `pi-extensions/questionnaire/` |
-| [session--tldr-summary.md](./session--tldr-summary.md)           | Defines `/tldr` session summarization, transcript extraction, small-model selection, debug flags, and hidden-from-agent summary presentation.                 | `pi-extensions/ui/tldr/`       |
+| Spec                                                   | Purpose                                                                                                                                       | Code                     |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| [session--tldr-summary.md](./session--tldr-summary.md) | Defines `/tldr` session summarization, transcript extraction, small-model selection, debug flags, and hidden-from-agent summary presentation. | `pi-extensions/ui/tldr/` |

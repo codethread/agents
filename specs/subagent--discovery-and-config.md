@@ -67,7 +67,7 @@ The subagent extension needs a stable way to find delegation targets, normalize 
   - **Rationale:** `readJsonFile`, directory reads, and file reads are wrapped defensively, but `parseFrontmatter(...)` and `frontmatter.tools?.split(",")` are not guarded per file. In practice, unreadable files are skipped, while malformed frontmatter or unexpected `tools` types can still abort discovery.
 
 - **Decision:** Agent `tools` is an exact allowlist over the full active tool namespace, not just built-ins.
-  - **Rationale:** Built-in and extension tools must obey the same least-privilege contract. If an agent file does not name `subagent`, `questionnaire`, or any other extension tool, direct `--agent` mode and delegated child runs must not quietly keep that tool active.
+  - **Rationale:** Built-in and extension tools must obey the same least-privilege contract. If an agent file does not name `subagent` or any other extension tool, direct `--agent` mode and delegated child runs must not quietly keep that tool active.
 
 - **Decision:** Tool normalization is only lossy for unsupported Claude-only aliases.
   - **Rationale:** Known Claude aliases should map to Pi equivalents, unsupported Claude tools such as `task`, `websearch`, `webfetch`, and `skill` should be dropped, and all other tool names should be preserved so extension-defined tools remain configurable from agent frontmatter.
@@ -256,7 +256,7 @@ Discovery normalizes tool names as follows:
 - canonical Pi built-ins stay as-is
 - known Claude aliases such as `glob` and `multiedit` map to their Pi equivalents
 - unsupported Claude-only tools such as `task`, `websearch`, `webfetch`, and `skill` are dropped
-- any other tool name is preserved (lowercased) so extension tools like `subagent` or `questionnaire` remain expressible in agent frontmatter
+- any other tool name is preserved (lowercased) so extension tools like `subagent` remain expressible in agent frontmatter
 - omitted or blank `tools` frontmatter resolves to an empty allowlist
 
 Bundled agents in this repo demonstrate the file format discovery expects:
