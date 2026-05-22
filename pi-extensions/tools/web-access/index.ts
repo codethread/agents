@@ -110,9 +110,11 @@ function formatSearchResults(results: SearchResult[]): string {
 
 function mapExaResults(response: ExaSearchResponse): SearchResult[] {
 	return (response.results ?? [])
-		.filter((result): result is NonNullable<ExaSearchResponse["results"]>[number] & { url: string } => {
-			return typeof result.url === "string" && result.url.trim().length > 0;
-		})
+		.filter(
+			(result): result is NonNullable<ExaSearchResponse["results"]>[number] & { url: string } => {
+				return typeof result.url === "string" && result.url.trim().length > 0;
+			},
+		)
 		.map((result, index) => ({
 			title: result.title?.trim() || `Result ${index + 1}`,
 			url: result.url,
@@ -155,7 +157,9 @@ function assertHttpUrl(rawUrl: string): URL {
 async function readResponseText(response: Response): Promise<string> {
 	const contentLength = Number(response.headers.get("content-length") ?? 0);
 	if (contentLength > MAX_FETCH_BYTES) {
-		throw new Error(`Response too large (${contentLength} bytes). Limit: ${MAX_FETCH_BYTES} bytes.`);
+		throw new Error(
+			`Response too large (${contentLength} bytes). Limit: ${MAX_FETCH_BYTES} bytes.`,
+		);
 	}
 	return response.text();
 }
@@ -185,7 +189,11 @@ async function fetchContent(rawUrl: string, signal?: AbortSignal): Promise<Fetch
 
 	const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() || "text/plain";
 	const body = await readResponseText(response);
-	if (contentType === "text/html" || body.trimStart().toLowerCase().startsWith("<!doctype html") || body.includes("<html")) {
+	if (
+		contentType === "text/html" ||
+		body.trimStart().toLowerCase().startsWith("<!doctype html") ||
+		body.includes("<html")
+	) {
 		return htmlToMarkdown(body, url.toString());
 	}
 
@@ -236,8 +244,8 @@ export default function webAccess(pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "web_search",
 		label: "Web Search",
-		description: "Search the web using Exa. Requires EXA_API_KEY. No fallback providers.",
-		promptSnippet: "Search the web with Exa",
+		description: "Search the web",
+		promptSnippet: "Search the web",
 		promptGuidelines: [
 			"Use web_search for current web results when local files are insufficient.",
 			"Use fetch_content with result URLs when full page content is needed.",
@@ -269,7 +277,7 @@ export default function webAccess(pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "fetch_content",
 		label: "Fetch Content",
-		description: "Fetch a URL and return readable markdown/text. HTTP(S) only; no GitHub, PDF, or video special handling.",
+		description: "Fetch a URL and return readable markdown/text",
 		promptSnippet: "Fetch readable content from a web URL",
 		parameters: FetchContentParams,
 		async execute(_toolCallId, params, signal) {
@@ -293,7 +301,9 @@ export default function webAccess(pi: ExtensionAPI) {
 			const lines = text.split("\n");
 			const shown = options.expanded ? lines : lines.slice(0, 8);
 			const isError = text.startsWith("Error: ");
-			let rendered = shown.map((line) => theme.fg(isError ? "warning" : "toolOutput", line)).join("\n");
+			let rendered = shown
+				.map((line) => theme.fg(isError ? "warning" : "toolOutput", line))
+				.join("\n");
 			if (!options.expanded && lines.length > shown.length) {
 				rendered += `\n${theme.fg("muted", `... ${lines.length - shown.length} more lines (Ctrl+o to expand)`)}`;
 			}
