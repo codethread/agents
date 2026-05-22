@@ -51,11 +51,11 @@ const baseInput: OwnedPromptInput = {
 describe("owned-system-prompt renderers", () => {
 	it("renders selected tools in Pi-resolved order", () => {
 		expect(renderOwnedTools(baseInput)).toMatchInlineSnapshot(`
-			"- read: Read file contents
-			- bash: Execute a bash command
-			- edit: Edit files by exact replacement
-			- write: Create or overwrite files
-			- custom_tool: Do custom project work"
+			"- \`read\`: Read file contents
+			- \`bash\`: Execute a bash command
+			- \`edit\`: Edit files by exact replacement
+			- \`write\`: Create or overwrite files
+			- \`custom_tool\`: Do custom project work"
 		`);
 	});
 
@@ -74,19 +74,24 @@ describe("owned-system-prompt renderers", () => {
 
 	it("renders context files as project context", () => {
 		expect(renderOwnedContextFiles(baseInput.contextFiles)).toMatchInlineSnapshot(`
-			"# Project Context
-
-			## /repo/AGENTS.md
+			"<system-reminder type="project-context">
+			<context-file path="/repo/AGENTS.md">
 
 			# AGENTS.md
 
-			- Run pnpm check before final handoff."
+			- Run pnpm check before final handoff.
+
+			</context-file>
+			</system-reminder>"
 		`);
 	});
 
 	it("renders only model-visible skills", () => {
 		expect(renderOwnedSkills(baseInput.skills)).toMatchInlineSnapshot(`
-			"The following skills provide specialized instructions for specific tasks.
+			"## Skills
+
+			Load these task-specific instructions only when the user request matches a skill description.
+
 			Use the read tool to load a skill's file when the task matches its description.
 			When a skill file references a relative path, resolve it against the skill directory (parent of SKILL.md / dirname of the path) and use that absolute path in tool commands.
 

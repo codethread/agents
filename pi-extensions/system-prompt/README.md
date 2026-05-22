@@ -4,8 +4,9 @@
 
 This package loads a `system-prompt` extension entrypoint from `pi-extensions/system-prompt/index.ts`. That root file owns all Pi flags, commands, and event hooks for two prompt-layer behaviors:
 
-1. **Owned prompt replacement** — replaces Pi's generated prompt during `before_agent_start` using structured `systemPromptOptions` for tools, guidelines, skills, context files, append text, date, and cwd.
-2. **Dynamic template injection** — renders global `agent.njk` and nearest project `.pi/agent.njk` templates into `<system-reminder type="rules">` / `<system-reminder type="project-rules">` before passing them to the owned prompt builder.
+1. **Owned prompt replacement** — replaces Pi's generated prompt during `before_agent_start` using structured `systemPromptOptions` for identity, tool metadata, skills, context files, append text, date, and cwd.
+2. **Tool-oriented rendering** — renders tool metadata tool-by-tool, with each tool's guidelines under its own entry and the subagent catalog nested under the `subagent` tool.
+3. **Dynamic template injection** — renders global `agent.njk` and nearest project `.pi/agent.njk` templates into `<system-reminder type="rules">` / `<system-reminder type="project-rules">` before passing them to the owned prompt builder.
 
 ## Debug surfaces
 

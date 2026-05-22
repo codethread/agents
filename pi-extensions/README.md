@@ -36,7 +36,7 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 
 | Extension                                    | Summary                                                                    |
 | -------------------------------------------- | -------------------------------------------------------------------------- |
-| [`system-prompt`](./system-prompt/README.md) | Prompt-layer extension: owns the base scaffold and injects rendered rules. |
+| [`system-prompt`](./system-prompt/README.md) | Prompt-layer extension: replaces Pi's generated prompt with owned structure and rendered rules. |
 
 ## Messaging
 

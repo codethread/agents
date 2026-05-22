@@ -4,7 +4,7 @@
 
 Provides two things: the `subagent` tool for delegating work from within a session, and `--agent <name>` for adopting a single-agent config directly at startup.
 
-Discovered agents and swarms are injected into the system prompt as `<system-reminder type="available-subagents">` so the parent agent can choose among them. Agents or swarms marked `hidden: true` are callable by name but omitted from that inventory. Discovery is evaluated on demand, so edits to agent markdown or swarm definitions are picked up on the next call. Child processes are tagged `PI_SUBAGENT=1` so extensions can reshape behavior in delegated runs.
+Discovered agents and swarms are injected into the system prompt as an `<available-subagents>` catalog nested under the `subagent` tool entry, so the parent agent can choose among them where tool guidance is defined. Agents or swarms marked `hidden: true` are callable by name but omitted from that inventory. Discovery is evaluated on demand, so edits to agent markdown or swarm definitions are picked up on the next call. Child processes are tagged `PI_SUBAGENT=1` so extensions can reshape behavior in delegated runs.
 
 Agents are discovered from `agents/` directories, while swarms are discovered from `swarms/` directories; these are separate discovery roots in the same working tree.
 

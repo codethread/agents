@@ -10,13 +10,14 @@
 `../index.ts` replaces `event.systemPrompt` during `before_agent_start` with output from this builder. It uses `event.systemPromptOptions` instead of scraping Pi's generated prompt, so the package controls ordering and formatting for:
 
 - identity / custom prompt text
-- project context files
-- model-visible skills
-- `--append-system-prompt` text
-- current date and working directory
 - selected tools from Pi's resolved tool set
-- tool snippets and prompt guidelines exposed by Pi core/custom tools
+- tool snippets and prompt guidelines exposed by Pi core/custom tools, grouped by tool
+- subagent inventory nested under the `subagent` tool entry
 - dynamic global/project rule template output
+- project context files wrapped as `<system-reminder type="project-context">`
+- model-visible skills
+- current date and working directory wrapped as `<system-reminder type="session-metadata">`
+- `--append-system-prompt` text
 
 ## Dependency injection
 

@@ -60,7 +60,7 @@ Before extension hooks run, Pi core establishes `event.systemPrompt` from its ba
 
 ### 3.2 Owned Prompt Replacement Phase
 
-`system-prompt` replaces `event.systemPrompt` during `before_agent_start` with a package-owned rendering. The builder owns final ordering for identity, context files, skills, append text, date, cwd, harness/tool guidance, and dynamic rule output.
+`system-prompt` replaces `event.systemPrompt` during `before_agent_start` with a package-owned rendering. The builder owns final ordering for identity, harness/tool guidance, dynamic rule output, project context, skills, session metadata, and append text.
 
 The identity defaults to:
 
@@ -70,7 +70,7 @@ You are an expert coding assistant operating inside pi, a coding agent harness.
 
 If Pi supplies `systemPromptOptions.customPrompt`, the builder uses that text as the identity section instead.
 
-Tool rendering uses `systemPromptOptions.selectedTools` and `systemPromptOptions.toolSnippets`, including custom extension tools when Pi exposes snippets for them. Guideline rendering uses `systemPromptOptions.promptGuidelines` plus package-owned global response guidelines.
+Tool rendering uses `systemPromptOptions.selectedTools` and `systemPromptOptions.toolSnippets`, including custom extension tools when Pi exposes snippets for them. Guidelines are rendered under the matching tool when possible; package-owned global response guidelines remain in a short general-guidelines list. The `subagent` tool is rendered last so its nested available-agent inventory stays adjacent to the tool that uses it.
 
 ### 3.3 Dynamic Template Phase
 
@@ -107,9 +107,9 @@ Template output is trimmed aggressively so conditional whitespace does not bloat
 
 This is intentionally outside `system-prompt`: the project tree is volatile navigation context, not a stable operating instruction.
 
-### 3.5 Later Prompt Contributors
+### 3.5 Subagent Prompt Contribution
 
-Other extensions can still append to the replacement prompt after `system-prompt` based on package load order. The main example is `subagent`, which appends available-agent inventory and selected-agent prompt context.
+The `subagent` extension contributes the visible agent/swarm catalog during `before_agent_start`. Because `system-prompt` loads first, `subagent` inserts that catalog into the owned operating harness under the final `subagent` tool entry. A selected direct-agent prompt from `--agent <name>` still appends as `<system-reminder type="selected-agent-prompt">` for recency.
 
 Tool metadata registered through `promptSnippet` / `promptGuidelines` is surfaced through Pi's `systemPromptOptions` and rendered by the owned builder.
 
@@ -132,5 +132,5 @@ These surfaces inspect the system prompt only. Custom-message context such as pr
 ## 6. Open Questions
 
 - Should prompt-phase composition gain a trace view showing intermediate prompt sections?
-- Should Pi expose built-in/custom `promptSnippet` and `promptGuidelines` so ownership no longer vendors tool metadata?
+- Should Pi expose prompt metadata grouped by tool so extensions do not need to reconstruct guideline ownership from registration order?
 - Should prompt-cache-aware guidance for choosing system prompt vs custom/user message become its own package convention?

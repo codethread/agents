@@ -21,6 +21,7 @@ vi.mock("../components/debug-message/index.js", () => ({
 vi.mock("./owned-system-prompt/index.js", () => ({
 	DEFAULT_OWNED_IDENTITY:
 		"You are an expert coding assistant operating inside pi, a coding agent harness.",
+	buildOwnedSystemPrompt: mocks.buildOwnedPrompt,
 	createOwnedPromptBuilder: mocks.createOwnedPromptBuilder,
 }));
 
@@ -51,6 +52,7 @@ describe("system-prompt extension", () => {
 			on,
 			registerFlag,
 			registerCommand,
+			registerTool: vi.fn(),
 			getFlag,
 			getActiveTools,
 			sendUserMessage,
@@ -90,6 +92,7 @@ describe("system-prompt extension", () => {
 			},
 			registerFlag: vi.fn(),
 			registerCommand: vi.fn(),
+			registerTool: vi.fn(),
 			getFlag: vi.fn((name: string) => name === "debug-prompt"),
 			getActiveTools: vi.fn(() => ["read"]),
 			sendUserMessage,
@@ -115,6 +118,7 @@ describe("system-prompt extension", () => {
 			},
 			registerFlag: vi.fn(),
 			registerCommand: vi.fn(),
+			registerTool: vi.fn(),
 			getFlag: vi.fn(() => false),
 			getActiveTools,
 			sendUserMessage: vi.fn(),
@@ -125,6 +129,7 @@ describe("system-prompt extension", () => {
 			{
 				systemPrompt: "Base prompt",
 				systemPromptOptions: {
+					cwd: "/repo",
 					selectedTools: ["bash", "edit"],
 					toolSnippets: { bash: "Run shell commands", edit: "Edit files" },
 					promptGuidelines: ["Use edit for precise changes."],
@@ -175,6 +180,7 @@ describe("system-prompt extension", () => {
 			on: vi.fn(),
 			registerFlag: vi.fn(),
 			registerCommand,
+			registerTool: vi.fn(),
 			getFlag: vi.fn(() => false),
 			getActiveTools: vi.fn(() => ["read"]),
 			sendUserMessage: vi.fn(),
@@ -202,6 +208,7 @@ describe("system-prompt extension", () => {
 			},
 			registerFlag: vi.fn(),
 			registerCommand,
+			registerTool: vi.fn(),
 			getFlag: vi.fn(() => false),
 			getActiveTools: vi.fn(() => ["read"]),
 			sendUserMessage,

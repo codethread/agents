@@ -86,7 +86,7 @@ Subagent orchestration lives in `pi-extensions/tools/subagent/` and sits directl
 `export default function (pi: ExtensionAPI)` registers four entry points:
 
 1. `--agent <name>` CLI flag — validates one requested discovered single-agent name at session start and applies inherited runtime settings from that agent file unless explicit CLI flags override those fields.
-2. `before_agent_start` hook — discovers targets, appends a `<system-reminder type="available-subagents">` block containing an inner XML `<available-subagents>` list of visible agent/swarm names/descriptions to the parent system prompt, and when `--agent` is set appends the selected agent prompt body inside `<system-reminder type="selected-agent-prompt">` too.
+2. `before_agent_start` hook — discovers targets, inserts an `<available-subagents>` XML catalog of visible agent/swarm names/descriptions under the parent prompt's `subagent` tool guidance, and when `--agent` is set appends the selected agent prompt body inside `<system-reminder type="selected-agent-prompt">` too.
 3. `debug-agents` command — reports the effective merged target list plus separate user/project source sections.
 4. `subagent` tool — validates parameters, resolves the requested name through discovery, executes one delegated target, and renders the result in the Pi TUI.
 
@@ -405,7 +405,7 @@ If a requested agent name is missing, or if a still-inherited agent model cannot
 
 For each turn, `before_agent_start` then:
 
-- appends the normal `<system-reminder type="available-subagents">` wrapper containing the `<available-subagents>` XML catalog for visible targets not marked `hidden: true`
+- inserts the `<available-subagents>` XML catalog for visible targets not marked `hidden: true` under the parent prompt's `subagent` tool guidance
 - resolves the current selected single agent by name from a fresh discovery snapshot
 - appends that agent's markdown body inside `<system-reminder type="selected-agent-prompt">` to the parent system prompt
 

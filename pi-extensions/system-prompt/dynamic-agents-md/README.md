@@ -5,7 +5,7 @@
 > [!NOTE]
 > This behavior now ships through the merged [`system-prompt`](../README.md) extension entrypoint. Pi event wiring lives in `../index.ts`; this module owns template rendering and prompt-debug utilities.
 
-Searches upward from `cwd` for a template file and appends the rendered result to the system prompt. Each rendered section is wrapped in its own `<system-reminder type="...">` block so prompt prose stays visually and semantically separated from neighboring injections.
+Searches upward from `cwd` for a template file and returns rendered operating-rule sections to the owned system prompt builder. Each rendered section is wrapped in its own `<system-reminder type="...">` block so prompt prose stays visually and semantically separated from neighboring sections.
 
 **Template locations (checked in order):**
 

@@ -115,7 +115,7 @@ describe("formatAgentsForPrompt", () => {
 		expect(formatAgentsForPrompt([])).toBe("");
 	});
 
-	it("formats visible subagents inside a system_reminder wrapper with escaped names and descriptions", () => {
+	it("formats visible subagents as an indented tool catalog with escaped names and descriptions", () => {
 		const agents: AgentConfig[] = [
 			{
 				name: "alpha",
@@ -139,18 +139,14 @@ describe("formatAgentsForPrompt", () => {
 
 		expect(formatAgentsForPrompt(agents)).toBe(
 			[
-				"",
-				"",
-				'<system-reminder type="available-subagents">',
-				"These are the available subagents with their intended use.",
-				"",
-				"<available-subagents>",
-				"  <subagent>",
-				"    <name>alpha</name>",
-				"    <description>General-purpose helper</description>",
-				"  </subagent>",
-				"</available-subagents>",
-				"</system-reminder>",
+				"  These are the available subagents with their intended use.",
+				"  ",
+				"  <available-subagents>",
+				"    <subagent>",
+				"      <name>alpha</name>",
+				"      <description>General-purpose helper</description>",
+				"    </subagent>",
+				"  </available-subagents>",
 			].join("\n"),
 		);
 	});
@@ -188,22 +184,18 @@ describe("formatAgentsForPrompt", () => {
 
 		expect(formatAgentsForPrompt(agents, swarms)).toBe(
 			[
-				"",
-				"",
-				'<system-reminder type="available-subagents">',
-				"These are the available subagents with their intended use.",
-				"",
-				"<available-subagents>",
-				"  <subagent>",
-				"    <name>alpha</name>",
-				"    <description>General-purpose helper</description>",
-				"  </subagent>",
-				"  <subagent>",
-				"    <name>panel &amp; review</name>",
-				"    <description>&lt;team&gt; checks</description>",
-				"  </subagent>",
-				"</available-subagents>",
-				"</system-reminder>",
+				"  These are the available subagents with their intended use.",
+				"  ",
+				"  <available-subagents>",
+				"    <subagent>",
+				"      <name>alpha</name>",
+				"      <description>General-purpose helper</description>",
+				"    </subagent>",
+				"    <subagent>",
+				"      <name>panel &amp; review</name>",
+				"      <description>&lt;team&gt; checks</description>",
+				"    </subagent>",
+				"  </available-subagents>",
 			].join("\n"),
 		);
 	});

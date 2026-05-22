@@ -8,7 +8,7 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 
 | Spec                                                       | Purpose                                                                                                                                                                                  | Code                           |
 | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| [system-prompt--assembly.md](./system-prompt--assembly.md) | Defines package-owned system prompt assembly: scaffold ownership, dynamic template injection, debug surfaces, and the boundary between system-prompt context and custom-message context. | `pi-extensions/system-prompt/` |
+| [system-prompt--assembly.md](./system-prompt--assembly.md) | Defines package-owned system prompt assembly: full prompt replacement, dynamic template injection, debug surfaces, and the boundary between system-prompt context and custom-message context. | `pi-extensions/system-prompt/` |
 
 ## Reference READMEs
 
