@@ -32,7 +32,7 @@
 			"./pi-extensions/tools",
 			"./pi-extensions/ui",
 			"./pi-extensions/messaging",
-			"./pi-extensions/context-management/session-name/index.ts",
+			"./pi-extensions/cli",
 			"./pi-extensions/system-prompt/index.ts"
 		],
 		"prompts": [

@@ -22,13 +22,13 @@ Small index for the extensions shipped in this package. See each extension folde
 | [`emote`](./ui/emote/README.md)                             | Kitty-first animated avatar widget vendored from pi-emote.             |
 | [`theme-sync`](./ui/theme-sync/README.md)                   | Keep `rose-pine` selected while swapping Dawn/Moon from a sentinel.    |
 | [`timeline-timestamps`](./ui/timeline-timestamps/README.md) | Show recent tool-call timestamps in the footer.                        |
-| [`print-mode-exit`](./ui/print-mode-exit/README.md)         | Force stuck `pi -p` processes to exit after `agent_end`.               |
 
-## Context management
+## CLI
 
-| Extension                                                     | Summary                                                                                          |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| [`session-name`](./context-management/session-name/README.md) | Set Pi's session display name from `--name` so `/tree` and session selectors are easier to scan. |
+| Extension                                           | Summary                                                                                          |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [`print-mode-exit`](./cli/print-mode-exit/README.md) | Force stuck `pi -p` processes to exit after `agent_end`.                                         |
+| [`session-name`](./cli/session-name/README.md)       | Set Pi's session display name from `--name` so `/tree` and session selectors are easier to scan. |
 
 ## System prompt
 
