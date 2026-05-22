@@ -29,13 +29,12 @@ pi install git:github.com/<you>/agents
 Pi loads the package's extensions from `pi-extensions/`, prompts from `prompts/`, themes from `pi-themes/`, and skills from `skills/` through `package.json#pi`.
 The bundled agents are discovered by the `subagent` extension from `pi-agents/`, so they travel with the package too. Project-specific agents still load from the nearest `.pi/agents/` directory when you run Pi inside another repo.
 
-This package ships a merged `system-prompt` extension that:
+This package ships a `system-prompt` extension that:
 
 - owns the base prompt scaffold after custom `SYSTEM.md` setup
 - injects global/project `agent.njk` rules
-- appends a bounded project-structure snapshot
 
-It also ships a `pi-internals` tool that agents can call on demand to print Pi runtime/source/settings/enabled-extension paths.
+It also ships a `project-structure` messaging extension that sends a bounded project tree as model-visible custom message context, plus a `pi-internals` tool that agents can call on demand to print Pi runtime/source/settings/enabled-extension paths.
 
 To let the owned scaffold replace Pi's built-in base prompt, create `~/.pi/agent/SYSTEM.md` containing exactly:
 

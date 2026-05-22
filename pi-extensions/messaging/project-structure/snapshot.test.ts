@@ -73,7 +73,21 @@ describe("buildProjectStructurePrompt", () => {
 	it("shows the full tree when the repo has fewer than 200 files", async () => {
 		const exec = createExecMock({
 			fileCount: 199,
-			fullTree: "/repo\n|-- package.json\n`-- src\n",
+			fullTree: [
+				"/repo",
+				"|-- package.json",
+				"|-- README.md",
+				"|-- src",
+				"|   |-- index.ts",
+				"|   `-- features",
+				"|       |-- auth.ts",
+				"|       `-- billing",
+				"|           `-- invoice.ts",
+				"`-- test",
+				"    `-- fixtures",
+				"        `-- users.json",
+				"",
+			].join("\n"),
 		});
 
 		const prompt = await buildProjectStructurePrompt("/repo", exec);

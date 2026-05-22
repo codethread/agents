@@ -5,19 +5,12 @@ const mocks = vi.hoisted(() => {
 	const shouldAppendOwnedPrompt = vi.fn(() => true);
 	const renderDynamicAgentsPrompt = vi.fn(async () => "<dynamic />");
 	const showDebugMessage = vi.fn(async () => {});
-	const projectStructureController = {
-		reset: vi.fn(),
-		invalidate: vi.fn(),
-		prime: vi.fn(),
-		getPrompt: vi.fn(async () => "<structure />"),
-	};
 
 	return {
 		buildOwnedPromptAddon,
 		shouldAppendOwnedPrompt,
 		renderDynamicAgentsPrompt,
 		showDebugMessage,
-		projectStructureController,
 	};
 });
 
@@ -35,11 +28,6 @@ vi.mock("./dynamic-agents-md/index.js", () => ({
 	renderDynamicAgentsPrompt: mocks.renderDynamicAgentsPrompt,
 }));
 
-vi.mock("./project-structure-prompt/index.js", () => ({
-	INVALIDATING_TOOLS: new Set(["bash", "write"]),
-	createProjectStructurePromptController: vi.fn(() => mocks.projectStructureController),
-}));
-
 import systemPromptExtension from "./index.js";
 
 beforeEach(() => {
@@ -47,7 +35,6 @@ beforeEach(() => {
 	mocks.buildOwnedPromptAddon.mockReturnValue("<owned />");
 	mocks.shouldAppendOwnedPrompt.mockReturnValue(true);
 	mocks.renderDynamicAgentsPrompt.mockResolvedValue("<dynamic />");
-	mocks.projectStructureController.getPrompt.mockResolvedValue("<structure />");
 });
 
 describe("system-prompt extension", () => {
@@ -89,7 +76,6 @@ describe("system-prompt extension", () => {
 		expect(counts.get("session_start")).toBe(1);
 		expect(counts.get("before_agent_start")).toBe(1);
 		expect(counts.get("agent_start")).toBe(1);
-		expect(counts.get("tool_execution_end")).toBe(1);
 		expect(counts.has("input")).toBe(false);
 	});
 
@@ -112,10 +98,6 @@ describe("system-prompt extension", () => {
 
 		await handlers.get("session_start")?.({}, { cwd: "/repo", hasUI: true, ui: { notify } });
 
-		expect(mocks.projectStructureController.reset).toHaveBeenCalled();
-		expect(mocks.projectStructureController.prime).toHaveBeenCalledWith(
-			expect.objectContaining({ cwd: "/repo" }),
-		);
 		expect(sendUserMessage).toHaveBeenCalledWith("ping");
 		expect(notify).toHaveBeenCalledWith(
 			"Debug prompt mode: starting a ping turn to materialize the prompt.",
@@ -123,7 +105,7 @@ describe("system-prompt extension", () => {
 		);
 	});
 
-	it("composes owned, dynamic, and project-structure prompt sections in order", async () => {
+	it("composes owned and dynamic prompt sections in order", async () => {
 		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
 		const getActiveTools = vi.fn(() => ["write"]);
 
@@ -164,9 +146,8 @@ describe("system-prompt extension", () => {
 			}),
 			null,
 		);
-		expect(mocks.projectStructureController.getPrompt).toHaveBeenCalled();
 		expect(result).toEqual({
-			systemPrompt: "Base prompt\n\n<owned />\n\n<dynamic />\n\n<structure />",
+			systemPrompt: "Base prompt\n\n<owned />\n\n<dynamic />",
 		});
 	});
 
@@ -233,26 +214,5 @@ describe("system-prompt extension", () => {
 		expect(props).toBeDefined();
 		await props?.sendMarkdownToAgent();
 		expect(sendUserMessage).toHaveBeenCalledWith("Base\n\n<owned />");
-	});
-
-	it("invalidates the project structure cache after bash/write tool executions", async () => {
-		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
-
-		systemPromptExtension({
-			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
-				handlers.set(eventName, handler);
-			},
-			registerFlag: vi.fn(),
-			registerCommand: vi.fn(),
-			getFlag: vi.fn(() => false),
-			getActiveTools: vi.fn(() => ["read"]),
-			sendUserMessage: vi.fn(),
-			exec: vi.fn(),
-		} as any);
-
-		await handlers.get("tool_execution_end")?.({ toolName: "bash" }, {} as any);
-		await handlers.get("tool_execution_end")?.({ toolName: "read" }, {} as any);
-
-		expect(mocks.projectStructureController.invalidate).toHaveBeenCalledTimes(1);
 	});
 });

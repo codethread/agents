@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createTestSession, says, type TestSession, when } from "@gaodes/pi-test-harness";
+import projectStructureExtension from "../messaging/project-structure/index.js";
 import systemPromptExtension from "./index.js";
 
 const CUSTOM_SYSTEM_PROMPT =
@@ -37,13 +38,17 @@ function capturePromptsExtension(pi: any) {
 	pi.on("agent_start", (_event: unknown, ctx: any) => {
 		ctx.ui.notify(`SYSTEM_PROMPT:${ctx.getSystemPrompt()}`, "info");
 	});
+	pi.on("message_start", (event: any, ctx: any) => {
+		if (event.message?.role !== "custom") return;
+		ctx.ui.notify(`CUSTOM_MESSAGE:${event.message.customType}:${event.message.content}`, "info");
+	});
 }
 
 async function createSystemPromptSession(cwd: string): Promise<TestSession> {
 	t = await createTestSession({
 		cwd,
 		systemPrompt: CUSTOM_SYSTEM_PROMPT,
-		extensionFactories: [systemPromptExtension, capturePromptsExtension],
+		extensionFactories: [systemPromptExtension, projectStructureExtension, capturePromptsExtension],
 	});
 
 	const agent = (t.session as any).agent;
@@ -78,7 +83,7 @@ afterEach(() => {
 });
 
 describe("system-prompt harness integration", () => {
-	it("assembles owned scaffold, template sections, and project structure through the merged entrypoint", async () => {
+	it("assembles system-prompt sections and sends project structure as a message", async () => {
 		const cwd = makeTempDir();
 		const agentDir = makeTempDir();
 		process.env.PI_CODING_AGENT_DIR = agentDir;
@@ -103,8 +108,14 @@ describe("system-prompt harness integration", () => {
 		expect(systemPrompt).toContain(
 			'<system-reminder type="project-rules">\nUse issue labels in this repo.\n</system-reminder>',
 		);
-		expect(systemPrompt).toContain('<system-reminder type="project-structure">');
-		expect(systemPrompt).toContain("README.md");
-		expect(systemPrompt).toContain("src");
+		expect(systemPrompt).not.toContain('<system-reminder type="project-structure">');
+
+		const [projectStructureMessage] = getMessagesWithPrefix(
+			session,
+			"CUSTOM_MESSAGE:project-structure:",
+		);
+		expect(projectStructureMessage).toContain('<system-reminder type="project-structure">');
+		expect(projectStructureMessage).toContain("README.md");
+		expect(projectStructureMessage).toContain("src");
 	});
 });

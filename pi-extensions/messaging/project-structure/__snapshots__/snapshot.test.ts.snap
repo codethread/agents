@@ -9,7 +9,16 @@ Visible file count: 199
 \`\`\`text
 .
 |-- package.json
-\`-- src
+|-- README.md
+|-- src
+|   |-- index.ts
+|   \`-- features
+|       |-- auth.ts
+|       \`-- billing
+|           \`-- invoice.ts
+\`-- test
+    \`-- fixtures
+        \`-- users.json
 \`\`\`
 </system-reminder>"
 `;

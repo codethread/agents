@@ -6,10 +6,6 @@ import {
 	type DynamicAgentsTemplateVars,
 } from "./dynamic-agents-md/index.js";
 import { buildOwnedPromptAddon, shouldAppendOwnedPrompt } from "./owned-system-prompt/index.js";
-import {
-	createProjectStructurePromptController,
-	INVALIDATING_TOOLS,
-} from "./project-structure-prompt/index.js";
 
 const DEBUG_PROMPT_FLAG = "debug-prompt";
 
@@ -18,10 +14,6 @@ type BeforeAgentStartEvent = {
 	systemPromptOptions?: {
 		selectedTools?: string[];
 	};
-};
-
-type ToolExecutionEndEvent = {
-	toolName: string;
 };
 
 function trimOuterEmptyLines(text: string): string {
@@ -61,10 +53,6 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 	let lastMaterializedPrompt: string | null = null;
 	let waitForDebugPromptMaterialization: Promise<void> | null = null;
 	let resolveDebugPromptMaterialization: (() => void) | null = null;
-
-	const projectStructure = createProjectStructurePromptController((command, args, options) =>
-		pi.exec(command, args, options),
-	);
 
 	const queuePromptDebugTurn = async (
 		ctx: Pick<ExtensionContext, "hasUI" | "ui">,
@@ -119,14 +107,12 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
-		projectStructure.reset();
 		printPromptOnNextTurn = false;
 		debugPromptTriggered = false;
 		debugPromptOverrides = null;
 		lastMaterializedPrompt = null;
 		waitForDebugPromptMaterialization = null;
 		resolveDebugPromptMaterialization = null;
-		projectStructure.prime(ctx);
 
 		const wantsPromptDebug = pi.getFlag(DEBUG_PROMPT_FLAG) === true;
 		if (!wantsPromptDebug) return;
@@ -164,9 +150,6 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		);
 		systemPrompt = appendPromptSection(systemPrompt, dynamicPrompt);
 
-		const projectStructurePrompt = await projectStructure.getPrompt(ctx);
-		systemPrompt = appendPromptSection(systemPrompt, projectStructurePrompt);
-
 		if (systemPrompt === event.systemPrompt) return;
 		return { systemPrompt };
 	});
@@ -182,11 +165,5 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		waitForDebugPromptMaterialization = null;
 		process.stdout.write(`${prompt}\n`);
 		process.exit(0);
-	});
-
-	pi.on("tool_execution_end", async (event: ToolExecutionEndEvent) => {
-		if (INVALIDATING_TOOLS.has(event.toolName)) {
-			projectStructure.invalidate();
-		}
 	});
 }

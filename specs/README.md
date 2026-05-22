@@ -6,9 +6,9 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 
 ## Cross-Cutting Architecture
 
-| Spec                                                       | Purpose                                                                                                                                                                                                                                          | Code                                          |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
-| [system-prompt--assembly.md](./system-prompt--assembly.md) | Documents the full system prompt assembly pipeline: `before_agent_start` chaining, `systemPromptOptions` structured inputs, separate tool-metadata weaving, extension load-order constraints, and invariants for prompt-contributing extensions. | Cross-cutting; see individual extension specs |
+| Spec                                                       | Purpose                                                                                                                                                                                  | Code                           |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| [system-prompt--assembly.md](./system-prompt--assembly.md) | Defines package-owned system prompt assembly: scaffold ownership, dynamic template injection, debug surfaces, and the boundary between system-prompt context and custom-message context. | `pi-extensions/system-prompt/` |
 
 ## Reference READMEs
 
@@ -29,15 +29,3 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 | [subagent--dynamic-model-selection.md](./subagent--dynamic-model-selection.md) | Defines dynamic subagent model chains, environment-gated candidates, validation, retry/advance behavior, and metadata boundaries. | `pi-extensions/tools/subagent/`, `pi-agents/*.md`               |
 | [subagent--orchestration.md](./subagent--orchestration.md)                     | Defines subagent runtime execution: single-agent runs, swarm fan-out, persisted resume, streaming updates, and UI rendering.      | `pi-extensions/tools/subagent/`, `pi-extensions/ui/statusline/` |
 
-## Prompt Injection
-
-| Spec                                                                                           | Purpose                                                                                                                                                                                                                                   | Code                                                                               |
-| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| [system-prompt--dynamic-template-injection.md](./system-prompt--dynamic-template-injection.md) | Defines global/project `agent.njk` discovery, Nunjucks rendering from structured runtime vars, prompt injection, and prompt-debug surfaces (including JSON override debugging) for the merged `system-prompt` extension's template phase. | `pi-extensions/system-prompt/`, `pi-extensions/system-prompt/dynamic-agents-md/`   |
-| [system-prompt--ownership.md](./system-prompt--ownership.md)                                   | Defines how the merged `system-prompt` extension owns the base scaffold in `before_agent_start`, prefers Pi's structured selected-tool set, and preserves later prompt chaining.                                                          | `pi-extensions/system-prompt/`, `pi-extensions/system-prompt/owned-system-prompt/` |
-
-## Presentation and UX
-
-| Spec                                                   | Purpose                                                                                                                                       | Code                     |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| [session--tldr-summary.md](./session--tldr-summary.md) | Defines `/tldr` session summarization, transcript extraction, small-model selection, debug flags, and hidden-from-agent summary presentation. | `pi-extensions/ui/tldr/` |

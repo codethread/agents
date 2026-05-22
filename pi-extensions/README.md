@@ -26,22 +26,23 @@ Small index for the extensions shipped in this package. See each extension folde
 
 ## Context management
 
-| Extension                                                     | Summary                                                                                                            |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| [`session-name`](./context-management/session-name/README.md) | Set Pi's session display name from `--name` so `/tree` and session selectors are easier to scan.                   |
+| Extension                                                     | Summary                                                                                          |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [`session-name`](./context-management/session-name/README.md) | Set Pi's session display name from `--name` so `/tree` and session selectors are easier to scan. |
 
 ## System prompt
 
-| Extension                                    | Summary                                                                                               |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [`system-prompt`](./system-prompt/README.md) | Merged prompt-layer extension: owns the base scaffold and injects rendered rules + project structure. |
+| Extension                                    | Summary                                                                    |
+| -------------------------------------------- | -------------------------------------------------------------------------- |
+| [`system-prompt`](./system-prompt/README.md) | Prompt-layer extension: owns the base scaffold and injects rendered rules. |
 
 ## Messages
 
-| Extension                                               | Summary                                                        |
-| ------------------------------------------------------- | -------------------------------------------------------------- |
-| [`tldr`](./ui/tldr/README.md)                           | Generate a catch-up summary of the current session.            |
-| [`tmux-window-title`](./ui/tmux-window-title/README.md) | Set the current tmux window title from the first user message. |
+| Extension                                                      | Summary                                                              |
+| -------------------------------------------------------------- | -------------------------------------------------------------------- |
+| [`project-structure`](./messaging/project-structure/README.md) | Send a bounded project tree as model-visible custom message context. |
+| [`tldr`](./ui/tldr/README.md)                                  | Generate a catch-up summary of the current session.                  |
+| [`tmux-window-title`](./ui/tmux-window-title/README.md)        | Set the current tmux window title from the first user message.       |
 
 ## Internal shared code
 

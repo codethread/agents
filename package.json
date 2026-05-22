@@ -31,7 +31,8 @@
 		"extensions": [
 			"./pi-extensions/tools",
 			"./pi-extensions/ui",
-			"./pi-extensions/context-management",
+			"./pi-extensions/messaging",
+			"./pi-extensions/context-management/session-name/index.ts",
 			"./pi-extensions/system-prompt/index.ts"
 		],
 		"prompts": [
