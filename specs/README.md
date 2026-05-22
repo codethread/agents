@@ -28,4 +28,3 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 | [subagent--discovery-and-config.md](./subagent--discovery-and-config.md)       | Defines how bundled, user, and project agents and swarms are discovered, normalized, and handed to subagent runtime execution.    | `pi-extensions/tools/subagent/`, `pi-agents/*.md`               |
 | [subagent--dynamic-model-selection.md](./subagent--dynamic-model-selection.md) | Defines dynamic subagent model chains, environment-gated candidates, validation, retry/advance behavior, and metadata boundaries. | `pi-extensions/tools/subagent/`, `pi-agents/*.md`               |
 | [subagent--orchestration.md](./subagent--orchestration.md)                     | Defines subagent runtime execution: single-agent runs, swarm fan-out, persisted resume, streaming updates, and UI rendering.      | `pi-extensions/tools/subagent/`, `pi-extensions/ui/statusline/` |
-

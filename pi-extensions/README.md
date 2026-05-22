@@ -25,8 +25,8 @@ Small index for the extensions shipped in this package. See each extension folde
 
 ## CLI
 
-| Extension                                           | Summary                                                                                          |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Extension                                            | Summary                                                                                          |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | [`print-mode-exit`](./cli/print-mode-exit/README.md) | Force stuck `pi -p` processes to exit after `agent_end`.                                         |
 | [`session-name`](./cli/session-name/README.md)       | Set Pi's session display name from `--name` so `/tree` and session selectors are easier to scan. |
 
