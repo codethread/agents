@@ -81,6 +81,7 @@ extern "pi" [
 	--debug-tmux-title                        # [EXT] Print tmux window-title generation details
 	--debug-emote                             # [EXT] Write emote widget debug logs
 	--debug-interactive-shell: string         # [EXT] Run interactive_shell spawn/send/tail/kill directly (optional command)
+	--debug-web-access: string                # [EXT] Run web access debug command: search <query> or fetch <url>
 	--debug-pi-internals                     # [EXT] Print Pi internals discovery report and exit
 	--name: string                           # [EXT] Set the session display name shown in /tree and selectors
 	--debug-session-name                     # [EXT] Print resolved --name session display name and exit

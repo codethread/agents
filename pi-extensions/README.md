@@ -14,6 +14,7 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 | [`subagent`](./tools/subagent/README.md)                   | Delegate to isolated agents or configured swarms, and inherit one discovered agent config via `--agent`. |
 | [`interactive-shell`](./tools/interactive-shell/README.md) | Spawn and control interactive shell panes for TUIs, REPLs, dev servers, and watch processes.             |
 | [`builtins`](./tools/builtins/README.md)                   | Register compact built-in `read` and `bash` tools.                                                       |
+| [`web-access`](./tools/web-access/README.md)               | Simple Exa-backed `web_search` plus HTTP(S) `fetch_content`.                                             |
 
 ## UI
 
