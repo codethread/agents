@@ -13,7 +13,8 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 ## Reference READMEs
 
 - `README.md` — package overview and setup
-- `pi-extensions/README.md` — extension index; per-extension README files live inside each extension folder
+- `pi-extensions/README.md` — package extension index; per-extension README files live inside each shipped extension folder
+- `.pi/extensions/pi-internals/README.md` — project-local Pi internals extension for this checkout only
 
 ## Workflow Automation
 

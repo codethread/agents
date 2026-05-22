@@ -4,7 +4,8 @@ Pi-specific agent tooling extracted from my dotfiles repo. Still need to port mo
 
 ## Contents
 
-- `pi-extensions/` — Pi extensions grouped into `tools/`, `ui/`, `messaging/`, `cli/`, and `system-prompt/`
+- `pi-extensions/` — package-shipped Pi extensions grouped into `tools/`, `ui/`, `messaging/`, `cli/`, and `system-prompt/`
+- `.pi/extensions/` — project-local Pi extensions for this repository only
 - `pi-agents/` — bundled subagents used by the `subagent` extension
 - `prompts/` — prompt templates
 - `pi-themes/` — Pi themes
@@ -26,7 +27,7 @@ From git later:
 pi install git:github.com/<you>/agents
 ```
 
-Pi loads the package's extensions from `pi-extensions/`, prompts from `prompts/`, themes from `pi-themes/`, and skills from `skills/` through `package.json#pi`.
+Pi loads the package's extensions from `pi-extensions/`, prompts from `prompts/`, themes from `pi-themes/`, and skills from `skills/` through `package.json#pi`. It also auto-loads this checkout's project-local extensions from `.pi/extensions/` when Pi runs inside this repository.
 The bundled agents are discovered by the `subagent` extension from `pi-agents/`, so they travel with the package too. Project-specific agents still load from the nearest `.pi/agents/` directory when you run Pi inside another repo.
 
 This package ships a `system-prompt` extension that:
@@ -34,7 +35,9 @@ This package ships a `system-prompt` extension that:
 - owns the base prompt scaffold after custom `SYSTEM.md` setup
 - injects global/project `agent.njk` rules
 
-It also ships a `project-structure` messaging extension that sends a bounded project tree as model-visible custom message context, plus a `pi-internals` tool that agents can call on demand to print Pi runtime/source/settings/enabled-extension paths.
+It also ships a `project-structure` messaging extension that sends a bounded project tree as model-visible custom message context.
+
+This repository additionally keeps a project-local `.pi/extensions/pi-internals/` tool that agents can call on demand to print Pi runtime/source/settings/enabled-extension paths. It is intentionally local to this checkout rather than shipped as part of the package.
 
 To let the owned scaffold replace Pi's built-in base prompt, create `~/.pi/agent/SYSTEM.md` containing exactly:
 
@@ -42,7 +45,7 @@ To let the owned scaffold replace Pi's built-in base prompt, create `~/.pi/agent
 You are an expert coding assistant operating inside pi, a coding agent harness.
 ```
 
-See `pi-extensions/system-prompt/README.md` for the merged prompt-layer extension, `pi-extensions/system-prompt/owned-system-prompt/README.md` for scaffold-ownership details, and `pi-extensions/tools/pi-internals/README.md` for Pi internals discovery.
+See `pi-extensions/system-prompt/README.md` for the merged prompt-layer extension, `pi-extensions/system-prompt/owned-system-prompt/README.md` for scaffold-ownership details, and `.pi/extensions/pi-internals/README.md` for project-local Pi internals discovery.
 
 ## Bundled agents
 

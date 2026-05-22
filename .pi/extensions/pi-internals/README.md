@@ -1,6 +1,6 @@
 # `pi-internals`
 
-> Register the `pi-internals` tool, which prints Pi runtime/source paths and enabled extension entrypoints on demand.
+> Project-local Pi extension for this repository only. Registers the `pi-internals` tool, which prints Pi runtime/source paths and enabled extension entrypoints on demand.
 
 Agents call `pi-internals` when they need Pi runtime, documentation, settings, or extension paths.
 

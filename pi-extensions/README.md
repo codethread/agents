@@ -2,6 +2,8 @@
 
 Small index for the extensions shipped in this package. See each extension folder for full docs.
 
+Project-local extensions for this checkout live under `../.pi/extensions/` and are not shipped by this package.
+
 > [!NOTE]
 > **Note on Cache Invalidation:** Changing prompt-layer context mid-session, or changing the model/provider, can drop provider prompt-cache reuse. Treat dynamic context injection as a cost/latency tradeoff; keep injected context bounded and stable when possible.
 
@@ -11,7 +13,6 @@ Small index for the extensions shipped in this package. See each extension folde
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | [`subagent`](./tools/subagent/README.md)                   | Delegate to isolated agents or configured swarms, and inherit one discovered agent config via `--agent`. |
 | [`interactive-shell`](./tools/interactive-shell/README.md) | Spawn and control interactive shell panes for TUIs, REPLs, dev servers, and watch processes.             |
-| [`pi-internals`](./tools/pi-internals/README.md)           | Print Pi runtime/source/settings/enabled-extension paths on demand.                                      |
 | [`builtins`](./tools/builtins/README.md)                   | Register compact built-in `read` and `bash` tools.                                                       |
 
 ## UI
