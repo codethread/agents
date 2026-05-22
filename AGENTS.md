@@ -1,3 +1,5 @@
+# AGENTS.md
+
 - Install deps: `pnpm install`
 - Format: automatic via `pnpm check` after all work completed
 - Lint: `pnpm lint` (eslint)
@@ -20,12 +22,14 @@ Always write prompts and skills as literal messages the agent will receive. The 
 Keep prompts self-contained, or reference only things the receiving agent definitely has access to.
 
 Good:
+
 - "Load `skills/robustness/SKILL.md` before handling edge cases."
 - "Use the `review` subagent for a focused code review."
 - "Use the `read` tool to inspect the selected files."
 - "Complete the selected task slice included below."
 
 Bad:
+
 - "The loop already selected this in `scripts/afk-loop.nu`."
 - "Continue from the previous `/afk` prompt."
 - "Follow the workflow from the skill that generated this prompt."
