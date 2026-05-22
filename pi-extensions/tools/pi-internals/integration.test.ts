@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createTestSession, says, type TestSession, when } from "@gaodes/pi-test-harness";
-import piDiscoveryExtension from "./index.js";
+import piInternalsExtension from "./index.js";
 
 const CUSTOM_SYSTEM_PROMPT =
 	"You are an expert coding assistant operating inside pi, a coding agent harness.";
@@ -13,7 +13,7 @@ let t: TestSession | undefined;
 const originalPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
 
 function makeTempDir(): string {
-	const dir = mkdtempSync(path.join(os.tmpdir(), "pi-discovery-it-"));
+	const dir = mkdtempSync(path.join(os.tmpdir(), "pi-internals-it-"));
 	tempDirs.push(dir);
 	return dir;
 }
@@ -39,11 +39,11 @@ function capturePromptsExtension(pi: any) {
 	});
 }
 
-async function createPiDiscoverySession(cwd: string): Promise<TestSession> {
+async function createPiInternalsSession(cwd: string): Promise<TestSession> {
 	t = await createTestSession({
 		cwd,
 		systemPrompt: CUSTOM_SYSTEM_PROMPT,
-		extensionFactories: [piDiscoveryExtension, capturePromptsExtension],
+		extensionFactories: [piInternalsExtension, capturePromptsExtension],
 	});
 
 	const agent = (t.session as any).agent;
@@ -77,14 +77,14 @@ afterEach(() => {
 	}
 });
 
-describe("pi-discovery harness integration", () => {
-	it("injects the Pi discovery note only on the first standalone Pi mention", async () => {
+describe("pi-internals harness integration", () => {
+	it("does not inject Pi internals reports into prompts automatically", async () => {
 		const cwd = makeTempDir();
 		const agentDir = makeTempDir();
 		process.env.PI_CODING_AGENT_DIR = agentDir;
 		writeText(path.join(cwd, "README.md"), "# Demo repo\n");
 
-		const session = await createPiDiscoverySession(cwd);
+		const session = await createPiInternalsSession(cwd);
 
 		await session.run(
 			when("Tell me about Pi internals", [says("First answer")]),
@@ -93,9 +93,7 @@ describe("pi-discovery harness integration", () => {
 
 		const prompts = getMessagesWithPrefix(session, "PROMPT:");
 		expect(prompts).toHaveLength(2);
-		expect(prompts[0]).toContain("Tell me about Pi internals");
-		expect(prompts[0]).toContain("<pi-extension-discovery");
-		expect(prompts[1]).toContain("Pi again please");
-		expect(prompts[1]).not.toContain("<pi-extension-discovery");
+		expect(prompts[0]).toBe("Tell me about Pi internals");
+		expect(prompts[1]).toBe("Pi again please");
 	});
 });

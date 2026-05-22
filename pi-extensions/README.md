@@ -11,6 +11,7 @@ Small index for the extensions shipped in this package. See each extension folde
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | [`subagent`](./tools/subagent/README.md)                   | Delegate to isolated agents or configured swarms, and inherit one discovered agent config via `--agent`. |
 | [`interactive-shell`](./tools/interactive-shell/README.md) | Spawn and control interactive shell panes for TUIs, REPLs, dev servers, and watch processes.             |
+| [`pi-internals`](./tools/pi-internals/README.md)           | Print Pi runtime/source/settings/enabled-extension paths on demand.                                      |
 
 ## UI
 
@@ -27,7 +28,6 @@ Small index for the extensions shipped in this package. See each extension folde
 
 | Extension                                                     | Summary                                                                                                            |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| [`pi-discovery`](./context-management/pi-discovery/README.md) | One-shot Pi runtime + extension source discovery note injected into user input when the user explicitly says `Pi`. |
 | [`session-name`](./context-management/session-name/README.md) | Set Pi's session display name from `--name` so `/tree` and session selectors are easier to scan.                   |
 
 ## System prompt

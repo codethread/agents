@@ -2,20 +2,17 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { discoverPiExtensions, getExtensionNameFromPath } from "./discovery.js";
 import {
-	appendContextNoteToText,
-	discoverPiExtensions,
 	formatExtensionDiscoveryContextNote,
 	formatExtensionDiscoveryReport,
-	getExtensionNameFromPath,
-	hasStandalonePiTrigger,
-} from "./extension-discovery.js";
+} from "./rendering.js";
 
 const tempDirs: string[] = [];
 const originalPiPackageDir = process.env.PI_PACKAGE_DIR;
 
 function makeTempDir(): string {
-	const dir = mkdtempSync(path.join(os.tmpdir(), "pi-discovery-"));
+	const dir = mkdtempSync(path.join(os.tmpdir(), "pi-internals-"));
 	tempDirs.push(dir);
 	return dir;
 }
@@ -79,30 +76,6 @@ describe("getExtensionNameFromPath", () => {
 
 	it("uses the file stem for single-file extensions", () => {
 		expect(getExtensionNameFromPath("/tmp/pi/extensions/bash-compact.ts")).toBe("bash-compact");
-	});
-});
-
-describe("hasStandalonePiTrigger", () => {
-	it("matches a standalone, case-sensitive Pi token", () => {
-		expect(hasStandalonePiTrigger("Tell me about Pi extensions")).toBe(true);
-		expect(hasStandalonePiTrigger("What does Pi do?")).toBe(true);
-		expect(hasStandalonePiTrigger("Pi's input hook")).toBe(true);
-	});
-
-	it("does not match lowercase or embedded substrings", () => {
-		expect(hasStandalonePiTrigger("tell me about pi extensions")).toBe(false);
-		expect(hasStandalonePiTrigger("pilot mode")).toBe(false);
-		expect(hasStandalonePiTrigger("API docs")).toBe(false);
-		expect(hasStandalonePiTrigger("Pi2 runtime")).toBe(false);
-		expect(hasStandalonePiTrigger("Piñata mode")).toBe(false);
-	});
-});
-
-describe("appendContextNoteToText", () => {
-	it("appends the note after a blank line", () => {
-		expect(appendContextNoteToText("Tell me about Pi", "[Context note]")).toBe(
-			"Tell me about Pi\n\n[Context note]",
-		);
 	});
 });
 
@@ -178,41 +151,91 @@ describe("discoverPiExtensions", () => {
 });
 
 describe("formatters", () => {
-	it("formats compact injected XML and multiline debug XML", () => {
+	it("formats the plain-text internals report", () => {
 		const discovery = makeStaticDiscovery();
 
 		expect(formatExtensionDiscoveryContextNote(discovery)).toMatchInlineSnapshot(`
-			"<pi-extension-discovery note="User mentioned Pi. Inspect these Pi/runtime/extension paths directly if relevant."><paths agentDir="/home/user/.pi/agent" globalSettings="/home/user/.pi/agent/settings.json" globalExtensionsDir="/home/user/.pi/agent/extensions" projectConfigDir="/repo/.pi" projectSettings="/repo/.pi/settings.json" projectExtensionsDir="/repo/.pi/extensions" /><pi-source>
-			  Pi documentation (read only when the user asks about pi itself, its SDK, extensions, themes, skills, or TUI):
-			  - Main documentation: /pi-source/README.md
-			  - Additional docs: /pi-source/docs
-			  - Examples: /pi-source/examples (extensions, custom tools, SDK)
-			  - When asked about: extensions (docs/extensions.md, examples/extensions/), themes (docs/themes.md), skills (docs/skills.md), prompt templates (docs/prompt-templates.md), TUI components (docs/tui.md), keybindings (docs/keybindings.md), SDK integrations (docs/sdk.md), custom providers (docs/custom-provider.md), adding models (docs/models.md), pi packages (docs/packages.md)
-			  - When working on pi topics, read the docs and examples, and follow .md cross-references before implementing
-			  - Always read pi .md files completely and follow links to related docs (e.g., tui.md for TUI API details)
-			</pi-source><available-extensions><extension name="dynamic-agents-md" path="/pkg/pi-extensions/dynamic-agents-md/index.ts" scope="user" source="npm:@codethread/agents" origin="package" baseDir="/pkg" /></available-extensions></pi-extension-discovery>"
-		`);
+			"Pi internals
 
+			Use this report to inspect Pi/runtime/extension paths directly when relevant.
+
+			Pi paths:
+			- Agent dir: /home/user/.pi/agent
+			- Global settings: /home/user/.pi/agent/settings.json
+			- Global extensions dir: /home/user/.pi/agent/extensions
+			- Project config dir: /repo/.pi
+			- Project settings: /repo/.pi/settings.json
+			- Project extensions dir: /repo/.pi/extensions
+
+			Pi documentation (read only when the user asks about pi itself, its SDK, extensions, themes, skills, or TUI):
+			- Main documentation: /pi-source/README.md
+			- Additional docs: /pi-source/docs
+			- Examples: /pi-source/examples (extensions, custom tools, SDK)
+			- When asked about: extensions (docs/extensions.md, examples/extensions/), themes (docs/themes.md), skills (docs/skills.md), prompt templates (docs/prompt-templates.md), TUI components (docs/tui.md), keybindings (docs/keybindings.md), SDK integrations (docs/sdk.md), custom providers (docs/custom-provider.md), adding models (docs/models.md), pi packages (docs/packages.md)
+			- When working on pi topics, read the docs and examples, and follow .md cross-references before implementing
+			- Always read pi .md files completely and follow links to related docs (e.g., tui.md for TUI API details)
+
+			Enabled extensions:
+			Package extensions: /pkg
+			  - npm:@codethread/agents: ./pi-extensions/dynamic-agents-md/index.ts"
+		`);
 		expect(formatExtensionDiscoveryReport(discovery)).toMatchInlineSnapshot(`
-			"<pi-extension-discovery note="Debug view. Hidden from agent.">
-			  <paths agentDir="/home/user/.pi/agent" globalSettings="/home/user/.pi/agent/settings.json" globalExtensionsDir="/home/user/.pi/agent/extensions" projectConfigDir="/repo/.pi" projectSettings="/repo/.pi/settings.json" projectExtensionsDir="/repo/.pi/extensions" />
-			  <pi-source>
-			    Pi documentation (read only when the user asks about pi itself, its SDK, extensions, themes, skills, or TUI):
-			    - Main documentation: /pi-source/README.md
-			    - Additional docs: /pi-source/docs
-			    - Examples: /pi-source/examples (extensions, custom tools, SDK)
-			    - When asked about: extensions (docs/extensions.md, examples/extensions/), themes (docs/themes.md), skills (docs/skills.md), prompt templates (docs/prompt-templates.md), TUI components (docs/tui.md), keybindings (docs/keybindings.md), SDK integrations (docs/sdk.md), custom providers (docs/custom-provider.md), adding models (docs/models.md), pi packages (docs/packages.md)
-			    - When working on pi topics, read the docs and examples, and follow .md cross-references before implementing
-			    - Always read pi .md files completely and follow links to related docs (e.g., tui.md for TUI API details)
-			  </pi-source>
-			  <available-extensions>
-			    <extension name="dynamic-agents-md" path="/pkg/pi-extensions/dynamic-agents-md/index.ts" scope="user" source="npm:@codethread/agents" origin="package" baseDir="/pkg" />
-			  </available-extensions>
-			</pi-extension-discovery>"
+			"Pi internals
+
+			Use this report to inspect Pi/runtime/extension paths directly when relevant.
+
+			Pi paths:
+			- Agent dir: /home/user/.pi/agent
+			- Global settings: /home/user/.pi/agent/settings.json
+			- Global extensions dir: /home/user/.pi/agent/extensions
+			- Project config dir: /repo/.pi
+			- Project settings: /repo/.pi/settings.json
+			- Project extensions dir: /repo/.pi/extensions
+
+			Pi documentation (read only when the user asks about pi itself, its SDK, extensions, themes, skills, or TUI):
+			- Main documentation: /pi-source/README.md
+			- Additional docs: /pi-source/docs
+			- Examples: /pi-source/examples (extensions, custom tools, SDK)
+			- When asked about: extensions (docs/extensions.md, examples/extensions/), themes (docs/themes.md), skills (docs/skills.md), prompt templates (docs/prompt-templates.md), TUI components (docs/tui.md), keybindings (docs/keybindings.md), SDK integrations (docs/sdk.md), custom providers (docs/custom-provider.md), adding models (docs/models.md), pi packages (docs/packages.md)
+			- When working on pi topics, read the docs and examples, and follow .md cross-references before implementing
+			- Always read pi .md files completely and follow links to related docs (e.g., tui.md for TUI API details)
+
+			Enabled extensions:
+			Package extensions: /pkg
+			  - npm:@codethread/agents: ./pi-extensions/dynamic-agents-md/index.ts"
 		`);
 	});
 
-	it("omits source when a local package source normalizes to the same path as baseDir", () => {
+	it("groups global npm extensions under their shared node_modules root", () => {
+		const discovery = {
+			...makeStaticDiscovery(),
+			extensions: [
+				{
+					name: "pi-web-access",
+					path: "/home/user/.pi/npm-global/lib/node_modules/pi-web-access/index.ts",
+					scope: "user" as const,
+					source: "npm:pi-web-access",
+					origin: "package" as const,
+					baseDir: "/home/user/.pi/npm-global/lib/node_modules/pi-web-access",
+				},
+				{
+					name: "extension",
+					path: "/home/user/.pi/npm-global/lib/node_modules/pi-nvim/extension.ts",
+					scope: "user" as const,
+					source: "npm:pi-nvim",
+					origin: "package" as const,
+					baseDir: "/home/user/.pi/npm-global/lib/node_modules/pi-nvim",
+				},
+			],
+		};
+
+		expect(formatExtensionDiscoveryContextNote(discovery)).toContain(`Enabled extensions:
+Global npm extensions: /home/user/.pi/npm-global/lib/node_modules
+  - npm:pi-web-access: ./pi-web-access/index.ts
+  - npm:pi-nvim: ./pi-nvim/extension.ts`);
+	});
+
+	it("uses extension names when a local package source normalizes to the same path as baseDir", () => {
 		const discovery = {
 			...makeStaticDiscovery(),
 			extensions: [
@@ -228,9 +251,11 @@ describe("formatters", () => {
 		};
 
 		const note = formatExtensionDiscoveryContextNote(discovery);
-		expect(note).not.toContain('source="/repo"');
+		expect(note).toContain("  - bash: ./pi-extensions/tools/builtins/bash.ts");
+		expect(note).not.toContain("/repo: ./pi-extensions/tools/builtins/bash.ts");
 
 		const report = formatExtensionDiscoveryReport(discovery);
-		expect(report).not.toContain('source="/repo"');
+		expect(report).toContain("  - bash: ./pi-extensions/tools/builtins/bash.ts");
+		expect(report).not.toContain("/repo: ./pi-extensions/tools/builtins/bash.ts");
 	});
 });

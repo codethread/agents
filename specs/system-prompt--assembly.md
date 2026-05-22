@@ -105,14 +105,6 @@ Prompt-contributing tool registrations include:
 
 When the merged `system-prompt` extension's ownership phase is active, it manually vendors built-in tool metadata because Pi does not expose that metadata publicly.
 
-### 3.7 Related: User-Input Transforms
-
-The `pi-discovery` context-management extension injects a context note into the user message rather than the system prompt.
-
-This mechanism is related to prompt assembly, but it is not part of the system prompt pipeline.
-
-Child spec: [`specs/pi--extension-discovery.md`](./pi--extension-discovery.md)
-
 ## 4. Ordering Constraints
 
 - Extension load order in `package.json#pi.extensions` still determines cross-extension `before_agent_start` execution order.
@@ -153,12 +145,9 @@ These are the only prompt-debug surfaces for the merged extension.
 | `pi-extensions/system-prompt/owned-system-prompt/index.ts`      | Owned-scaffold prompt-building helpers.                                                                                                                                       |
 | `pi-extensions/system-prompt/dynamic-agents-md/index.ts`        | Template rendering and prompt-debug helper utilities.                                                                                                                         |
 | `pi-extensions/system-prompt/project-structure-prompt/index.ts` | Bounded repo-tree snapshot controller and cache helpers.                                                                                                                      |
-| `pi-extensions/context-management/pi-discovery/index.ts`        | Context-management extension entrypoint for Pi-discovery user-input transforms and debug reporting.                                                                           |
-
 | `pi-extensions/tools/subagent/index.ts` | Agent inventory and selected-agent prompt injection; `subagent` tool registration. |
 | `pi-extensions/README.md` | Extension index and navigation entry point. |
 | `specs/system-prompt--ownership.md` | Child spec for scaffold ownership details. |
 | `specs/system-prompt--dynamic-template-injection.md` | Child spec for template-based prompt injection details. |
 | `specs/subagent--discovery-and-config.md` | Child spec for agent discovery details used by subagent prompt assembly. |
 | `specs/subagent--orchestration.md` | Child spec for subagent execution and runtime orchestration. |
-| `specs/pi--extension-discovery.md` | Related spec for user-input contextual-note injection handled outside the system-prompt pipeline. |

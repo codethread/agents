@@ -35,7 +35,7 @@ This package ships a merged `system-prompt` extension that:
 - injects global/project `agent.njk` rules
 - appends a bounded project-structure snapshot
 
-It also ships a `pi-discovery` context-management extension that adds a one-shot Pi runtime/extension discovery note when the user explicitly mentions `Pi`.
+It also ships a `pi-internals` tool that agents can call on demand to print Pi runtime/source/settings/enabled-extension paths.
 
 To let the owned scaffold replace Pi's built-in base prompt, create `~/.pi/agent/SYSTEM.md` containing exactly:
 
@@ -43,7 +43,7 @@ To let the owned scaffold replace Pi's built-in base prompt, create `~/.pi/agent
 You are an expert coding assistant operating inside pi, a coding agent harness.
 ```
 
-See `pi-extensions/system-prompt/README.md` for the merged prompt-layer extension, `pi-extensions/system-prompt/owned-system-prompt/README.md` for scaffold-ownership details, and `pi-extensions/context-management/pi-discovery/README.md` for Pi-aware context injection.
+See `pi-extensions/system-prompt/README.md` for the merged prompt-layer extension, `pi-extensions/system-prompt/owned-system-prompt/README.md` for scaffold-ownership details, and `pi-extensions/tools/pi-internals/README.md` for Pi internals discovery.
 
 ## Bundled agents
 

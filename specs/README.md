@@ -36,12 +36,6 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 | [system-prompt--dynamic-template-injection.md](./system-prompt--dynamic-template-injection.md) | Defines global/project `agent.njk` discovery, Nunjucks rendering from structured runtime vars, prompt injection, and prompt-debug surfaces (including JSON override debugging) for the merged `system-prompt` extension's template phase. | `pi-extensions/system-prompt/`, `pi-extensions/system-prompt/dynamic-agents-md/`   |
 | [system-prompt--ownership.md](./system-prompt--ownership.md)                                   | Defines how the merged `system-prompt` extension owns the base scaffold in `before_agent_start`, prefers Pi's structured selected-tool set, and preserves later prompt chaining.                                                          | `pi-extensions/system-prompt/`, `pi-extensions/system-prompt/owned-system-prompt/` |
 
-## Context Management
-
-| Spec                                                       | Purpose                                                                                                                                                                          | Code                                             |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| [pi--extension-discovery.md](./pi--extension-discovery.md) | Defines discovery of enabled Pi extension entrypoints plus conditional contextual-note/debug exposure of their source paths for the `pi-discovery` context-management extension. | `pi-extensions/context-management/pi-discovery/` |
-
 ## Presentation and UX
 
 | Spec                                                   | Purpose                                                                                                                                       | Code                     |
