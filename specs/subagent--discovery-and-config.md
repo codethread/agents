@@ -1,7 +1,7 @@
 # Agent Discovery and Configuration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-05-11
+**Last Updated:** 2026-05-22
 
 ## 1. Overview
 
@@ -89,7 +89,7 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 
 ## 3. Architecture
 
-Agent discovery is implemented in `pi-extensions/tools/subagent/agents.ts` and consumed by the subagent runtime in `pi-extensions/tools/subagent/`. Swarm discovery is implemented in the same boundary so runtime target resolution receives one validated catalog.
+Agent and swarm discovery live inside the `pi-extensions/tools/subagent/` module and are consumed by the same module's runtime entrypoint, so target resolution receives one validated catalog.
 
 ### Discovery pipeline
 
@@ -111,7 +111,7 @@ Agent discovery is implemented in `pi-extensions/tools/subagent/agents.ts` and c
 
 Discovery supports three agent sources:
 
-- **package** — bundled agents under repo-level `pi-agents/` (with legacy fallback support for `pi-extensions/agents/`)
+- **package** — bundled agents under repo-level `pi-agents/`.
 - **user** — agents under `~/.pi/agent/agents`
 - **project** — agents under the nearest ancestor `.pi/agents`
 
@@ -178,128 +178,30 @@ This means discovery is the configuration boundary; runtime execution trusts the
 
 ## 4. Data Model
 
-Core exported types from `pi-extensions/tools/subagent/agents.ts`:
+Discovery's public contract is exported by the `pi-extensions/tools/subagent/` module: single-agent configs, swarm configs, the merged discovery result, and delegation target resolution. The spec intentionally does not duplicate those TypeScript interfaces; the module is the source of truth for exact fields and signatures.
 
-```ts
-export interface AgentModelCandidate {
-	id: string;
-}
+At the boundary, discovery returns:
 
-export interface AgentConfig {
-	name: string;
-	description: string;
-	hidden: boolean;
-	tools: string[];
-	model?: string;
-	modelCandidates?: AgentModelCandidate[];
-	modelPolicyError?: string;
-	systemPrompt: string;
-	source: "package" | "user" | "project";
-	filePath: string;
-}
+- a collision-free effective namespace of visible and hidden single-agent targets
+- a collision-free effective namespace of swarm targets
+- source-specific user/project views for debug rendering
+- project directory metadata for debug rendering and project-source confirmation
+- per-agent model-policy parse errors where malformed model frontmatter should be surfaced without discarding the whole catalog
 
-export interface AgentDiscoveryResult {
-	agents: AgentConfig[];
-	userAgents: AgentConfig[];
-	projectAgents: AgentConfig[];
-	projectAgentsDir: string | null;
-	swarms: SwarmConfig[];
-	userSwarms: SwarmConfig[];
-	projectSwarms: SwarmConfig[];
-	projectSwarmsDir: string | null;
-}
-```
+Bundled agents in this repo demonstrate the markdown file format discovery expects. See `pi-agents/` for package agents and `pi-agents/*/swarm.json` for package swarms.
 
-Swarm discovery adds a parallel target shape without changing the single-agent config contract:
-
-```ts
-export interface SwarmConfig {
-	name: string;
-	description: string;
-	hidden: boolean;
-	members: string[];
-	source: "package" | "user" | "project";
-	filePath: string;
-}
-
-export type DelegationTarget =
-	| { kind: "agent"; agent: AgentConfig }
-	| { kind: "swarm"; swarm: SwarmConfig };
-```
-
-The exact exported names may differ, but the runtime boundary is: discovery returns validated single-agent targets and validated swarm targets in one collision-free namespace.
-
-Supported canonical built-in tools and Claude-to-Pi normalization table:
-
-```ts
-const PI_CANONICAL_TOOLS = new Set(["read", "bash", "edit", "write", "grep", "find", "ls"]);
-
-const CLAUDE_TOOL_MAP: Record<string, string | null> = {
-	read: "read",
-	bash: "bash",
-	edit: "edit",
-	write: "write",
-	grep: "grep",
-	glob: "find",
-	ls: "ls",
-	multiedit: "edit",
-	notebookedit: "edit",
-	task: null,
-	websearch: null,
-	webfetch: null,
-	skill: null,
-};
-```
-
-Discovery normalizes tool names as follows:
-
-- canonical Pi built-ins stay as-is
-- known Claude aliases such as `glob` and `multiedit` map to their Pi equivalents
-- unsupported Claude-only tools such as `task`, `websearch`, `webfetch`, and `skill` are dropped
-- any other tool name is preserved (lowercased) so extension tools like `subagent` remain expressible in agent frontmatter
-- omitted or blank `tools` frontmatter resolves to an empty allowlist
-
-Bundled agents in this repo demonstrate the file format discovery expects:
-
-- `pi-agents/scout.md`
-- `pi-agents/hack.md`
-- `pi-agents/fixer.md`
-
-These files use YAML frontmatter for `name`, `description`, optional author-only `meta`, optional `hidden`, and optional `tools` / `model`, followed by a markdown prompt body that becomes `systemPrompt`.
-
-Swarm folders use `swarm.json` plus optional colocated agent markdown files:
-
-```text
-.pi/swarms/review/
-  swarm.json
-  correctness-review.md
-  security-review.md
-  maintainability-review.md
-```
-
-Minimal `swarm.json` shape:
-
-```json
-{
-	"name": "review",
-	"description": "Run the configured review panel",
-	"members": ["correctness-review", "security-review", "maintainability-review"]
-}
-```
-
-`hidden: true` may be added to hide a swarm from the parent prompt inventory while keeping explicit name-based execution available.
+User and project swarm folders use `swarm.json` plus optional colocated agent markdown files. A minimal swarm declares a `name`, `description`, and ordered `members` array. `hidden: true` may be added to hide a swarm from the parent prompt inventory while keeping explicit name-based execution available.
 
 ## 5. Interfaces
 
-### Exported discovery API
+The `pi-extensions/tools/subagent/` module provides the API used by the subagent tool and direct `--agent` startup mode to:
 
-#### `discoverAgents(cwd: string): AgentDiscoveryResult`
-
-Returns the resolved agent catalog for a working directory.
-
-The API is called by the subagent runtime and by direct `--agent` startup. Runtime callers can resolve a requested name to either one `AgentConfig` or one validated `SwarmConfig`.
-
-The implementation re-reads markdown files each time it is called; there is no process-lifetime cache of agent bodies or frontmatter.
+- discover the effective target catalog for a working directory
+- format visible targets for parent prompt injection and debug output
+- resolve names to either a single agent or a swarm target
+- derive runtime settings from a selected agent
+- parse explicit CLI overrides for direct `--agent` inheritance
+- format the selected agent prompt wrapper for top-level sessions
 
 Behavioral contract:
 
@@ -308,74 +210,10 @@ Behavioral contract:
 - project agents are loaded from the nearest ancestor `.pi/agents`, when present
 - user/project/package swarms are loaded from source-specific `swarms/<name>/swarm.json` folders
 - swarm-local markdown files are loaded before validating that swarm's member list
-- `projectAgentsDir` reports the nearest project agent directory even when no project agents are ultimately loaded
+- project directory metadata reports the nearest project directories even when no project targets are ultimately loaded
 - unreadable directories, unreadable files, and invalid JSON settings fail closed by omission rather than throwing
 - agent frontmatter is expected to be parseable, and `tools` is expected to be string-like when present; parse/type errors in those paths are not isolated per file by the current implementation
 - cross-kind name collisions and unknown swarm members are hard errors surfaced during discovery/session initialization
-
-#### `formatAgentList(agents: AgentConfig[], maxItems: number): { text: string; remaining: number }`
-
-Formats a short human-readable list such as `name (source): description` and reports how many items were omitted.
-
-#### `formatAgentsForPrompt(agents: AgentConfig[], swarms: SwarmConfig[] = []): string`
-
-Formats discovered targets for system-prompt injection as:
-
-- an outer `<system-reminder type="available-subagents">` wrapper
-- a terse lead-in line: `These are the available subagents with their intended use.`
-- an inner XML list under `<available-subagents>`
-- one `<subagent>` entry per visible agent or swarm containing `<name>` and `<description>` only
-- agents/swarms with `hidden: true` are omitted from this prompt-formatting output entirely
-
-Swarm targets use the same parent-facing XML shape as single agents.
-The parent agent should not need to know whether a listed name resolves to one agent or a swarm.
-
-#### `findAgentByName(agents: AgentConfig[], name: string | undefined | null): AgentConfig | undefined`
-
-Returns the effective discovered agent whose `name` exactly matches the trimmed requested name.
-Returns `undefined` for blank or missing names.
-
-#### `findDelegationTarget(discovery: AgentDiscoveryResult, name: string | undefined | null): DelegationTarget | undefined`
-
-Resolves a target name to either an agent or swarm entry from the merged catalogs.
-Returns `undefined` for blank names, unknown names, or names that are not present in either effective list.
-
-#### `getAgentRuntimeSettings(agent: AgentConfig): AgentRuntimeSettings`
-
-Extracts the runtime-facing settings represented by one discovered agent.
-Today that includes:
-
-- `systemPrompt`
-- `tools`
-- `modelFlagValue` (full CLI-ready model string, including any thinking suffix)
-- `modelRef` (provider/model without thinking suffix when parsable)
-- `thinkingLevel` (parsed from a recognized `:off|minimal|low|medium|high|xhigh` suffix)
-
-This helper is the shared source of truth for both child subagent execution and top-level `--agent` inheritance.
-
-#### `parseAgentFlagCliOverrides(argv: string[]): AgentFlagCliOverrides`
-
-Detects explicit CLI overrides that should suppress inherited agent fields for direct top-level mode.
-Today this treats the following as overrides:
-
-- `--model` / `-m`
-- `--provider`
-- `--thinking`
-- `--tools`
-- `--no-tools`
-
-#### `getInheritedAgentRuntimeSettings(agent: AgentConfig, cliOverrides: AgentFlagCliOverrides): AgentRuntimeSettings`
-
-Returns the subset of runtime settings that should still be inherited for top-level `--agent` mode after explicit CLI overrides are applied on a per-field basis.
-If a field remains inherited here, the direct-agent runtime is expected to apply it or fail hard rather than silently falling back.
-
-#### `formatSelectedAgentPrompt(agent: AgentConfig | undefined): string`
-
-Formats one selected discovered agent for direct top-level prompt injection:
-
-- returns `""` when no agent is selected or its `systemPrompt` is blank
-- otherwise returns `"\n\n<system-reminder type=\"selected-agent-prompt\">...` with the original markdown body inside that XML wrapper
-- preserves the original markdown body content so top-level `--agent` uses the same prompt text source as child subagent execution while keeping a hard section boundary
 
 ### Accepted agent frontmatter
 
@@ -390,34 +228,9 @@ Discovery relies on these frontmatter fields:
 
 All remaining markdown body content is passed through as the agent system prompt.
 
-### Runtime-facing `AgentConfig` fields
+### Runtime consumption
 
-The subagent runtime consumes discovery results as follows:
-
-- `name` selects the requested agent for one subagent tool invocation
-- `hidden` suppresses parent prompt inventory exposure without affecting explicit lookup, debug output, or execution
-- `source` drives project-agent confirmation and debug output
-- `filePath` appears in debug output
-- delegated child `pi` invocations use `--agent <name>`, so the discovered `model`, `tools`, and prompt body flow through the same direct-agent inheritance path as top-level `--agent`
-- `tools` is an exact allowlist for the agent across built-in and extension tools; omitted/blank means the agent inherits an empty tool set unless the CLI explicitly overrides it
-- `systemPrompt` is inherited through the shared direct-agent path rather than bespoke child-process prompt injection
-- in top-level `--agent <name>` mode, the same runtime-facing fields are inherited into the parent session: prompt body, model, thinking level, and the exact tool allowlist
-- `--tools` and `--no-tools` are highest-precedence PUT-style overrides for tool selection: if either is present, agent-derived tool inheritance is skipped entirely
-- explicit CLI flags override inherited fields on a per-field basis instead of disabling all inheritance
-
-If the requested single-agent name is missing, runtime returns an error containing the list of available agent names.
-
-### Runtime-facing `SwarmConfig` fields
-
-The subagent runtime consumes swarm discovery results as follows:
-
-- `name` selects the swarm target from the same `agent` tool parameter used for single agents
-- `description` is advertised to the parent in the same available-subagents inventory
-- `hidden` suppresses parent prompt inventory exposure without affecting explicit lookup, debug output, or execution
-- `members` is the validated ordered list of effective agent names to run.
-- `source` and `filePath` appear in debug output and support the same project-source policy hooks as agents
-
-A swarm member must resolve to a single agent, not another swarm. Nested swarms are out of scope until a separate scheduling design exists.
+The subagent runtime treats discovery as the configuration boundary. Single-agent targets provide prompt, model/thinking, tool allowlist, source, and debug metadata. Swarm targets provide an ordered, validated member list and use the same parent-facing target namespace as single agents. A swarm member must resolve to a single agent, not another swarm. Nested swarms are out of scope until a separate scheduling design exists.
 
 ## 7. Open Questions
 
@@ -428,9 +241,5 @@ A swarm member must resolve to a single agent, not another swarm. Nested swarms 
 
 ## 8. Code Locations
 
-- `pi-extensions/README.md`
-- `pi-extensions/tools/subagent/`
-- `pi-extensions/tools/subagent/agents.ts`
-- `pi-extensions/tools/subagent/index.ts`
-- `pi-agents/*.md`
-- `.pi/settings.json` (local development example affecting nearest-settings resolution in this repo)
+- `pi-extensions/tools/subagent/` — discovery, formatting, direct-agent inheritance, and runtime consumption
+- `pi-agents/` — bundled package agents and swarms

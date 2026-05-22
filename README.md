@@ -4,13 +4,13 @@ Pi-specific agent tooling extracted from my dotfiles repo. Still need to port mo
 
 ## Contents
 
-- `pi-extensions/` — Pi extensions grouped into `tools/`, `ui/`, `context-management/`, `system-prompt/`, `messages/`, and `system/`
+- `pi-extensions/` — Pi extensions grouped into `tools/`, `ui/`, `messaging/`, `cli/`, and `system-prompt/`
 - `pi-agents/` — bundled subagents used by the `subagent` extension
 - `prompts/` — prompt templates
 - `pi-themes/` — Pi themes
 - `skills/` — reusable Pi skills
 
-**Note on Cache Invalidation:** When working with dynamic context injections and extensions, understand that modifying the system prompt mid-session (or changing the model/provider) completely drops the LLM Prompt Cache. This forces the entire conversation prefix to be reprocessed, increasing latency and cost. Ensure this is a mindful tradeoff in your extension design. See `specs/notes--discovery.md` for detailed cache management and "Lost in the Middle" attention strategies.
+**Note on Cache Invalidation:** Changing prompt-layer context mid-session, or changing the model/provider, can drop provider prompt-cache reuse. Treat dynamic context injection as a cost/latency tradeoff; keep injected context bounded and stable when possible.
 
 ## Install as a Pi package
 
@@ -55,12 +55,14 @@ See `pi-extensions/system-prompt/README.md` for the merged prompt-layer extensio
 
 ## Included skills
 
+- `skills/afk-create-tasks/SKILL.md` — create deterministic AFK task files from planning context
 - `skills/git-commit/SKILL.md` — create conventional git commit(s) from the current worktree changes
-- `skills/git-merge/SKILL.md` — squash-merge a branch or linked worktree into the current branch with an inferred semantic commit message, preserve a concise source commit list in the body, then clean up the source branch/worktree
-- `skills/pi-session-introspection/SKILL.md` — jq cookbook for analysing Pi agent/subagent session JSONL files (tool usage, thinking, costs, file ops, subagent manifests)
+- `skills/git-merge/SKILL.md` — squash-merge a branch or linked worktree into the current branch, then clean up the source branch/worktree
+- `skills/pi-session-introspection/SKILL.md` — jq cookbook for analysing Pi agent/subagent session JSONL files
+- `skills/robustness/SKILL.md` — guidance for robust-enough edge-case and failure-mode handling
 - `skills/skill-authoring/SKILL.md` — guide for writing well-structured Pi skills
 - `skills/spec-authoring/SKILL.md` — guide for turning feature intent into implementation-ready specs
-- `skills/tmux-pty/SKILL.md` — concise tmux split-pane PTY workflow for spawning interactive or long-running commands, sending literal input, capturing output, focusing panes, and stopping panes
+- `skills/writing-tests/SKILL.md` — guidance for deciding whether and how to write tests
 
 ## Development
 

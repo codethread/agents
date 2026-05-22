@@ -1,7 +1,7 @@
 # Subagent Orchestration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-05-11
+**Last Updated:** 2026-05-22
 
 ## 1. Overview
 
@@ -22,7 +22,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 
 ### Non-Goals
 
-- Discovering or normalizing agent/swarm definitions. That belongs to `pi-extensions/tools/subagent/agents.ts` and is specified in `specs/subagent--discovery-and-config.md`.
+- Discovering or normalizing agent/swarm definitions. That belongs to the discovery boundary in `pi-extensions/tools/subagent/` and is specified in `specs/subagent--discovery-and-config.md`.
 - Ad hoc scheduling or batching of arbitrary child agents inside one tool call. Swarm fan-out is allowed only through user-configured named swarm targets.
 - Checkpointing intermediate state.
 - Merging multiple agents into a shared in-process context. Isolation is process-based.
@@ -493,11 +493,6 @@ Swarm execution wraps `runSingleAgent(...)` rather than replacing it:
 
 ## 8. Code Locations
 
-- `pi-extensions/README.md`
-- `pi-extensions/tools/subagent/`
-- `pi-extensions/tools/subagent/agents.ts` (runtime input boundary only)
-- `pi-extensions/tools/subagent/runtime.ts`
-- `pi-extensions/tools/subagent/session.ts`
-- `pi-extensions/tools/subagent/render.ts`
-- `pi-extensions/ui/statusline/usage-format.ts` (shared usage-display helpers consumed by subagent rendering)
-- `pi-agents/*.md` (bundled agent definitions executed by this runtime)
+- `pi-extensions/tools/subagent/` — subagent tool entrypoint, runtime orchestration, rendering, and session manifests
+- `pi-extensions/ui/statusline/` — shared usage-display formatting consumed by subagent rendering
+- `pi-agents/` — bundled agent definitions executed by this runtime

@@ -1,4 +1,4 @@
-# `current-context-footer`
+# `statusline`
 
 > Persistent status bar — transparent to the user.
 

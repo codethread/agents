@@ -3,7 +3,7 @@
 Small index for the extensions shipped in this package. See each extension folder for full docs.
 
 > [!NOTE]
-> **Note on Cache Invalidation:** When working with dynamic context injections and extensions, understand that modifying the system prompt mid-session (or changing the model/provider) completely drops the LLM Prompt Cache. This forces the entire conversation prefix to be reprocessed, increasing latency and cost. Ensure this is a mindful tradeoff in your extension design. See `specs/notes--discovery.md` for detailed cache management and "Lost in the Middle" attention strategies.
+> **Note on Cache Invalidation:** Changing prompt-layer context mid-session, or changing the model/provider, can drop provider prompt-cache reuse. Treat dynamic context injection as a cost/latency tradeoff; keep injected context bounded and stable when possible.
 
 ## Tools
 
@@ -12,16 +12,16 @@ Small index for the extensions shipped in this package. See each extension folde
 | [`subagent`](./tools/subagent/README.md)                   | Delegate to isolated agents or configured swarms, and inherit one discovered agent config via `--agent`. |
 | [`interactive-shell`](./tools/interactive-shell/README.md) | Spawn and control interactive shell panes for TUIs, REPLs, dev servers, and watch processes.             |
 | [`pi-internals`](./tools/pi-internals/README.md)           | Print Pi runtime/source/settings/enabled-extension paths on demand.                                      |
+| [`builtins`](./tools/builtins/README.md)                   | Register compact built-in `read` and `bash` tools.                                                       |
 
 ## UI
 
-| Extension                                                   | Summary                                                                |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------- |
-| [`builtins`](./tools/builtins/README.md)                    | Compact built-in `read` and `bash` displays — transparent to the user. |
-| [`statusline`](./ui/statusline/README.md)                   | Persistent status bar — transparent to the user.                       |
-| [`emote`](./ui/emote/README.md)                             | Kitty-first animated avatar widget vendored from pi-emote.             |
-| [`theme-sync`](./ui/theme-sync/README.md)                   | Keep `rose-pine` selected while swapping Dawn/Moon from a sentinel.    |
-| [`timeline-timestamps`](./ui/timeline-timestamps/README.md) | Show recent tool-call timestamps in the footer.                        |
+| Extension                                                   | Summary                                                             |
+| ----------------------------------------------------------- | ------------------------------------------------------------------- |
+| [`statusline`](./ui/statusline/README.md)                   | Persistent status bar — transparent to the user.                    |
+| [`emote`](./ui/emote/README.md)                             | Kitty-first animated avatar widget vendored from pi-emote.          |
+| [`theme-sync`](./ui/theme-sync/README.md)                   | Keep `rose-pine` selected while swapping Dawn/Moon from a sentinel. |
+| [`timeline-timestamps`](./ui/timeline-timestamps/README.md) | Show recent tool-call timestamps in the footer.                     |
 
 ## CLI
 
@@ -36,13 +36,18 @@ Small index for the extensions shipped in this package. See each extension folde
 | -------------------------------------------- | -------------------------------------------------------------------------- |
 | [`system-prompt`](./system-prompt/README.md) | Prompt-layer extension: owns the base scaffold and injects rendered rules. |
 
-## Messages
+## Messaging
 
 | Extension                                                      | Summary                                                              |
 | -------------------------------------------------------------- | -------------------------------------------------------------------- |
 | [`project-structure`](./messaging/project-structure/README.md) | Send a bounded project tree as model-visible custom message context. |
-| [`tldr`](./ui/tldr/README.md)                                  | Generate a catch-up summary of the current session.                  |
-| [`tmux-window-title`](./ui/tmux-window-title/README.md)        | Set the current tmux window title from the first user message.       |
+
+## Session UI utilities
+
+| Extension                                               | Summary                                                        |
+| ------------------------------------------------------- | -------------------------------------------------------------- |
+| [`tldr`](./ui/tldr/README.md)                           | Generate a catch-up summary of the current session.            |
+| [`tmux-window-title`](./ui/tmux-window-title/README.md) | Set the current tmux window title from the first user message. |
 
 ## Internal shared code
 

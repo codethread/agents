@@ -1,7 +1,7 @@
 # Subagent Dynamic Model Selection Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-05-11
+**Last Updated:** 2026-05-22
 
 ## 1. Overview
 
@@ -222,14 +222,9 @@ Human/session/debug surfaces may show compact attempt summaries such as candidat
 
 ## 6. Testing
 
-Core behavior is covered by focused subagent tests:
+Core behavior is covered by focused tests under `pi-extensions/tools/subagent/*.test.ts`, especially discovery/model-policy parsing, runtime retry/advance behavior, rendering boundaries, and manifest persistence.
 
-- `agents.test.ts` covers model-policy shape parsing, `when` grammar, validation, and direct-mode candidate selection.
-- `runtime.test.ts` covers explicit candidate invocation, retry/advance classification, terminal context overflow, transparent success, compact failure summaries, and manifest attempt persistence.
-- `render.test.ts` covers parent-visible output boundaries and human-facing model-chain summaries.
-- `session.test.ts` covers manifest serialization for compact attempt metadata.
-
-Full package validation uses `pnpm verify`.
+Full package validation uses `pnpm check`.
 
 ## 7. Open Questions
 
@@ -239,15 +234,4 @@ Full package validation uses `pnpm verify`.
 
 ## 8. Code Locations
 
-Implementation lives in:
-
-- `pi-extensions/tools/subagent/agents.ts`
-- `pi-extensions/tools/subagent/runtime.ts`
-- `pi-extensions/tools/subagent/types.ts`
-- `pi-extensions/tools/subagent/session.ts`
-- `pi-extensions/tools/subagent/render.ts`
-- `pi-extensions/tools/subagent/index.ts`
-- `pi-extensions/tools/subagent/*.test.ts`
-- `pi-extensions/tools/subagent/README.md`
-- `specs/subagent--discovery-and-config.md`
-- `specs/subagent--orchestration.md`
+Implementation lives in `pi-extensions/tools/subagent/`. Related domain context lives in `specs/subagent--discovery-and-config.md` and `specs/subagent--orchestration.md`.
