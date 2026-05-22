@@ -765,5 +765,5 @@ export function formatAgentsForPrompt(agents: AgentConfig[], swarms: SwarmConfig
 	}
 
 	lines.push("</available-subagents>");
-	return `\n\n${wrapSystemReminder("available-subagents", lines.join("\n"))}`;
+	return lines.map((line) => `  ${line}`).join("\n");
 }

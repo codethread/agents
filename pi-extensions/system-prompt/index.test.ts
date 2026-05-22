@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-	const buildOwnedPromptAddon = vi.fn(() => "<owned />");
-	const shouldAppendOwnedPrompt = vi.fn(() => true);
+	const buildOwnedPrompt = vi.fn(() => "<owned prompt />");
+	const createOwnedPromptBuilder = vi.fn(() => buildOwnedPrompt);
 	const renderDynamicAgentsPrompt = vi.fn(async () => "<dynamic />");
 	const showDebugMessage = vi.fn(async () => {});
 
 	return {
-		buildOwnedPromptAddon,
-		shouldAppendOwnedPrompt,
+		buildOwnedPrompt,
+		createOwnedPromptBuilder,
 		renderDynamicAgentsPrompt,
 		showDebugMessage,
 	};
@@ -19,8 +19,9 @@ vi.mock("../components/debug-message/index.js", () => ({
 }));
 
 vi.mock("./owned-system-prompt/index.js", () => ({
-	buildOwnedPromptAddon: mocks.buildOwnedPromptAddon,
-	shouldAppendOwnedPrompt: mocks.shouldAppendOwnedPrompt,
+	DEFAULT_OWNED_IDENTITY:
+		"You are an expert coding assistant operating inside pi, a coding agent harness.",
+	createOwnedPromptBuilder: mocks.createOwnedPromptBuilder,
 }));
 
 vi.mock("./dynamic-agents-md/index.js", () => ({
@@ -32,8 +33,7 @@ import systemPromptExtension from "./index.js";
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	mocks.buildOwnedPromptAddon.mockReturnValue("<owned />");
-	mocks.shouldAppendOwnedPrompt.mockReturnValue(true);
+	mocks.buildOwnedPrompt.mockReturnValue("<owned prompt />");
 	mocks.renderDynamicAgentsPrompt.mockResolvedValue("<dynamic />");
 });
 
@@ -126,6 +126,11 @@ describe("system-prompt extension", () => {
 				systemPrompt: "Base prompt",
 				systemPromptOptions: {
 					selectedTools: ["bash", "edit"],
+					toolSnippets: { bash: "Run shell commands", edit: "Edit files" },
+					promptGuidelines: ["Use edit for precise changes."],
+					contextFiles: [{ path: "/repo/AGENTS.md", content: "rules" }],
+					skills: [{ name: "test", description: "desc", filePath: "/skill.md" }],
+					appendSystemPrompt: "extra",
 				},
 			},
 			{
@@ -136,7 +141,18 @@ describe("system-prompt extension", () => {
 		);
 
 		expect(getActiveTools).not.toHaveBeenCalled();
-		expect(mocks.buildOwnedPromptAddon).toHaveBeenCalledWith(["bash", "edit"]);
+		expect(mocks.buildOwnedPrompt).toHaveBeenCalledWith(
+			expect.objectContaining({
+				cwd: "/repo",
+				selectedTools: ["bash", "edit"],
+				toolSnippets: { bash: "Run shell commands", edit: "Edit files" },
+				promptGuidelines: ["Use edit for precise changes."],
+				contextFiles: [{ path: "/repo/AGENTS.md", content: "rules" }],
+				skills: [{ name: "test", description: "desc", filePath: "/skill.md" }],
+				appendSystemPrompt: "extra",
+				dynamicPrompt: "<dynamic />",
+			}),
+		);
 		expect(mocks.renderDynamicAgentsPrompt).toHaveBeenCalledWith(
 			expect.objectContaining({
 				cwd: "/repo",
@@ -147,7 +163,7 @@ describe("system-prompt extension", () => {
 			null,
 		);
 		expect(result).toEqual({
-			systemPrompt: "Base prompt\n\n<owned />\n\n<dynamic />",
+			systemPrompt: "<owned prompt />",
 		});
 	});
 

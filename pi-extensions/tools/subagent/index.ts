@@ -87,6 +87,18 @@ export function isLikelyFollowUpRequest(task: string, description: string): bool
 	);
 }
 
+const OPERATING_RULES_HEADING = "\n\n## Operating rules\n\n";
+const SYSTEM_REMINDER_CLOSE = "\n</system-reminder>";
+
+export function insertToolingPrompt(systemPrompt: string, promptAddon: string): string {
+	if (!promptAddon) return systemPrompt;
+	const rulesIndex = systemPrompt.indexOf(OPERATING_RULES_HEADING);
+	if (rulesIndex === -1) return `${systemPrompt}\n\n${promptAddon}`;
+	const harnessEndIndex = systemPrompt.lastIndexOf(SYSTEM_REMINDER_CLOSE, rulesIndex);
+	if (harnessEndIndex === -1) return `${systemPrompt.slice(0, rulesIndex)}\n\n${promptAddon}${systemPrompt.slice(rulesIndex)}`;
+	return `${systemPrompt.slice(0, harnessEndIndex)}\n\n${promptAddon}${systemPrompt.slice(harnessEndIndex)}`;
+}
+
 export function findSwarmMemberResumeState(
 	members: readonly { name: string; sessionId?: string; sessionFile?: string }[] | undefined,
 	memberName: string,
@@ -286,7 +298,7 @@ export default function (pi: ExtensionAPI) {
 		const selectedPromptAddon = formatSelectedAgentPrompt(selected?.agent);
 		if (!promptAddon && !selectedPromptAddon) return;
 		return {
-			systemPrompt: `${event.systemPrompt}${promptAddon}${selectedPromptAddon}`,
+			systemPrompt: `${insertToolingPrompt(event.systemPrompt, promptAddon)}${selectedPromptAddon}`,
 		};
 	});
 

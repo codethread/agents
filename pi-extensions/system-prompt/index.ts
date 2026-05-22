@@ -1,19 +1,26 @@
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type {
+	BuildSystemPromptOptions,
+	ExtensionAPI,
+	ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
 import { showDebugMessage } from "../components/debug-message/index.js";
 import {
 	parseDebugPromptOverrides,
 	renderDynamicAgentsPrompt,
 	type DynamicAgentsTemplateVars,
 } from "./dynamic-agents-md/index.js";
-import { buildOwnedPromptAddon, shouldAppendOwnedPrompt } from "./owned-system-prompt/index.js";
+import { DEFAULT_OWNED_IDENTITY, buildOwnedSystemPrompt } from "./owned-system-prompt/index.js";
 
 const DEBUG_PROMPT_FLAG = "debug-prompt";
 
+type ToolDefinition = Parameters<ExtensionAPI["registerTool"]>[0];
+type ToolPromptMetadata = {
+	promptGuidelines: string[];
+};
+
 type BeforeAgentStartEvent = {
 	systemPrompt: string;
-	systemPromptOptions?: {
-		selectedTools?: string[];
-	};
+	systemPromptOptions?: Partial<BuildSystemPromptOptions>;
 };
 
 function trimOuterEmptyLines(text: string): string {
@@ -26,16 +33,23 @@ ${prompt}
 \`\`\`\``;
 }
 
-function appendPromptSection(systemPrompt: string, section: string | null | undefined): string {
-	return section ? `${systemPrompt}\n\n${section}` : systemPrompt;
-}
+type OwnedSystemPromptOptions = Partial<BuildSystemPromptOptions> & {
+	cwd: string;
+	selectedTools: string[];
+	toolSnippets: Record<string, string>;
+	promptGuidelines: string[];
+};
 
-function getSelectedToolsFromEvent(
-	event: BeforeAgentStartEvent,
-	getFallbackTools: () => string[],
-): string[] {
-	const selectedTools = event.systemPromptOptions?.selectedTools;
-	return Array.isArray(selectedTools) ? selectedTools : getFallbackTools();
+function getOwnedSystemPromptOptions(event: BeforeAgentStartEvent): OwnedSystemPromptOptions {
+	const options = event.systemPromptOptions;
+	if (!options) throw new Error("Pi did not provide systemPromptOptions for owned prompt rendering.");
+	if (!options.cwd) throw new Error("Pi did not provide systemPromptOptions.cwd.");
+	if (!options.selectedTools) throw new Error("Pi did not provide systemPromptOptions.selectedTools.");
+	if (!options.toolSnippets) throw new Error("Pi did not provide systemPromptOptions.toolSnippets.");
+	if (!options.promptGuidelines) {
+		throw new Error("Pi did not provide systemPromptOptions.promptGuidelines.");
+	}
+	return options as OwnedSystemPromptOptions;
 }
 
 function notify(
@@ -46,6 +60,43 @@ function notify(
 	if (ctx.hasUI) ctx.ui.notify(message, level);
 }
 
+function mentionsTool(guideline: string, toolName: string): boolean {
+	return new RegExp(`(^|[^a-z0-9_\\-])${toolName.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}([^a-z0-9_\\-]|$)`, "i").test(guideline);
+}
+
+function groupToolGuidelines(
+	selectedTools: string[],
+	promptGuidelines: string[],
+	metadata: Map<string, ToolPromptMetadata>,
+): Record<string, string[]> {
+	const grouped: Record<string, string[]> = {};
+	const claimed = new Set<string>();
+	const addGuideline = (toolName: string, guideline: string) => {
+		const normalized = guideline.trim();
+		if (!normalized) return;
+		grouped[toolName] ??= [];
+		if (!grouped[toolName].includes(normalized)) grouped[toolName].push(normalized);
+		claimed.add(normalized);
+	};
+
+	for (const toolName of selectedTools) {
+		for (const guideline of metadata.get(toolName)?.promptGuidelines ?? []) {
+			addGuideline(toolName, guideline);
+		}
+	}
+
+	let currentTool: string | undefined;
+	for (const guideline of promptGuidelines) {
+		const normalized = guideline.trim();
+		if (!normalized) continue;
+		const matchingTool = selectedTools.find((toolName) => mentionsTool(normalized, toolName));
+		currentTool = matchingTool ?? currentTool;
+		if (currentTool && !claimed.has(normalized)) addGuideline(currentTool, normalized);
+	}
+
+	return grouped;
+}
+
 export default function systemPromptExtension(pi: ExtensionAPI) {
 	let printPromptOnNextTurn = false;
 	let debugPromptTriggered = false;
@@ -53,6 +104,14 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 	let lastMaterializedPrompt: string | null = null;
 	let waitForDebugPromptMaterialization: Promise<void> | null = null;
 	let resolveDebugPromptMaterialization: (() => void) | null = null;
+	const toolPromptMetadata = new Map<string, ToolPromptMetadata>();
+	const registerTool = pi.registerTool.bind(pi);
+	pi.registerTool = ((definition: ToolDefinition) => {
+		toolPromptMetadata.set(definition.name, {
+			promptGuidelines: definition.promptGuidelines ?? [],
+		});
+		registerTool(definition);
+	}) as ExtensionAPI["registerTool"];
 
 	const queuePromptDebugTurn = async (
 		ctx: Pick<ExtensionContext, "hasUI" | "ui">,
@@ -132,26 +191,36 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (event: BeforeAgentStartEvent, ctx) => {
-		const selectedTools = getSelectedToolsFromEvent(event, () => pi.getActiveTools());
-		let systemPrompt = event.systemPrompt;
-
-		if (shouldAppendOwnedPrompt(systemPrompt)) {
-			systemPrompt = appendPromptSection(systemPrompt, buildOwnedPromptAddon(selectedTools));
-		}
-
+		const options = getOwnedSystemPromptOptions(event);
 		const dynamicPrompt = await renderDynamicAgentsPrompt(
 			{
-				cwd: ctx.cwd,
+				cwd: options.cwd,
 				hasUI: ctx.hasUI,
 				model: ctx.model,
-				tools: selectedTools,
+				tools: options.selectedTools,
 			},
 			printPromptOnNextTurn ? debugPromptOverrides : null,
 		);
-		systemPrompt = appendPromptSection(systemPrompt, dynamicPrompt);
 
-		if (systemPrompt === event.systemPrompt) return;
-		return { systemPrompt };
+		return {
+			systemPrompt: buildOwnedSystemPrompt({
+				identity: options.customPrompt?.trim() || DEFAULT_OWNED_IDENTITY,
+				cwd: options.cwd,
+				currentDate: new Date().toISOString().slice(0, 10),
+				selectedTools: options.selectedTools,
+				toolSnippets: options.toolSnippets,
+				promptGuidelines: options.promptGuidelines,
+				toolGuidelines: groupToolGuidelines(
+					options.selectedTools,
+					options.promptGuidelines,
+					toolPromptMetadata,
+				),
+				contextFiles: options.contextFiles ?? [],
+				skills: options.skills ?? [],
+				appendSystemPrompt: options.appendSystemPrompt,
+				dynamicPrompt,
+			}),
+		};
 	});
 
 	pi.on("agent_start", (_event, ctx) => {

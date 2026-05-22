@@ -1,52 +1,37 @@
 # `owned-system-prompt`
 
-> Own Pi's base prompt scaffold while preserving normal `before_agent_start` chaining.
+> Own the complete Pi system prompt shape from structured Pi prompt inputs.
 
 > [!NOTE]
-> This behavior now ships through the merged [`system-prompt`](../README.md) extension entrypoint. Pi event wiring lives in `../index.ts`; this module only exports prompt-building helpers.
+> Runtime wiring lives in the merged [`system-prompt`](../README.md) extension entrypoint. This module exports pure prompt-building helpers for dependency injection and snapshot testing.
 
-This extension assumes you replace Pi's default base prompt with a tiny custom `SYSTEM.md`, then it appends this package's owned tool and guideline sections during `before_agent_start` inside one `<system-reminder type="harness">...</system-reminder>` block.
+## What this module owns
 
-That keeps later prompt-mutating extensions like `dynamic-agents-md` and `subagent` working unchanged: they see the owned prompt as their input prompt and can continue appending normally.
+`../index.ts` replaces `event.systemPrompt` during `before_agent_start` with output from this builder. It uses `event.systemPromptOptions` instead of scraping Pi's generated prompt, so the package controls ordering and formatting for:
 
-## Required setup
+- identity / custom prompt text
+- project context files
+- model-visible skills
+- `--append-system-prompt` text
+- current date and working directory
+- selected tools from Pi's resolved tool set
+- tool snippets and prompt guidelines exposed by Pi core/custom tools
+- dynamic global/project rule template output
 
-Create `~/.pi/agent/SYSTEM.md` with exactly this line:
+## Dependency injection
 
-```md
-You are an expert coding assistant operating inside pi, a coding agent harness.
-```
+Use `createOwnedPromptBuilder({ wrapReminder })` to inject XML wrapping or test doubles. The default uses `wrapSystemReminder()` from `pi-extensions/shared/xml.ts`.
 
-Pi core will still append context files, skills, current date, and current working directory after loading that file.
+The renderer functions are intentionally pure:
 
-If the default Pi base prompt is still present, this extension deliberately does nothing so it does not duplicate Pi's built-in tool/guideline sections.
-
-## What this extension owns
-
-The extension appends:
-
-- the package-owned `Available tools` section for Pi built-in tools
-- the package-owned `Guidelines` section for Pi built-in tools
-- the short bridge line about other custom tools potentially being available
-
-It intentionally does **not** try to reconstruct prompt metadata for custom extension tools, because Pi does not currently expose custom-tool `promptSnippet` / `promptGuidelines` metadata through `pi.getAllTools()`.
+- `renderOwnedTools()`
+- `renderOwnedGuidelines()`
+- `renderOwnedContextFiles()`
+- `renderOwnedSkills()`
+- `buildOwnedSystemPrompt()`
 
 ## Debugging
 
-This module no longer exposes its own standalone debug surface.
-Use the merged `system-prompt` extension's `--debug-prompt` flag or `/debug-prompt` command to inspect the final materialized prompt that includes this owned scaffold.
+Use the merged `system-prompt` extension's `--debug-prompt` flag or `/debug-prompt` command to inspect the final materialized prompt.
 
-## Refreshing built-in tool metadata
-
-The built-in tool prompt strings in this extension are manually synced from Pi.
-When upgrading Pi, re-check these package-relative files:
-
-- `$PI_PACKAGE_DIR/dist/core/tools/read.js`
-- `$PI_PACKAGE_DIR/dist/core/tools/bash.js`
-- `$PI_PACKAGE_DIR/dist/core/tools/edit.js`
-- `$PI_PACKAGE_DIR/dist/core/tools/write.js`
-- `$PI_PACKAGE_DIR/dist/core/tools/grep.js`
-- `$PI_PACKAGE_DIR/dist/core/tools/find.js`
-- `$PI_PACKAGE_DIR/dist/core/tools/ls.js`
-
-If `PI_PACKAGE_DIR` is not set, resolve the installed package path and inspect the same `dist/core/tools/*.js` files there.
+Snapshot tests in `index.test.ts` show the exact prompt layout.

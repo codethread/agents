@@ -7,12 +7,12 @@
 
 ### Purpose
 
-Document how this package contributes model-facing prompt context: Pi core builds the base system prompt, `pi-extensions/system-prompt/` owns the package's system-prompt additions, and adjacent extensions contribute non-system context when that is the better cache/UX boundary.
+Document how this package contributes model-facing prompt context: Pi core discovers prompt inputs, `pi-extensions/system-prompt/` replaces the base system prompt with a package-owned rendering, and adjacent extensions contribute non-system context when that is the better cache/UX boundary.
 
 ### Goals
 
 - Capture the ordering and boundaries for package-owned system-prompt assembly.
-- Keep scaffold ownership and dynamic template injection in one spec.
+- Keep prompt replacement and dynamic template injection in one spec.
 - Distinguish stable system-prompt instructions from volatile custom-message context.
 - Define invariants for future prompt-contributing extensions.
 
@@ -24,20 +24,17 @@ Document how this package contributes model-facing prompt context: Pi core build
 
 ## 2. Design Decisions
 
-- **Decision:** `system-prompt` owns only stable prompt-layer behavior: base scaffold ownership and dynamic rule templates.
+- **Decision:** `system-prompt` owns only stable prompt-layer behavior: full system-prompt replacement and dynamic rule templates.
   - **Rationale:** These are operating instructions that should live in the effective system prompt. Volatile context such as the project tree is better sent as custom message context so it can refresh without changing the system prompt.
 
-- **Decision:** Scaffold ownership runs before dynamic template injection.
-  - **Rationale:** The owned scaffold establishes the base tool/guideline shape, then global/project rules append as isolated sections.
+- **Decision:** Dynamic template rendering runs before owned prompt building.
+  - **Rationale:** The owned builder receives rendered global/project rules as one input, so it controls final ordering and formatting.
 
 - **Decision:** The extension prefers `before_agent_start.event.systemPromptOptions.selectedTools` over rediscovering active tools.
   - **Rationale:** Pi core already resolved the selected tool set for the prompt being built. Reusing it keeps owned tool metadata and template variables aligned with the actual request.
 
-- **Decision:** Default Pi prompt detection uses a sentinel string rather than a full prompt comparison.
-  - **Rationale:** A sentinel is stable enough to identify Pi's default scaffold without coupling to every byte of Pi's generated prompt. If the default scaffold is still present, ownership skips to avoid duplicate tool/guideline sections.
-
-- **Decision:** Built-in tool metadata is manually vendored for the owned scaffold.
-  - **Rationale:** Pi's extension API does not expose built-in `promptSnippet` / `promptGuidelines`. Manual sync is cheaper and clearer than trying to infer these strings at runtime.
+- **Decision:** The owned builder consumes Pi's structured `systemPromptOptions` instead of parsing `event.systemPrompt`.
+  - **Rationale:** Pi already exposes selected tools, tool snippets, prompt guidelines, context files, skills, cwd, and append text. Structured inputs keep ownership explicit and deterministic.
 
 - **Decision:** Dynamic rule templates support one global template and the nearest project template.
   - **Rationale:** Personal rules and repo-local rules solve different problems. A nearest-template rule avoids ambiguous multi-template stacking.
@@ -61,23 +58,23 @@ Before extension hooks run, Pi core establishes `event.systemPrompt` from its ba
 - `--append-system-prompt`
 - selected tools and tool metadata surfaced through `event.systemPromptOptions`
 
-### 3.2 Owned Scaffold Phase
+### 3.2 Owned Prompt Replacement Phase
 
-When Pi's default scaffold is absent, `system-prompt` appends a package-owned `<system-reminder type="harness">` block containing the built-in tool list and package guidelines.
+`system-prompt` replaces `event.systemPrompt` during `before_agent_start` with a package-owned rendering. The builder owns final ordering for identity, context files, skills, append text, date, cwd, harness/tool guidance, and dynamic rule output.
 
-Required setup for ownership mode:
+The identity defaults to:
 
 ```md
 You are an expert coding assistant operating inside pi, a coding agent harness.
 ```
 
-That text should be placed in `~/.pi/agent/SYSTEM.md`. If the setup is absent and Pi's default prompt remains active, the owned scaffold no-ops.
+If Pi supplies `systemPromptOptions.customPrompt`, the builder uses that text as the identity section instead.
 
-The owned scaffold adapts to selected tools. For example, bash guidance changes depending on whether purpose-built file-discovery tools are also available.
+Tool rendering uses `systemPromptOptions.selectedTools` and `systemPromptOptions.toolSnippets`, including custom extension tools when Pi exposes snippets for them. Guideline rendering uses `systemPromptOptions.promptGuidelines` plus package-owned global response guidelines.
 
 ### 3.3 Dynamic Template Phase
 
-After scaffold ownership, `system-prompt` renders:
+Before owned prompt building, `system-prompt` renders:
 
 - global template: `<PI_CODING_AGENT_DIR>/agent.njk`
 - nearest project template: `.pi/agent.njk` walking upward from cwd
@@ -90,7 +87,7 @@ Template variables include:
 - `isMainAgent` / `isSubagent`, derived from `PI_SUBAGENT=1`
 - optional JSON overrides for a `--debug-prompt` materialization turn
 
-Rendered non-empty output is appended as:
+Rendered non-empty output is passed into the owned prompt builder as:
 
 ```xml
 <system-reminder type="rules">
@@ -112,13 +109,13 @@ This is intentionally outside `system-prompt`: the project tree is volatile navi
 
 ### 3.5 Later Prompt Contributors
 
-Other extensions can still append to `event.systemPrompt` after `system-prompt` based on package load order. The main example is `subagent`, which appends available-agent inventory and selected-agent prompt context.
+Other extensions can still append to the replacement prompt after `system-prompt` based on package load order. The main example is `subagent`, which appends available-agent inventory and selected-agent prompt context.
 
-Tool metadata registered through `promptSnippet` / `promptGuidelines` is woven by Pi core separately from `before_agent_start` chaining.
+Tool metadata registered through `promptSnippet` / `promptGuidelines` is surfaced through Pi's `systemPromptOptions` and rendered by the owned builder.
 
 ## 4. Invariants
 
-- Append to `event.systemPrompt`; do not replace unrelated prior content.
+- Replace `event.systemPrompt` only from structured `systemPromptOptions`; do not parse Pi's generated prompt text.
 - Prefer structured `systemPromptOptions` over duplicate runtime discovery when available.
 - Wrap each prompt contribution in one clear XML root.
 - Keep volatile context out of the system prompt when a custom message is sufficient.

@@ -1,11 +1,11 @@
 # `system-prompt`
 
-> Prompt extension that owns Pi's base scaffold and injects rendered rules.
+> Prompt extension that owns Pi's effective system prompt and injects rendered rules.
 
 This package loads a `system-prompt` extension entrypoint from `pi-extensions/system-prompt/index.ts`. That root file owns all Pi flags, commands, and event hooks for two prompt-layer behaviors:
 
-1. **Owned scaffold** — appends the package-owned built-in tool + guideline block inside `<system-reminder type="harness">` when Pi's default base prompt is not present.
-2. **Dynamic template injection** — renders global `agent.njk` and nearest project `.pi/agent.njk` templates into `<system-reminder type="rules">` / `<system-reminder type="project-rules">`.
+1. **Owned prompt replacement** — replaces Pi's generated prompt during `before_agent_start` using structured `systemPromptOptions` for tools, guidelines, skills, context files, append text, date, and cwd.
+2. **Dynamic template injection** — renders global `agent.njk` and nearest project `.pi/agent.njk` templates into `<system-reminder type="rules">` / `<system-reminder type="project-rules">` before passing them to the owned prompt builder.
 
 ## Debug surfaces
 

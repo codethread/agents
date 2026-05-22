@@ -1,128 +1,177 @@
-import { wrapSystemReminder } from "../../shared/xml.js";
+import type { BuildSystemPromptOptions } from "@earendil-works/pi-coding-agent";
+import { escapeXmlAttribute, wrapSystemReminder } from "../../shared/xml.js";
 
-export const DEFAULT_SYSTEM_PROMPT_SENTINEL =
-	"Pi documentation (read only when the user asks about pi itself, its SDK, extensions, themes, skills, or TUI):";
+export type OwnedSkill = Pick<
+	NonNullable<BuildSystemPromptOptions["skills"]>[number],
+	"name" | "description" | "filePath"
+> & {
+	disableModelInvocation?: boolean;
+};
+export type OwnedContextFile = NonNullable<BuildSystemPromptOptions["contextFiles"]>[number];
 
-const BUILTIN_TOOL_ORDER = ["read", "bash", "edit", "write", "grep", "find", "ls"] as const;
-
-type BuiltinToolName = (typeof BUILTIN_TOOL_ORDER)[number];
-
-const BUILTIN_TOOL_METADATA: Record<
-	BuiltinToolName,
-	{
-		snippet: string;
-		guidelines: string[];
-	}
-> = {
-	read: {
-		snippet: "Read file contents",
-		guidelines: ["Use read to examine files instead of cat or sed."],
-	},
-	bash: {
-		snippet: "Execute bash commands (ls, grep, find, etc.)",
-		guidelines: [],
-	},
-	edit: {
-		snippet:
-			"Make precise file edits with exact text replacement, including multiple disjoint edits in one call",
-		guidelines: [
-			"Use edit for precise changes (edits[].oldText must match exactly)",
-			"When changing multiple separate locations in one file, use one edit call with multiple entries in edits[] instead of multiple edit calls",
-			"Each edits[].oldText is matched against the original file, not after earlier edits are applied. Do not emit overlapping or nested edits. Merge nearby changes into one edit.",
-			"Keep edits[].oldText as small as possible while still being unique in the file. Do not pad with large unchanged regions.",
-		],
-	},
-	write: {
-		snippet: "Create or overwrite files",
-		guidelines: ["Use write only for new files or complete rewrites."],
-	},
-	grep: {
-		snippet: "Search file contents for patterns (respects .gitignore)",
-		guidelines: [],
-	},
-	find: {
-		snippet: "Find files by glob pattern (respects .gitignore)",
-		guidelines: [],
-	},
-	ls: {
-		snippet: "List directory contents",
-		guidelines: [],
-	},
+export type OwnedPromptInput = {
+	identity: string;
+	cwd: string;
+	currentDate: string;
+	selectedTools: string[];
+	toolSnippets: Record<string, string>;
+	promptGuidelines: string[];
+	toolGuidelines?: Record<string, string[]>;
+	contextFiles: OwnedContextFile[];
+	skills: OwnedSkill[];
+	appendSystemPrompt?: string;
+	dynamicPrompt?: string | null;
 };
 
-function isBuiltinToolName(toolName: string): toolName is BuiltinToolName {
-	return toolName in BUILTIN_TOOL_METADATA;
+export type OwnedPromptDependencies = {
+	wrapReminder: (type: string, content: string) => string;
+};
+
+export const DEFAULT_OWNED_IDENTITY =
+	"You are an expert coding assistant operating inside pi, a coding agent harness.";
+
+const DEFAULT_GUIDELINES = [
+	"Be concise in your responses",
+	"Show file paths clearly when working with files",
+];
+
+export function createOwnedPromptBuilder(
+	dependencies: OwnedPromptDependencies = { wrapReminder: wrapSystemReminder },
+) {
+	return (input: OwnedPromptInput): string => buildOwnedSystemPrompt(input, dependencies);
 }
 
-export function getOwnedBuiltinTools(activeTools: string[]): BuiltinToolName[] {
-	const activeBuiltinTools = new Set(activeTools.filter(isBuiltinToolName));
-	return BUILTIN_TOOL_ORDER.filter((toolName) => activeBuiltinTools.has(toolName));
+function compact(lines: Array<string | null | undefined>): string[] {
+	return lines.map((line) => line?.trim()).filter((line): line is string => Boolean(line));
 }
 
-export function buildOwnedGuidelines(activeTools: string[]): string[] {
-	const activeToolsSet = new Set(activeTools);
-	const guidelines: string[] = [];
-	const seen = new Set<string>();
-	const addGuideline = (guideline: string) => {
-		const normalized = guideline.trim();
-		if (normalized.length === 0 || seen.has(normalized)) return;
-		seen.add(normalized);
-		guidelines.push(normalized);
-	};
-
-	const hasBash = activeToolsSet.has("bash");
-	const hasGrep = activeToolsSet.has("grep");
-	const hasFind = activeToolsSet.has("find");
-	const hasLs = activeToolsSet.has("ls");
-
-	if (hasBash && !hasGrep && !hasFind && !hasLs) {
-		addGuideline("Use bash for file operations like ls, rg, find");
-	} else if (hasBash && (hasGrep || hasFind || hasLs)) {
-		addGuideline(
-			"Prefer grep/find/ls tools over bash for file exploration (faster, respects .gitignore)",
-		);
-	}
-
-	for (const toolName of getOwnedBuiltinTools(activeTools)) {
-		for (const guideline of BUILTIN_TOOL_METADATA[toolName].guidelines) {
-			addGuideline(guideline);
-		}
-	}
-
-	addGuideline("Be concise in your responses");
-	addGuideline("Show file paths clearly when working with files");
-
-	return guidelines;
+function unique(lines: string[]): string[] {
+	return [...new Set(compact(lines))];
 }
 
-export function buildOwnedPromptAddon(activeTools: string[]): string {
-	const visibleTools = getOwnedBuiltinTools(activeTools);
-	const toolsList =
-		visibleTools.length > 0
-			? visibleTools
-					.map((toolName) => `- ${toolName}: ${BUILTIN_TOOL_METADATA[toolName].snippet}`)
-					.join("\n")
-			: "(none)";
-	const guidelinesList = buildOwnedGuidelines(activeTools)
-		.map((guideline) => `- ${guideline}`)
+function joinSections(sections: Array<string | null | undefined>): string {
+	return compact(sections).join("\n\n");
+}
+
+function renderSection(title: string, intro: string, body: string | null | undefined): string | null {
+	if (!body?.trim()) return null;
+	return joinSections([`## ${title}`, intro, body]);
+}
+
+function bullet(lines: string[], indent = ""): string {
+	return lines.map((line) => `${indent}- ${line}`).join("\n");
+}
+
+function orderTools(toolNames: string[]): string[] {
+	return [...toolNames.filter((toolName) => toolName !== "subagent"), ...toolNames.filter((toolName) => toolName === "subagent")];
+}
+
+function toolSpecificGuidelines(toolGuidelines: Record<string, string[]> = {}): Set<string> {
+	return new Set(Object.values(toolGuidelines).flat().map((guideline) => guideline.trim()));
+}
+
+export function renderOwnedTools({
+	selectedTools,
+	toolSnippets,
+	toolGuidelines,
+}: Pick<OwnedPromptInput, "selectedTools" | "toolSnippets" | "toolGuidelines">): string {
+	if (selectedTools.length === 0) return "(none)";
+	return orderTools(selectedTools)
+		.map((toolName) =>
+			[
+				`- \`${toolName}\`${toolSnippets[toolName] ? `: ${toolSnippets[toolName]}` : ""}`,
+				bullet(unique(toolGuidelines?.[toolName] ?? []), "  "),
+			]
+				.filter(Boolean)
+				.join("\n"),
+		)
 		.join("\n");
+}
 
-	return wrapSystemReminder(
-		"harness",
+export function renderOwnedGuidelines(
+	input: string[] | Pick<OwnedPromptInput, "promptGuidelines" | "toolGuidelines">,
+): string {
+	const promptGuidelines = Array.isArray(input) ? input : input.promptGuidelines;
+	const toolGuidelines = Array.isArray(input) ? undefined : input.toolGuidelines;
+	const claimed = toolSpecificGuidelines(toolGuidelines);
+	const generalGuidelines = promptGuidelines.filter((guideline) => !claimed.has(guideline.trim()));
+	return bullet(unique([...generalGuidelines, ...DEFAULT_GUIDELINES]));
+}
+
+export function renderOwnedContextFiles(
+	contextFiles: OwnedContextFile[],
+	wrapReminder: OwnedPromptDependencies["wrapReminder"] = wrapSystemReminder,
+): string | null {
+	if (contextFiles.length === 0) return null;
+	const files = contextFiles.map((file) =>
+		joinSections([
+			`<context-file path="${escapeXmlAttribute(file.path)}">`,
+			file.content,
+			"</context-file>",
+		]),
+	);
+	return wrapReminder("project-context", joinSections(files));
+}
+
+export function renderOwnedSkills(skills: OwnedSkill[]): string | null {
+	const visibleSkills = skills.filter((skill) => !skill.disableModelInvocation);
+	if (visibleSkills.length === 0) return null;
+
+	return renderSection(
+		"Skills",
+		"Load these task-specific instructions only when the user request matches a skill description.",
 		[
-			"You help users by reading files, executing commands, editing code, and writing new files.",
+			"Use the read tool to load a skill's file when the task matches its description.",
+			"When a skill file references a relative path, resolve it against the skill directory (parent of SKILL.md / dirname of the path) and use that absolute path in tool commands.",
 			"",
-			"Available tools:",
-			toolsList,
-			"",
-			"In addition to the tools above, you may have access to other custom tools depending on the project.",
-			"",
-			"Guidelines:",
-			guidelinesList,
+			"<available_skills>",
+			...visibleSkills.flatMap((skill) => [
+				"  <skill>",
+				`    <name>${skill.name}</name>`,
+				`    <description>${skill.description}</description>`,
+				`    <location>${skill.filePath}</location>`,
+				"  </skill>",
+			]),
+			"</available_skills>",
 		].join("\n"),
 	);
 }
 
-export function shouldAppendOwnedPrompt(systemPrompt: string): boolean {
-	return !systemPrompt.includes(DEFAULT_SYSTEM_PROMPT_SENTINEL);
+export function buildOwnedSystemPrompt(
+	input: OwnedPromptInput,
+	{ wrapReminder }: OwnedPromptDependencies = { wrapReminder: wrapSystemReminder },
+): string {
+	const harness = wrapReminder(
+		"harness",
+		[
+			"You help users by reading files, executing commands, editing code, and writing new files.",
+			"",
+			"General response guidelines:",
+			renderOwnedGuidelines(input),
+			"",
+			"Available tools:",
+			renderOwnedTools(input),
+		].join("\n"),
+	);
+
+	return joinSections([
+		input.identity,
+		renderSection("Operating harness", "", harness),
+		renderSection("Operating rules", "", input.dynamicPrompt),
+		renderOwnedContextFiles(input.contextFiles, wrapReminder),
+		renderOwnedSkills(input.skills),
+		renderSection(
+			"Session metadata",
+			"",
+			wrapReminder(
+				"session-metadata",
+				[`Current date: ${input.currentDate}`, `Current working directory: ${input.cwd}`].join("\n"),
+			),
+		),
+		renderSection(
+			"Additional system instructions",
+			"Apply this explicit system-prompt addition after the owned prompt sections.",
+			input.appendSystemPrompt,
+		),
+	]);
 }
