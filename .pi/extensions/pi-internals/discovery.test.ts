@@ -46,8 +46,8 @@ function makeStaticDiscovery() {
 		},
 		extensions: [
 			{
-				name: "dynamic-agents-md",
-				path: "/pkg/pi-extensions/dynamic-agents-md/index.ts",
+				name: "system-prompt",
+				path: "/pkg/pi-extensions/system-prompt/index.ts",
 				scope: "user" as const,
 				source: "npm:@codethread/agents",
 				origin: "package" as const,
@@ -69,8 +69,8 @@ afterEach(async () => {
 
 describe("getExtensionNameFromPath", () => {
 	it("uses the parent directory for index files", () => {
-		expect(getExtensionNameFromPath("/tmp/pi/extensions/dynamic-agents-md/index.ts")).toBe(
-			"dynamic-agents-md",
+		expect(getExtensionNameFromPath("/tmp/pi/extensions/system-prompt/index.ts")).toBe(
+			"system-prompt",
 		);
 	});
 
@@ -177,7 +177,7 @@ describe("formatters", () => {
 
 			Enabled extensions:
 			Package extensions: /pkg
-			  - npm:@codethread/agents: ./pi-extensions/dynamic-agents-md/index.ts"
+			  - npm:@codethread/agents: ./pi-extensions/system-prompt/index.ts"
 		`);
 		expect(formatExtensionDiscoveryReport(discovery)).toMatchInlineSnapshot(`
 			"Pi internals
@@ -202,7 +202,7 @@ describe("formatters", () => {
 
 			Enabled extensions:
 			Package extensions: /pkg
-			  - npm:@codethread/agents: ./pi-extensions/dynamic-agents-md/index.ts"
+			  - npm:@codethread/agents: ./pi-extensions/system-prompt/index.ts"
 		`);
 	});
 

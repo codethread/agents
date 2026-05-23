@@ -5,30 +5,131 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	expandHomePrefix,
 	findGlobalTemplate,
-	findNearestProjectTemplate,
-	findNearestTemplate,
+	findProjectTemplate,
 	getGlobalTemplatePath,
 	getPiCodingAgentDir,
-	renderNearestTemplate,
+	getTemplateVars,
+	parseDebugPromptOverrides,
+	renderDynamicPrompt,
 	renderTemplate,
 	renderTemplateSections,
+	renderTemplates,
 	stripEmptyLines,
-} from "./parser.js";
+} from "./templates.js";
 
 const tempDirs: string[] = [];
+const originalPiSubagent = process.env.PI_SUBAGENT;
 
 async function makeTempDir(): Promise<string> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "dynamic-agents-md-test-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "system-prompt-templates-test-"));
 	tempDirs.push(dir);
 	return dir;
 }
 
 afterEach(async () => {
+	if (originalPiSubagent === undefined) delete process.env.PI_SUBAGENT;
+	else process.env.PI_SUBAGENT = originalPiSubagent;
 	await Promise.all(tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
 
+describe("parseDebugPromptOverrides", () => {
+	it("returns null overrides for bare --debug-prompt", () => {
+		expect(parseDebugPromptOverrides(["--debug-prompt"])).toEqual({
+			overrides: null,
+			error: null,
+		});
+	});
+
+	it("parses JSON from a separate argument", () => {
+		expect(parseDebugPromptOverrides(["--debug-prompt", '{"model":"claude-sonnet"}'])).toEqual({
+			overrides: { model: "claude-sonnet" },
+			error: null,
+		});
+	});
+
+	it("parses JSON from --debug-prompt=<json>", () => {
+		expect(parseDebugPromptOverrides(['--debug-prompt={"model":"claude-sonnet"}'])).toEqual({
+			overrides: { model: "claude-sonnet" },
+			error: null,
+		});
+	});
+
+	it("ignores non-JSON-looking values to preserve bare-flag behavior", () => {
+		expect(parseDebugPromptOverrides(["--debug-prompt", "ping"])).toEqual({
+			overrides: null,
+			error: null,
+		});
+	});
+
+	it("rejects invalid object JSON", () => {
+		expect(parseDebugPromptOverrides(["--debug-prompt", '{"model":}'])).toEqual({
+			overrides: null,
+			error: expect.stringContaining("Invalid --debug-prompt JSON:"),
+		});
+	});
+});
+
+describe("getTemplateVars", () => {
+	it("marks the top-level runtime as the main agent by default", () => {
+		delete process.env.PI_SUBAGENT;
+		const vars = getTemplateVars({
+			cwd: "/repo",
+			hasUI: true,
+			tools: ["read"],
+		});
+
+		expect(vars).toMatchObject({
+			isMainAgent: true,
+			isSubagent: false,
+		});
+	});
+
+	it("marks delegated runtimes as subagents", () => {
+		process.env.PI_SUBAGENT = "1";
+		const vars = getTemplateVars({
+			cwd: "/repo",
+			hasUI: false,
+			tools: ["read"],
+		});
+
+		expect(vars).toMatchObject({
+			isMainAgent: false,
+			isSubagent: true,
+		});
+	});
+
+	it("lets overrides replace machine-derived vars", () => {
+		const vars = getTemplateVars(
+			{
+				cwd: "/repo",
+				hasUI: true,
+				tools: ["read", "write"],
+				model: {
+					provider: "openai",
+					id: "gpt-5",
+				},
+			},
+			{
+				model: "claude-sonnet",
+				HOME: "/tmp/fake-home",
+				isMainAgent: false,
+			},
+		);
+
+		expect(vars).toMatchObject({
+			provider: "openai",
+			model: "claude-sonnet",
+			cwd: "/repo",
+			hasUI: true,
+			isMainAgent: false,
+			tools: ["read", "write"],
+			HOME: "/tmp/fake-home",
+		});
+	});
+});
+
 describe("template discovery", () => {
-	it("findNearestProjectTemplate prefers the nearest local .pi/agent.njk file", async () => {
+	it("findProjectTemplate prefers the nearest local .pi/agent.njk file", async () => {
 		const root = await makeTempDir();
 		const nested = path.join(root, "apps", "web", "src");
 		await fs.mkdir(path.join(root, ".pi"), { recursive: true });
@@ -37,7 +138,7 @@ describe("template discovery", () => {
 		await fs.writeFile(path.join(root, ".pi", "agent.njk"), "root");
 		await fs.writeFile(path.join(root, "apps", "web", ".pi", "agent.njk"), "nested");
 
-		const match = await findNearestProjectTemplate(nested);
+		const match = await findProjectTemplate(nested);
 
 		expect(match).toEqual({
 			filePath: path.join(root, "apps", "web", ".pi", "agent.njk"),
@@ -65,29 +166,6 @@ describe("template discovery", () => {
 			else process.env.PI_CODING_AGENT_DIR = previous;
 		}
 	});
-
-	it("findNearestTemplate still prefers the local template over global fallback", async () => {
-		const root = await makeTempDir();
-		const agentDir = path.join(root, "custom-agent-dir");
-		const previous = process.env.PI_CODING_AGENT_DIR;
-		process.env.PI_CODING_AGENT_DIR = agentDir;
-		await fs.mkdir(path.join(root, ".pi"), { recursive: true });
-		await fs.mkdir(agentDir, { recursive: true });
-		await fs.writeFile(path.join(root, ".pi", "agent.njk"), "local");
-		await fs.writeFile(path.join(agentDir, "agent.njk"), "global");
-
-		try {
-			const match = await findNearestTemplate(root);
-
-			expect(match).toEqual({
-				filePath: path.join(root, ".pi", "agent.njk"),
-				scope: "project",
-			});
-		} finally {
-			if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previous;
-		}
-	});
 });
 
 describe("renderTemplate", () => {
@@ -100,30 +178,17 @@ describe("renderTemplate", () => {
 		expect(rendered).toBe("match");
 	});
 
-	it("supports the has_tools filter against the tools template var", () => {
-		const rendered = renderTemplate(
-			'{% if tools | has_tools(["read", "write"]) %}match{% else %}miss{% endif %}',
-			{ tools: ["read", "bash", "write"] },
-		);
-
-		expect(rendered).toBe("match");
-	});
-
-	it("supports the has_tools global helper", () => {
-		const rendered = renderTemplate(
-			'{% if has_tools(["read", "write"]) %}match{% else %}miss{% endif %}',
-			{ tools: ["read", "bash", "write"] },
-		);
-
-		expect(rendered).toBe("match");
-	});
-
-	it("supports single-tool has_tools checks", () => {
-		const rendered = renderTemplate('{% if has_tools("read") %}match{% else %}miss{% endif %}', {
-			tools: ["read", "write"],
-		});
-
-		expect(rendered).toBe("match");
+	it("supports has_tools as a filter and global helper", () => {
+		expect(
+			renderTemplate('{% if tools | has_tools(["read", "write"]) %}match{% endif %}', {
+				tools: ["read", "bash", "write"],
+			}),
+		).toBe("match");
+		expect(
+			renderTemplate('{% if has_tools("read") %}match{% endif %}', {
+				tools: ["read", "write"],
+			}),
+		).toBe("match");
 	});
 
 	it("returns false when any required tool is missing", () => {
@@ -160,16 +225,14 @@ describe("renderTemplate", () => {
 	});
 });
 
-describe("expandHomePrefix", () => {
+describe("path helpers", () => {
 	it("expands ~ and ~/ prefixes", () => {
 		expect(expandHomePrefix("~")).toBe(os.homedir());
 		expect(expandHomePrefix("~/dev/projects/")).toBe(
 			`${path.join(os.homedir(), "dev", "projects")}/`,
 		);
 	});
-});
 
-describe("Pi agent dir helpers", () => {
 	it("uses PI_CODING_AGENT_DIR when set", () => {
 		const previous = process.env.PI_CODING_AGENT_DIR;
 		process.env.PI_CODING_AGENT_DIR = "/tmp/custom-pi-agent-dir";
@@ -230,13 +293,13 @@ describe("renderTemplateSections", () => {
 	});
 });
 
-describe("renderNearestTemplate", () => {
+describe("renderTemplates", () => {
 	it("renders a single project template inside a project-rules system_reminder", async () => {
 		const root = await makeTempDir();
-		const cwd = path.join(root, "packages", "api");
-		const agentDir = path.join(root, "custom-agent-dir");
+		const agentDir = path.join(root, "empty-agent-dir");
 		const previous = process.env.PI_CODING_AGENT_DIR;
 		process.env.PI_CODING_AGENT_DIR = agentDir;
+		const cwd = path.join(root, "packages", "api");
 		await fs.mkdir(path.join(root, ".pi"), { recursive: true });
 		await fs.mkdir(cwd, { recursive: true });
 		await fs.mkdir(agentDir, { recursive: true });
@@ -246,16 +309,14 @@ describe("renderNearestTemplate", () => {
 		);
 
 		try {
-			const rendered = await renderNearestTemplate(cwd, {
+			const rendered = await renderTemplates(cwd, {
 				provider: "openai",
 				model: "gpt-5",
 			});
 
-			expect(rendered).toEqual({
-				filePath: path.join(root, ".pi", "agent.njk"),
-				renderedPrompt:
-					'<system-reminder type="project-rules">\nProvider: openai\nModel: gpt-5\n</system-reminder>',
-			});
+			expect(rendered).toBe(
+				'<system-reminder type="project-rules">\nProvider: openai\nModel: gpt-5\n</system-reminder>',
+			);
 		} finally {
 			if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
 			else process.env.PI_CODING_AGENT_DIR = previous;
@@ -275,13 +336,11 @@ describe("renderNearestTemplate", () => {
 		await fs.writeFile(path.join(root, ".pi", "agent.njk"), "Use issue labels in this repo.");
 
 		try {
-			const rendered = await renderNearestTemplate(cwd, {});
+			const rendered = await renderTemplates(cwd, {});
 
-			expect(rendered).toEqual({
-				filePath: path.join(root, ".pi", "agent.njk"),
-				renderedPrompt:
-					'<system-reminder type="rules">\nUse GitHub globally.\n</system-reminder>\n\n<system-reminder type="project-rules">\nUse issue labels in this repo.\n</system-reminder>',
-			});
+			expect(rendered).toBe(
+				'<system-reminder type="rules">\nUse GitHub globally.\n</system-reminder>\n\n<system-reminder type="project-rules">\nUse issue labels in this repo.\n</system-reminder>',
+			);
 		} finally {
 			if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
 			else process.env.PI_CODING_AGENT_DIR = previous;
@@ -290,7 +349,7 @@ describe("renderNearestTemplate", () => {
 
 	it("returns null when all rendered templates are empty after stripping", async () => {
 		const root = await makeTempDir();
-		const agentDir = path.join(root, "custom-agent-dir");
+		const agentDir = path.join(root, "empty-agent-dir");
 		const previous = process.env.PI_CODING_AGENT_DIR;
 		process.env.PI_CODING_AGENT_DIR = agentDir;
 		await fs.mkdir(path.join(root, ".pi"), { recursive: true });
@@ -298,9 +357,40 @@ describe("renderNearestTemplate", () => {
 		await fs.writeFile(path.join(root, ".pi", "agent.njk"), "\n\n   \n");
 
 		try {
-			const rendered = await renderNearestTemplate(root, {});
+			const rendered = await renderTemplates(root, {});
 
 			expect(rendered).toBeNull();
+		} finally {
+			if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
+			else process.env.PI_CODING_AGENT_DIR = previous;
+		}
+	});
+});
+
+describe("renderDynamicPrompt", () => {
+	it("renders templates with computed vars", async () => {
+		const root = await makeTempDir();
+		const agentDir = path.join(root, "empty-agent-dir");
+		const previous = process.env.PI_CODING_AGENT_DIR;
+		process.env.PI_CODING_AGENT_DIR = agentDir;
+		await fs.mkdir(path.join(root, ".pi"), { recursive: true });
+		await fs.mkdir(agentDir, { recursive: true });
+		await fs.writeFile(
+			path.join(root, ".pi", "agent.njk"),
+			"{{ provider }} {{ model }} {{ cwd }} {{ hasUI }} {{ tools | join(',') }}",
+		);
+
+		try {
+			const result = await renderDynamicPrompt({
+				cwd: root,
+				hasUI: true,
+				tools: ["bash", "edit"],
+				model: { provider: "openai", id: "gpt-5" },
+			});
+
+			expect(result).toBe(
+				`<system-reminder type="project-rules">\nopenai gpt-5 ${root} true bash,edit\n</system-reminder>`,
+			);
 		} finally {
 			if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
 			else process.env.PI_CODING_AGENT_DIR = previous;

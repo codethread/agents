@@ -4,12 +4,8 @@ import type {
 	ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { showDebugMessage } from "../components/debug-message/index.js";
-import {
-	parseDebugPromptOverrides,
-	renderDynamicAgentsPrompt,
-	type DynamicAgentsTemplateVars,
-} from "./dynamic-agents-md/index.js";
-import { DEFAULT_OWNED_IDENTITY, buildOwnedSystemPrompt } from "./owned-system-prompt/index.js";
+import { DEFAULT_IDENTITY, buildSystemPrompt } from "./prompt-builder.js";
+import { parseDebugPromptOverrides, renderDynamicPrompt, type TemplateVars } from "./templates.js";
 
 const DEBUG_PROMPT_FLAG = "debug-prompt";
 
@@ -42,10 +38,13 @@ type OwnedSystemPromptOptions = Partial<BuildSystemPromptOptions> & {
 
 function getOwnedSystemPromptOptions(event: BeforeAgentStartEvent): OwnedSystemPromptOptions {
 	const options = event.systemPromptOptions;
-	if (!options) throw new Error("Pi did not provide systemPromptOptions for owned prompt rendering.");
+	if (!options)
+		throw new Error("Pi did not provide systemPromptOptions for owned prompt rendering.");
 	if (!options.cwd) throw new Error("Pi did not provide systemPromptOptions.cwd.");
-	if (!options.selectedTools) throw new Error("Pi did not provide systemPromptOptions.selectedTools.");
-	if (!options.toolSnippets) throw new Error("Pi did not provide systemPromptOptions.toolSnippets.");
+	if (!options.selectedTools)
+		throw new Error("Pi did not provide systemPromptOptions.selectedTools.");
+	if (!options.toolSnippets)
+		throw new Error("Pi did not provide systemPromptOptions.toolSnippets.");
 	if (!options.promptGuidelines) {
 		throw new Error("Pi did not provide systemPromptOptions.promptGuidelines.");
 	}
@@ -61,7 +60,10 @@ function notify(
 }
 
 function mentionsTool(guideline: string, toolName: string): boolean {
-	return new RegExp(`(^|[^a-z0-9_\\-])${toolName.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}([^a-z0-9_\\-]|$)`, "i").test(guideline);
+	return new RegExp(
+		`(^|[^a-z0-9_\\-])${toolName.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}([^a-z0-9_\\-]|$)`,
+		"i",
+	).test(guideline);
 }
 
 function groupToolGuidelines(
@@ -100,7 +102,7 @@ function groupToolGuidelines(
 export default function systemPromptExtension(pi: ExtensionAPI) {
 	let printPromptOnNextTurn = false;
 	let debugPromptTriggered = false;
-	let debugPromptOverrides: DynamicAgentsTemplateVars | null = null;
+	let debugPromptOverrides: TemplateVars | null = null;
 	let lastMaterializedPrompt: string | null = null;
 	let waitForDebugPromptMaterialization: Promise<void> | null = null;
 	let resolveDebugPromptMaterialization: (() => void) | null = null;
@@ -192,7 +194,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 
 	pi.on("before_agent_start", async (event: BeforeAgentStartEvent, ctx) => {
 		const options = getOwnedSystemPromptOptions(event);
-		const dynamicPrompt = await renderDynamicAgentsPrompt(
+		const dynamicPrompt = await renderDynamicPrompt(
 			{
 				cwd: options.cwd,
 				hasUI: ctx.hasUI,
@@ -203,8 +205,8 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		);
 
 		return {
-			systemPrompt: buildOwnedSystemPrompt({
-				identity: options.customPrompt?.trim() || DEFAULT_OWNED_IDENTITY,
+			systemPrompt: buildSystemPrompt({
+				identity: options.customPrompt?.trim() || DEFAULT_IDENTITY,
 				cwd: options.cwd,
 				currentDate: new Date().toISOString().slice(0, 10),
 				selectedTools: options.selectedTools,

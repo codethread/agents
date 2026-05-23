@@ -40,7 +40,7 @@ It also ships a `project-structure` messaging extension that sends a bounded pro
 
 This repository additionally keeps a project-local `.pi/extensions/pi-internals/` tool that agents can call on demand to print Pi runtime/source/settings/enabled-extension paths. It is intentionally local to this checkout rather than shipped as part of the package.
 
-See `pi-extensions/system-prompt/README.md` for the merged prompt-layer extension, `pi-extensions/system-prompt/owned-system-prompt/README.md` for owned prompt rendering details, and `.pi/extensions/pi-internals/README.md` for project-local Pi internals discovery.
+See `pi-extensions/system-prompt/README.md` for prompt-layer extension details and `.pi/extensions/pi-internals/README.md` for project-local Pi internals discovery.
 
 ## Bundled agents
 

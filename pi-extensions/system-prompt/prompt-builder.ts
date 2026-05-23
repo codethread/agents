@@ -1,15 +1,15 @@
 import type { BuildSystemPromptOptions } from "@earendil-works/pi-coding-agent";
-import { escapeXmlAttribute, wrapSystemReminder } from "../../shared/xml.js";
+import { escapeXmlAttribute, wrapSystemReminder } from "../shared/xml.js";
 
-export type OwnedSkill = Pick<
+export type PromptSkill = Pick<
 	NonNullable<BuildSystemPromptOptions["skills"]>[number],
 	"name" | "description" | "filePath"
 > & {
 	disableModelInvocation?: boolean;
 };
-export type OwnedContextFile = NonNullable<BuildSystemPromptOptions["contextFiles"]>[number];
+export type PromptContextFile = NonNullable<BuildSystemPromptOptions["contextFiles"]>[number];
 
-export type OwnedPromptInput = {
+export type PromptInput = {
 	identity: string;
 	cwd: string;
 	currentDate: string;
@@ -17,29 +17,23 @@ export type OwnedPromptInput = {
 	toolSnippets: Record<string, string>;
 	promptGuidelines: string[];
 	toolGuidelines?: Record<string, string[]>;
-	contextFiles: OwnedContextFile[];
-	skills: OwnedSkill[];
+	contextFiles: PromptContextFile[];
+	skills: PromptSkill[];
 	appendSystemPrompt?: string;
 	dynamicPrompt?: string | null;
 };
 
-export type OwnedPromptDependencies = {
+export type PromptBuilderDependencies = {
 	wrapReminder: (type: string, content: string) => string;
 };
 
-export const DEFAULT_OWNED_IDENTITY =
+export const DEFAULT_IDENTITY =
 	"You are an expert coding assistant operating inside pi, a coding agent harness.";
 
 const DEFAULT_GUIDELINES = [
 	"Be concise in your responses",
 	"Show file paths clearly when working with files",
 ];
-
-export function createOwnedPromptBuilder(
-	dependencies: OwnedPromptDependencies = { wrapReminder: wrapSystemReminder },
-) {
-	return (input: OwnedPromptInput): string => buildOwnedSystemPrompt(input, dependencies);
-}
 
 function compact(lines: Array<string | null | undefined>): string[] {
 	return lines.map((line) => line?.trim()).filter((line): line is string => Boolean(line));
@@ -53,7 +47,11 @@ function joinSections(sections: Array<string | null | undefined>): string {
 	return compact(sections).join("\n\n");
 }
 
-function renderSection(title: string, intro: string, body: string | null | undefined): string | null {
+function renderSection(
+	title: string,
+	intro: string,
+	body: string | null | undefined,
+): string | null {
 	if (!body?.trim()) return null;
 	return joinSections([`## ${title}`, intro, body]);
 }
@@ -63,18 +61,25 @@ function bullet(lines: string[], indent = ""): string {
 }
 
 function orderTools(toolNames: string[]): string[] {
-	return [...toolNames.filter((toolName) => toolName !== "subagent"), ...toolNames.filter((toolName) => toolName === "subagent")];
+	return [
+		...toolNames.filter((toolName) => toolName !== "subagent"),
+		...toolNames.filter((toolName) => toolName === "subagent"),
+	];
 }
 
 function toolSpecificGuidelines(toolGuidelines: Record<string, string[]> = {}): Set<string> {
-	return new Set(Object.values(toolGuidelines).flat().map((guideline) => guideline.trim()));
+	return new Set(
+		Object.values(toolGuidelines)
+			.flat()
+			.map((guideline) => guideline.trim()),
+	);
 }
 
-export function renderOwnedTools({
+export function renderTools({
 	selectedTools,
 	toolSnippets,
 	toolGuidelines,
-}: Pick<OwnedPromptInput, "selectedTools" | "toolSnippets" | "toolGuidelines">): string {
+}: Pick<PromptInput, "selectedTools" | "toolSnippets" | "toolGuidelines">): string {
 	if (selectedTools.length === 0) return "(none)";
 	return orderTools(selectedTools)
 		.map((toolName) =>
@@ -88,8 +93,8 @@ export function renderOwnedTools({
 		.join("\n");
 }
 
-export function renderOwnedGuidelines(
-	input: string[] | Pick<OwnedPromptInput, "promptGuidelines" | "toolGuidelines">,
+export function renderGuidelines(
+	input: string[] | Pick<PromptInput, "promptGuidelines" | "toolGuidelines">,
 ): string {
 	const promptGuidelines = Array.isArray(input) ? input : input.promptGuidelines;
 	const toolGuidelines = Array.isArray(input) ? undefined : input.toolGuidelines;
@@ -98,9 +103,9 @@ export function renderOwnedGuidelines(
 	return bullet(unique([...generalGuidelines, ...DEFAULT_GUIDELINES]));
 }
 
-export function renderOwnedContextFiles(
-	contextFiles: OwnedContextFile[],
-	wrapReminder: OwnedPromptDependencies["wrapReminder"] = wrapSystemReminder,
+export function renderContextFiles(
+	contextFiles: PromptContextFile[],
+	wrapReminder: PromptBuilderDependencies["wrapReminder"] = wrapSystemReminder,
 ): string | null {
 	if (contextFiles.length === 0) return null;
 	const files = contextFiles.map((file) =>
@@ -113,7 +118,7 @@ export function renderOwnedContextFiles(
 	return wrapReminder("project-context", joinSections(files));
 }
 
-export function renderOwnedSkills(skills: OwnedSkill[]): string | null {
+export function renderSkills(skills: PromptSkill[]): string | null {
 	const visibleSkills = skills.filter((skill) => !skill.disableModelInvocation);
 	if (visibleSkills.length === 0) return null;
 
@@ -137,9 +142,9 @@ export function renderOwnedSkills(skills: OwnedSkill[]): string | null {
 	);
 }
 
-export function buildOwnedSystemPrompt(
-	input: OwnedPromptInput,
-	{ wrapReminder }: OwnedPromptDependencies = { wrapReminder: wrapSystemReminder },
+export function buildSystemPrompt(
+	input: PromptInput,
+	{ wrapReminder }: PromptBuilderDependencies = { wrapReminder: wrapSystemReminder },
 ): string {
 	const harness = wrapReminder(
 		"harness",
@@ -147,10 +152,10 @@ export function buildOwnedSystemPrompt(
 			"You help users by reading files, executing commands, editing code, and writing new files.",
 			"",
 			"General response guidelines:",
-			renderOwnedGuidelines(input),
+			renderGuidelines(input),
 			"",
 			"Available tools:",
-			renderOwnedTools(input),
+			renderTools(input),
 		].join("\n"),
 	);
 
@@ -158,14 +163,16 @@ export function buildOwnedSystemPrompt(
 		input.identity,
 		renderSection("Operating harness", "", harness),
 		renderSection("Operating rules", "", input.dynamicPrompt),
-		renderOwnedContextFiles(input.contextFiles, wrapReminder),
-		renderOwnedSkills(input.skills),
+		renderContextFiles(input.contextFiles, wrapReminder),
+		renderSkills(input.skills),
 		renderSection(
 			"Session metadata",
 			"",
 			wrapReminder(
 				"session-metadata",
-				[`Current date: ${input.currentDate}`, `Current working directory: ${input.cwd}`].join("\n"),
+				[`Current date: ${input.currentDate}`, `Current working directory: ${input.cwd}`].join(
+					"\n",
+				),
 			),
 		),
 		renderSection(

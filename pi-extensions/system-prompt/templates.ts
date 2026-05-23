@@ -1,33 +1,35 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import nunjucks from "nunjucks";
-import { wrapSystemReminder } from "../../shared/xml.js";
+import { wrapSystemReminder } from "../shared/xml.js";
 
-export type TemplateMatch = {
+export type TemplateVars = Record<string, unknown>;
+
+export type TemplateContext = {
+	cwd: string;
+	hasUI: boolean;
+	tools?: string[];
+	model?: {
+		provider?: string;
+		id?: string;
+	} | null;
+};
+
+type TemplateMatch = {
 	filePath: string;
 	scope: "global" | "project";
 };
 
-export type RenderedTemplateSection = {
-	scope: "global" | "project";
+export type TemplateSection = TemplateMatch & {
 	reminderType: "rules" | "project-rules";
-	filePath: string;
 	renderedPrompt: string;
 };
 
-export type DynamicAgentsTemplateVars = Record<string, unknown>;
-
-export const LOCAL_TEMPLATE_FILE = ".pi/agent.njk";
+export const PROJECT_TEMPLATE_FILE = ".pi/agent.njk";
 export const GLOBAL_TEMPLATE_FILE = "agent.njk";
 
-function expandHomePrefix(input: string): string {
-	if (input === "~") return process.env.HOME ?? "~";
-	if (input.startsWith("~/")) {
-		const home = process.env.HOME;
-		if (!home) return input;
-		return path.join(home, input.slice(2));
-	}
-	return input;
+function isTemplateVarsObject(value: unknown): value is TemplateVars {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function normalizeToolName(value: string): string {
@@ -70,7 +72,17 @@ function hasAllTools(activeToolsValue: unknown, requiredToolsValue: unknown): bo
 	return requiredTools.every((tool) => activeTools.has(tool));
 }
 
-function createNunjucksEnv(vars: DynamicAgentsTemplateVars): nunjucks.Environment {
+export function expandHomePrefix(input: string): string {
+	if (input === "~") return process.env.HOME ?? "~";
+	if (input.startsWith("~/")) {
+		const home = process.env.HOME;
+		if (!home) return input;
+		return path.join(home, input.slice(2));
+	}
+	return input;
+}
+
+function createNunjucksEnv(vars: TemplateVars): nunjucks.Environment {
 	const env = new nunjucks.Environment();
 
 	env.addFilter("regex_test", (value: unknown, pattern: string) => {
@@ -89,7 +101,7 @@ function createNunjucksEnv(vars: DynamicAgentsTemplateVars): nunjucks.Environmen
 	return env;
 }
 
-export async function pathExists(filePath: string): Promise<boolean> {
+async function pathExists(filePath: string): Promise<boolean> {
 	try {
 		await fs.access(filePath);
 		return true;
@@ -106,11 +118,11 @@ export function getGlobalTemplatePath(): string {
 	return path.join(getPiCodingAgentDir(), GLOBAL_TEMPLATE_FILE);
 }
 
-export async function findNearestProjectTemplate(startCwd: string): Promise<TemplateMatch | null> {
+export async function findProjectTemplate(startCwd: string): Promise<TemplateMatch | null> {
 	let currentDir = path.resolve(startCwd);
 
 	while (true) {
-		const filePath = path.join(currentDir, LOCAL_TEMPLATE_FILE);
+		const filePath = path.join(currentDir, PROJECT_TEMPLATE_FILE);
 		if (await pathExists(filePath)) {
 			return { filePath, scope: "project" };
 		}
@@ -127,15 +139,9 @@ export async function findGlobalTemplate(): Promise<TemplateMatch | null> {
 	return { filePath, scope: "global" };
 }
 
-export async function findNearestTemplate(startCwd: string): Promise<TemplateMatch | null> {
-	return (await findNearestProjectTemplate(startCwd)) ?? (await findGlobalTemplate());
-}
-
-export function renderTemplate(source: string, vars: DynamicAgentsTemplateVars): string {
+export function renderTemplate(source: string, vars: TemplateVars): string {
 	return createNunjucksEnv(vars).renderString(source, vars);
 }
-
-export { expandHomePrefix };
 
 export function stripEmptyLines(text: string): string {
 	return text
@@ -148,44 +154,120 @@ export function stripEmptyLines(text: string): string {
 
 async function renderTemplateMatch(
 	template: TemplateMatch,
-	vars: DynamicAgentsTemplateVars,
-): Promise<RenderedTemplateSection | null> {
+	vars: TemplateVars,
+): Promise<TemplateSection | null> {
 	const source = await fs.readFile(template.filePath, "utf-8");
 	const renderedPrompt = stripEmptyLines(renderTemplate(source, vars));
 	if (!renderedPrompt) return null;
 
 	return {
-		scope: template.scope,
+		...template,
 		reminderType: template.scope === "global" ? "rules" : "project-rules",
-		filePath: template.filePath,
 		renderedPrompt,
 	};
 }
 
 export async function renderTemplateSections(
 	startCwd: string,
-	vars: DynamicAgentsTemplateVars,
-): Promise<RenderedTemplateSection[]> {
-	const matches = [await findGlobalTemplate(), await findNearestProjectTemplate(startCwd)].filter(
+	vars: TemplateVars,
+): Promise<TemplateSection[]> {
+	const matches = [await findGlobalTemplate(), await findProjectTemplate(startCwd)].filter(
 		(template): template is TemplateMatch => template !== null,
 	);
 
 	const sections = await Promise.all(
 		matches.map((template) => renderTemplateMatch(template, vars)),
 	);
-	return sections.filter((section): section is RenderedTemplateSection => section !== null);
+	return sections.filter((section): section is TemplateSection => section !== null);
 }
 
-export async function renderNearestTemplate(
+export async function renderTemplates(
 	startCwd: string,
-	vars: DynamicAgentsTemplateVars,
-): Promise<{ filePath: string; renderedPrompt: string } | null> {
+	vars: TemplateVars,
+): Promise<string | null> {
 	const sections = await renderTemplateSections(startCwd, vars);
 	if (sections.length === 0) return null;
+	return sections
+		.map((section) => wrapSystemReminder(section.reminderType, section.renderedPrompt))
+		.join("\n\n");
+}
+
+export function isSubagentRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
+	return env.PI_SUBAGENT?.trim() === "1";
+}
+
+export function parseDebugPromptOverrides(argv: string[]): {
+	overrides: TemplateVars | null;
+	error: string | null;
+} {
+	let rawValue: string | undefined;
+
+	for (let i = 0; i < argv.length; i++) {
+		const arg = argv[i];
+		if (arg === "--debug-prompt") {
+			const next = argv[i + 1];
+			if (next !== undefined && !next.startsWith("-") && !next.startsWith("@")) {
+				rawValue = next;
+				i++;
+			}
+			continue;
+		}
+
+		if (arg.startsWith("--debug-prompt=")) {
+			rawValue = arg.slice("--debug-prompt=".length);
+		}
+	}
+
+	if (rawValue === undefined) {
+		return { overrides: null, error: null };
+	}
+
+	const trimmedRawValue = rawValue.trim();
+	if (!trimmedRawValue.startsWith("{")) {
+		return { overrides: null, error: null };
+	}
+
+	try {
+		const parsed = JSON.parse(trimmedRawValue);
+		if (!isTemplateVarsObject(parsed)) {
+			return {
+				overrides: null,
+				error:
+					'--debug-prompt value must be a JSON object, e.g. --debug-prompt \'{"model":"claude-sonnet"}\'',
+			};
+		}
+
+		return { overrides: parsed, error: null };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return {
+			overrides: null,
+			error: `Invalid --debug-prompt JSON: ${message}`,
+		};
+	}
+}
+
+export function getTemplateVars(
+	ctx: TemplateContext,
+	overrides?: TemplateVars | null,
+): TemplateVars {
+	const isSubagent = isSubagentRuntime();
 	return {
-		filePath: sections[sections.length - 1].filePath,
-		renderedPrompt: sections
-			.map((section) => wrapSystemReminder(section.reminderType, section.renderedPrompt))
-			.join("\n\n"),
+		provider: ctx.model?.provider,
+		model: ctx.model?.id,
+		cwd: ctx.cwd,
+		hasUI: ctx.hasUI,
+		isMainAgent: !isSubagent,
+		isSubagent,
+		...process.env,
+		tools: ctx.tools ?? [],
+		...overrides,
 	};
+}
+
+export async function renderDynamicPrompt(
+	ctx: TemplateContext,
+	overrides?: TemplateVars | null,
+): Promise<string | null> {
+	return renderTemplates(ctx.cwd, getTemplateVars(ctx, overrides));
 }

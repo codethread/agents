@@ -1,15 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-	const buildOwnedPrompt = vi.fn(() => "<owned prompt />");
-	const createOwnedPromptBuilder = vi.fn(() => buildOwnedPrompt);
-	const renderDynamicAgentsPrompt = vi.fn(async () => "<dynamic />");
+	const buildPrompt = vi.fn(() => "<owned prompt />");
+	const renderDynamicPrompt = vi.fn(async () => "<dynamic />");
 	const showDebugMessage = vi.fn(async () => {});
 
 	return {
-		buildOwnedPrompt,
-		createOwnedPromptBuilder,
-		renderDynamicAgentsPrompt,
+		buildPrompt,
+		renderDynamicPrompt,
 		showDebugMessage,
 	};
 });
@@ -18,24 +16,23 @@ vi.mock("../components/debug-message/index.js", () => ({
 	showDebugMessage: mocks.showDebugMessage,
 }));
 
-vi.mock("./owned-system-prompt/index.js", () => ({
-	DEFAULT_OWNED_IDENTITY:
+vi.mock("./prompt-builder.js", () => ({
+	DEFAULT_IDENTITY:
 		"You are an expert coding assistant operating inside pi, a coding agent harness.",
-	buildOwnedSystemPrompt: mocks.buildOwnedPrompt,
-	createOwnedPromptBuilder: mocks.createOwnedPromptBuilder,
+	buildSystemPrompt: mocks.buildPrompt,
 }));
 
-vi.mock("./dynamic-agents-md/index.js", () => ({
+vi.mock("./templates.js", () => ({
 	parseDebugPromptOverrides: vi.fn(() => ({ overrides: null, error: null })),
-	renderDynamicAgentsPrompt: mocks.renderDynamicAgentsPrompt,
+	renderDynamicPrompt: mocks.renderDynamicPrompt,
 }));
 
 import systemPromptExtension from "./index.js";
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	mocks.buildOwnedPrompt.mockReturnValue("<owned prompt />");
-	mocks.renderDynamicAgentsPrompt.mockResolvedValue("<dynamic />");
+	mocks.buildPrompt.mockReturnValue("<owned prompt />");
+	mocks.renderDynamicPrompt.mockResolvedValue("<dynamic />");
 });
 
 describe("system-prompt extension", () => {
@@ -146,7 +143,7 @@ describe("system-prompt extension", () => {
 		);
 
 		expect(getActiveTools).not.toHaveBeenCalled();
-		expect(mocks.buildOwnedPrompt).toHaveBeenCalledWith(
+		expect(mocks.buildPrompt).toHaveBeenCalledWith(
 			expect.objectContaining({
 				cwd: "/repo",
 				selectedTools: ["bash", "edit"],
@@ -158,7 +155,7 @@ describe("system-prompt extension", () => {
 				dynamicPrompt: "<dynamic />",
 			}),
 		);
-		expect(mocks.renderDynamicAgentsPrompt).toHaveBeenCalledWith(
+		expect(mocks.renderDynamicPrompt).toHaveBeenCalledWith(
 			expect.objectContaining({
 				cwd: "/repo",
 				hasUI: true,
