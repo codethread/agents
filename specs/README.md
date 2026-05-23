@@ -9,6 +9,7 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 | Spec                                                       | Purpose                                                                                                                                                                                  | Code                           |
 | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | [system-prompt--assembly.md](./system-prompt--assembly.md) | Defines package-owned system prompt assembly: full prompt replacement, dynamic template injection, debug surfaces, and the boundary between system-prompt context and custom-message context. | `pi-extensions/system-prompt/` |
+| [project-rules--autoload.md](./project-rules--autoload.md) | Defines project-local `.claude/rules` and `.agents/rules` loading, overrides, system-prompt rules, and path-triggered rule messages. | `pi-extensions/system-prompt/`, `pi-extensions/messaging/` |
 
 ## Reference READMEs
 
