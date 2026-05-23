@@ -78,7 +78,7 @@ describe("system-prompt extension", () => {
 		expect(counts.has("input")).toBe(false);
 	});
 
-	it("queues one synthetic ping turn for --debug-prompt", async () => {
+	it("arms --debug-prompt without sending a synthetic ping", () => {
 		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
 		const sendUserMessage = vi.fn();
 		const notify = vi.fn();
@@ -96,11 +96,11 @@ describe("system-prompt extension", () => {
 			exec: vi.fn(),
 		} as any);
 
-		await handlers.get("session_start")?.({}, { cwd: "/repo", hasUI: true, ui: { notify } });
+		handlers.get("session_start")?.({}, { cwd: "/repo", hasUI: true, ui: { notify } });
 
-		expect(sendUserMessage).toHaveBeenCalledWith("ping");
+		expect(sendUserMessage).not.toHaveBeenCalled();
 		expect(notify).toHaveBeenCalledWith(
-			"Debug prompt mode: starting a ping turn to materialize the prompt.",
+			"Debug prompt mode: send a message to materialize the prompt.",
 			"info",
 		);
 	});

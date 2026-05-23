@@ -47,13 +47,13 @@ Prefer precise file-edit tools over shell redirection.
 
 ## Debug surfaces
 
-- `--debug-prompt` — print the current effective system prompt and exit; accepts optional JSON template-var overrides
+- `--debug-prompt` — print the next materialized effective system prompt and exit; send a message manually (for example with `--print ping`); accepts optional JSON template-var overrides
 - `/debug-prompt` — show the last materialized effective system prompt in the UI; if no message has been sent yet, it warns the user to send one first
 
 Example:
 
 ```bash
-pi --debug-prompt '{"model":"claude-sonnet"}'
+pi --debug-prompt --print ping '{"model":"claude-sonnet"}'
 ```
 
 Related messaging behavior: [`../messaging/project-structure/README.md`](../messaging/project-structure/README.md)

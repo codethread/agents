@@ -23,12 +23,6 @@ function trimOuterEmptyLines(text: string): string {
 	return text.trim();
 }
 
-function formatPromptForDebugDisplay(prompt: string): string {
-	return `\`\`\`\`text
-${prompt}
-\`\`\`\``;
-}
-
 type OwnedSystemPromptOptions = Partial<BuildSystemPromptOptions> & {
 	cwd: string;
 	selectedTools: string[];
@@ -101,11 +95,8 @@ function groupToolGuidelines(
 
 export default function systemPromptExtension(pi: ExtensionAPI) {
 	let printPromptOnNextTurn = false;
-	let debugPromptTriggered = false;
 	let debugPromptOverrides: TemplateVars | null = null;
 	let lastMaterializedPrompt: string | null = null;
-	let waitForDebugPromptMaterialization: Promise<void> | null = null;
-	let resolveDebugPromptMaterialization: (() => void) | null = null;
 	const toolPromptMetadata = new Map<string, ToolPromptMetadata>();
 	const registerTool = pi.registerTool.bind(pi);
 	pi.registerTool = ((definition: ToolDefinition) => {
@@ -115,22 +106,6 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		registerTool(definition);
 	}) as ExtensionAPI["registerTool"];
 
-	const queuePromptDebugTurn = async (
-		ctx: Pick<ExtensionContext, "hasUI" | "ui">,
-		message: string,
-	) => {
-		printPromptOnNextTurn = true;
-		if (debugPromptTriggered) return;
-		debugPromptTriggered = true;
-		waitForDebugPromptMaterialization = new Promise<void>((resolve) => {
-			resolveDebugPromptMaterialization = resolve;
-		});
-		notify(ctx, message, "info");
-		await pi.sendUserMessage("ping");
-		if (!ctx.hasUI && waitForDebugPromptMaterialization) {
-			await waitForDebugPromptMaterialization;
-		}
-	};
 
 	pi.registerFlag(DEBUG_PROMPT_FLAG, {
 		description:
@@ -159,7 +134,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			await showDebugMessage(ctx, {
 				headingText: "Debug Prompt",
 				subheadingText: "last materialized effective prompt",
-				markdownBody: formatPromptForDebugDisplay(prompt),
+				markdownBody: prompt,
 				sendMarkdownToAgent: async () => {
 					await pi.sendUserMessage(prompt);
 				},
@@ -167,13 +142,10 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	pi.on("session_start", async (_event, ctx) => {
+	pi.on("session_start", (_event, ctx) => {
 		printPromptOnNextTurn = false;
-		debugPromptTriggered = false;
 		debugPromptOverrides = null;
 		lastMaterializedPrompt = null;
-		waitForDebugPromptMaterialization = null;
-		resolveDebugPromptMaterialization = null;
 
 		const wantsPromptDebug = pi.getFlag(DEBUG_PROMPT_FLAG) === true;
 		if (!wantsPromptDebug) return;
@@ -186,10 +158,8 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		}
 		debugPromptOverrides = parsedOverrides.overrides;
 
-		await queuePromptDebugTurn(
-			ctx,
-			"Debug prompt mode: starting a ping turn to materialize the prompt.",
-		);
+		printPromptOnNextTurn = true;
+		notify(ctx, "Debug prompt mode: send a message to materialize the prompt.", "info");
 	});
 
 	pi.on("before_agent_start", async (event: BeforeAgentStartEvent, ctx) => {
@@ -231,9 +201,6 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		if (!printPromptOnNextTurn) return;
 		printPromptOnNextTurn = false;
 		debugPromptOverrides = null;
-		resolveDebugPromptMaterialization?.();
-		resolveDebugPromptMaterialization = null;
-		waitForDebugPromptMaterialization = null;
 		process.stdout.write(`${prompt}\n`);
 		process.exit(0);
 	});
