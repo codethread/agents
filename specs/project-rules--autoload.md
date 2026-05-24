@@ -1,6 +1,6 @@
 # Project Rules Autoload Specification
 
-**Status:** Planned  
+**Status:** Implemented  
 **Last Updated:** 2026-05-23
 
 ## 1. Overview
@@ -88,15 +88,15 @@ ctx.cwd
   │     replaces .claude/rules/<same/nested/file.md>
   │
   ├─ parse frontmatter
-  │     paths missing/empty -> unconditional
-  │     paths present       -> path-scoped
+  │     paths missing -> unconditional
+  │     paths present -> path-scoped
   │
   ├─ system-prompt before_agent_start
   │     unconditional rules -> effective system prompt
   │
   └─ messaging triggers
         before_agent_start prompt file mentions -> matching scoped rules -> custom message
-        successful read tool_result             -> matching scoped rules -> custom message/result addition
+        successful read tool_result             -> matching scoped rules -> custom message
 ```
 
 ## 4. Rule Semantics
@@ -114,11 +114,11 @@ No other roots are scanned.
 
 The override key is the path relative to the rules directory. Examples:
 
-| Claude file | Agents file | Result |
-| --- | --- | --- |
-| `.claude/rules/testing.md` | `.agents/rules/testing.md` | agents version only |
+| Claude file                       | Agents file                       | Result              |
+| --------------------------------- | --------------------------------- | ------------------- |
+| `.claude/rules/testing.md`        | `.agents/rules/testing.md`        | agents version only |
 | `.claude/rules/frontend/react.md` | `.agents/rules/frontend/react.md` | agents version only |
-| `.claude/rules/frontend/react.md` | `.agents/rules/react.md` | both load |
+| `.claude/rules/frontend/react.md` | `.agents/rules/react.md`          | both load           |
 
 After overrides, rules are ordered deterministically by relative rule path. If two rules have different source roots but no override, `.claude` rules appear before `.agents` rules for the same lexical neighborhood unless implementation chooses a simpler full lexical order; tests must lock the chosen order.
 
@@ -230,7 +230,9 @@ Rules are rediscovered on each turn and when relevant rule files are observed to
 
 ## 7. Testing
 
-Automated tests should cover:
+Automated tests cover shared discovery, override, parsing, matching, path normalization, and malformed-frontmatter warning behavior in `pi-extensions/shared/project-rules.test.ts`.
+
+Broader behavior to preserve:
 
 - Discovers `.claude/rules/**/*.md` under project root.
 - Discovers `.agents/rules/**/*.md` under project root.
@@ -249,16 +251,14 @@ Automated tests should cover:
 
 ## 8. Code Locations
 
-| File | Change |
-| --- | --- |
-| `pi-extensions/shared/project-rules.ts` | New shared discovery/parsing/matching/rendering module. |
-| `pi-extensions/system-prompt/index.ts` | Discover unconditional project rules and pass them into prompt building. |
-| `pi-extensions/system-prompt/prompt-builder.ts` | Render unconditional project rules in the owned system prompt. |
-| `pi-extensions/messaging/project-rules/index.ts` | New path-scoped autoload messaging extension. |
-| `pi-extensions/messaging/project-rules/README.md` | Document rule behavior and examples. |
-| `pi-extensions/README.md` | Register the new messaging extension if the extension index lists shipped extensions. |
-| `scripts/pi.nu` | Add any debug flags if implementation introduces them. |
-| `specs/README.md` | Index this spec. |
+- `pi-extensions/shared/project-rules.ts` — shared discovery/parsing/matching/rendering module.
+- `pi-extensions/shared/project-rules.test.ts` — shared behavior coverage.
+- `pi-extensions/system-prompt/index.ts` — discovers unconditional project rules and passes them into prompt building.
+- `pi-extensions/system-prompt/prompt-builder.ts` — renders unconditional project rules in the owned system prompt.
+- `pi-extensions/messaging/project-rules/index.ts` — path-scoped autoload messaging extension.
+- `pi-extensions/messaging/project-rules/README.md` — rule behavior and examples.
+- `pi-extensions/README.md` — extension index entry.
+- `specs/README.md` — spec index entry.
 
 ## 9. Open Questions
 

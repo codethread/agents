@@ -4,6 +4,7 @@ import type {
 	ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { showDebugMessage } from "../components/debug-message/index.js";
+import { discoverProjectRules, getUnconditionalRules } from "../shared/project-rules.js";
 import { DEFAULT_IDENTITY, buildSystemPrompt } from "./prompt-builder.js";
 import { parseDebugPromptOverrides, renderDynamicPrompt, type TemplateVars } from "./templates.js";
 
@@ -106,7 +107,6 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		registerTool(definition);
 	}) as ExtensionAPI["registerTool"];
 
-
 	pi.registerFlag(DEBUG_PROMPT_FLAG, {
 		description:
 			"Print the current effective system prompt and exit (optionally with a JSON override arg)",
@@ -173,6 +173,10 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			},
 			printPromptOnNextTurn ? debugPromptOverrides : null,
 		);
+		const projectRules = await discoverProjectRules(options.cwd, pi.exec, ctx.signal);
+		for (const warning of projectRules.warnings) {
+			notify(ctx, `[project-rules] ${warning}`, "warning");
+		}
 
 		return {
 			systemPrompt: buildSystemPrompt({
@@ -191,6 +195,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 				skills: options.skills ?? [],
 				appendSystemPrompt: options.appendSystemPrompt,
 				dynamicPrompt,
+				projectRules: getUnconditionalRules(projectRules.rules),
 			}),
 		};
 	});

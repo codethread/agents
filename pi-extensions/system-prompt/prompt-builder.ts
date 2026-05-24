@@ -1,4 +1,6 @@
 import type { BuildSystemPromptOptions } from "@earendil-works/pi-coding-agent";
+import type { ProjectRule } from "../shared/project-rules.js";
+import { renderProjectRulesReminder } from "../shared/project-rules.js";
 import { escapeXmlAttribute, wrapSystemReminder } from "../shared/xml.js";
 
 export type PromptSkill = Pick<
@@ -21,6 +23,7 @@ export type PromptInput = {
 	skills: PromptSkill[];
 	appendSystemPrompt?: string;
 	dynamicPrompt?: string | null;
+	projectRules?: ProjectRule[];
 };
 
 export type PromptBuilderDependencies = {
@@ -162,7 +165,11 @@ export function buildSystemPrompt(
 	return joinSections([
 		input.identity,
 		renderSection("Operating harness", "", harness),
-		renderSection("Operating rules", "", input.dynamicPrompt),
+		renderSection(
+			"Operating rules",
+			"",
+			joinSections([input.dynamicPrompt, renderProjectRulesReminder(input.projectRules ?? [])]),
+		),
 		renderContextFiles(input.contextFiles, wrapReminder),
 		renderSkills(input.skills),
 		renderSection(

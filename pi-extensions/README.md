@@ -34,15 +34,16 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 
 ## System prompt
 
-| Extension                                    | Summary                                                                    |
-| -------------------------------------------- | -------------------------------------------------------------------------- |
+| Extension                                    | Summary                                                                                         |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | [`system-prompt`](./system-prompt/README.md) | Prompt-layer extension: replaces Pi's generated prompt with owned structure and rendered rules. |
 
 ## Messaging
 
-| Extension                                                      | Summary                                                              |
-| -------------------------------------------------------------- | -------------------------------------------------------------------- |
-| [`project-structure`](./messaging/project-structure/README.md) | Send a bounded project tree as model-visible custom message context. |
+| Extension                                                      | Summary                                                                                                |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| [`project-structure`](./messaging/project-structure/README.md) | Send a bounded project tree as model-visible custom message context.                                   |
+| [`project-rules`](./messaging/project-rules/README.md)         | Send path-scoped `.claude/rules` and `.agents/rules` as visible model context when files trigger them. |
 
 ## Session UI utilities
 
