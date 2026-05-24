@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{TITLE}}</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fdfdfc;
+    --fg: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #e4e4e1;
+    --code-bg: #f3f2ee;
+    --accent: #2b5fb3;
+    --info-bg: #eaf2fb;    --info-bd: #2b5fb3;
+    --warn-bg: #fbf2e0;    --warn-bd: #a17707;
+    --error-bg: #fbe9e7;   --error-bd: #b3261e;
+    --success-bg: #e6f4ea; --success-bd: #137333;
+    --add-bg: #e6ffec;     --add-fg: #04543a;
+    --del-bg: #ffeef0;     --del-fg: #82071e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161616;
+      --fg: #e7e7e4;
+      --muted: #9a9a96;
+      --border: #2d2d2b;
+      --code-bg: #1f1f1d;
+      --accent: #6ea8ff;
+      --info-bg: #16243a;    --info-bd: #6ea8ff;
+      --warn-bg: #2c2614;    --warn-bd: #d4a843;
+      --error-bg: #2e1715;   --error-bd: #f1837c;
+      --success-bg: #142319; --success-bd: #6cc285;
+      --add-bg: #0d2818;     --add-fg: #7ee2a8;
+      --del-bg: #2d1014;     --del-fg: #f6a8b1;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0 auto; padding: 2.5rem 1.25rem 6rem; max-width: 78ch;
+    background: var(--bg); color: var(--fg);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px; line-height: 1.6;
+  }
+  h1, h2, h3, h4 { line-height: 1.25; margin: 2em 0 0.6em; font-weight: 600; }
+  h1 { font-size: 2rem; margin-top: 0; }
+  h2 { font-size: 1.4rem; padding-bottom: 0.2em; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.15rem; }
+  h4 { font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  p { margin: 0.8em 0; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
+  small, .muted { color: var(--muted); font-size: 0.9em; }
+  ul, ol { padding-left: 1.4em; }
+  li + li { margin-top: 0.25em; }
+
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.92em; background: var(--code-bg);
+    padding: 0.12em 0.35em; border-radius: 4px;
+  }
+  pre {
+    position: relative; background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 0.9em 1em; overflow-x: auto;
+    font-size: 0.88em; line-height: 1.5;
+  }
+  pre code { background: transparent; padding: 0; font-size: inherit; }
+  pre .copy-btn {
+    position: absolute; top: 0.5em; right: 0.5em;
+    background: var(--bg); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 0.15em 0.5em; font-size: 0.75em; cursor: pointer;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  pre:hover .copy-btn { opacity: 1; }
+  pre .copy-btn:hover { color: var(--fg); }
+
+  blockquote {
+    margin: 1em 0; padding: 0.5em 1em; border-left: 3px solid var(--border);
+    color: var(--muted);
+  }
+
+  table {
+    border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.95em;
+  }
+  th, td { padding: 0.55em 0.75em; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  th { font-weight: 600; background: var(--code-bg); }
+  tbody tr:hover { background: var(--code-bg); }
+
+  details {
+    margin: 1em 0; padding: 0.5em 0.9em; border: 1px solid var(--border); border-radius: 6px;
+  }
+  details > summary { cursor: pointer; font-weight: 500; }
+  details[open] > summary { margin-bottom: 0.5em; padding-bottom: 0.5em; border-bottom: 1px solid var(--border); }
+
+  .callout {
+    margin: 1em 0; padding: 0.75em 1em; border-left: 3px solid var(--info-bd);
+    background: var(--info-bg); border-radius: 0 6px 6px 0;
+  }
+  .callout > :first-child { margin-top: 0; }
+  .callout > :last-child { margin-bottom: 0; }
+  .callout.warn    { border-color: var(--warn-bd);    background: var(--warn-bg); }
+  .callout.error   { border-color: var(--error-bd);   background: var(--error-bg); }
+  .callout.success { border-color: var(--success-bd); background: var(--success-bg); }
+  .callout-title { font-weight: 600; margin-bottom: 0.3em; }
+
+  pre.diff code .add, pre.diff .add { display: block; background: var(--add-bg); color: var(--add-fg); }
+  pre.diff code .del, pre.diff .del { display: block; background: var(--del-bg); color: var(--del-fg); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
+  @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .badge {
+    display: inline-block; padding: 0.1em 0.55em; font-size: 0.78em;
+    border: 1px solid var(--border); border-radius: 999px; color: var(--muted);
+    vertical-align: 0.1em;
+  }
+
+  /* Mermaid diagrams render as SVG; keep them tidy. */
+  .mermaid { margin: 1.2em 0; text-align: center; }
+  .mermaid svg { max-width: 100%; height: auto; }
+
+  /* Tabs — CSS-only via :has(). Supports up to 5 tabs per group. */
+  .tabs { margin: 1.2em 0; }
+  .tabs > .tab {
+    display: inline-block; padding: 0.5em 0.9em 0.6em; cursor: pointer; color: var(--muted);
+    border-bottom: 2px solid transparent; user-select: none; margin-right: 0.2em;
+  }
+  .tabs > .tab:first-of-type { padding-left: 0; }
+  .tabs > .tab input { display: none; }
+  .tabs > .tab:hover { color: var(--fg); }
+  .tabs > .tab:has(input:checked) { color: var(--fg); border-bottom-color: var(--accent); font-weight: 500; }
+  .tabs > .tab-panel { display: none; padding: 0.9em 0; border-top: 1px solid var(--border); margin-top: -2px; }
+  .tabs:has(.tab:nth-of-type(1) input:checked) > .tab-panel:nth-of-type(1),
+  .tabs:has(.tab:nth-of-type(2) input:checked) > .tab-panel:nth-of-type(2),
+  .tabs:has(.tab:nth-of-type(3) input:checked) > .tab-panel:nth-of-type(3),
+  .tabs:has(.tab:nth-of-type(4) input:checked) > .tab-panel:nth-of-type(4),
+  .tabs:has(.tab:nth-of-type(5) input:checked) > .tab-panel:nth-of-type(5) { display: block; }
+  .tabs > .tab-panel > :first-child { margin-top: 0; }
+  .tabs > .tab-panel > :last-child  { margin-bottom: 0; }
+
+  /* Syntax highlighting: hljs theme leaves these alone, but we keep the bg neutral. */
+  pre code.hljs { background: transparent; padding: 0; }
+
+  /* Outline — auto-generated, fixed right gutter on wide screens.
+     Uses rem (font-size-independent) for the offset calc; `ch` inside .outline
+     would resolve against its smaller 0.85em font and undershoot. */
+  .outline {
+    position: fixed; top: 3rem;
+    left: calc(50% + 22rem + 1.5rem);
+    width: 14rem; max-height: calc(100vh - 5rem); overflow-y: auto;
+    font-size: 0.85em; line-height: 1.4;
+    padding-left: 1rem; border-left: 1px solid var(--border);
+  }
+  .outline-title {
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;
+    font-size: 0.78em; margin-bottom: 0.6em;
+  }
+  .outline ul { list-style: none; padding: 0; margin: 0; }
+  .outline li { margin: 0; }
+  .outline a {
+    color: var(--muted); text-decoration: none; display: block;
+    padding: 0.25em 0 0.25em 0.9em; margin-left: -1em;
+    border-left: 2px solid transparent;
+  }
+  .outline a:hover { color: var(--fg); }
+  .outline a.active { color: var(--fg); border-left-color: var(--accent); font-weight: 500; }
+  .outline ul.sub { margin-left: 1em; }
+  .outline ul.sub a { font-size: 0.95em; }
+  /* Need viewport > 2*(body half + gap + outline + edge): ~22rem + 1.5rem + 14rem + 1rem = 38.5rem per side. */
+  @media (max-width: 1280px) { .outline { display: none; } }
+
+  html { scroll-behavior: smooth; scroll-padding-top: 1.5rem; }
+</style>
+</head>
+<body>
+
+<!--
+  AGENT: write the response content below this comment, then delete the comment.
+  Available primitives are documented in SKILL.md. Key classes:
+    callout (info | warn | error | success), callout-title, grid-2,
+    diff on pre with add/del spans, mermaid on pre, tabs/tab/tab-panel,
+    badge, details/summary.
+  Note: this comment cannot contain a literal mermaid arrow because the HTML
+  parser closes the comment at the first occurrence of those three chars.
+-->
+
+<h1>{{TITLE}}</h1>
+
+{{BODY}}
+
+<!-- Auto-outline: scans h2/h3, assigns ids, builds a right-side nav, tracks scroll. -->
+<script>
+  (function () {
+    const headings = [...document.querySelectorAll('h2, h3')];
+    if (headings.length < 3) return;
+
+    const slug = t => t.toLowerCase().trim()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'section';
+    const seen = new Map();
+    headings.forEach(h => {
+      let id = slug(h.textContent);
+      const n = seen.get(id) || 0;
+      if (n) id = id + '-' + n;
+      seen.set(slug(h.textContent), n + 1);
+      h.id = id;
+    });
+
+    const nav = document.createElement('nav');
+    nav.className = 'outline';
+    nav.innerHTML = '<div class="outline-title">On this page</div>';
+    const ul = document.createElement('ul');
+    nav.appendChild(ul);
+    let subUl = null;
+    let lastH2Li = null;
+    headings.forEach(h => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = '#' + h.id;
+      a.textContent = h.textContent;
+      a.dataset.target = h.id;
+      li.appendChild(a);
+      if (h.tagName === 'H2') {
+        ul.appendChild(li);
+        lastH2Li = li;
+        subUl = null;
+      } else {
+        if (!subUl) {
+          subUl = document.createElement('ul');
+          subUl.className = 'sub';
+          (lastH2Li || ul).appendChild(subUl);
+        }
+        subUl.appendChild(li);
+      }
+    });
+    document.body.appendChild(nav);
+
+    const links = new Map();
+    nav.querySelectorAll('a').forEach(a => links.set(a.dataset.target, a));
+
+    function updateActive() {
+      const y = window.scrollY + 80;
+      let current = null;
+      for (const h of headings) {
+        if (h.offsetTop <= y) current = h; else break;
+      }
+      nav.querySelectorAll('a.active').forEach(a => a.classList.remove('active'));
+      if (current) {
+        const link = links.get(current.id);
+        if (link) link.classList.add('active');
+      }
+    }
+    let raf = 0;
+    window.addEventListener('scroll', () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = 0; updateActive(); });
+    }, { passive: true });
+    updateActive();
+  })();
+</script>
+
+<script>
+  // Copy-to-clipboard buttons for pre blocks (skips mermaid).
+  document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.type = 'button'; btn.textContent = 'copy';
+    btn.addEventListener('click', async () => {
+      try {
+        const clone = pre.cloneNode(true);
+        clone.querySelector('.copy-btn')?.remove();
+        await navigator.clipboard.writeText(clone.textContent);
+        btn.textContent = 'copied';
+        setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+      } catch { btn.textContent = 'err'; }
+    });
+    pre.appendChild(btn);
+  });
+</script>
+
+<!--
+  Mermaid: loaded only if a .mermaid block exists. UMD build (not ESM) so it works
+  from file:// origins — `file://` is a unique security origin and blocks ES-module
+  dynamic imports. The `@11` tag on jsdelivr auto-resolves to the latest 11.x release.
+-->
+<script>
+  if (document.querySelector('.mermaid')) {
+    const theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default';
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
+    s.onload = async () => {
+      try {
+        window.mermaid.initialize({ startOnLoad: false, theme, securityLevel: 'loose' });
+        await window.mermaid.run({ querySelector: '.mermaid' });
+      } catch (e) {
+        console.error('[mermaid] render failed:', e?.message || e, e);
+        document.querySelectorAll('.mermaid').forEach(el => {
+          if (!el.dataset.mermaidError) {
+            el.dataset.mermaidError = '1';
+            el.insertAdjacentHTML('beforebegin',
+              '<div class="callout error"><div class="callout-title">Mermaid render error</div>' +
+              '<code>' + String(e?.message || e).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])) + '</code></div>');
+          }
+        });
+      }
+    };
+    s.onerror = () => console.error('[mermaid] failed to load script from CDN');
+    document.head.appendChild(s);
+  }
+</script>
+
+<!--
+  Syntax highlighting (highlight.js): opt-in via code blocks with a language-xxx class.
+  Loads only when at least one such block exists. Theme CSS is split into light/dark
+  with media attributes so the browser only fetches the one matching the OS.
+-->
+<script>
+  (function () {
+    const blocks = document.querySelectorAll('pre code[class*="language-"]');
+    if (!blocks.length) return;
+    const base = 'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build';
+    const light = document.createElement('link');
+    light.rel = 'stylesheet'; light.href = base + '/styles/github.min.css';
+    light.media = '(prefers-color-scheme: light)';
+    const dark = document.createElement('link');
+    dark.rel = 'stylesheet'; dark.href = base + '/styles/github-dark.min.css';
+    dark.media = '(prefers-color-scheme: dark)';
+    document.head.appendChild(light);
+    document.head.appendChild(dark);
+    const s = document.createElement('script');
+    s.src = base + '/highlight.min.js';
+    s.onload = () => blocks.forEach(el => window.hljs.highlightElement(el));
+    s.onerror = () => console.error('[hljs] failed to load script from CDN');
+    document.head.appendChild(s);
+  })();
+</script>
+
+</body>
+</html>
