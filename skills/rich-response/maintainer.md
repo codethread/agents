@@ -2,7 +2,7 @@
 
 `TEMPLATE_PATH` is a single self-contained HTML file:
 
-- OS-respecting light/dark via `prefers-color-scheme` — no JS toggle, no flash.
+- OS-respecting light/dark via `prefers-color-scheme` — Dawn colors from `pi-themes/rose-pine-dawn.json` in light mode and Moon colors from `pi-themes/rose-pine-moon.json` in dark mode.
 - All CSS inlined. No external stylesheet, no build step.
 - Vanilla JS for copy-to-clipboard on `<pre>` blocks (auto-attached on load).
 - Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block.

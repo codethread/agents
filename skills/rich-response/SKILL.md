@@ -70,7 +70,7 @@ After it returns: one-line chat reply pointing at the rendered file. No long rec
 
 `TEMPLATE_PATH` is a single self-contained HTML file:
 
-- OS-respecting light/dark via `prefers-color-scheme` — no JS toggle, no flash.
+- OS-respecting light/dark via `prefers-color-scheme` — Dawn colors from `pi-themes/rose-pine-dawn.json` in light mode and Moon colors from `pi-themes/rose-pine-moon.json` in dark mode.
 - All CSS inlined. No external stylesheet, no build step.
 - Vanilla JS for copy-to-clipboard on `<pre>` blocks (auto-attached on load).
 - Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block.
@@ -121,7 +121,7 @@ CSS-only (no JS), up to 5 panels per group. Each group needs a unique `name` on 
 
 ### Syntax highlighting
 
-Opt-in. Add `class="language-xxx"` on the `<code>` element inside a `<pre>`. The template lazy-loads highlight.js + a light/dark theme only when at least one such block exists. Common values: `language-bash`, `language-js`, `language-ts`, `language-python`, `language-html`, `language-css`, `language-json`, `language-sql`, `language-yaml`, `language-rust`, `language-go`.
+Opt-in. Add `class="language-xxx"` on the `<code>` element inside a `<pre>`. The template lazy-loads highlight.js only when at least one such block exists; token colors are inline CSS variables mapped from the active Rose Pine Dawn/Moon Pi theme. Common values: `language-bash`, `language-js`, `language-ts`, `language-python`, `language-html`, `language-css`, `language-json`, `language-sql`, `language-yaml`, `language-rust`, `language-go`.
 
 ```html
 <pre><code class="language-js">

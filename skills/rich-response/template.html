@@ -7,33 +7,57 @@
 <style>
   :root {
     color-scheme: light dark;
-    --bg: #fdfdfc;
-    --fg: #1a1a1a;
-    --muted: #6b6b6b;
-    --border: #e4e4e1;
-    --code-bg: #f3f2ee;
-    --accent: #2b5fb3;
-    --info-bg: #eaf2fb;    --info-bd: #2b5fb3;
-    --warn-bg: #fbf2e0;    --warn-bd: #a17707;
-    --error-bg: #fbe9e7;   --error-bd: #b3261e;
-    --success-bg: #e6f4ea; --success-bd: #137333;
-    --add-bg: #e6ffec;     --add-fg: #04543a;
-    --del-bg: #ffeef0;     --del-fg: #82071e;
+    /* Rose Pine Dawn: pi-themes/rose-pine-dawn.json */
+    --bg: #fdf9f5;
+    --fg: #575279;
+    --muted: #9893a5;
+    --dim: #797593;
+    --border: #dfdad9;
+    --code-bg: #fffaf3;
+    --accent: #b85c58;
+    --link: #286983;
+    --info-bg: #f4ede8;    --info-bd: #56949f;
+    --warn-bg: #f4ede8;    --warn-bd: #a86a00;
+    --error-bg: #f4ede8;   --error-bd: #b4637a;
+    --success-bg: #f4ede8; --success-bd: #a86a00;
+    --add-bg: #fceee5;     --add-fg: #a86a00;
+    --del-bg: #f9e8e7;     --del-fg: #b4637a;
+    --syntax-comment: #797593;
+    --syntax-keyword: #907aa9;
+    --syntax-function: #286983;
+    --syntax-variable: #575279;
+    --syntax-string: #56949f;
+    --syntax-number: #a86a00;
+    --syntax-type: #a86a00;
+    --syntax-operator: #286983;
+    --syntax-punctuation: #f2e9e1;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #161616;
-      --fg: #e7e7e4;
-      --muted: #9a9a96;
-      --border: #2d2d2b;
-      --code-bg: #1f1f1d;
-      --accent: #6ea8ff;
-      --info-bg: #16243a;    --info-bd: #6ea8ff;
-      --warn-bg: #2c2614;    --warn-bd: #d4a843;
-      --error-bg: #2e1715;   --error-bd: #f1837c;
-      --success-bg: #142319; --success-bd: #6cc285;
-      --add-bg: #0d2818;     --add-fg: #7ee2a8;
-      --del-bg: #2d1014;     --del-fg: #f6a8b1;
+      /* Rose Pine Moon: pi-themes/rose-pine-moon.json */
+      --bg: #232136;
+      --fg: #e0def4;
+      --muted: #6e6a86;
+      --dim: #6e698f;
+      --border: #2e2a42;
+      --code-bg: #2a273f;
+      --accent: #c4a7e7;
+      --link: #9ccfd8;
+      --info-bg: #2a283e;    --info-bd: #9a68d6;
+      --warn-bg: #2a283e;    --warn-bd: #f6c177;
+      --error-bg: #2a283e;   --error-bd: #eb6f92;
+      --success-bg: #2a283e; --success-bd: #9ccfd8;
+      --add-bg: #2e2a42;     --add-fg: #bddfe5;
+      --del-bg: #2e2a42;     --del-fg: #f095af;
+      --syntax-comment: #58556b;
+      --syntax-keyword: #3e8fb0;
+      --syntax-function: #bddfe5;
+      --syntax-variable: #9e98dd;
+      --syntax-string: #f9d5a2;
+      --syntax-number: #ea9a97;
+      --syntax-type: #decef2;
+      --syntax-operator: #6e698f;
+      --syntax-punctuation: #58556b;
     }
   }
   * { box-sizing: border-box; }
@@ -50,7 +74,7 @@
   h3 { font-size: 1.15rem; }
   h4 { font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
   p { margin: 0.8em 0; }
-  a { color: var(--accent); text-underline-offset: 2px; }
+  a { color: var(--link); text-underline-offset: 2px; }
   hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
   small, .muted { color: var(--muted); font-size: 0.9em; }
   ul, ol { padding-left: 1.4em; }
@@ -141,8 +165,17 @@
   .tabs > .tab-panel > :first-child { margin-top: 0; }
   .tabs > .tab-panel > :last-child  { margin-bottom: 0; }
 
-  /* Syntax highlighting: hljs theme leaves these alone, but we keep the bg neutral. */
-  pre code.hljs { background: transparent; padding: 0; }
+  /* Syntax highlighting: Rose Pine token colors from the active Pi theme. */
+  pre code.hljs { background: transparent; color: var(--syntax-variable); padding: 0; }
+  .hljs-comment, .hljs-quote { color: var(--syntax-comment); }
+  .hljs-keyword, .hljs-selector-tag, .hljs-subst { color: var(--syntax-keyword); }
+  .hljs-title, .hljs-section, .hljs-name { color: var(--syntax-function); }
+  .hljs-variable, .hljs-template-variable, .hljs-attr, .hljs-attribute { color: var(--syntax-variable); }
+  .hljs-string, .hljs-regexp, .hljs-symbol, .hljs-bullet { color: var(--syntax-string); }
+  .hljs-number, .hljs-literal { color: var(--syntax-number); }
+  .hljs-type, .hljs-class .hljs-title, .hljs-built_in { color: var(--syntax-type); }
+  .hljs-operator, .hljs-deletion, .hljs-addition { color: var(--syntax-operator); }
+  .hljs-punctuation { color: var(--syntax-punctuation); }
 
   /* Outline — auto-generated, fixed right gutter on wide screens.
      Uses rem (font-size-independent) for the offset calc; `ch` inside .outline
@@ -312,22 +345,14 @@
 
 <!--
   Syntax highlighting (highlight.js): opt-in via code blocks with a language-xxx class.
-  Loads only when at least one such block exists. Theme CSS is split into light/dark
-  with media attributes so the browser only fetches the one matching the OS.
+  Loads only when at least one such block exists. Token colors come from the inline
+  Rose Pine Dawn/Moon CSS variables above, matching the active OS color scheme.
 -->
 <script>
   (function () {
     const blocks = document.querySelectorAll('pre code[class*="language-"]');
     if (!blocks.length) return;
     const base = 'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build';
-    const light = document.createElement('link');
-    light.rel = 'stylesheet'; light.href = base + '/styles/github.min.css';
-    light.media = '(prefers-color-scheme: light)';
-    const dark = document.createElement('link');
-    dark.rel = 'stylesheet'; dark.href = base + '/styles/github-dark.min.css';
-    dark.media = '(prefers-color-scheme: dark)';
-    document.head.appendChild(light);
-    document.head.appendChild(dark);
     const s = document.createElement('script');
     s.src = base + '/highlight.min.js';
     s.onload = () => blocks.forEach(el => window.hljs.highlightElement(el));
