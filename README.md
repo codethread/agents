@@ -56,7 +56,9 @@ See `pi-extensions/system-prompt/README.md` for prompt-layer extension details a
 - `skills/afk-create-tasks/SKILL.md` — create deterministic AFK task files from planning context
 - `skills/git-commit/SKILL.md` — create conventional git commit(s) from the current worktree changes
 - `skills/git-merge/SKILL.md` — squash-merge a branch or linked worktree into the current branch, then clean up the source branch/worktree
+- `skills/mermaid/SKILL.md` — terse pitfalls list for writing Mermaid diagrams that actually render
 - `skills/pi-session-introspection/SKILL.md` — jq cookbook for analysing Pi agent/subagent session JSONL files
+- `skills/rich-response/SKILL.md` — render a long-form response as a self-contained HTML file and open it in the browser
 - `skills/robustness/SKILL.md` — guidance for robust-enough edge-case and failure-mode handling
 - `skills/skill-authoring/SKILL.md` — guide for writing well-structured Pi skills
 - `skills/spec-authoring/SKILL.md` — guide for turning feature intent into implementation-ready specs
