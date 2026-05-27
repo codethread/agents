@@ -95,6 +95,7 @@ Utility classes added by the template:
 | `.callout-title`      | Bold first line inside a callout.                                     |
 | `.grid-2`             | Two-column responsive grid; collapses on narrow.                      |
 | `.diff` on `<pre>`    | Use `<span class="add">…</span>` / `<span class="del">…</span>` lines |
+| `.no-wrap` on `<pre>` | Preserve horizontal scrolling for tree-like layouts or aligned output. |
 | `.mermaid` on `<pre>` | Renders content as a Mermaid diagram.                                 |
 | `.tabs`               | Tab group. See **Tabs** below.                                        |
 
@@ -129,7 +130,7 @@ const x = await fetch('/api')
 </code></pre>
 ```
 
-Plain `<pre><code>…</code></pre>` (no language class) stays unhighlighted — useful for terminal output or non-code text.
+Plain `<pre><code>…</code></pre>` (no language class) stays unhighlighted — useful for terminal output or non-code text. `<pre>` blocks wrap long lines by default; add `class="no-wrap"` when horizontal scrolling is better for tree-like layouts, ASCII UI mockups, or fixed-column output.
 
 ### Mermaid
 
