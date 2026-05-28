@@ -58,6 +58,14 @@ Encoding rules:
 
 Create the files below. Do not ask for approval unless the source context is too ambiguous to produce a safe MVP task plan.
 
+### 6. Request review
+
+Before finalizing the task plan:
+
+1. Ask a dedicated review agent to inspect the full task sequence for ordering issues, dependency deadlocks, and missed prerequisite work.
+2. Ask review agents to inspect individual task files for whether each task is standalone and clear without relying on prior conversation context beyond codebase documentation.
+3. Ask for a holistic review of cohesion between the task plan, referenced specs, and stated MVP goal, calling out any misalignment.
+
 ## Output files
 
 Create a `tasks/` directory containing:

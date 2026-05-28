@@ -36,7 +36,7 @@ tools: bash, read, edit, write
 model:
   - id: deepseek/deepseek-v4-pro:high
     when: "!$IS_WORK"
-  - openai/gpt-5.5:low
+  - openai-codex/gpt-5.5:low
 ---
 
 You are a shell specialist. Solve terminal-heavy tasks in a focused isolated context and return concise, actionable findings.

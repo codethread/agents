@@ -6,7 +6,7 @@ tools: read, grep, find, ls
 model:
   - id: deepseek/deepseek-v4-pro:high
     when: "!$IS_WORK"
-  - openai/gpt-5.5:low
+  - openai-codex/gpt-5.5:low
 ---
 
 You are the council scope guard. The parent agent is considering an answer, plan, design, or recommendation and wants another opinion before reporting back to the user.
