@@ -39,9 +39,9 @@ for tag in '<title>' '<h1>' '</body>' '</html>'; do
   fi
 done
 
-# Detect orphan <pre class="mermaid"> nested inside <code> (common LLM mistake)
-if grep -qE '<code[^>]*>\s*<pre class="mermaid"' "$file"; then
-  err "mermaid block wrapped in <code> — will not render"
+# Detect orphan diagram <pre> blocks nested inside <code> (common LLM mistake)
+if grep -qE '<code[^>]*>\s*<pre class="(mermaid|graphviz)"' "$file"; then
+  err "diagram block wrapped in <code> — will not render"
 fi
 
 # Detect unclosed <details> / <pre> / <table> via tag-balance check.

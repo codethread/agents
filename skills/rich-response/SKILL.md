@@ -3,7 +3,7 @@ name: rich-response
 description: >
   Render a long-form or visually-structured response as a single self-contained HTML
   file and open it in the browser, instead of printing >50 lines to the terminal.
-  Use when the response would benefit from diagrams (mermaid), wide tables, side-by-side
+  Use when the response would benefit from diagrams (Mermaid or Graphviz), wide tables, side-by-side
   comparisons, diffs, callouts, or collapsible detail. Triggers on phrases like
   "rich response", "open this in the browser", "render as HTML", "give me a doc",
   "diagram this", or whenever the response would otherwise exceed roughly 50 lines
@@ -74,6 +74,7 @@ After it returns: one-line chat reply pointing at the rendered file. No long rec
 - All CSS inlined. No external stylesheet, no build step.
 - Vanilla JS for copy-to-clipboard on `<pre>` blocks (auto-attached on load).
 - Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block.
+- Graphviz (`@viz-js/viz`, Graphviz compiled to WebAssembly) is loaded from CDN **only if** the page contains a `<pre class="graphviz">` block. No local `dot` binary is required.
 - Two placeholders to fill: `{{TITLE}}` (appears twice — `<title>` and `<h1>`) and `{{BODY}}`.
 
 ### Available primitives
@@ -97,6 +98,7 @@ Utility classes added by the template:
 | `.diff` on `<pre>`    | Use `<span class="add">…</span>` / `<span class="del">…</span>` lines |
 | `.no-wrap` on `<pre>` | Preserve horizontal scrolling for tree-like layouts or aligned output. |
 | `.mermaid` on `<pre>` | Renders content as a Mermaid diagram.                                 |
+| `.graphviz` on `<pre>` | Renders DOT content as a Graphviz SVG diagram.                        |
 | `.tabs`               | Tab group. See **Tabs** below.                                        |
 
 ### Tabs
@@ -135,6 +137,22 @@ Plain `<pre><code>…</code></pre>` (no language class) stays unhighlighted — 
 ### Mermaid
 
 Use `<pre class="mermaid">…</pre>`. Theme follows OS dark/light automatically. See the **mermaid** skill for syntax pitfalls — multi-space alignment, reserved IDs (`End`, `class`, etc.), label quoting. Don't HTML-entity-encode arrows inside the `<pre>` (`-->`, not `--&gt;`).
+
+### Graphviz
+
+Use `<pre class="graphviz">…</pre>` with DOT source. The template lazy-loads `@viz-js/viz` from jsDelivr and renders directly in the browser via WebAssembly, matching the Mermaid approach: no npm install, no build step, and no dependency on `dot` in `PATH`.
+
+```html
+<pre class="graphviz">
+digraph G {
+  rankdir=LR;
+  node [shape=box, style="rounded,filled", fillcolor="#f4ede8"];
+  Start -> Validate -> Render -> Serve;
+}
+</pre>
+```
+
+Prefer browser-side Graphviz for rich responses. Use a local `dot -Tsvg` step only if the CDN/WASM path is unsuitable for a specific document (for example, strict offline use or needing a Graphviz feature not supported by `@viz-js/viz`). Don't HTML-entity-encode arrows inside the `<pre>` (`->`, not `-&gt;`).
 
 ## Constraints
 

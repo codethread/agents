@@ -144,9 +144,9 @@
     vertical-align: 0.1em;
   }
 
-  /* Mermaid diagrams render as SVG; keep them tidy. */
-  .mermaid { margin: 1.2em 0; text-align: center; }
-  .mermaid svg { max-width: 100%; height: auto; }
+  /* Diagrams render as SVG; keep them tidy. */
+  .mermaid, .graphviz { margin: 1.2em 0; text-align: center; }
+  .mermaid svg, .graphviz svg { max-width: 100%; height: auto; }
 
   /* Tabs — CSS-only via :has(). Supports up to 5 tabs per group. */
   .tabs { margin: 1.2em 0; }
@@ -217,7 +217,7 @@
   Available primitives are documented in SKILL.md. Key classes:
     callout (info | warn | error | success), callout-title, grid-2,
     diff on pre with add/del spans, no-wrap on pre to preserve horizontal scrolling,
-    mermaid on pre, tabs/tab/tab-panel, badge, details/summary.
+    mermaid/graphviz on pre, tabs/tab/tab-panel, badge, details/summary.
   Note: this comment cannot contain a literal mermaid arrow because the HTML
   parser closes the comment at the first occurrence of those three chars.
 -->
@@ -297,8 +297,8 @@
 </script>
 
 <script>
-  // Copy-to-clipboard buttons for pre blocks (skips mermaid).
-  document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  // Copy-to-clipboard buttons for pre blocks (skips rendered diagrams).
+  document.querySelectorAll('pre:not(.mermaid):not(.graphviz)').forEach(pre => {
     const btn = document.createElement('button');
     btn.className = 'copy-btn'; btn.type = 'button'; btn.textContent = 'copy';
     btn.addEventListener('click', async () => {
@@ -341,6 +341,38 @@
       }
     };
     s.onerror = () => console.error('[mermaid] failed to load script from CDN');
+    document.head.appendChild(s);
+  }
+</script>
+
+<!--
+  Graphviz: loaded only if a .graphviz block exists. @viz-js/viz bundles Graphviz
+  to WebAssembly, so rendering works in-browser without requiring `dot` in PATH.
+-->
+<script>
+  if (document.querySelector('.graphviz')) {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@viz-js/viz@3/lib/viz-standalone.js';
+    s.onload = async () => {
+      try {
+        const viz = await window.Viz.instance();
+        document.querySelectorAll('.graphviz').forEach(el => {
+          const svg = viz.renderSVGElement(el.textContent);
+          el.replaceChildren(svg);
+        });
+      } catch (e) {
+        console.error('[graphviz] render failed:', e?.message || e, e);
+        document.querySelectorAll('.graphviz').forEach(el => {
+          if (!el.dataset.graphvizError) {
+            el.dataset.graphvizError = '1';
+            el.insertAdjacentHTML('beforebegin',
+              '<div class="callout error"><div class="callout-title">Graphviz render error</div>' +
+              '<code>' + String(e?.message || e).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])) + '</code></div>');
+          }
+        });
+      }
+    };
+    s.onerror = () => console.error('[graphviz] failed to load script from CDN');
     document.head.appendChild(s);
   }
 </script>
