@@ -3,9 +3,18 @@ import { Text } from "@earendil-works/pi-tui";
 import { buildProjectStructurePrompt, type ExecLike } from "./snapshot.js";
 
 export const PROJECT_STRUCTURE_MESSAGE_TYPE = "project-structure";
-export const INVALIDATING_TOOLS = new Set(["bash", "write"]);
+export type ProjectStructureContext = Pick<
+	ExtensionContext,
+	"cwd" | "hasUI" | "ui" | "signal" | "sessionManager"
+>;
 
-export type ProjectStructureContext = Pick<ExtensionContext, "cwd" | "hasUI" | "ui" | "signal">;
+type ChatEntry = { type: string };
+
+function isFirstChatMessage(ctx: ProjectStructureContext): boolean {
+	return !ctx.sessionManager.getBranch().some((entry: ChatEntry) =>
+		["message", "custom_message", "compaction", "branch_summary"].includes(entry.type),
+	);
+}
 
 export interface ProjectStructureController {
 	reset(): void;
@@ -76,6 +85,8 @@ export default function projectStructureExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (_event, ctx) => {
+		if (!isFirstChatMessage(ctx)) return;
+
 		const prompt = await projectStructure.getPrompt(ctx);
 		if (prompt === null || prompt === lastSentProjectStructurePrompt) return;
 
@@ -87,11 +98,5 @@ export default function projectStructureExtension(pi: ExtensionAPI) {
 				display: true,
 			},
 		};
-	});
-
-	pi.on("tool_execution_end", async (event) => {
-		if (INVALIDATING_TOOLS.has(event.toolName)) {
-			projectStructure.invalidate();
-		}
 	});
 }

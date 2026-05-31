@@ -10,6 +10,17 @@ function createExecMock(tree: string) {
 	});
 }
 
+function createCtx(branch: Array<{ type: string }> = []) {
+	return {
+		cwd: "/repo",
+		hasUI: true,
+		ui: {},
+		sessionManager: {
+			getBranch: () => branch,
+		},
+	};
+}
+
 describe("project-structure messaging extension", () => {
 	it("sends the project tree as a custom message separate from the system prompt", async () => {
 		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
@@ -23,11 +34,9 @@ describe("project-structure messaging extension", () => {
 			registerMessageRenderer,
 		} as any);
 
-		await handlers.get("session_start")?.({}, { cwd: "/repo", hasUI: true, ui: {} });
-		const result = await handlers.get("before_agent_start")?.(
-			{ systemPrompt: "Base prompt" },
-			{ cwd: "/repo", hasUI: true, ui: {} },
-		);
+		const ctx = createCtx();
+		await handlers.get("session_start")?.({}, ctx);
+		const result = await handlers.get("before_agent_start")?.({ systemPrompt: "Base prompt" }, ctx);
 
 		expect(registerMessageRenderer).toHaveBeenCalledWith("project-structure", expect.any(Function));
 		expect(result).toMatchInlineSnapshot(`
@@ -52,7 +61,7 @@ describe("project-structure messaging extension", () => {
 		`);
 	});
 
-	it("does not resend an unchanged project tree, but sends a changed tree after invalidation", async () => {
+	it("only sends the project tree for the first chat message", async () => {
 		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
 		let tree = "/repo\n`-- package.json\n";
 
@@ -70,14 +79,15 @@ describe("project-structure messaging extension", () => {
 			registerMessageRenderer: vi.fn(),
 		} as any);
 
-		const ctx = { cwd: "/repo", hasUI: true, ui: {} };
+		const branch: Array<{ type: string }> = [];
+		const ctx = createCtx(branch);
 		await handlers.get("session_start")?.({}, ctx);
 
 		await expect(handlers.get("before_agent_start")?.({}, ctx)).resolves.toBeDefined();
 		await expect(handlers.get("before_agent_start")?.({}, ctx)).resolves.toBeUndefined();
 
 		tree = "/repo\n|-- package.json\n`-- src\n    `-- index.ts\n";
-		await handlers.get("tool_execution_end")?.({ toolName: "bash" }, ctx);
-		await expect(handlers.get("before_agent_start")?.({}, ctx)).resolves.toBeDefined();
+		branch.push({ type: "message" });
+		await expect(handlers.get("before_agent_start")?.({}, ctx)).resolves.toBeUndefined();
 	});
 });

@@ -1,6 +1,6 @@
 # `project-structure`
 
-> Send a bounded repository tree snapshot to the model as a custom first-turn message.
+> Send a bounded repository tree snapshot to the model as a custom message only for the first chat turn.
 
 > [!NOTE]
 > This is a messaging extension, not a system-prompt extension: the tree is model-visible as a custom message but kept out of the effective system prompt.
@@ -13,11 +13,9 @@ At session start, this extension finds the current repo root, counts visible fil
 - when the full tree is not shown, add a compact note with total file/folder counts
 - if even `-L 1` is still over budget, truncate that preview to the first 200 lines and say so
 
-The computed block is cached per session and invalidated after `bash` and `write` tool executions so later turns can refresh after structural changes.
+The computed block is cached per session. It is only eligible to send when the active branch has no prior chat/context entries, so resumed chats and later turns do not receive refreshed structure snapshots.
 
 In the TUI, the custom renderer shows only `Project tree sent to agent`; the tree itself is still sent to the model but is not rendered in the chat transcript.
 
-Inspect system-prompt sections through the `system-prompt` extension's `--debug-prompt` flag or `/debug-prompt` command. The project structure is not part of that debug prompt because it is sent as a custom message.
-
 > [!NOTE]
-> `charset=ascii` is used as it's more token efficient that the pretty charset
+> `charset=ascii` is used as it's more token efficient than the pretty charset
