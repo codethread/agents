@@ -1,5 +1,6 @@
 ---
 description: Cleanup pass for session cruft
+disable-model-invocation: true
 ---
 
 # Declutter pass

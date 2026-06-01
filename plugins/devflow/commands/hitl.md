@@ -1,6 +1,7 @@
 ---
 description: Human-in-the-loop single tick for AFK-style task work
 argument-hint: provide the task index YAML, task files, and any specs to study
+disable-model-invocation: true
 ---
 
 # Human-in-the-loop single-slice prompt

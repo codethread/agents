@@ -1,6 +1,7 @@
 ---
 description: Benchmark a task across models, prompts, or both
 argument-hint: <task description>
+disable-model-invocation: true
 ---
 
 # Benchmark Orchestration

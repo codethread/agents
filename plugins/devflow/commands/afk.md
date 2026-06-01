@@ -1,6 +1,7 @@
 ---
 description: Focussed instruction set for scripted AFK loop
 argument-hint: provide context plus a selected task slice
+disable-model-invocation: true
 ---
 
 # Single-slice implementation prompt

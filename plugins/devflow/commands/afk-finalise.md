@@ -1,6 +1,6 @@
 ---
 description: Finalise AFK loop worktree after smoke/refine
-author: codethread
+disable-model-invocation: true
 ---
 
 # AFK finalise
