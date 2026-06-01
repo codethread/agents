@@ -109,14 +109,16 @@ export def main [
 
     $loop_count = ($loop_count + 1)
     let session_name = (task-session-name $task $loop_count)
+    # mint a session id so build phases resume this exact session, not "most recent in cwd"
+    let session_id = (random uuid)
     let init_command = if $claude { "/devflow:flow-init--afk" } else { "/flow-init--afk" }
     let prompt = $"($init_command) study ($study)\n\nSelected task:\n($task)\n\nTask notes file: ($task_notes)"
     print $"running: ($init_command) with next task from ($task_index) as ($session_name)"
 
     let res = if $claude {
-      $prompt | claude --print --dangerously-skip-permissions --model $effective_model --name $session_name | complete
+      $prompt | claude --print --dangerously-skip-permissions --model $effective_model --name $session_name --session-id $session_id | complete
     } else {
-      pi --agent $agent --model $effective_model --name $session_name -p $prompt | complete
+      pi --agent $agent --model $effective_model --name $session_name --session-id $session_id -p $prompt | complete
     }
 
     if $res.exit_code != 0 {
@@ -155,9 +157,9 @@ export def main [
     let refine_command = if $claude { "/devflow:flow-build--refine" } else { "/flow-build--refine" }
     print $"running: ($refine_command)"
     let refine = if $claude {
-      $refine_command | claude --print --dangerously-skip-permissions -c | complete
+      $refine_command | claude --print --dangerously-skip-permissions --resume $session_id | complete
     } else {
-      pi -c -p $refine_command | complete
+      pi --session-id $session_id -p $refine_command | complete
     }
     if $refine.exit_code != 0 {
       print $refine.stderr
@@ -168,9 +170,9 @@ export def main [
     let smoke_command = if $claude { "/devflow:flow-build--smoke" } else { "/flow-build--smoke" }
     print $"running: ($smoke_command)"
     let smoke = if $claude {
-      $smoke_command | claude --print --dangerously-skip-permissions -c | complete
+      $smoke_command | claude --print --dangerously-skip-permissions --resume $session_id | complete
     } else {
-      pi -c -p $smoke_command | complete
+      pi --session-id $session_id -p $smoke_command | complete
     }
     if $smoke.exit_code != 0 {
       print $smoke.stderr
@@ -185,9 +187,9 @@ export def main [
       print (git status --short)
 
       let finalise = if $claude {
-        $finalise_command | claude --print --dangerously-skip-permissions -c | complete
+        $finalise_command | claude --print --dangerously-skip-permissions --resume $session_id | complete
       } else {
-        pi -c -p $finalise_command | complete
+        pi --session-id $session_id -p $finalise_command | complete
       }
       if $finalise.exit_code != 0 {
         print $finalise.stderr
