@@ -45,3 +45,10 @@ Append notes here. Do not rewrite earlier notes.
 - Created `hello.ts` at repo root using Node 24 native TypeScript (type stripping); shebang + single `console.log`.
 - Invocable via `node hello.ts` or `./hello.ts`; prints exactly `Hello, World!`, exits 0.
 - Tasks 2 and 3 should extend this file with CLI arg and counter respectively.
+
+### Task 3 complete — 2026-06-01
+
+- Extended `hello.ts` to persist a counter in `.hello_count` (same directory as the script).
+- ENOENT on first run is recovered explicitly (returns 0); other read errors propagate loudly.
+- Added `.hello_count` to `.gitignore` — it's a runtime artifact, not source.
+- `node hello.ts` → `Hello, World!\nGreeted 1 time(s).`; subsequent runs increment the persisted count.

@@ -12,5 +12,5 @@ tasks:
   - id: 3
     description: Add a greeting counter
     task_file: tasks/003-greeting-counter.md
-    status: pending
+    status: complete
     blocked_by: [2]
