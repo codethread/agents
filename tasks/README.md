@@ -38,3 +38,10 @@ Append notes here. Do not rewrite earlier notes.
 - Extended `hello.ts` with `process.argv[2] ?? "World"` — parses name at the CLI boundary, explicit default.
 - `node hello.ts Alice` → `Hello, Alice!`; `node hello.ts` → `Hello, World!`.
 - Task 3 can extend `hello.ts` to add a greeting counter on top of this.
+
+### Task 1 re-implemented — 2026-06-01
+
+- A prior wip commit deleted `hello.ts` and reset tasks 1/2 to pending, restarting the smoke test.
+- Created `hello.ts` at repo root using Node 24 native TypeScript (type stripping); shebang + single `console.log`.
+- Invocable via `node hello.ts` or `./hello.ts`; prints exactly `Hello, World!`, exits 0.
+- Tasks 2 and 3 should extend this file with CLI arg and counter respectively.
