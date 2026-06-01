@@ -32,3 +32,9 @@ Append notes here. Do not rewrite earlier notes.
 - Created `hello.ts` at repo root; invocable via `node hello.ts`.
 - Node 24 runs `.ts` files natively (type stripping) — no tsx or ts-node required.
 - Tasks 2 and 3 should extend `hello.ts` with CLI args and a counter.
+
+### Task 2 complete — 2026-06-01
+
+- Extended `hello.ts` with `process.argv[2] ?? "World"` — parses name at the CLI boundary, explicit default.
+- `node hello.ts Alice` → `Hello, Alice!`; `node hello.ts` → `Hello, World!`.
+- Task 3 can extend `hello.ts` to add a greeting counter on top of this.

@@ -7,7 +7,7 @@ tasks:
   - id: 2
     description: Accept a name argument in the greeting
     task_file: tasks/002-named-greeting.md
-    status: pending
+    status: complete
     blocked_by: [1]
   - id: 3
     description: Add a greeting counter
