@@ -1,4 +1,4 @@
-# Repeatedly run the /afk prompt until the queue is blocked or exhausted.
+# Repeatedly run the /flow-init--afk prompt until the queue is blocked or exhausted.
 #
 # Example:
 #   use /Users/codethread/dev/projects/agents/scripts/afk-loop.nu
@@ -79,13 +79,21 @@ def task-session-name [task: string, loop_count: int] {
 }
 
 export def main [
-  study: string                                # Text appended after `/afk study `: task entry point plus specs/context to read
-  --agent: string = "main"                     # Pi agent to run
-  --model: string = "openai-codex/gpt-5.5:low" # Pi model to run
+  study: string                                # Text appended after `/flow-init--afk study `: task entry point plus specs/context to read
+  --agent: string = "main"                     # Pi agent to run (ignored when --claude is set)
+  --model: string = ""                         # Model to run (defaults: pi=openai-codex/gpt-5.5:low, claude=sonnet)
+  --claude                                     # Use claude CLI instead of pi
 ] {
-  mut pi_failures = 0
+  let effective_model = if $model == "" {
+    if $claude { "sonnet" } else { "openai-codex/gpt-5.5:low" }
+  } else {
+    $model
+  }
+  let cli = if $claude { "claude" } else { "pi" }
+
+  mut failures = 0
   mut loop_count = 0
-  let max_pi_failures = 3
+  let max_failures = 3
   let task_index = (task-index-path $study)
   let task_notes = (($task_index | path dirname) | path join "README.md")
 
@@ -105,20 +113,22 @@ export def main [
 
     $loop_count = ($loop_count + 1)
     let session_name = (task-session-name $task $loop_count)
-    let prompt = $"/afk study ($study)\n\nSelected task:\n($task)\n\nTask notes file: ($task_notes)"
-    print $"running: /afk with next task from ($task_index) as ($session_name)"
+    let prompt = $"/flow-init--afk study ($study)\n\nSelected task:\n($task)\n\nTask notes file: ($task_notes)"
+    print $"running: /flow-init--afk with next task from ($task_index) as ($session_name)"
 
-    let res = (
-      pi --agent $agent --model $model --name $session_name -p $prompt | complete
-    )
+    let res = if $claude {
+      $prompt | claude --print --dangerously-skip-permissions --model $effective_model --name $session_name | complete
+    } else {
+      pi --agent $agent --model $effective_model --name $session_name -p $prompt | complete
+    }
 
     if $res.exit_code != 0 {
-      $pi_failures = ($pi_failures + 1)
+      $failures = ($failures + 1)
       print $res.stderr
-      print $"pi failed; retrying afk loop (($pi_failures)/($max_pi_failures))"
+      print $"($cli) failed; retrying afk loop (($failures)/($max_failures))"
 
-      if $pi_failures >= $max_pi_failures {
-        error make { msg: $"pi failed ($max_pi_failures) times in a row" }
+      if $failures >= $max_failures {
+        error make { msg: $"($cli) failed ($max_failures) times in a row" }
       }
 
       continue
@@ -128,28 +138,36 @@ export def main [
     print $out
 
     if (has-token $out "BLOCKED") {
-      $pi_failures = 0
+      $failures = 0
       print "afk loop stopped: task blocked"
       break
     }
 
     if (has-token $out "NO_TASKS_REMAIN") {
-      $pi_failures = 0
+      $failures = 0
       print "afk loop stopped: no runnable tasks remain"
       break
     }
 
     # likely success
-    print $"running: refine"
-    let refine = (pi -c -p "/refine" | complete)
+    print $"running: flow-build--refine"
+    let refine = if $claude {
+      "/flow-build--refine" | claude --print --dangerously-skip-permissions -c | complete
+    } else {
+      pi -c -p "/flow-build--refine" | complete
+    }
     if $refine.exit_code != 0 {
       print $refine.stderr
       error make { msg: "refine failed" }
     }
     print ($refine.stdout | str trim)
 
-    print $"running: smoke"
-    let smoke = (pi -c -p "/smoke" | complete)
+    print $"running: flow-build--smoke"
+    let smoke = if $claude {
+      "/flow-build--smoke" | claude --print --dangerously-skip-permissions -c | complete
+    } else {
+      pi -c -p "/flow-build--smoke" | complete
+    }
     if $smoke.exit_code != 0 {
       print $smoke.stderr
       error make { msg: "smoke failed" }
@@ -158,13 +176,17 @@ export def main [
 
     let git_status = (git status --porcelain)
     if ($git_status | str trim) != "" {
-      print "running: afk-finalise"
+      print "running: flow-build--finalise"
       print (git status --short)
 
-      let finalise = (pi -c -p "/afk-finalise" | complete)
+      let finalise = if $claude {
+        "/flow-build--finalise" | claude --print --dangerously-skip-permissions -c | complete
+      } else {
+        pi -c -p "/flow-build--finalise" | complete
+      }
       if $finalise.exit_code != 0 {
         print $finalise.stderr
-        error make { msg: "afk-finalise failed" }
+        error make { msg: "flow-build--finalise failed" }
       }
 
       let finalise_out = ($finalise.stdout | str trim)
@@ -172,24 +194,24 @@ export def main [
 
       let final_status = (git status --porcelain)
       if ($final_status | str trim) != "" {
-        print "afk loop stopped: afk-finalise left uncommitted work"
+        print "afk loop stopped: flow-build--finalise left uncommitted work"
         print (git status --short)
-        error make { msg: "afk-finalise left uncommitted work" }
+        error make { msg: "flow-build--finalise left uncommitted work" }
       }
 
       if (has-token $finalise_out "BLOCKED") {
-        $pi_failures = 0
+        $failures = 0
         print "afk loop stopped: finalise blocked"
         break
       }
 
       if (has-token $finalise_out "NO_TASKS_REMAIN") {
-        $pi_failures = 0
+        $failures = 0
         print "afk loop stopped: no runnable tasks remain"
         break
       }
     }
 
-    $pi_failures = 0
+    $failures = 0
   }
 }

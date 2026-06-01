@@ -1,11 +1,11 @@
 ---
-description: Finalise AFK loop worktree after smoke/refine
+description: Finalise AFK loop worktree after flow-build refine/smoke
 disable-model-invocation: true
 ---
 
 # AFK finalise
 
-Uncommitted work remains after `/smoke` / `/refine`.
+Uncommitted work remains after `/flow-build--smoke` / `/flow-build--refine`.
 
 Your job: finalise the current slice without starting new work.
 

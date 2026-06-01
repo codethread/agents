@@ -1,0 +1,16 @@
+tasks:
+  - id: 1
+    description: Create a hello world script
+    task_file: tasks/001-hello-world-script.md
+    status: pending
+    blocked_by: []
+  - id: 2
+    description: Accept a name argument in the greeting
+    task_file: tasks/002-named-greeting.md
+    status: pending
+    blocked_by: [1]
+  - id: 3
+    description: Add a greeting counter
+    task_file: tasks/003-greeting-counter.md
+    status: pending
+    blocked_by: [2]

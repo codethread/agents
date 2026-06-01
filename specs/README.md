@@ -15,13 +15,8 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 
 - `README.md` — package overview and setup
 - `pi/extensions/README.md` — package extension index; per-extension README files live inside each shipped extension folder
+- `plugins/devflow/README.md` — AFK/HITL workflow automation overview
 - `.pi/extensions/pi-internals/README.md` — project-local Pi internals extension for this checkout only
-
-## Workflow Automation
-
-| Spec                                                                                 | Purpose                                                                                                           | Code                                                        |
-| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| [afk-loop--single-worktree-automation.md](./afk-loop--single-worktree-automation.md) | Defines the AFK loop as a prompt-plus-script system for synchronous task execution, retry recovery, and finalise. | `scripts/afk-loop.nu`, `plugins/afk*.md`, `plugins/devflow/commands/hitl.md` |
 
 ## Delegation and Resource Sync
 
