@@ -39,12 +39,6 @@ Append notes here. Do not rewrite earlier notes.
 - `node hello.ts Alice` → `Hello, Alice!`; `node hello.ts` → `Hello, World!`.
 - Task 3 can extend `hello.ts` to add a greeting counter on top of this.
 
-### Task 2 complete — 2026-06-01
-
-- Extended `hello.ts` with `process.argv[2] ?? "World"` — parses name at the CLI boundary, explicit default.
-- `node hello.ts Alice` → `Hello, Alice!`; `node hello.ts` → `Hello, World!`.
-- Task 3 can extend `hello.ts` to add a greeting counter on top of this.
-
 ### Task 1 re-implemented — 2026-06-01
 
 - A prior wip commit deleted `hello.ts` and reset tasks 1/2 to pending, restarting the smoke test.
