@@ -113,7 +113,7 @@ export def main [
 
     $loop_count = ($loop_count + 1)
     let session_name = (task-session-name $task $loop_count)
-    let prompt = $"/flow-init--afk study ($study)\n\nSelected task:\n($task)\n\nTask notes file: ($task_notes)"
+    let prompt = $"/devflow:flow-init--afk study ($study)\n\nSelected task:\n($task)\n\nTask notes file: ($task_notes)"
     print $"running: /flow-init--afk with next task from ($task_index) as ($session_name)"
 
     let res = if $claude {
