@@ -343,10 +343,10 @@ describe("runSingleAgent model chain", () => {
 		]);
 		expect(JSON.stringify(manifest.subagents[0]?.attempts)).not.toContain("ok");
 		const sessionArgs = spawnMock.mock.calls.map((call) => call[1] as string[]);
-		const sessionFiles = sessionArgs.map((args) => args[args.indexOf("--session") + 1]);
-		expect(sessionFiles[0]).not.toBe(sessionFiles[1]);
+		const sessionIds = sessionArgs.map((args) => args[args.indexOf("--session-id") + 1]);
+		expect(sessionIds[0]).not.toBe(sessionIds[1]);
 		expect(manifest.subagents[0]).toMatchObject({
-			sessionFile: path.basename(sessionFiles[1]!),
+			sessionFile: `${sessionIds[1]}.jsonl`,
 		});
 	});
 
@@ -513,7 +513,7 @@ describe("buildSingleAgentArgs", () => {
 		]);
 	});
 
-	it("persists child sessions when a session file is provided", () => {
+	it("still accepts an explicit session file when provided", () => {
 		expect(
 			buildSingleAgentArgs("fixer", "Fix the typecheck errors", undefined, {
 				file: "/tmp/subagent.jsonl",
@@ -530,7 +530,7 @@ describe("buildSingleAgentArgs", () => {
 		]);
 	});
 
-	it("resumes child sessions through Pi's session lookup", () => {
+	it("resumes child sessions by exact Pi session id", () => {
 		expect(
 			buildSingleAgentArgs(
 				"review",
@@ -551,7 +551,7 @@ describe("buildSingleAgentArgs", () => {
 			"anthropic/claude-sonnet-4",
 			"--thinking",
 			"medium",
-			"--session",
+			"--session-id",
 			"session-id-123",
 			"--session-dir",
 			"/tmp/subagent-sessions",

@@ -113,7 +113,7 @@ A `subagent` execution follows this flow:
 Subprocess execution is intentionally isolated from the parent context:
 
 - the child is launched with `--mode json -p`
-- when the parent session is persisted, each child subagent run gets a session path in a subagent session directory (`--session <path>`); otherwise it falls back to `--no-session`
+- when the parent session is persisted, each child subagent run gets a generated session ID in a subagent session directory (`--session-id <id> --session-dir <dir>`); otherwise it falls back to `--no-session`
 - child subagents are marked with `PI_SUBAGENT=1` in the environment so extensions can adjust behavior for delegated runs
 - the selected discovered agent is activated in the child through `--agent <name>`, so prompt/model/thinking/tool inheritance uses the same code path as top-level direct-agent mode
 - the delegated work itself is passed as a single prompt string: `Task: <task>`
@@ -144,7 +144,7 @@ Behavioral details:
 
 ### Session logging
 
-When the parent session is persisted, subagent runs are also persisted and indexed through manifests. The parent session ID and cwd form the stable lookup key, so resume mappings survive Pi restarts and later `--session`/`--continue` use of the same parent session.
+When the parent session is persisted, subagent runs are also persisted and indexed through manifests. The parent session ID and cwd form the stable lookup key, so resume mappings survive Pi restarts and later `--session-id`/`--continue` use of the same parent session.
 
 Storage layout:
 
@@ -163,7 +163,7 @@ Storage layout:
 For each subagent run, the runtime:
 
 1. generates a UUID (`crypto.randomUUID()`) used as both manifest entry `id` and session filename (`<uuid>.jsonl`)
-2. launches the child process with `--session <absolute path>`
+2. launches the child process with `--session-id <uuid> --session-dir <subagent-dir>`
 3. records the completed run in `manifest.json` (upsert by `id`)
 
 Manifest contract:
@@ -467,8 +467,8 @@ Failure model:
 - if the requested agent name does not exist, return a failed `SingleResult` immediately without spawning a process
 - otherwise spawn one child Pi process for the run
 - honor the per-run `cwd` supplied in each task item
-- when parent session info is available, create a subagent session path and run with `--session`; otherwise run with `--no-session`
-- when `resume` is provided for a single-agent target, invoke Pi with `--session <resume> --session-dir <subagent-dir>` so Pi resolves the exact session ID
+- when parent session info is available, create a subagent session ID/path and run with `--session-id <id> --session-dir <subagent-dir>`; otherwise run with `--no-session`
+- when `resume` is provided for a single-agent target, invoke Pi with `--session-id <resume> --session-dir <subagent-dir>` so Pi resolves the exact session ID
 - when no `resume` is provided but the task looks like a follow-up, look up the latest matching agent in `manifest.json` and resume it when available
 - on completion, update `manifest.json` with usage/cost/timing metadata for persisted subagent runs
 - if an abort signal fires, send `SIGTERM` immediately and schedule a later `SIGKILL` attempt

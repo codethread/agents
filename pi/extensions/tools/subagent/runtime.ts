@@ -67,7 +67,7 @@ export function buildSingleAgentArgs(
 	}
 	if (session) {
 		if ("file" in session) args.push("--session", session.file);
-		else args.push("--session", session.id, "--session-dir", session.dir);
+		else args.push("--session-id", session.id, "--session-dir", session.dir);
 	} else args.push("--no-session");
 	args.push(`Task: ${task}`);
 	return args;
@@ -225,7 +225,8 @@ export async function runSingleAgent(
 			subagentSession = {
 				dir: nextSession.dir,
 				sessionFile: nextSession.sessionFile,
-				cliSession: { file: nextSession.sessionFile },
+				sessionId: nextSession.sessionId,
+				cliSession: { id: nextSession.sessionId, dir: nextSession.dir },
 			};
 		}
 	}
@@ -272,7 +273,7 @@ export async function runSingleAgent(
 							);
 							return {
 								...nextSession,
-								cliSession: { file: nextSession.sessionFile } as const,
+								cliSession: { id: nextSession.sessionId, dir: nextSession.dir } as const,
 							};
 						})()
 					: subagentSession;

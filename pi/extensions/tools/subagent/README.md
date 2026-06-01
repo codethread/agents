@@ -189,7 +189,7 @@ When the parent session is persisted, each subagent run is saved under:
 
 Single-agent manifests include compact model-chain attempt records when a chain ran. They do not duplicate child transcripts; the `.jsonl` session files remain the transcript source.
 
-Single-agent resumes use exact IDs from `manifest.json` (matched to session files by stored session UUID).
+Single-agent resumes use exact IDs from `manifest.json` (matched to session files by stored session UUID and passed to Pi with `--session-id`).
 Swarm resumes use friendly IDs like `swarm-<target>-<uuid>` stored in `swarm-manifest.json`; each entry maps every member to its child session ID and session file.
 A resumed swarm marks only members that successfully loaded a prior child session with `resume="true"`.
 
