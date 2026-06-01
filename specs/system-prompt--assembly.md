@@ -7,7 +7,7 @@
 
 ### Purpose
 
-Document how this package contributes model-facing prompt context: Pi core discovers prompt inputs, `pi-extensions/system-prompt/` replaces the base system prompt with a package-owned rendering, and adjacent extensions contribute non-system context when that is the better cache/UX boundary.
+Document how this package contributes model-facing prompt context: Pi core discovers prompt inputs, `pi/extensions/system-prompt/` replaces the base system prompt with a package-owned rendering, and adjacent extensions contribute non-system context when that is the better cache/UX boundary.
 
 ### Goals
 
@@ -47,7 +47,7 @@ Document how this package contributes model-facing prompt context: Pi core disco
 
 ## 3. Architecture
 
-Implementation lives in `pi-extensions/system-prompt/`.
+Implementation lives in `pi/extensions/system-prompt/`.
 
 ### 3.1 Pi Core Foundation
 
@@ -103,7 +103,7 @@ Template output is trimmed aggressively so conditional whitespace does not bloat
 
 ### 3.4 Adjacent Non-System Context
 
-`pi-extensions/messaging/project-structure/` sends the bounded repository tree as a displayed custom message with `customType="project-structure"`. Its content remains model-visible and XML-wrapped, but it is not appended to the system prompt. The TUI renderer shows only `Project tree sent to agent`.
+`pi/extensions/messaging/project-structure/` sends the bounded repository tree as a displayed custom message with `customType="project-structure"`. Its content remains model-visible and XML-wrapped, but it is not appended to the system prompt. The TUI renderer shows only `Project tree sent to agent`.
 
 This is intentionally outside `system-prompt`: the project tree is volatile navigation context, not a stable operating instruction.
 

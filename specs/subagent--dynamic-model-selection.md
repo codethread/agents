@@ -222,7 +222,7 @@ Human/session/debug surfaces may show compact attempt summaries such as candidat
 
 ## 6. Testing
 
-Core behavior is covered by focused tests under `pi-extensions/tools/subagent/*.test.ts`, especially discovery/model-policy parsing, runtime retry/advance behavior, rendering boundaries, and manifest persistence.
+Core behavior is covered by focused tests under `pi/extensions/tools/subagent/*.test.ts`, especially discovery/model-policy parsing, runtime retry/advance behavior, rendering boundaries, and manifest persistence.
 
 Full package validation uses `pnpm check`.
 
@@ -234,4 +234,4 @@ Full package validation uses `pnpm check`.
 
 ## 8. Code Locations
 
-Implementation lives in `pi-extensions/tools/subagent/`. Related domain context lives in `specs/subagent--discovery-and-config.md` and `specs/subagent--orchestration.md`.
+Implementation lives in `pi/extensions/tools/subagent/`. Related domain context lives in `specs/subagent--discovery-and-config.md` and `specs/subagent--orchestration.md`.

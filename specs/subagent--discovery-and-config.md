@@ -26,10 +26,10 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 
 ### Non-Goals
 
-- Executing agent tasks or managing agent process lifecycle. That belongs to the subagent runtime in `pi-extensions/tools/subagent/`.
+- Executing agent tasks or managing agent process lifecycle. That belongs to the subagent runtime in `pi/extensions/tools/subagent/`.
 - Validating rich agent schemas beyond the required frontmatter fields. Discovery assumes frontmatter is parseable and that `tools`, when present, behaves like a string.
 - Merging multiple definitions of the same agent across sources. Agent-agent collisions are resolved by replacement, not composition.
-- Executing swarm members, aggregating member output, or managing swarm resume. That belongs to the subagent runtime in `pi-extensions/tools/subagent/`.
+- Executing swarm members, aggregating member output, or managing swarm resume. That belongs to the subagent runtime in `pi/extensions/tools/subagent/`.
 - Supporting arbitrary external tool names. Tool normalization is intentionally narrow and conservative.
 - Executing model-chain retry behavior; discovery only parses and carries model policy for runtime validation/execution.
 - Exposing user/project/both discovery scopes to Pi-facing runtime selection.
@@ -37,7 +37,7 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 ## 2. Design Decisions
 
 - **Decision:** Agents are defined as markdown files with frontmatter and prompt body.
-  - **Rationale:** A single file can carry both runtime metadata and the system prompt, while also allowing author-only notes such as `meta`, matching how bundled agents in `pi-agents/*.md` are authored.
+  - **Rationale:** A single file can carry both runtime metadata and the system prompt, while also allowing author-only notes such as `meta`, matching how bundled agents in `pi/agents/*.md` are authored.
 
 - **Decision:** Pi sees one merged target list rather than choosing among discovery scopes.
   - **Rationale:** Runtime behavior is simpler when user/project/package sources are a discovery concern, not a tool-call concern.
@@ -89,7 +89,7 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 
 ## 3. Architecture
 
-Agent and swarm discovery live inside the `pi-extensions/tools/subagent/` module and are consumed by the same module's runtime entrypoint, so target resolution receives one validated catalog.
+Agent and swarm discovery live inside the `pi/extensions/tools/subagent/` module and are consumed by the same module's runtime entrypoint, so target resolution receives one validated catalog.
 
 ### Discovery pipeline
 
@@ -111,7 +111,7 @@ Agent and swarm discovery live inside the `pi-extensions/tools/subagent/` module
 
 Discovery supports three agent sources:
 
-- **package** — bundled agents under repo-level `pi-agents/`.
+- **package** — bundled agents under repo-level `pi/agents/`.
 - **user** — agents under `~/.pi/agent/agents`
 - **project** — agents under the nearest ancestor `.pi/agents`
 
@@ -178,7 +178,7 @@ This means discovery is the configuration boundary; runtime execution trusts the
 
 ## 4. Data Model
 
-Discovery's public contract is exported by the `pi-extensions/tools/subagent/` module: single-agent configs, swarm configs, the merged discovery result, and delegation target resolution. The spec intentionally does not duplicate those TypeScript interfaces; the module is the source of truth for exact fields and signatures.
+Discovery's public contract is exported by the `pi/extensions/tools/subagent/` module: single-agent configs, swarm configs, the merged discovery result, and delegation target resolution. The spec intentionally does not duplicate those TypeScript interfaces; the module is the source of truth for exact fields and signatures.
 
 At the boundary, discovery returns:
 
@@ -188,13 +188,13 @@ At the boundary, discovery returns:
 - project directory metadata for debug rendering and project-source confirmation
 - per-agent model-policy parse errors where malformed model frontmatter should be surfaced without discarding the whole catalog
 
-Bundled agents in this repo demonstrate the markdown file format discovery expects. See `pi-agents/` for package agents and `pi-agents/*/swarm.json` for package swarms.
+Bundled agents in this repo demonstrate the markdown file format discovery expects. See `pi/agents/` for package agents and `pi/agents/*/swarm.json` for package swarms.
 
 User and project swarm folders use `swarm.json` plus optional colocated agent markdown files. A minimal swarm declares a `name`, `description`, and ordered `members` array. `hidden: true` may be added to hide a swarm from the parent prompt inventory while keeping explicit name-based execution available.
 
 ## 5. Interfaces
 
-The `pi-extensions/tools/subagent/` module provides the API used by the subagent tool and direct `--agent` startup mode to:
+The `pi/extensions/tools/subagent/` module provides the API used by the subagent tool and direct `--agent` startup mode to:
 
 - discover the effective target catalog for a working directory
 - format visible targets for parent prompt injection and debug output
@@ -241,5 +241,5 @@ The subagent runtime treats discovery as the configuration boundary. Single-agen
 
 ## 8. Code Locations
 
-- `pi-extensions/tools/subagent/` — discovery, formatting, direct-agent inheritance, and runtime consumption
-- `pi-agents/` — bundled package agents and swarms
+- `pi/extensions/tools/subagent/` — discovery, formatting, direct-agent inheritance, and runtime consumption
+- `pi/agents/` — bundled package agents and swarms

@@ -8,8 +8,8 @@ description: >
   or minor wording changes the main agent can do inline.
 
   Example inputs:
-  - "Tighten skills/git-merge/SKILL.md. Preserve the Decisions state machine verbatim."
-  - "Audit pi-extensions/README.md — restructure if needed, consider a diagram for the discovery flow."
+  - "Tighten plugins/coding/skills/git-merge/SKILL.md. Preserve the Decisions state machine verbatim."
+  - "Audit pi/extensions/README.md — restructure if needed, consider a diagram for the discovery flow."
   - "Final pass on .pi/agents/prose.md after my edits — line-level tightening only, no restructuring."
 meta: >
   Agents love to talk; users don't want to read. Prose exists because the main agent naturally
@@ -38,7 +38,7 @@ The user's scarcest asset is reading time. Every line you remove is time saved. 
 ## Strategy
 
 1. Read the target document(s) in full
-2. Load related skills if the document is a SKILL.md or agent reference (check `skills/` for relevant authoring guides)
+2. Load related skills if the document is a SKILL.md or agent reference (check `plugins/` for relevant authoring guides)
 3. Identify: repetition, hedging ("generally", "typically", "you might"), throat-clearing intros, over-explained concepts, prose that should be a table
 4. Edit in place — do not produce a diff summary
 5. Verify meaning preserved: re-read and confirm no facts, commands, or conventions were lost

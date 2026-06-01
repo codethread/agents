@@ -7,8 +7,8 @@
 - Typecheck: `pnpm typecheck` (tsc)
 - Verify all checks: `pnpm check` when work complete, runs `lint` -> `typecheck` -> `test` -> `format` (via prettier).
 - When building extensions:
-  - always add `--debug-*` flags to allow you to verify results, see ./pi-extensions/system-prompt/index.ts as an example
-  - extensions exposing `/debug-*` commands should use `./pi-extensions/components/debug-message/index.ts` for hidden debug output so the UI stays consistent (`Ctrl+G` open in editor, `Ctrl+Enter` send to agent)
+  - always add `--debug-*` flags to allow you to verify results, see ./pi/extensions/system-prompt/index.ts as an example
+  - extensions exposing `/debug-*` commands should use `./pi/extensions/components/debug-message/index.ts` for hidden debug output so the UI stays consistent (`Ctrl+G` open in editor, `Ctrl+Enter` send to agent)
   - when an extension adds new CLI flags, add them to `scripts/pi.nu` under the extension flags comment with an `[EXT]` prefix in the comment string
   - For local Pi testing, run `pi` from this repo root, e.g;
     - `pi --model openai/gpt-5.4-nano:low --print ping`: run with a small model and get back a result
@@ -23,7 +23,7 @@ Keep prompts self-contained, or reference only things the receiving agent defini
 
 Good:
 
-- "Load `skills/robustness/SKILL.md` before handling edge cases."
+- "Load `plugins/coding/skills/robustness/SKILL.md` before handling edge cases."
 - "Use the `review` subagent for a focused code review."
 - "Use the `read` tool to inspect the selected files."
 - "Complete the selected task slice included below."

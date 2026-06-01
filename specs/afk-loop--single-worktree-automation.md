@@ -13,7 +13,7 @@ The system is intentionally split across a shell loop, deterministic task files,
 
 ### Goals
 
-- Consume a deterministic `tasks/index.yml` format created using `skills/afk-create-tasks/SKILL.md`.
+- Consume a deterministic `tasks/index.yml` format created using `plugins/devflow/skills/afk-create-tasks/SKILL.md`.
 - Distinguish unattended AFK slices from human-in-the-loop (HITL) slices without expanding the machine-readable YAML schema.
 - Select one runnable `pending` or `in_progress` task slice per Pi session, then loop until blocked or exhausted.
 - Treat `BLOCKED` and `NO_TASKS_REMAIN` as stop tokens even if the model includes surrounding text; any other successful `/afk` output is treated as a success summary.
@@ -68,10 +68,10 @@ The system is intentionally split across a shell loop, deterministic task files,
 The AFK loop system consists of:
 
 - `scripts/afk-loop.nu` — task selection, orchestration loop, Pi process handling, retry counter, stop-token detection, smoke/refine/finalise sequencing, and git cleanliness verification.
-- `skills/afk-create-tasks/SKILL.md` — creates `tasks/index.yml`, `tasks/README.md`, and per-task markdown files in the deterministic queue format.
-- `prompts/afk.md` — scripted single-slice implementation contract for a task preselected by the loop.
-- `prompts/hitl.md` — human-in-the-loop single-tick prompt with task selection and normal conversational reporting.
-- `prompts/afk-finalise.md` — final worktree cleanup contract after smoke/refine leave uncommitted changes.
+- `plugins/devflow/skills/afk-create-tasks/SKILL.md` — creates `tasks/index.yml`, `tasks/README.md`, and per-task markdown files in the deterministic queue format.
+- `plugins/devflow/commands/afk.md` — scripted single-slice implementation contract for a task preselected by the loop.
+- `plugins/devflow/commands/hitl.md` — human-in-the-loop single-tick prompt with task selection and normal conversational reporting.
+- `plugins/devflow/commands/afk-finalise.md` — final worktree cleanup contract after smoke/refine leave uncommitted changes.
 
 Code is the source of truth for command sequencing and exact retry behavior; prompts are the source of truth for agent obligations inside each Pi session.
 
@@ -109,7 +109,7 @@ Agents should only change task YAML status fields during execution. Notes, defer
 
 ## 5. Prompt Sync Contract
 
-`prompts/afk.md` and `prompts/hitl.md` intentionally duplicate the core single-slice work contract. Keep these sections semantically in sync whenever either prompt changes:
+`plugins/devflow/commands/afk.md` and `plugins/devflow/commands/hitl.md` intentionally duplicate the core single-slice work contract. Keep these sections semantically in sync whenever either prompt changes:
 
 - Workflow expectations: robustness skill loading, status transition, implementation scope, validation, commit, review, amend, and stop-after-one-slice behavior.
 - Boundaries: stay within the slice, no future work, no weakened tests/contracts, fail loudly.
@@ -124,7 +124,7 @@ Intentional differences:
 ## 6. Code Locations
 
 - `scripts/afk-loop.nu`
-- `skills/afk-create-tasks/SKILL.md`
-- `prompts/afk.md`
-- `prompts/hitl.md`
-- `prompts/afk-finalise.md`
+- `plugins/devflow/skills/afk-create-tasks/SKILL.md`
+- `plugins/devflow/commands/afk.md`
+- `plugins/devflow/commands/hitl.md`
+- `plugins/devflow/commands/afk-finalise.md`

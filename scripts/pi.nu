@@ -73,7 +73,7 @@ extern "pi" [
 	--offline                                 # Disable startup network operations
 	--help(-h)                                # Show help
 	--version(-v)                             # Show version
-	# Extension flags — update when new extensions add CLI flags (see pi-extensions/README.md)
+	# Extension flags — update when new extensions add CLI flags (see pi/extensions/README.md)
 	--agent: string                           # [EXT] Inherit discovered agent config by name (prompt/model/tools, unless overridden)
 	--debug-prompt                           # [EXT] Print effective system prompt and exit (optional JSON override arg)
 	--debug-tldr                              # [EXT] Print current session TL;DR and exit

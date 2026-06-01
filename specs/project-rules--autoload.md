@@ -59,7 +59,7 @@ Define project-local rule loading for Pi so repositories can provide Claude-comp
 ### Component structure
 
 ```text
-pi-extensions/
+pi/extensions/
 ├── shared/
 │   └── project-rules.ts          # New shared discovery, parsing, matching, rendering helpers
 ├── system-prompt/
@@ -156,7 +156,7 @@ paths:
 
 ### System prompt integration
 
-`pi-extensions/system-prompt/` adds a section for unconditional project rules. The rendered form should include source paths for debuggability:
+`pi/extensions/system-prompt/` adds a section for unconditional project rules. The rendered form should include source paths for debuggability:
 
 ```xml
 <system-reminder type="project-rules">
@@ -230,7 +230,7 @@ Rules are rediscovered on each turn and when relevant rule files are observed to
 
 ## 7. Testing
 
-Automated tests cover shared discovery, override, parsing, matching, path normalization, and malformed-frontmatter warning behavior in `pi-extensions/shared/project-rules.test.ts`.
+Automated tests cover shared discovery, override, parsing, matching, path normalization, and malformed-frontmatter warning behavior in `pi/extensions/shared/project-rules.test.ts`.
 
 Broader behavior to preserve:
 
@@ -251,13 +251,13 @@ Broader behavior to preserve:
 
 ## 8. Code Locations
 
-- `pi-extensions/shared/project-rules.ts` — shared discovery/parsing/matching/rendering module.
-- `pi-extensions/shared/project-rules.test.ts` — shared behavior coverage.
-- `pi-extensions/system-prompt/index.ts` — discovers unconditional project rules and passes them into prompt building.
-- `pi-extensions/system-prompt/prompt-builder.ts` — renders unconditional project rules in the owned system prompt.
-- `pi-extensions/messaging/project-rules/index.ts` — path-scoped autoload messaging extension.
-- `pi-extensions/messaging/project-rules/README.md` — rule behavior and examples.
-- `pi-extensions/README.md` — extension index entry.
+- `pi/extensions/shared/project-rules.ts` — shared discovery/parsing/matching/rendering module.
+- `pi/extensions/shared/project-rules.test.ts` — shared behavior coverage.
+- `pi/extensions/system-prompt/index.ts` — discovers unconditional project rules and passes them into prompt building.
+- `pi/extensions/system-prompt/prompt-builder.ts` — renders unconditional project rules in the owned system prompt.
+- `pi/extensions/messaging/project-rules/index.ts` — path-scoped autoload messaging extension.
+- `pi/extensions/messaging/project-rules/README.md` — rule behavior and examples.
+- `pi/extensions/README.md` — extension index entry.
 - `specs/README.md` — spec index entry.
 
 ## 9. Open Questions

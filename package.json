@@ -11,11 +11,10 @@
 		"pi-agent"
 	],
 	"files": [
-		"pi-extensions",
-		"prompts",
-		"pi-themes",
-		"pi-agents",
-		"skills"
+		"pi/extensions",
+		"pi/themes",
+		"pi/agents",
+		"plugins"
 	],
 	"packageManager": "pnpm@10.33.0",
 	"scripts": {
@@ -29,20 +28,24 @@
 	},
 	"pi": {
 		"extensions": [
-			"./pi-extensions/system-prompt/index.ts",
-			"./pi-extensions/tools",
-			"./pi-extensions/ui",
-			"./pi-extensions/messaging",
-			"./pi-extensions/cli"
+			"./pi/extensions/system-prompt/index.ts",
+			"./pi/extensions/tools",
+			"./pi/extensions/ui",
+			"./pi/extensions/messaging",
+			"./pi/extensions/cli"
 		],
 		"prompts": [
-			"./prompts"
+			"./plugins/devflow/commands",
+			"./plugins/coding/commands"
 		],
 		"themes": [
-			"./pi-themes"
+			"./pi/themes"
 		],
 		"skills": [
-			"./skills"
+			"./plugins/devflow/skills",
+			"./plugins/writing/skills",
+			"./plugins/coding/skills",
+			"./plugins/harness/skills"
 		]
 	},
 	"peerDependencies": {

@@ -47,7 +47,7 @@ function makeStaticDiscovery() {
 		extensions: [
 			{
 				name: "system-prompt",
-				path: "/pkg/pi-extensions/system-prompt/index.ts",
+				path: "/pkg/pi/extensions/system-prompt/index.ts",
 				scope: "user" as const,
 				source: "npm:@codethread/agents",
 				origin: "package" as const,
@@ -177,7 +177,7 @@ describe("formatters", () => {
 
 			Enabled extensions:
 			Package extensions: /pkg
-			  - npm:@codethread/agents: ./pi-extensions/system-prompt/index.ts"
+			  - npm:@codethread/agents: ./pi/extensions/system-prompt/index.ts"
 		`);
 		expect(formatExtensionDiscoveryReport(discovery)).toMatchInlineSnapshot(`
 			"Pi internals
@@ -202,7 +202,7 @@ describe("formatters", () => {
 
 			Enabled extensions:
 			Package extensions: /pkg
-			  - npm:@codethread/agents: ./pi-extensions/system-prompt/index.ts"
+			  - npm:@codethread/agents: ./pi/extensions/system-prompt/index.ts"
 		`);
 	});
 
@@ -241,7 +241,7 @@ Global npm extensions: /home/user/.pi/npm-global/lib/node_modules
 			extensions: [
 				{
 					name: "bash",
-					path: "/repo/pi-extensions/tools/builtins/bash.ts",
+					path: "/repo/pi/extensions/tools/builtins/bash.ts",
 					scope: "project" as const,
 					source: "/repo",
 					origin: "package" as const,
@@ -251,11 +251,11 @@ Global npm extensions: /home/user/.pi/npm-global/lib/node_modules
 		};
 
 		const note = formatExtensionDiscoveryContextNote(discovery);
-		expect(note).toContain("  - bash: ./pi-extensions/tools/builtins/bash.ts");
-		expect(note).not.toContain("/repo: ./pi-extensions/tools/builtins/bash.ts");
+		expect(note).toContain("  - bash: ./pi/extensions/tools/builtins/bash.ts");
+		expect(note).not.toContain("/repo: ./pi/extensions/tools/builtins/bash.ts");
 
 		const report = formatExtensionDiscoveryReport(discovery);
-		expect(report).toContain("  - bash: ./pi-extensions/tools/builtins/bash.ts");
-		expect(report).not.toContain("/repo: ./pi-extensions/tools/builtins/bash.ts");
+		expect(report).toContain("  - bash: ./pi/extensions/tools/builtins/bash.ts");
+		expect(report).not.toContain("/repo: ./pi/extensions/tools/builtins/bash.ts");
 	});
 });

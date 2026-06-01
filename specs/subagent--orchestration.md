@@ -7,7 +7,7 @@
 
 ### Purpose
 
-The subagent extension provides a stable runtime for delegating work to isolated Pi subprocesses while preserving enough structure for streaming progress, UI rendering, resume, and post-run inspection. This domain covers the `subagent` tool, the `debug-agents` command, and the direct top-level `--agent <name>` flag in `pi-extensions/tools/subagent/`. Each tool call runs one named target; the same `agent` parameter can resolve to a single-agent config or a configured parallel fan-out swarm target.
+The subagent extension provides a stable runtime for delegating work to isolated Pi subprocesses while preserving enough structure for streaming progress, UI rendering, resume, and post-run inspection. This domain covers the `subagent` tool, the `debug-agents` command, and the direct top-level `--agent <name>` flag in `pi/extensions/tools/subagent/`. Each tool call runs one named target; the same `agent` parameter can resolve to a single-agent config or a configured parallel fan-out swarm target.
 
 ### Goals
 
@@ -22,7 +22,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 
 ### Non-Goals
 
-- Discovering or normalizing agent/swarm definitions. That belongs to the discovery boundary in `pi-extensions/tools/subagent/` and is specified in `specs/subagent--discovery-and-config.md`.
+- Discovering or normalizing agent/swarm definitions. That belongs to the discovery boundary in `pi/extensions/tools/subagent/` and is specified in `specs/subagent--discovery-and-config.md`.
 - Ad hoc scheduling or batching of arbitrary child agents inside one tool call. Swarm fan-out is allowed only through user-configured named swarm targets.
 - Checkpointing intermediate state.
 - Merging multiple agents into a shared in-process context. Isolation is process-based.
@@ -79,7 +79,7 @@ The subagent extension provides a stable runtime for delegating work to isolated
 
 ## 3. Architecture
 
-Subagent orchestration lives in `pi-extensions/tools/subagent/` and sits directly on top of the discovery/config layer from `./agents.js`.
+Subagent orchestration lives in `pi/extensions/tools/subagent/` and sits directly on top of the discovery/config layer from `./agents.js`.
 
 ### Extension surface
 
@@ -262,7 +262,7 @@ The subagent tool owns both call rendering and result rendering.
 
 - `renderCall(...)` prints a compact preview of the requested target and task.
 - `renderResult(...)` consumes `SubagentDetails` and renders one or more child runs' status/output for running and completed workloads.
-- Shared usage strings come from `formatUsageStats(...)`, which delegates token/cost/model formatting to `pi-extensions/ui/statusline/usage-format.ts`.
+- Shared usage strings come from `formatUsageStats(...)`, which delegates token/cost/model formatting to `pi/extensions/ui/statusline/usage-format.ts`.
 - Tool-call summaries come from `formatToolCall(...)`, which special-cases built-ins like `bash`, `read`, `write`, `edit`, `find`, and `grep`.
 
 Expanded views use `Container`, `Text`, `Spacer`, and `Markdown` components to show the delegated prompt, member/agent names plus child session IDs, markdown-rendered final output, and usage stats. When a child has no final output yet, expanded views still keep inner activity collapsed to the same short preview used by collapsed mode. Collapsed views show shorter previews and always include an expand hint.
@@ -493,6 +493,6 @@ Swarm execution wraps `runSingleAgent(...)` rather than replacing it:
 
 ## 8. Code Locations
 
-- `pi-extensions/tools/subagent/` — subagent tool entrypoint, runtime orchestration, rendering, and session manifests
-- `pi-extensions/ui/statusline/` — shared usage-display formatting consumed by subagent rendering
-- `pi-agents/` — bundled agent definitions executed by this runtime
+- `pi/extensions/tools/subagent/` — subagent tool entrypoint, runtime orchestration, rendering, and session manifests
+- `pi/extensions/ui/statusline/` — shared usage-display formatting consumed by subagent rendering
+- `pi/agents/` — bundled agent definitions executed by this runtime
