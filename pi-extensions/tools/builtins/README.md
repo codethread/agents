@@ -12,4 +12,8 @@ Compact shell output display. Output is collapsed to 5 lines by default; press `
 
 ## `write`
 
-Compact file write display. Shows the destination path, streamed line count, and first line preview. Existing destination paths are highlighted with warning styling.
+Compact file write display. Shows the destination path, streamed line count, and first line preview. Existing destination paths are highlighted with warning styling. Press `Ctrl+o` to expand the full content preview.
+
+## `edit`
+
+Compact file edit display. Shows a single-line streamed addition/removal count while arguments arrive. The body is hidden by default; press `Ctrl+o` to expand the full edit preview.

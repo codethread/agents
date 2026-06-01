@@ -39,7 +39,11 @@ export default function (pi: ExtensionAPI) {
 			const path = (args.path as string | undefined) ?? "(unknown)";
 			const content = (args.content as string | undefined) ?? "";
 
-			if (context.argsComplete && path !== "(unknown)" && !existingFileByToolCall.has(context.toolCallId)) {
+			if (
+				context.argsComplete &&
+				path !== "(unknown)" &&
+				!existingFileByToolCall.has(context.toolCallId)
+			) {
 				existingFileByToolCall.set(context.toolCallId, existsSync(absolutePath(context.cwd, path)));
 			}
 
@@ -47,13 +51,16 @@ export default function (pi: ExtensionAPI) {
 			const pathColor = existed ? "warning" : "muted";
 			const prefix = context.argsComplete ? "" : "...";
 			const count = lineCount(content);
+			const lines = content.split("\n");
+			const previewLines = context.expanded ? lines : [firstLine(content)];
 
 			return new Text(
-				theme.fg("toolTitle", theme.bold("write ")) +
-					theme.fg(pathColor, path) +
-					theme.fg("dim", ` (${prefix}${count} lines)`) +
-					"\n" +
-					theme.fg("toolOutput", firstLine(content)),
+				[
+					theme.fg("toolTitle", theme.bold("write ")) +
+						theme.fg(pathColor, path) +
+						theme.fg("dim", ` (${prefix}${count} lines)`),
+					...previewLines.map((line) => theme.fg("toolOutput", line || "(empty line)")),
+				].join("\n"),
 				0,
 				0,
 			);
