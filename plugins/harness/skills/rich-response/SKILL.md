@@ -90,16 +90,16 @@ Write the body in plain semantic HTML. The template styles these:
 
 Utility classes added by the template:
 
-| Class                 | Purpose                                                               |
-| --------------------- | --------------------------------------------------------------------- |
-| `.callout`            | Info box (blue). Add `warn`, `error`, or `success`.                   |
-| `.callout-title`      | Bold first line inside a callout.                                     |
-| `.grid-2`             | Two-column responsive grid; collapses on narrow.                      |
-| `.diff` on `<pre>`    | Use `<span class="add">…</span>` / `<span class="del">…</span>` lines |
-| `.no-wrap` on `<pre>` | Preserve horizontal scrolling for tree-like layouts or aligned output. |
-| `.mermaid` on `<pre>` | Renders content as a Mermaid diagram.                                 |
-| `.graphviz` on `<pre>` | Renders DOT content as a Graphviz SVG diagram.                        |
-| `.tabs`               | Tab group. See **Tabs** below.                                        |
+| Class                  | Purpose                                                                |
+| ---------------------- | ---------------------------------------------------------------------- |
+| `.callout`             | Info box (blue). Add `warn`, `error`, or `success`.                    |
+| `.callout-title`       | Bold first line inside a callout.                                      |
+| `.grid-2`              | Two-column responsive grid; collapses on narrow.                       |
+| `.diff` on `<pre>`     | Use `<span class="add">…</span>` / `<span class="del">…</span>` lines  |
+| `.no-wrap` on `<pre>`  | Preserve horizontal scrolling for tree-like layouts or aligned output. |
+| `.mermaid` on `<pre>`  | Renders content as a Mermaid diagram.                                  |
+| `.graphviz` on `<pre>` | Renders DOT content as a Graphviz SVG diagram.                         |
+| `.tabs`                | Tab group. See **Tabs** below.                                         |
 
 ### Tabs
 

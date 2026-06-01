@@ -1,10 +1,10 @@
 {
-  "name": "agents",
-  "owner": { "name": "codethread" },
-  "plugins": [
-    { "name": "harness", "source": "./plugins/harness" },
-    { "name": "coding", "source": "./plugins/coding" },
-    { "name": "devflow", "source": "./plugins/devflow" },
-    { "name": "writing", "source": "./plugins/writing" }
-  ]
+	"name": "agents",
+	"owner": { "name": "codethread" },
+	"plugins": [
+		{ "name": "harness", "source": "./plugins/harness" },
+		{ "name": "coding", "source": "./plugins/coding" },
+		{ "name": "devflow", "source": "./plugins/devflow" },
+		{ "name": "writing", "source": "./plugins/writing" }
+	]
 }

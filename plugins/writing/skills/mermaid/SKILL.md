@@ -34,17 +34,17 @@ When a render fails, the console error includes a line number and a caret (`^`) 
 
 ## Diagram-type cheat (for reference)
 
-| Type             | First line                |
-| ---------------- | ------------------------- |
-| Flowchart        | `flowchart TD` / `LR`     |
-| Sequence         | `sequenceDiagram`         |
-| Class            | `classDiagram`            |
-| State            | `stateDiagram-v2`         |
-| ER               | `erDiagram`               |
-| Gantt            | `gantt`                   |
-| Pie              | `pie title …`             |
-| Mindmap          | `mindmap`                 |
-| Timeline         | `timeline`                |
-| Quadrant         | `quadrantChart`           |
-| User journey     | `journey`                 |
-| Git graph        | `gitGraph`                |
+| Type         | First line            |
+| ------------ | --------------------- |
+| Flowchart    | `flowchart TD` / `LR` |
+| Sequence     | `sequenceDiagram`     |
+| Class        | `classDiagram`        |
+| State        | `stateDiagram-v2`     |
+| ER           | `erDiagram`           |
+| Gantt        | `gantt`               |
+| Pie          | `pie title …`         |
+| Mindmap      | `mindmap`             |
+| Timeline     | `timeline`            |
+| Quadrant     | `quadrantChart`       |
+| User journey | `journey`             |
+| Git graph    | `gitGraph`            |

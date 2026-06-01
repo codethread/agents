@@ -95,7 +95,8 @@ export function insertToolingPrompt(systemPrompt: string, promptAddon: string): 
 	const rulesIndex = systemPrompt.indexOf(OPERATING_RULES_HEADING);
 	if (rulesIndex === -1) return `${systemPrompt}\n\n${promptAddon}`;
 	const harnessEndIndex = systemPrompt.lastIndexOf(SYSTEM_REMINDER_CLOSE, rulesIndex);
-	if (harnessEndIndex === -1) return `${systemPrompt.slice(0, rulesIndex)}\n\n${promptAddon}${systemPrompt.slice(rulesIndex)}`;
+	if (harnessEndIndex === -1)
+		return `${systemPrompt.slice(0, rulesIndex)}\n\n${promptAddon}${systemPrompt.slice(rulesIndex)}`;
 	return `${systemPrompt.slice(0, harnessEndIndex)}\n\n${promptAddon}${systemPrompt.slice(harnessEndIndex)}`;
 }
 

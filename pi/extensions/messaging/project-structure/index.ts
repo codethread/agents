@@ -11,9 +11,11 @@ export type ProjectStructureContext = Pick<
 type ChatEntry = { type: string };
 
 function isFirstChatMessage(ctx: ProjectStructureContext): boolean {
-	return !ctx.sessionManager.getBranch().some((entry: ChatEntry) =>
-		["message", "custom_message", "compaction", "branch_summary"].includes(entry.type),
-	);
+	return !ctx.sessionManager
+		.getBranch()
+		.some((entry: ChatEntry) =>
+			["message", "custom_message", "compaction", "branch_summary"].includes(entry.type),
+		);
 }
 
 export interface ProjectStructureController {

@@ -1,4 +1,5 @@
 Have an agent create your reponse in html rather than markdown, allowing a richer view for more complex discussions. Supports
+
 - mermaid
 - basic styling
 - tabs
