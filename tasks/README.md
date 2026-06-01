@@ -26,3 +26,9 @@ Append notes here. Do not rewrite earlier notes.
 ### Task plan created — 2026-06-01
 
 - Purely a smoke test. Language choice is left to the agent for task 1; tasks 2 and 3 must use whatever was chosen in task 1.
+
+### Task 1 complete — 2026-06-01
+
+- Created `hello.ts` at repo root; invocable via `node hello.ts`.
+- Node 24 runs `.ts` files natively (type stripping) — no tsx or ts-node required.
+- Tasks 2 and 3 should extend `hello.ts` with CLI args and a counter.
