@@ -55,6 +55,7 @@ extern "pi" [
 	--fork: path                              # Fork session file or partial UUID
 	--session-dir: path                       # Directory for session storage
 	--no-session                              # Don't save session (ephemeral)
+	--name(-n): string                        # Set the session display name shown in /tree and selectors
 	--models: string                          # Comma-separated model patterns for cycling
 	--no-tools                                # Disable all built-in tools
 	--tools: string@tools-completions         # Comma-separated tools to enable
@@ -83,8 +84,6 @@ extern "pi" [
 	--debug-interactive-shell: string         # [EXT] Run interactive_shell spawn/send/tail/kill directly (optional command)
 	--debug-web-access: string                # [EXT] Run web access debug command: search <query> or fetch <url>
 	--debug-pi-internals                     # [EXT] Print Pi internals discovery report and exit
-	--name: string                           # [EXT] Set the session display name shown in /tree and selectors
-	--debug-session-name                     # [EXT] Print resolved --name session display name and exit
 	...args: string
 ]
 
