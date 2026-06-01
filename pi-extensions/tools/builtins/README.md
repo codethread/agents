@@ -9,3 +9,7 @@ Compact file read display. File contents are hidden in the TUI (only the path is
 ## `bash`
 
 Compact shell output display. Output is collapsed to 5 lines by default; press `Ctrl+o` to expand. Truncation notices are shown when output was clipped.
+
+## `write`
+
+Compact file write display. Shows the destination path, streamed line count, and first line preview. Existing destination paths are highlighted with warning styling.
