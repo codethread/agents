@@ -52,6 +52,7 @@ extern "pi" [
 	--continue(-c)                            # Continue previous session
 	--resume(-r)                              # Select session to resume
 	--session: path                           # Use specific session file
+	--session-id: string                      # Use exact project session ID, creating it if missing
 	--fork: path                              # Fork session file or partial UUID
 	--session-dir: path                       # Directory for session storage
 	--no-session                              # Don't save session (ephemeral)
