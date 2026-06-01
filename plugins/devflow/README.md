@@ -7,9 +7,9 @@ Workflow helpers for turning planned work into small, reviewable implementation 
 The AFK loop is a single-worktree automation flow for repeatedly running one task slice at a time:
 
 1. select the next runnable task from `tasks/index.yml`
-2. run `/flow-init--afk` against that selected slice
+2. run `/flow-init--afk` against that selected slice, with notes from `tasks/README.md`
 3. run `/flow-build--refine`, `/flow-build--smoke`, and `/flow-build--finalise` as needed
-4. stop when tasks are exhausted, blocked, or repeated runner failures occur
+4. stop when tasks are exhausted, blocked, the initial runner call fails, or repeated later runner failures occur
 
 By default the loop uses Pi (`openai-codex/gpt-5.5:low`). Pass `--claude` to use the Claude CLI instead (default model: `sonnet`). Pass `--model` to override the model for either runner.
 
@@ -26,6 +26,8 @@ Use separate git worktrees for parallelism. The loop intentionally does not run 
 - `skills/afk-create-tasks/SKILL.md` — creates deterministic `tasks/index.yml`, `tasks/README.md`, and per-task markdown files
 
 ### Task queue shape
+
+The loop always reads tasks from `tasks/index.yml` and task notes from `tasks/README.md`; these paths are not inferred from the `study` argument.
 
 `tasks/index.yml` uses one top-level `tasks` list:
 

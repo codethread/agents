@@ -8,10 +8,6 @@ def has-token [out: string, token: string] {
   $out == $token or ($out | str contains $token)
 }
 
-def task-index-path [study: string] {
-  $study | split row "," | first | str trim | str replace --regex "^@" ""
-}
-
 def task-items [task_index: string] {
   (open $task_index).tasks
 }
@@ -79,7 +75,7 @@ def task-session-name [task: string, loop_count: int] {
 }
 
 export def main [
-  study: string                                # Text appended after `/flow-init--afk study `: task entry point plus specs/context to read
+  study: string                                # Text appended after `/flow-init--afk study `: specs/context to read; tasks are loaded from tasks/index.yml
   --agent: string = "main"                     # Pi agent to run (ignored when --claude is set)
   --model: string = ""                         # Model to run (defaults: pi=openai-codex/gpt-5.5:low, claude=sonnet)
   --claude                                     # Use claude CLI instead of pi
@@ -94,8 +90,8 @@ export def main [
   mut failures = 0
   mut loop_count = 0
   let max_failures = 3
-  let task_index = (task-index-path $study)
-  let task_notes = (($task_index | path dirname) | path join "README.md")
+  let task_index = "tasks/index.yml"
+  let task_notes = "tasks/README.md"
 
   loop {
     let task = (next-task $task_index | str trim)
@@ -113,8 +109,9 @@ export def main [
 
     $loop_count = ($loop_count + 1)
     let session_name = (task-session-name $task $loop_count)
-    let prompt = $"/devflow:flow-init--afk study ($study)\n\nSelected task:\n($task)\n\nTask notes file: ($task_notes)"
-    print $"running: /flow-init--afk with next task from ($task_index) as ($session_name)"
+    let init_command = if $claude { "/devflow:flow-init--afk" } else { "/flow-init--afk" }
+    let prompt = $"($init_command) study ($study)\n\nSelected task:\n($task)\n\nTask notes file: ($task_notes)"
+    print $"running: ($init_command) with next task from ($task_index) as ($session_name)"
 
     let res = if $claude {
       $prompt | claude --print --dangerously-skip-permissions --model $effective_model --name $session_name | complete
@@ -125,6 +122,11 @@ export def main [
     if $res.exit_code != 0 {
       $failures = ($failures + 1)
       print $res.stderr
+
+      if $loop_count == 1 {
+        error make { msg: $"initial ($cli) ($init_command) run failed; aborting afk loop" }
+      }
+
       print $"($cli) failed; retrying afk loop (($failures)/($max_failures))"
 
       if $failures >= $max_failures {
@@ -150,11 +152,12 @@ export def main [
     }
 
     # likely success
-    print $"running: flow-build--refine"
+    let refine_command = if $claude { "/devflow:flow-build--refine" } else { "/flow-build--refine" }
+    print $"running: ($refine_command)"
     let refine = if $claude {
-      "/flow-build--refine" | claude --print --dangerously-skip-permissions -c | complete
+      $refine_command | claude --print --dangerously-skip-permissions -c | complete
     } else {
-      pi -c -p "/flow-build--refine" | complete
+      pi -c -p $refine_command | complete
     }
     if $refine.exit_code != 0 {
       print $refine.stderr
@@ -162,11 +165,12 @@ export def main [
     }
     print ($refine.stdout | str trim)
 
-    print $"running: flow-build--smoke"
+    let smoke_command = if $claude { "/devflow:flow-build--smoke" } else { "/flow-build--smoke" }
+    print $"running: ($smoke_command)"
     let smoke = if $claude {
-      "/flow-build--smoke" | claude --print --dangerously-skip-permissions -c | complete
+      $smoke_command | claude --print --dangerously-skip-permissions -c | complete
     } else {
-      pi -c -p "/flow-build--smoke" | complete
+      pi -c -p $smoke_command | complete
     }
     if $smoke.exit_code != 0 {
       print $smoke.stderr
@@ -176,13 +180,14 @@ export def main [
 
     let git_status = (git status --porcelain)
     if ($git_status | str trim) != "" {
-      print "running: flow-build--finalise"
+      let finalise_command = if $claude { "/devflow:flow-build--finalise" } else { "/flow-build--finalise" }
+      print $"running: ($finalise_command)"
       print (git status --short)
 
       let finalise = if $claude {
-        "/flow-build--finalise" | claude --print --dangerously-skip-permissions -c | complete
+        $finalise_command | claude --print --dangerously-skip-permissions -c | complete
       } else {
-        pi -c -p "/flow-build--finalise" | complete
+        pi -c -p $finalise_command | complete
       }
       if $finalise.exit_code != 0 {
         print $finalise.stderr
