@@ -1,7 +1,7 @@
 # Repeatedly run the /flow-init--afk prompt until the queue is blocked or exhausted.
 #
 # Example:
-#   use /Users/codethread/dev/projects/agents/scripts/afk-loop.nu
+#   use /Users/codethread/dev/projects/agents/plugins/devflow/scripts/afk-loop.nu
 #   afk-loop "@tasks/index.yml, task files under @tasks/, ALL @specs/README.md and @UBIQUITOUS_LANGUAGE.md"
 
 def has-token [out: string, token: string] {

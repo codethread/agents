@@ -62,6 +62,14 @@ export interface FooterRenderDeps {
 
 export type StatuslineItemRenderDeps = Omit<FooterRenderDeps, "width"> & { width?: number };
 
+export function isLongCacheRetentionEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+	return env.PI_CACHE_RETENTION === "long";
+}
+
+function formatCostLine(costDisplay: string): string {
+	return isLongCacheRetentionEnabled() ? `${costDisplay} • cache long` : costDisplay;
+}
+
 export function renderStatuslineItems({
 	ctx,
 	pi,
@@ -101,7 +109,7 @@ export function renderStatuslineItems({
 		contextWindow,
 		contextPercent: contextUsage?.percent,
 	});
-	const costDisplay = formatCost(totalCost, usingSubscription, 3);
+	const costDisplay = formatCostLine(formatCost(totalCost, usingSubscription, 3));
 
 	let styledContextDisplay = theme.fg("dim", contextDisplay);
 	if (contextPercentValue > 90) {
@@ -181,7 +189,7 @@ export function renderStatuslineLines({
 		contextWindow,
 		contextPercent: contextUsage?.percent,
 	});
-	const costDisplay = formatCost(totalCost, usingSubscription, 3);
+	const costDisplay = formatCostLine(formatCost(totalCost, usingSubscription, 3));
 
 	let styledContextDisplay = theme.fg("dim", contextDisplay);
 	if (contextPercentValue > 90) {

@@ -30,7 +30,7 @@ Good:
 
 Bad:
 
-- "The loop already selected this in `scripts/afk-loop.nu`."
+- "The loop already selected this in `plugins/devflow/scripts/afk-loop.nu`."
 - "Continue from the previous `/afk` prompt."
 - "Follow the workflow from the skill that generated this prompt."
 - "Use state from the script/session that invoked you."

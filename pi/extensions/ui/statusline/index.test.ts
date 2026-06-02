@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSessionLabel, renderStatuslineItems } from "./index.js";
+import { formatSessionLabel, isLongCacheRetentionEnabled, renderStatuslineItems } from "./index.js";
 
 describe("formatSessionLabel", () => {
 	it("shows the session id next to the name", () => {
@@ -20,6 +20,12 @@ describe("formatSessionLabel", () => {
 });
 
 describe("renderStatuslineItems", () => {
+	it("detects long cache retention from the environment", () => {
+		expect(isLongCacheRetentionEnabled({ PI_CACHE_RETENTION: "long" })).toBe(true);
+		expect(isLongCacheRetentionEnabled({ PI_CACHE_RETENTION: "short" })).toBe(false);
+		expect(isLongCacheRetentionEnabled({})).toBe(false);
+	});
+
 	it("returns atomic status items for flex layout consumers", () => {
 		const footerData = {
 			getGitBranch: () => "main",
@@ -40,12 +46,27 @@ describe("renderStatuslineItems", () => {
 		const pi = { getThinkingLevel: () => "high" } as any;
 		const theme = { fg: (_color: string, text: string) => text };
 
-		expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })).toEqual([
-			"/repo (main) • work (abc)",
-			"ctx 2.5k 25.0%/10k",
-			"$0.000",
-			"gpt-test • high",
-			"busy now",
-		]);
+		const previous = process.env.PI_CACHE_RETENTION;
+		delete process.env.PI_CACHE_RETENTION;
+		try {
+			expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })).toEqual([
+				"/repo (main) • work (abc)",
+				"ctx 2.5k 25.0%/10k",
+				"$0.000",
+				"gpt-test • high",
+				"busy now",
+			]);
+
+			process.env.PI_CACHE_RETENTION = "long";
+			expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[2]).toBe(
+				"$0.000 • cache long",
+			);
+		} finally {
+			if (previous === undefined) {
+				delete process.env.PI_CACHE_RETENTION;
+			} else {
+				process.env.PI_CACHE_RETENTION = previous;
+			}
+		}
 	});
 });
