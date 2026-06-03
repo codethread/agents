@@ -1,7 +1,7 @@
 # Agent Discovery and Configuration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-05-22
+**Last Updated:** 2026-06-03
 
 ## 1. Overview
 
@@ -22,6 +22,8 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 - Allow direct top-level selection of one discovered agent config via `--agent <name>`.
 - Normalize legacy Claude-flavored tool names while treating agent `tools` as an exact allowlist across built-in and extension tools.
 - Parse declared model policy at the discovery boundary into ordered candidates and per-agent config errors.
+- Parse Claude Code-style `mcpServers` frontmatter into normalized server configs, recording per-agent config errors for malformed declarations.
+- Connect an adopted/spawned agent's MCP servers and expose their tools to that agent, namespaced to avoid collisions.
 - Apply deterministic source precedence so agent name collisions resolve predictably.
 
 ### Non-Goals
@@ -77,6 +79,15 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 
 - **Decision:** Declared `model` policy is parsed at the discovery boundary and malformed policy is recorded per agent.
   - **Rationale:** Discovery can preserve enough error detail for strict startup validation and target-scoped runtime validation without aborting every snapshot unconditionally.
+
+- **Decision:** `mcpServers` is parsed at the discovery boundary into normalized configs, and malformed declarations are recorded per agent as `mcpServersError` rather than aborting discovery.
+  - **Rationale:** Mirrors model-policy handling. A single bad MCP block should not break the whole catalog or every top-level session, but the error must still surface clearly when that agent is adopted or smoke-tested.
+
+- **Decision:** `mcpServers` uses the Claude Code list-of-single-key-maps shape (a YAML list where each item maps one server name to its config), supporting remote (`type`/`url`/`headers`) and local stdio (`command`/`args`/`env`) transports.
+  - **Rationale:** Authors can copy existing Claude subagent frontmatter verbatim. A plain object map is rejected with a message pointing to the list syntax.
+
+- **Decision:** MCP servers are connected when the agent is adopted (`--agent`) or spawned (delegated), not during discovery; their tools are registered namespaced as `mcp__<server>__<tool>` and added to the active tool set.
+  - **Rationale:** Discovery stays pure and network-free. Connection cost and credentials only matter for the session that actually uses the agent, and namespacing keeps server tools from colliding with built-ins or each other. Connection failures (for example a headless OAuth rejection) are non-fatal warnings so the agent can still run.
 
 - **Decision:** Agents and swarms share one effective delegation namespace, and cross-kind name collisions are hard errors.
   - **Rationale:** The parent agent calls a single `agent` field and should not have to reason about target kinds. Failing during discovery/session initialization avoids a runtime surprise where `review` sometimes means one agent and sometimes means a fan-out swarm.
@@ -173,6 +184,9 @@ The subagent runtime uses discovery results in four places:
 - when `--agent <name>` is set, the same discovery result resolves the selected single agent by name, derives inherited runtime settings from that `AgentConfig`, applies model/thinking/tools unless explicit CLI flags override those fields, and appends the agent's `systemPrompt` wrapped in `<system-reminder type="selected-agent-prompt">` to the parent system prompt.
 - `debug-agents` renders the effective agent and swarm lists plus source-specific user/project sections.
 - `subagent` execution resolves the requested name against the effective target catalog; single-agent targets use the current one-child path, while swarm targets fan out through runtime orchestration.
+- when a spawned or adopted agent declares `mcpServers`, the runtime connects each server, registers its tools under `mcp__<server>__<tool>`, and adds those names to the active tool set. `mcpServersError` is a hard failure on adoption; connection failures are non-fatal warnings. `--debug-mcp <agent>` and `/debug-mcp <agent>` run a headless smoke test that connects the servers and reports their tools or the connection/config error.
+
+MCP connection and tool registration live in `pi/extensions/tools/subagent/mcp.ts` (pure parsing plus network client helpers) and `mcp-runtime.ts` (Pi-side tool registration). Discovery itself never opens a connection.
 
 This means discovery is the configuration boundary; runtime execution trusts the normalized `AgentConfig` or swarm target it receives.
 
@@ -225,6 +239,7 @@ Discovery relies on these frontmatter fields:
 - `hidden` — optional boolean/string flag; truthy `true` hides the agent from parent prompt inventory while keeping it discoverable and callable by explicit name
 - `tools` — optional comma-separated string of tool names; built-ins and extension tools share the same namespace here, and omitted/blank resolves to an empty allowlist
 - `model` — optional unified model policy: non-empty string, object with `id` and optional `when`, or non-empty ordered list of strings/objects. Discovery does not rewrite aliases.
+- `mcpServers` — optional Claude Code-style list of single-key maps. Each entry maps a server name to either a remote config (`type` of `http`/`sse` with a `url` and optional `headers`) or a local stdio config (`command` with optional `args`/`env`). Malformed declarations are recorded as a per-agent `mcpServersError` and leave `mcpServers` empty without aborting discovery.
 
 All remaining markdown body content is passed through as the agent system prompt.
 
@@ -242,4 +257,7 @@ The subagent runtime treats discovery as the configuration boundary. Single-agen
 ## 8. Code Locations
 
 - `pi/extensions/tools/subagent/` — discovery, formatting, direct-agent inheritance, and runtime consumption
+- `pi/extensions/tools/subagent/mcp.ts` — `mcpServers` parsing, MCP client connection, namespacing, smoke test
+- `pi/extensions/tools/subagent/mcp-runtime.ts` — Pi-side MCP tool registration for adopted/spawned agents
+- `pi/agents/jira-mcp.md` — bundled example agent using the Atlassian MCP server
 - `pi/agents/` — bundled package agents and swarms

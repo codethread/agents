@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	getPolicyProvider,
-	matchesPathRule,
-	parseProviderOverrideConfig,
-} from "./config.js";
+import { getPolicyProvider, matchesPathRule, parseProviderOverrideConfig } from "./config.js";
 
 const env = { HOME: "/Users/alice" } as NodeJS.ProcessEnv;
 

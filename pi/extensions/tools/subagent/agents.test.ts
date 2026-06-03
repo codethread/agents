@@ -1228,6 +1228,7 @@ Body.
 			"deep-review-test-quality",
 			"fixer",
 			"hack",
+			"jira-mcp",
 			"review",
 			"scout",
 		]);
@@ -1285,5 +1286,86 @@ Body.
 				},
 			]),
 		);
+	});
+});
+
+describe("discoverAgents mcpServers", () => {
+	it("parses Claude-style mcpServers frontmatter onto AgentConfig", () => {
+		const dir = makeTempDir("subagent-mcp-");
+		writeRawAgent(
+			dir,
+			"jira.md",
+			[
+				"---",
+				"name: jira",
+				"description: Jira agent",
+				"tools: read",
+				"mcpServers:",
+				"  - atlassian:",
+				"      type: http",
+				"      url: https://mcp.atlassian.com/v1/mcp",
+				"  - context7:",
+				"      command: npx",
+				"      args:",
+				'        - "-y"',
+				'        - "@upstash/context7-mcp"',
+				"---",
+				"Body.",
+				"",
+			].join("\n"),
+		);
+
+		const discovery = discoverAgents(dir, {
+			packageAgentsDir: dir,
+			userAgentsDir: path.join(dir, "user"),
+			projectAgentsDir: null,
+			packageSwarmsDir: null,
+			projectSwarmsDir: null,
+		});
+
+		const jira = findAgentByName(discovery.agents, "jira");
+		expect(jira?.mcpServersError).toBeUndefined();
+		expect(jira?.mcpServers).toEqual([
+			{ name: "atlassian", transport: "http", url: "https://mcp.atlassian.com/v1/mcp" },
+			{
+				name: "context7",
+				transport: "stdio",
+				command: "npx",
+				args: ["-y", "@upstash/context7-mcp"],
+			},
+		]);
+	});
+
+	it("records mcpServersError without dropping the agent or aborting discovery", () => {
+		const dir = makeTempDir("subagent-mcp-bad-");
+		writeRawAgent(
+			dir,
+			"broken.md",
+			[
+				"---",
+				"name: broken",
+				"description: Broken MCP agent",
+				"mcpServers:",
+				"  - bad:",
+				"      type: grpc",
+				"      url: https://example.com",
+				"---",
+				"Body.",
+				"",
+			].join("\n"),
+		);
+
+		const discovery = discoverAgents(dir, {
+			packageAgentsDir: dir,
+			userAgentsDir: path.join(dir, "user"),
+			projectAgentsDir: null,
+			packageSwarmsDir: null,
+			projectSwarmsDir: null,
+		});
+
+		const broken = findAgentByName(discovery.agents, "broken");
+		expect(broken).toBeDefined();
+		expect(broken?.mcpServers).toEqual([]);
+		expect(broken?.mcpServersError).toContain("unsupported type");
 	});
 });

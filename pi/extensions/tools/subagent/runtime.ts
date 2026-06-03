@@ -57,6 +57,7 @@ export function buildSingleAgentArgs(
 			hidden: false,
 			tools: [],
 			model: candidate.id,
+			mcpServers: [],
 			systemPrompt: "",
 			source: "package",
 			filePath: "",

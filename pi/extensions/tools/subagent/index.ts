@@ -35,6 +35,10 @@ import {
 	updateSwarmManifest,
 } from "./session.js";
 import { runSingleAgent } from "./runtime.js";
+import { wrapSystemReminder } from "../../shared/xml.js";
+import { showDebugMessage } from "../../components/debug-message/index.js";
+import { formatMcpSmokeReport, runMcpSmokeTest, type McpConnection } from "./mcp.js";
+import { closeMcpConnections, setupAgentMcpServers } from "./mcp-runtime.js";
 import {
 	formatDebugSection,
 	formatDebugSwarmSection,
@@ -89,6 +93,17 @@ export function isLikelyFollowUpRequest(task: string, description: string): bool
 
 const OPERATING_RULES_HEADING = "\n\n## Operating rules\n\n";
 const SYSTEM_REMINDER_CLOSE = "\n</system-reminder>";
+
+export function formatMcpStatusPrompt(warnings: string[]): string {
+	if (warnings.length === 0) return "";
+	const body = [
+		"One or more of this agent's configured MCP servers failed to connect, so their tools are unavailable for this run:",
+		...warnings.map((warning) => `- ${warning}`),
+		"",
+		"Do not pretend to have data from those servers. Report the connection error and stop, or proceed only with the tools that are available.",
+	].join("\n");
+	return `\n\n${wrapSystemReminder("mcp-status", body)}`;
+}
 
 export function insertToolingPrompt(systemPrompt: string, promptAddon: string): string {
 	if (!promptAddon) return systemPrompt;
@@ -181,9 +196,13 @@ export function hasAllSwarmMembersFailed(results: SingleResult[]): boolean {
 	return results.length > 0 && results.every(isResultError);
 }
 
+const DEBUG_MCP_FLAG = "debug-mcp";
+
 export default function (pi: ExtensionAPI) {
 	let selectedAgentName: string | undefined;
 	let agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
+	let activeMcpConnections: McpConnection[] = [];
+	let mcpSetupWarnings: string[] = [];
 
 	const failAgentSelection = (
 		message: string,
@@ -228,14 +247,30 @@ export default function (pi: ExtensionAPI) {
 		ctx: ExtensionContext,
 		selected: NonNullable<ReturnType<typeof requireSelectedAgent>>,
 	) => {
+		if (selected.agent.mcpServersError && !agentFlagCliOverrides.hasToolsOverride) {
+			failAgentSelection(selected.agent.mcpServersError, ctx);
+		}
+
 		const inherited = getInheritedAgentRuntimeSettings(
 			selected.agent,
 			agentFlagCliOverrides,
 			ctx.modelRegistry,
 		);
-		const activeTools = getAgentActiveTools(inherited.tools, pi.getAllTools());
-		if (activeTools !== undefined) {
-			pi.setActiveTools(activeTools);
+
+		const mcpSetup = agentFlagCliOverrides.hasToolsOverride
+			? { toolNames: [], connections: [], warnings: [] }
+			: await setupAgentMcpServers(pi, selected.agent);
+		activeMcpConnections = mcpSetup.connections;
+		mcpSetupWarnings = mcpSetup.warnings;
+		for (const warning of mcpSetup.warnings) {
+			if (ctx.hasUI) ctx.ui.notify(warning, "warning");
+			process.stderr.write(`${warning}\n`);
+		}
+
+		const inheritedActiveTools = getAgentActiveTools(inherited.tools, pi.getAllTools());
+		const baseActiveTools = inheritedActiveTools ?? pi.getActiveTools();
+		if (inheritedActiveTools !== undefined || mcpSetup.toolNames.length > 0) {
+			pi.setActiveTools(Array.from(new Set([...baseActiveTools, ...mcpSetup.toolNames])));
 		}
 
 		if (inherited.modelFlagValue) {
@@ -269,8 +304,39 @@ export default function (pi: ExtensionAPI) {
 		type: "string",
 	});
 
+	pi.registerFlag(DEBUG_MCP_FLAG, {
+		description:
+			"Connect a discovered agent's MCP servers headlessly, print the tool/connection report, and exit",
+		type: "string",
+	});
+
+	const runMcpSmokeReport = async (agentName: string, cwd: string): Promise<string> => {
+		const discovery = discoverAgents(cwd);
+		const agent = findAgentByName(discovery.agents, agentName);
+		if (!agent) {
+			return `Unknown agent "${agentName}". Available agents: ${getAvailableAgentsText(discovery.agents)}`;
+		}
+		if (agent.mcpServersError) return agent.mcpServersError;
+		const results = await runMcpSmokeTest(agent.mcpServers ?? []);
+		return formatMcpSmokeReport(agent.name, results);
+	};
+
+	pi.on("session_shutdown", async () => {
+		const connections = activeMcpConnections;
+		activeMcpConnections = [];
+		await closeMcpConnections(connections);
+	});
+
 	pi.on("session_start", async (_event, ctx) => {
 		agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
+		mcpSetupWarnings = [];
+		const debugMcpFlag = pi.getFlag(DEBUG_MCP_FLAG);
+		const debugMcpAgent = typeof debugMcpFlag === "string" ? debugMcpFlag.trim() : undefined;
+		if (debugMcpAgent) {
+			const report = await runMcpSmokeReport(debugMcpAgent, ctx.cwd);
+			process.stdout.write(`${report}\n`);
+			process.exit(0);
+		}
 		const agentFlag = pi.getFlag("agent");
 		selectedAgentName = typeof agentFlag === "string" ? agentFlag.trim() : undefined;
 		const discovery = discoverAgents(ctx.cwd);
@@ -297,9 +363,10 @@ export default function (pi: ExtensionAPI) {
 		const discovery = selected?.discovery ?? discoverAgents(ctx.cwd);
 		const promptAddon = formatAgentsForPrompt(discovery.agents, discovery.swarms);
 		const selectedPromptAddon = formatSelectedAgentPrompt(selected?.agent);
-		if (!promptAddon && !selectedPromptAddon) return;
+		const mcpStatusAddon = formatMcpStatusPrompt(mcpSetupWarnings);
+		if (!promptAddon && !selectedPromptAddon && !mcpStatusAddon) return;
 		return {
-			systemPrompt: `${insertToolingPrompt(event.systemPrompt, promptAddon)}${selectedPromptAddon}`,
+			systemPrompt: `${insertToolingPrompt(event.systemPrompt, promptAddon)}${selectedPromptAddon}${mcpStatusAddon}`,
 		};
 	});
 
@@ -331,6 +398,44 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			pi.sendUserMessage(content);
+		},
+	});
+
+	pi.registerCommand("debug-mcp", {
+		description:
+			"Connect a discovered agent's MCP servers and report tools or connection errors (usage: /debug-mcp <agent>)",
+		handler: async (args, ctx) => {
+			const agentName = args.trim();
+			if (!agentName) {
+				const discovery = discoverAgents(ctx.cwd);
+				const withMcp = discovery.agents.filter(
+					(agent) => (agent.mcpServers?.length ?? 0) > 0 || Boolean(agent.mcpServersError),
+				);
+				const message =
+					withMcp.length > 0
+						? `Usage: /debug-mcp <agent>. Agents with MCP servers: ${withMcp.map((agent) => agent.name).join(", ")}.`
+						: "No discovered agents declare mcpServers. Usage: /debug-mcp <agent>.";
+				if (!ctx.hasUI) process.stdout.write(`${message}\n`);
+				else ctx.ui.notify(message, "info");
+				return;
+			}
+
+			if (ctx.hasUI) ctx.ui.notify(`Connecting MCP servers for "${agentName}"...`, "info");
+			const report = await runMcpSmokeReport(agentName, ctx.cwd);
+
+			if (!ctx.hasUI) {
+				process.stdout.write(`${report}\n`);
+				return;
+			}
+
+			await showDebugMessage(ctx, {
+				headingText: "Debug MCP",
+				subheadingText: `agent ${agentName}`,
+				markdownBody: report,
+				sendMarkdownToAgent: async () => {
+					await pi.sendUserMessage(report);
+				},
+			});
 		},
 	});
 

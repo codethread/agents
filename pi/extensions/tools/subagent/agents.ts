@@ -7,6 +7,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { wrapSystemReminder } from "../../shared/xml.js";
+import { parseMcpServers, type McpServerConfig } from "./mcp.js";
 
 export interface AgentConfig {
 	name: string;
@@ -16,6 +17,8 @@ export interface AgentConfig {
 	model?: string;
 	modelCandidates?: AgentModelCandidate[];
 	modelPolicyError?: string;
+	mcpServers?: McpServerConfig[];
+	mcpServersError?: string;
 	systemPrompt: string;
 	source: "package" | "user" | "project";
 	filePath: string;
@@ -294,6 +297,7 @@ function loadAgentsFromDir(
 			.filter(Boolean);
 
 		const parsedModel = parseModelPolicy(frontmatter.model, name, filePath, env);
+		const parsedMcp = parseMcpServers(frontmatter.mcpServers, name, filePath);
 
 		agents.push({
 			name,
@@ -301,6 +305,8 @@ function loadAgentsFromDir(
 			hidden: parseHiddenFrontmatter(frontmatter.hidden),
 			tools: normalizeTools(parsedTools),
 			...parsedModel,
+			mcpServers: parsedMcp.servers,
+			...(parsedMcp.error ? { mcpServersError: parsedMcp.error } : {}),
 			systemPrompt: body,
 			source,
 			filePath,

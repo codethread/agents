@@ -5,6 +5,7 @@ import {
 	createMissingSwarmMemberResult,
 	createRuntimeModelPolicyFailureResult,
 	findSwarmMemberResumeState,
+	formatMcpStatusPrompt,
 	formatRuntimeModelPolicyError,
 	formatUnknownTargetError,
 	getStartupModelPolicyErrors,
@@ -231,5 +232,20 @@ describe("formatUnknownTargetError", () => {
 		expect(error).toBe(
 			'Unknown subagent target "ghost". Available agents: scout (package), review (user). Available swarms: panel (user).',
 		);
+	});
+});
+
+describe("formatMcpStatusPrompt", () => {
+	it("returns an empty string when there are no warnings", () => {
+		expect(formatMcpStatusPrompt([])).toBe("");
+	});
+
+	it("wraps connection warnings in an mcp-status system reminder", () => {
+		const result = formatMcpStatusPrompt([
+			'MCP server "atlassian" for agent "jira-mcp" failed to connect: 401',
+		]);
+		expect(result).toContain('<system-reminder type="mcp-status">');
+		expect(result).toContain("failed to connect: 401");
+		expect(result).toContain("Do not pretend to have data");
 	});
 });

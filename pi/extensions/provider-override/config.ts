@@ -121,7 +121,9 @@ export function loadProviderOverrideConfig(
 export function matchesPathRule(cwd: string, rulePath: string): boolean {
 	const normalizedCwd = normalizeCwd(cwd);
 	const normalizedRule = normalizeCwd(rulePath);
-	return normalizedCwd === normalizedRule || normalizedCwd.startsWith(`${normalizedRule}${path.sep}`);
+	return (
+		normalizedCwd === normalizedRule || normalizedCwd.startsWith(`${normalizedRule}${path.sep}`)
+	);
 }
 
 export function getPolicyProvider(config: ProviderOverrideConfig, cwd: string): string {
