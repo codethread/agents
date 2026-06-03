@@ -175,9 +175,9 @@ done
 
 Each entry gets its own worktree. The repo name comes from the current worktree's directory basename (without any `__suffix`). Use `git worktree list` to find the base path.
 
-### 4. Execute batches
+### 4. Execute entries / batches
 
-Group entries by `batchId` (default `1`). For each batch in ascending order, launch all entries as parallel background processes.
+Group entries by `batchId` (default `1`). For each batch in ascending order, run entries with a per-entry script. If a batch contains multiple entries, launch that batch's per-entry scripts in parallel; if entries are intentionally sequential, run one script, report/acknowledge its result, then move to the next. Prefer per-entry scripts over one monolithic all-entry script so completed results can be inspected while the remaining benchmark suite continues.
 
 Prompt resolution:
 
@@ -187,7 +187,7 @@ Prompt resolution:
 Execution policy by runner:
 
 - **Pi**: use `pi --print`, persist a JSONL session file, and later inspect both result and session internals
-- **Claude**: use `claude --print --dangerously-skip-permissions`, pipe prompt on stdin, capture stdout/stderr/exit only, and evaluate the result only
+- **Claude**: use `claude --print --dangerously-skip-permissions`, pipe prompt on stdin, capture stdout/stderr/exit, and assign a controlled `--session-id`/`--name` so Claude's own JSONL log can be located later. Evaluate code/output as a black box; use Claude's persisted log only for operational metrics such as turns, tools, tokens, and cost.
 - **Codex**: use `codex exec --dangerously-bypass-approvals-and-sandbox`, pipe prompt on stdin, capture stdout/stderr/exit only, and evaluate the result only
 
 ```bash
@@ -206,49 +206,80 @@ resolve_prompt() {
   ' .pi/bench-matrix.json
 }
 
+write_entry_runner() {
+  slug="$1"
+  runner="$LOG_DIR/run-$slug.sh"
+  cat > "$runner" <<'RUNNER'
+#!/usr/bin/env bash
+set -u
+slug="$1"
+matrix="$2"
+session_dir="$3"
+log_dir="$4"
+wt_dir="$5"
+
+resolve_prompt() {
+  jq -r --arg slug "$slug" '
+    .entries[$slug] as $entry
+    | if ($entry.prompt // "") != "" then
+        .prompts[$entry.prompt].path
+      else
+        .prompts[(.prompts | keys[0])].path
+      end
+  ' "$matrix"
+}
+
+tool="$(jq -r --arg s "$slug" '.entries[$s].tool // "pi"' "$matrix")"
+model="$(jq -r --arg s "$slug" '.entries[$s].model // ""' "$matrix")"
+thinking="$(jq -r --arg s "$slug" '.entries[$s].thinking // ""' "$matrix")"
+prompt_file="$(resolve_prompt)"
+date +%s > "$log_dir/$slug.start"
+cd "$wt_dir" || exit 1
+case "$tool" in
+  pi)
+    cat "$prompt_file" | pi --print \
+      --model "$model" \
+      ${thinking:+--thinking "$thinking"} \
+      --session "$session_dir/$slug.jsonl" \
+      > "$log_dir/$slug.stdout" 2> "$log_dir/$slug.stderr"
+    ;;
+  claude)
+    claude_session_id="$(uuidgen | tr '[:upper:]' '[:lower:]')"
+    echo "$claude_session_id" > "$session_dir/$slug.claude-session-id"
+    cat "$prompt_file" | claude --print --dangerously-skip-permissions --model "${model:-sonic}" ${thinking:+--effort "$thinking"} \
+      --session-id "$claude_session_id" \
+      --name "bench-$slug" \
+      --output-format json \
+      > "$log_dir/$slug.stdout" 2> "$log_dir/$slug.stderr"
+    ;;
+  codex)
+    if [ -n "$model" ]; then
+      cat "$prompt_file" | codex exec --dangerously-bypass-approvals-and-sandbox --model "$model" - \
+        > "$log_dir/$slug.stdout" 2> "$log_dir/$slug.stderr"
+    else
+      cat "$prompt_file" | codex exec --dangerously-bypass-approvals-and-sandbox - \
+        > "$log_dir/$slug.stdout" 2> "$log_dir/$slug.stderr"
+    fi
+    ;;
+  *)
+    echo "Unknown tool: $tool" >&2
+    exit 1
+    ;;
+esac
+code=$?
+date +%s > "$log_dir/$slug.end"
+echo "$code" > "$log_dir/$slug.exit"
+exit "$code"
+RUNNER
+  chmod +x "$runner"
+}
+
 for slug in <batch-slugs>; do
-  tool="$(jq -r --arg s "$slug" '.entries[$s].tool // "pi"' .pi/bench-matrix.json)"
-  model="$(jq -r --arg s "$slug" '.entries[$s].model // ""' .pi/bench-matrix.json)"
-  thinking="$(jq -r --arg s "$slug" '.entries[$s].thinking // ""' .pi/bench-matrix.json)"
-  prompt_file="$(resolve_prompt "$slug")"
   wt_dir="/path/to/<repo>__bench-$slug"
-  (
-    cd "$wt_dir" || exit 1
-    case "$tool" in
-      pi)
-        cat "$prompt_file" | pi --print \
-          --model "$model" \
-          ${thinking:+--thinking "$thinking"} \
-          --session "$SESSION_DIR/$slug.jsonl" \
-          > "$LOG_DIR/$slug.stdout" 2> "$LOG_DIR/$slug.stderr"
-        ;;
-      claude)
-        if [ -n "$model" ]; then
-          cat "$prompt_file" | claude --print --dangerously-skip-permissions --model "$model" ${thinking:+--effort "$thinking"} \
-            > "$LOG_DIR/$slug.stdout" 2> "$LOG_DIR/$slug.stderr"
-        else
-          cat "$prompt_file" | claude --print --dangerously-skip-permissions --model sonic ${thinking:+--effort "$thinking"} \
-            > "$LOG_DIR/$slug.stdout" 2> "$LOG_DIR/$slug.stderr"
-        fi
-        ;;
-      codex)
-        if [ -n "$model" ]; then
-          cat "$prompt_file" | codex exec --dangerously-bypass-approvals-and-sandbox --model "$model" - \
-            > "$LOG_DIR/$slug.stdout" 2> "$LOG_DIR/$slug.stderr"
-        else
-          cat "$prompt_file" | codex exec --dangerously-bypass-approvals-and-sandbox - \
-            > "$LOG_DIR/$slug.stdout" 2> "$LOG_DIR/$slug.stderr"
-        fi
-        ;;
-      *)
-        echo "Unknown tool: $tool" >&2
-        exit 1
-        ;;
-    esac
-    echo $? > "$LOG_DIR/$slug.exit"
-  ) &
+  write_entry_runner "$slug"
+  "$LOG_DIR/run-$slug.sh" "$slug" "$PWD/.pi/bench-matrix.json" "$SESSION_DIR" "$LOG_DIR" "$wt_dir" &
 done
-# Do NOT `wait` here — step 5 handles the unified wait across all batches
+# Wait per batch or per sequential entry in step 5.
 ```
 
 ### 5. Wait for completion
@@ -347,7 +378,7 @@ Inspect the source code in each worktree to measure quality against the user's o
 
 For **Pi** entries, use the `pi-session-introspection` skill to analyze `~/.pi/agent/bench-sessions/<run-id>/` session files.
 
-For **Claude** and **Codex** entries, do **not** inspect internal transcripts, agent logs, or hidden reasoning even if artifacts exist. Treat them as black-box runs: evaluate only the produced diff, stdout/stderr, exit code, and verification results.
+For **Claude** and **Codex** entries, do **not** inspect internal transcripts, agent logs, or hidden reasoning to judge solution quality. Treat them as black-box runs: evaluate only the produced diff, stdout/stderr, exit code, and verification results. For Claude, it is acceptable to inspect persisted JSONL for operational metrics only (session id, duration, turns, tool counts/errors, token usage, cost when present); filter out thinking/transcript content from qualitative evaluation.
 
 Note: Some providers (github-copilot) do not report cost — infer usage from tokens alone.
 
@@ -406,6 +437,60 @@ head -50 "$LOG_DIR/$slug.stdout"
 head -50 "$LOG_DIR/$slug.stderr"
 ```
 
+Claude result JSON (`--output-format json`) includes summary metrics in stdout:
+
+```bash
+jq '{session_id,total_cost_usd,duration_ms,duration_api_ms,num_turns,usage,result}' \
+  "$LOG_DIR/$slug.stdout"
+```
+
+Claude also persists its own JSONL under `~/.claude/projects/<normalized-cwd>/<session-id>.jsonl`. The benchmark stores the controlled session id at `$SESSION_DIR/$slug.claude-session-id`. The normalized project directory is Claude's encoding of the full working directory, observed as replacing path separators and underscores with `-`; prefer locating by session id rather than reconstructing the path:
+
+```bash
+CLAUDE_SESSION_ID="$(cat "$SESSION_DIR/$slug.claude-session-id")"
+CLAUDE_SESSION="$(fd "$CLAUDE_SESSION_ID.jsonl" "$HOME/.claude/projects" | head -1)"
+```
+
+Use Claude's JSONL for operational metrics only. Do not use hidden reasoning/transcript content to judge solution quality. Claude JSONL caveats: assistant responses can be split across multiple rows with the same `.message.id`; tool results are `user.message.content[]` blocks of type `tool_result`; assistant tool calls are `assistant.message.content[]` blocks of type `tool_use`; thinking blocks should be ignored for benchmark reporting.
+
+```bash
+# Metadata
+jq -s '
+  first(.[] | select(.type == "user")) |
+  {sessionId, cwd, gitBranch, version, entrypoint, permissionMode, startedAt: .timestamp}
+' "$CLAUDE_SESSION"
+
+# Token totals, deduped by assistant message id
+jq -s '
+  [.[] | select(.type == "assistant") | {id: .message.id, usage: .message.usage}]
+  | unique_by(.id)
+  | {
+      turns: length,
+      input_tokens: ([.[].usage.input_tokens // 0] | add),
+      output_tokens: ([.[].usage.output_tokens // 0] | add),
+      cache_creation_input_tokens: ([.[].usage.cache_creation_input_tokens // 0] | add),
+      cache_read_input_tokens: ([.[].usage.cache_read_input_tokens // 0] | add)
+    }
+' "$CLAUDE_SESSION"
+
+# Tool call breakdown
+jq -r '
+  select(.type == "assistant") |
+  .message.content[]? |
+  select(.type == "tool_use") |
+  .name
+' "$CLAUDE_SESSION" | sort | uniq -c | sort -rn
+
+# Tool errors
+jq -c '
+  select(.type == "user" and (.message.content | type == "array")) |
+  .message.content[]? |
+  select(.type == "tool_result") |
+  select((.content | tostring) | test("<tool_use_error>")) |
+  {tool_use_id, content}
+' "$CLAUDE_SESSION"
+```
+
 ### Per-worktree checks
 
 ```bash
@@ -417,7 +502,7 @@ pnpm check  # or project verification command
 
 ### Presenting results
 
-Comparison table with columns: slug, tool, model, thinking, prompt, exit code, duration, turns (Pi-only), tokens in/out (Pi-only if available), cost (Pi-only if available), diff stats, verification outcome, qualitative notes. For Claude, `thinking` is passed to `--effort`.
+Comparison table with columns: slug, tool, model, thinking, prompt, exit code, duration, turns (Pi/Claude when available), tokens in/out (Pi/Claude when available), cost (Pi/Claude when available), diff stats, verification outcome, qualitative notes. For Claude, `thinking` is passed to `--effort`.
 
 Interpret results according to the active comparison axis. Then ask the user what to do next.
 
