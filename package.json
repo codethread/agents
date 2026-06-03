@@ -29,6 +29,7 @@
 	"pi": {
 		"extensions": [
 			"./pi/extensions/system-prompt/index.ts",
+			"./pi/extensions/provider-override/index.ts",
 			"./pi/extensions/tools",
 			"./pi/extensions/ui",
 			"./pi/extensions/messaging",

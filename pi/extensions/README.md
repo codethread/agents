@@ -7,6 +7,12 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 > [!NOTE]
 > **Note on Cache Invalidation:** Changing prompt-layer context mid-session, or changing the model/provider, can drop provider prompt-cache reuse. Treat dynamic context injection as a cost/latency tradeoff; keep injected context bounded and stable when possible.
 
+## Provider policy
+
+| Extension                                                 | Summary                                                                  |
+| --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [`provider-override`](./provider-override/README.md)      | Rewrite managed providers such as `openai`/`openai-codex` based on cwd. |
+
 ## Tools
 
 | Extension                                                  | Summary                                                                                                  |

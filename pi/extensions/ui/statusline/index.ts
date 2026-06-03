@@ -77,6 +77,7 @@ export function renderStatuslineItems({
 	theme,
 	width = Number.POSITIVE_INFINITY,
 }: StatuslineItemRenderDeps): string[] {
+	const extensionStatuses = footerData.getExtensionStatuses();
 	let pwd = shortenHome(ctx.cwd);
 	const branch = footerData.getGitBranch();
 	if (branch) pwd = `${pwd} (${branch})`;
@@ -109,7 +110,8 @@ export function renderStatuslineItems({
 		contextWindow,
 		contextPercent: contextUsage?.percent,
 	});
-	const costDisplay = formatCostLine(formatCost(totalCost, usingSubscription, 3));
+	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
+	const costDisplay = `${formatCostLine(formatCost(totalCost, usingSubscription, 3))}${overrideDisplay}`;
 
 	let styledContextDisplay = theme.fg("dim", contextDisplay);
 	if (contextPercentValue > 90) {
@@ -133,9 +135,8 @@ export function renderStatuslineItems({
 		theme.fg("dim", modelDisplay),
 	];
 
-	const extensionStatuses = footerData.getExtensionStatuses();
 	const visibleExtensionStatuses = Array.from(extensionStatuses.entries()).filter(
-		([key]) => key !== "timeline-timestamps",
+		([key]) => key !== "timeline-timestamps" && key !== "provider-override",
 	);
 	items.push(
 		...visibleExtensionStatuses
@@ -157,6 +158,7 @@ export function renderStatuslineLines({
 	theme,
 	width,
 }: FooterRenderDeps): string[] {
+	const extensionStatuses = footerData.getExtensionStatuses();
 	let pwd = shortenHome(ctx.cwd);
 	const branch = footerData.getGitBranch();
 	if (branch) pwd = `${pwd} (${branch})`;
@@ -189,7 +191,8 @@ export function renderStatuslineLines({
 		contextWindow,
 		contextPercent: contextUsage?.percent,
 	});
-	const costDisplay = formatCostLine(formatCost(totalCost, usingSubscription, 3));
+	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
+	const costDisplay = `${formatCostLine(formatCost(totalCost, usingSubscription, 3))}${overrideDisplay}`;
 
 	let styledContextDisplay = theme.fg("dim", contextDisplay);
 	if (contextPercentValue > 90) {
@@ -234,9 +237,8 @@ export function renderStatuslineLines({
 
 	const lines = [truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "...")), statsLine];
 
-	const extensionStatuses = footerData.getExtensionStatuses();
 	const visibleExtensionStatuses = Array.from(extensionStatuses.entries()).filter(
-		([key]) => key !== "timeline-timestamps",
+		([key]) => key !== "timeline-timestamps" && key !== "provider-override",
 	);
 	if (visibleExtensionStatuses.length > 0) {
 		const sortedStatuses = visibleExtensionStatuses
