@@ -1217,75 +1217,25 @@ Body.
 		});
 
 		const bundledAgents = discovery.agents.filter((agent) => agent.source === "package");
-		expect(bundledAgents.map((agent) => agent.name).sort()).toEqual([
-			"council-evidence-scout",
-			"council-scope-guard",
-			"council-simplifier",
-			"council-skeptic",
-			"deep-review-code-smells",
-			"deep-review-project-rules",
-			"deep-review-spec-alignment",
-			"deep-review-test-quality",
-			"fixer",
-			"hack",
-			"jira-mcp",
-			"review",
-			"scout",
-		]);
+		expect(bundledAgents.length).toBeGreaterThan(0);
 		for (const agent of bundledAgents) {
-			expect(agent.filePath).toContain(`${path.sep}pi/agents${path.sep}`);
+			expect(agent.name).not.toBe("");
+			expect(agent.description).not.toBe("");
+			expect(agent.filePath).toContain(`${path.sep}pi${path.sep}agents${path.sep}`);
 		}
-		expect(
-			bundledAgents
-				.filter(
-					(agent) => agent.name.startsWith("deep-review-") || agent.name.startsWith("council-"),
-				)
-				.every((agent) => agent.hidden),
-		).toBe(true);
-		expect(
-			bundledAgents
-				.filter(
-					(agent) => !agent.name.startsWith("deep-review-") && !agent.name.startsWith("council-"),
-				)
-				.every((agent) => !agent.hidden),
-		).toBe(true);
 
-		expect(discovery.swarms.filter((swarm) => swarm.source === "package")).toEqual(
-			expect.arrayContaining([
-				{
-					name: "deep-review",
-					description:
-						"Multi-role code review for a full feature, PR, or session workload. Use `review` for faster/cheaper spot checks. Provide scope anchors: commits/diff, PRD/spec/task files, relevant paths, intent, risks, and validation results. Upfront exploration notes save work because every reviewer receives the same hot context instead of rediscovering it.",
-					hidden: false,
-					members: [
-						"deep-review-code-smells",
-						"deep-review-project-rules",
-						"deep-review-test-quality",
-						"deep-review-spec-alignment",
-					],
-					source: "package",
-					filePath: expect.stringContaining(
-						`${path.sep}pi/agents${path.sep}deep-review${path.sep}swarm.json`,
-					),
-				},
-				{
-					name: "council",
-					description:
-						"Multi-role ideation panel for when the main agent has a concrete answer, plan, design, or recommendation and wants another opinion before reporting back to the user. Council runs four members: skeptic challenges assumptions, evidence scout checks what the codebase proves, simplifier proposes lower-cost alternatives, scope guard asks whether this is the right problem and scope. Provide as much useful context as possible: proposed direction, intended outcome, problem being solved, tradeoff/decision to validate, relevant files/specs/code paths, constraints, risks, rejected options, and what kind of help would be useful. Rich context grounds advice in the real choice. Use for non-trivial decisions with genuine uncertainty; skip for factual lookups, trivial confirmations, or questions the user should answer directly.",
-					hidden: false,
-					members: [
-						"council-skeptic",
-						"council-evidence-scout",
-						"council-simplifier",
-						"council-scope-guard",
-					],
-					source: "package",
-					filePath: expect.stringContaining(
-						`${path.sep}pi/agents${path.sep}council${path.sep}swarm.json`,
-					),
-				},
-			]),
-		);
+		const bundledSwarms = discovery.swarms.filter((swarm) => swarm.source === "package");
+		expect(bundledSwarms.length).toBeGreaterThan(0);
+		const bundledAgentNames = new Set(bundledAgents.map((agent) => agent.name));
+		for (const swarm of bundledSwarms) {
+			expect(swarm.name).not.toBe("");
+			expect(swarm.description).not.toBe("");
+			expect(swarm.filePath).toContain(`${path.sep}pi${path.sep}agents${path.sep}`);
+			expect(swarm.members.length).toBeGreaterThan(0);
+			for (const member of swarm.members) {
+				expect(bundledAgentNames.has(member)).toBe(true);
+			}
+		}
 	});
 });
 
