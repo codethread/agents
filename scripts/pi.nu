@@ -85,6 +85,7 @@ def --wrapped pi [
 	--debug-tldr-transcript                   # [EXT] Print transcript used by /tldr and exit
 	--debug-last-message                      # [EXT] Print /last-message editor body and exit
 	--debug-last-message-all                  # [EXT] Print /last-message all editor body and exit
+	--debug-prompt-history                    # [EXT] Print prompt-history diagnostics while recording and recalling prompts
 	--debug-tmux-title                        # [EXT] Print tmux window-title generation details
 	--debug-emote                             # [EXT] Write emote widget debug logs
 	--emote: string                           # [EXT] Select emote widget pack, e.g. red
@@ -140,6 +141,7 @@ def --wrapped pi [
 	if $debug_tldr_transcript { $pi_args = ($pi_args | append "--debug-tldr-transcript") }
 	if $debug_last_message { $pi_args = ($pi_args | append "--debug-last-message") }
 	if $debug_last_message_all { $pi_args = ($pi_args | append "--debug-last-message-all") }
+	if $debug_prompt_history { $pi_args = ($pi_args | append "--debug-prompt-history") }
 	if $debug_tmux_title { $pi_args = ($pi_args | append "--debug-tmux-title") }
 	if $debug_emote { $pi_args = ($pi_args | append "--debug-emote") }
 	if $emote != null { $pi_args = ($pi_args | append ["--emote" $emote]) }

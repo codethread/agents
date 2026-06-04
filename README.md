@@ -35,7 +35,10 @@ This package ships a `system-prompt` extension that:
 - renders tool metadata tool-by-tool, including subagent inventory under the `subagent` tool
 - injects global/project `agent.njk` rules
 
-It also ships a `project-structure` messaging extension that sends a bounded project tree as model-visible custom message context.
+It also ships:
+
+- a `project-structure` messaging extension that sends a bounded project tree as model-visible custom message context
+- a `prompt-history` UI extension that recalls previously submitted prompts by cwd, canonical repo root, or globally across git-backed sessions
 
 This repository additionally keeps a project-local `.pi/extensions/pi-internals/` tool that agents can call on demand to print Pi runtime/source/settings/enabled-extension paths. It is intentionally local to this checkout rather than shipped as part of the package.
 
