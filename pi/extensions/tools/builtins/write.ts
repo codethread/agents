@@ -14,7 +14,7 @@ function lineCount(text: string) {
 
 function firstLine(text: string) {
 	if (text.length === 0) return "(empty file)";
-	return text.split("\n", 1)[0] || "(empty first line)";
+	return text.split("\n", 1)[0] ?? "";
 }
 
 function absolutePath(cwd: string, path: string) {
@@ -59,7 +59,7 @@ export default function (pi: ExtensionAPI) {
 					theme.fg("toolTitle", theme.bold("write ")) +
 						theme.fg(pathColor, path) +
 						theme.fg("dim", ` (${prefix}${count} lines)`),
-					...previewLines.map((line) => theme.fg("toolOutput", line || "(empty line)")),
+					...previewLines.map((line) => theme.fg("toolOutput", line)),
 				].join("\n"),
 				0,
 				0,
