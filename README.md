@@ -38,7 +38,7 @@ This package ships a `system-prompt` extension that:
 It also ships:
 
 - a `project-structure` messaging extension that sends a bounded project tree as model-visible custom message context
-- a `prompt-history` UI extension that recalls previously submitted prompts by cwd, canonical repo root, or globally across git-backed sessions
+- a `prompt-history` UI extension that recalls previously submitted prompts by canonical repo root or globally across git-backed sessions, while `Up` stays on Pi's built-in editor history
 
 This repository additionally keeps a project-local `.pi/extensions/pi-internals/` tool that agents can call on demand to print Pi runtime/source/settings/enabled-extension paths. It is intentionally local to this checkout rather than shipped as part of the package.
 

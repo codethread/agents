@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 describe("prompt-history extension", () => {
-	it("registers one flag, three shortcuts, and session/message handlers", () => {
+	it("registers one flag, two shortcuts, and session/message handlers", () => {
 		const on = vi.fn();
 		const registerFlag = vi.fn();
 		const registerShortcut = vi.fn();
@@ -53,7 +53,7 @@ describe("prompt-history extension", () => {
 			"debug-prompt-history",
 			expect.objectContaining({ type: "boolean", default: false }),
 		);
-		expect(registerShortcut).toHaveBeenCalledTimes(3);
+		expect(registerShortcut).toHaveBeenCalledTimes(2);
 
 		const events = on.mock.calls.map(([eventName]) => eventName);
 		expect(events).toEqual(["session_start", "message_end"]);
@@ -193,7 +193,7 @@ describe("prompt-history extension", () => {
 			exec: vi.fn(),
 		} as any);
 
-		await shortcuts.get("up")?.({
+		await shortcuts.get("ctrl+p")?.({
 			cwd: "/tmp",
 			signal: undefined,
 			hasUI: true,

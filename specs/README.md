@@ -10,7 +10,7 @@ Persistent domain specifications. Organized by system area, not feature chronolo
 | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | [system-prompt--assembly.md](./system-prompt--assembly.md) | Defines package-owned system prompt assembly: full prompt replacement, dynamic template injection, debug surfaces, and the boundary between system-prompt context and custom-message context. | `pi/extensions/system-prompt/`                             |
 | [project-rules--autoload.md](./project-rules--autoload.md) | Defines project-local `.claude/rules` and `.agents/rules` loading, overrides, system-prompt rules, and path-triggered rule messages.                                                          | `pi/extensions/system-prompt/`, `pi/extensions/messaging/` |
-| [prompt-history.md](./prompt-history.md)                   | Defines cross-session prompt history storage and recall scopes for exact cwd, canonical git repo root, and global prompt recall.                                                              | `pi/extensions/ui/prompt-history/`                         |
+| [prompt-history.md](./prompt-history.md)                   | Defines cross-session prompt history storage plus repo/global extension recall, while `Up` stays on Pi's built-in editor history.                                                             | `pi/extensions/ui/prompt-history/`                         |
 
 ## Reference READMEs
 

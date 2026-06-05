@@ -14,7 +14,7 @@ import { resolvePromptHistoryGitContext } from "./git.js";
 const DEBUG_FLAG = "debug-prompt-history";
 const WARNING_OUTSIDE_GIT = "Prompt history is unavailable outside git repositories.";
 
-type RecallScopeName = "cwd" | "repo" | "global";
+type RecallScopeName = "repo" | "global";
 
 type RecallState = {
 	scope: RecallScopeName;
@@ -65,12 +65,10 @@ function extractUserMessageText(message: AgentMessage): string {
 
 function getScopeDescriptor(
 	scope: RecallScopeName,
-	cwd: string,
+	_repoCwd: string,
 	repoRoot: string,
 ): PromptHistoryScope {
 	switch (scope) {
-		case "cwd":
-			return { type: "cwd", cwd };
 		case "repo":
 			return { type: "repo", repoRoot };
 		case "global":
@@ -78,10 +76,8 @@ function getScopeDescriptor(
 	}
 }
 
-function getCacheKey(scope: RecallScopeName, cwd: string, repoRoot: string): string {
+function getCacheKey(scope: RecallScopeName, _repoCwd: string, repoRoot: string): string {
 	switch (scope) {
-		case "cwd":
-			return cwd;
 		case "repo":
 			return repoRoot;
 		case "global":
@@ -157,13 +153,6 @@ export default function promptHistoryExtension(pi: ExtensionAPI) {
 		description: "Print prompt-history diagnostics while recording and recalling prompts",
 		type: "boolean",
 		default: false,
-	});
-
-	pi.registerShortcut(Key.up, {
-		description: "Recall prompt history for the current cwd",
-		handler: async (ctx) => {
-			await recallPrompt("cwd", ctx);
-		},
 	});
 
 	pi.registerShortcut(Key.ctrl("p"), {

@@ -7,12 +7,12 @@
 
 ### Purpose
 
-Prompt history provides shell-like recall for previously submitted Pi user prompts across restarts, sessions, and linked git worktrees. The extension records submitted user prompt text in an append-only XDG cache JSONL file, tags each record with both exact cwd and canonical git repo identity, and exposes keyboard shortcuts for cwd-scoped, repo-scoped, and global recall.
+Prompt history provides shell-like recall for previously submitted Pi user prompts across restarts, sessions, and linked git worktrees. The extension records submitted user prompt text in an append-only XDG cache JSONL file, tags each record with both exact cwd and canonical git repo identity, and exposes keyboard shortcuts for repo-scoped and global recall while leaving `Up` on Pi's built-in editor history.
 
 ### Goals
 
 - Record submitted user prompt text while Pi is running inside a git repository.
-- Preserve both exact cwd history and shared cross-worktree repo history.
+- Preserve exact cwd metadata for filtering/storage and shared cross-worktree repo history for recall.
 - Keep normal sessions cheap by appending on submit and scanning only on recall.
 - Recall prompts into the editor without auto-submitting them.
 - Provide a debug flag for append/recall diagnostics.
@@ -53,7 +53,7 @@ Prompt history provides shell-like recall for previously submitted Pi user promp
 
 Implementation lives in `pi/extensions/ui/prompt-history/`.
 
-- `index.ts` registers the debug flag, three shortcuts, and the message/session hooks.
+- `index.ts` registers the debug flag, two extension shortcuts, and the message/session hooks.
 - `history.ts` owns cache-path resolution, JSONL append, reverse scanning, and scope filtering.
 - `git.ts` detects whether the cwd is inside git and resolves the canonical repo root.
 
@@ -62,8 +62,9 @@ Flow:
 1. On `message_end`, extract user prompt text.
 2. Resolve git context for the current cwd.
 3. Append one JSONL record with `timestamp`, `message`, `cwd`, and `repoRoot`.
-4. On `Up`, `Ctrl+P`, or `Ctrl+Shift+P`, load up to 100 newest matching records for the requested scope.
+4. On `Ctrl+P` or `Ctrl+Shift+P`, load up to 100 newest matching records for the requested scope.
 5. Insert the selected prompt into the editor with `ctx.ui.setEditorText()`.
+6. Leave `Up` bound to Pi's built-in `tui.editor.cursorUp`, which already recalls editor prompt history without extension shortcut registration.
 
 ## 4. Data Model
 
@@ -90,22 +91,13 @@ Notes:
 
 ### Keyboard shortcuts
 
-| Shortcut       | Scope     | Behavior                                           |
-| -------------- | --------- | -------------------------------------------------- |
-| `Up`           | Exact cwd | Recall prompts submitted from the same exact cwd.  |
-| `Ctrl+P`       | Repo root | Recall prompts from the same canonical repository. |
-| `Ctrl+Shift+P` | Global    | Recall all recorded prompts, newest-first.         |
+| Shortcut       | Scope                  | Behavior                                                                                        |
+| -------------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
+| `Up`           | Current editor history | Pi built-in `tui.editor.cursorUp` recalls prior prompt text in the current editor history flow. |
+| `Ctrl+P`       | Repo root              | Extension recalls prompts from the same canonical repository.                                   |
+| `Ctrl+Shift+P` | Global                 | Extension recalls all recorded prompts, newest-first.                                           |
 
-These extension shortcuts require moving/unbinding conflicting built-in keybindings in `~/.pi/agent/keybindings.json`. At minimum, move model cycling away from `Ctrl+P` and `Ctrl+Shift+P`; if `Up` remains bound to `tui.editor.cursorUp`, the desired replacement behavior may also require unbinding or remapping that built-in editor action.
-
-Example direction:
-
-```json
-{
-	"app.model.cycleForward": "ctrl+alt+p",
-	"app.model.cycleBackward": "ctrl+shift+alt+p"
-}
-```
+These behaviors require moving conflicting built-in `Ctrl+P` / `Ctrl+Shift+P` bindings in `~/.pi/agent/keybindings.json`, including Pi's default model cycling and any other built-in surfaces that still claim those keys.
 
 ### CLI flag
 
@@ -119,9 +111,9 @@ Automated tests live in:
 
 - `pi/extensions/ui/prompt-history/history.test.ts` — JSONL round-trip, scope filtering, newest-first loading, and 100-record cap
 - `pi/extensions/ui/prompt-history/git.test.ts` — canonical repo-root parsing
-- `pi/extensions/ui/prompt-history/index.test.ts` — extension registration, recording, recall cycling, cache invalidation, and outside-git behavior
+- `pi/extensions/ui/prompt-history/index.test.ts` — extension registration, recording, repo/global recall cycling, cache invalidation, and outside-git behavior
 
-Manual verification uses the extension's debug flag plus the real keybindings inside a git-backed Pi session.
+Manual verification uses the extension's debug flag plus Pi with a local `~/.pi/agent/keybindings.json` override that moves model cycling off `Ctrl+P` / `Ctrl+Shift+P`.
 
 ## 7. Code Locations
 
