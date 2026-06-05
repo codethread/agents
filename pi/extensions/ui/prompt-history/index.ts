@@ -2,6 +2,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Key } from "@earendil-works/pi-tui";
 import {
+	PROMPT_HISTORY_LIMIT,
 	appendPromptHistoryRecord,
 	createPromptHistoryRecord,
 	getPromptHistoryCachePath,
@@ -9,7 +10,10 @@ import {
 	type PromptHistoryRecord,
 	type PromptHistoryScope,
 } from "./history.js";
-import { resolvePromptHistoryGitContext } from "./git.js";
+import {
+	resolvePromptHistoryGitContext,
+	type PromptHistoryGitContext,
+} from "./git.js";
 
 const DEBUG_FLAG = "debug-prompt-history";
 const WARNING_OUTSIDE_GIT = "Prompt history is unavailable outside git repositories.";
@@ -87,25 +91,41 @@ function getCacheKey(scope: RecallScopeName, _repoCwd: string, repoRoot: string)
 
 export default function promptHistoryExtension(pi: ExtensionAPI) {
 	let recallState: RecallState | undefined;
+	const gitContextCache = new Map<string, PromptHistoryGitContext | undefined>();
+
+	async function getGitContext(ctx: ExtensionContext) {
+		if (gitContextCache.has(ctx.cwd)) return gitContextCache.get(ctx.cwd);
+
+		const gitContext = await resolvePromptHistoryGitContext(pi, ctx.cwd, ctx.signal);
+		gitContextCache.set(ctx.cwd, gitContext);
+		return gitContext;
+	}
+
+	function updateRecallStateWithRecord(record: PromptHistoryRecord) {
+		if (!recallState) return;
+		if (recallState.scope === "repo" && recallState.cacheKey !== record.repoRoot) return;
+		recallState.records = [record, ...recallState.records].slice(0, PROMPT_HISTORY_LIMIT);
+		recallState.nextIndex = 0;
+	}
 
 	async function recordPrompt(ctx: ExtensionContext, message: AgentMessage) {
 		const promptText = extractUserMessageText(message);
 		if (!promptText) return;
 
-		const gitContext = await resolvePromptHistoryGitContext(pi, ctx.cwd, ctx.signal);
+		const gitContext = await getGitContext(ctx);
 		if (!gitContext) {
 			debugLog(pi, ctx, `skip append outside git repo cwd=${ctx.cwd}`);
 			return;
 		}
 
-		const cachePath = await appendPromptHistoryRecord(
-			createPromptHistoryRecord({
-				message: promptText,
-				cwd: gitContext.cwd,
-				repoRoot: gitContext.repoRoot,
-			}),
-		);
-		recallState = undefined;
+		const recordInput = {
+			message: promptText,
+			cwd: gitContext.cwd,
+			repoRoot: gitContext.repoRoot,
+		};
+		const record = createPromptHistoryRecord(recordInput);
+		const cachePath = await appendPromptHistoryRecord(record);
+		updateRecallStateWithRecord({ ...record, ...recordInput });
 		debugLog(
 			pi,
 			ctx,
@@ -116,7 +136,7 @@ export default function promptHistoryExtension(pi: ExtensionAPI) {
 	async function recallPrompt(scope: RecallScopeName, ctx: ExtensionContext) {
 		if (!ctx.hasUI) return;
 
-		const gitContext = await resolvePromptHistoryGitContext(pi, ctx.cwd, ctx.signal);
+		const gitContext = await getGitContext(ctx);
 		if (!gitContext) {
 			notify(ctx, WARNING_OUTSIDE_GIT, "warning");
 			debugLog(pi, ctx, `recall blocked outside git repo scope=${scope} cwd=${ctx.cwd}`);
@@ -171,9 +191,10 @@ export default function promptHistoryExtension(pi: ExtensionAPI) {
 
 	pi.on("session_start", async (_event, ctx) => {
 		recallState = undefined;
+		gitContextCache.clear();
 		if (pi.getFlag(DEBUG_FLAG) !== true) return;
 
-		const gitContext = await resolvePromptHistoryGitContext(pi, ctx.cwd, ctx.signal);
+		const gitContext = await getGitContext(ctx);
 		if (!gitContext) {
 			debugLog(
 				pi,

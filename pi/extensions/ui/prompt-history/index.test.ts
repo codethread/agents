@@ -124,23 +124,19 @@ describe("prompt-history extension", () => {
 		await shortcuts.get("ctrl+p")?.(ctx);
 		await shortcuts.get("ctrl+p")?.(ctx);
 
+		expect(mocks.resolvePromptHistoryGitContext).toHaveBeenCalledTimes(1);
 		expect(mocks.loadPromptHistoryRecords).toHaveBeenCalledTimes(1);
 		expect(setEditorText).toHaveBeenNthCalledWith(1, "latest");
 		expect(setEditorText).toHaveBeenNthCalledWith(2, "older");
 	});
 
-	it("reloads recall results after a new prompt is appended", async () => {
+	it("avoids reloading loaded recall results after a new prompt is appended", async () => {
 		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
 		const shortcuts = new Map<string, (ctx: any) => unknown | Promise<unknown>>();
 		const setEditorText = vi.fn();
-		mocks.loadPromptHistoryRecords
-			.mockResolvedValueOnce([
-				{ version: 1, timestamp: 2, message: "older", cwd: "/repo/app", repoRoot: "/repo" },
-			])
-			.mockResolvedValueOnce([
-				{ version: 1, timestamp: 3, message: "newest", cwd: "/repo/app", repoRoot: "/repo" },
-				{ version: 1, timestamp: 2, message: "older", cwd: "/repo/app", repoRoot: "/repo" },
-			]);
+		mocks.loadPromptHistoryRecords.mockResolvedValueOnce([
+			{ version: 1, timestamp: 2, message: "older", cwd: "/repo/app", repoRoot: "/repo" },
+		]);
 
 		promptHistoryExtension({
 			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
@@ -165,14 +161,21 @@ describe("prompt-history extension", () => {
 		};
 		await shortcuts.get("ctrl+p")?.(ctx);
 		await handlers.get("message_end")?.(
-			{ message: { role: "user", content: [{ type: "text", text: "newest" }] } },
+			{ message: { role: "user", content: "newest" } },
 			ctx,
 		);
 		await shortcuts.get("ctrl+p")?.(ctx);
 
-		expect(mocks.loadPromptHistoryRecords).toHaveBeenCalledTimes(2);
+		expect(mocks.appendPromptHistoryRecord).toHaveBeenCalledTimes(1);
+		expect(mocks.createPromptHistoryRecord).toHaveBeenCalledWith({
+			message: "newest",
+			cwd: "/repo/app",
+			repoRoot: "/repo",
+		});
+		expect(mocks.resolvePromptHistoryGitContext).toHaveBeenCalledTimes(1);
+		expect(mocks.loadPromptHistoryRecords).toHaveBeenCalledTimes(1);
 		expect(setEditorText).toHaveBeenNthCalledWith(1, "older");
-		expect(setEditorText).toHaveBeenNthCalledWith(2, "newest");
+		expect(setEditorText).toHaveBeenCalledTimes(2);
 	});
 
 	it("shows a warning instead of recalling outside git repositories", async () => {
