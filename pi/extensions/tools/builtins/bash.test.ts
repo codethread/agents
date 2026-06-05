@@ -1,3 +1,4 @@
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { describe, expect, it } from "vitest";
 
 import { formatBashCommandForDisplay, formatBashCommandPreview } from "./bash.js";
@@ -41,9 +42,16 @@ describe("formatBashCommandPreview", () => {
 		).toEqual([
 			"$ echo doing thing that spans over 40",
 			"  \\ chars is split on words",
-			'  && echo "this is now line 4 of the max',
-			"  \\ output and hide any more lines\"",
+			'  && echo "this is now line 4 of the',
+			'  \\ max output and hide any more lines"',
 			"  && echo hidden ...",
 		]);
+	});
+
+	it("uses visible width when wrapping wide glyphs", () => {
+		const lines = formatBashCommandPreview(`printf '${"😺".repeat(100)}'`, 20);
+
+		expect(lines.length).toBeGreaterThan(1);
+		expect(lines.every((line) => visibleWidth(line) <= 20)).toBe(true);
 	});
 });

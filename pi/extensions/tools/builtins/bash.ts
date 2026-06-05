@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createBashTool } from "@earendil-works/pi-coding-agent";
-import { Container, Text } from "@earendil-works/pi-tui";
+import { Container, Text, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
 const COMMAND_PREVIEW_LINES = 5;
 const ELLIPSIS = " ...";
@@ -57,14 +57,24 @@ function splitAtOperators(command: string) {
 }
 
 function truncateLineForEllipsis(line: string, width: number) {
-	if (!Number.isFinite(width) || width <= ELLIPSIS.length) return `${line}${ELLIPSIS}`;
-	return `${line.slice(0, Math.max(0, width - ELLIPSIS.length))}${ELLIPSIS}`;
+	const marked = `${line}${ELLIPSIS}`;
+	if (!Number.isFinite(width)) return marked;
+	return truncateToWidth(marked, width, ELLIPSIS);
 }
 
 function takeWrappedSegment(text: string, available: number) {
-	if (text.length <= available) return { segment: text, remaining: "" };
+	if (visibleWidth(text) <= available) return { segment: text, remaining: "" };
 
-	const candidate = text.slice(0, available + 1);
+	let segmentEnd = 0;
+	let segmentWidth = 0;
+	for (const char of text) {
+		const charWidth = visibleWidth(char);
+		if (segmentWidth + charWidth > available) break;
+		segmentEnd += char.length;
+		segmentWidth += charWidth;
+	}
+
+	const candidate = text.slice(0, segmentEnd);
 	const breakIndex = candidate.lastIndexOf(" ");
 	if (breakIndex > 0) {
 		return {
@@ -74,20 +84,20 @@ function takeWrappedSegment(text: string, available: number) {
 	}
 
 	return {
-		segment: text.slice(0, available),
-		remaining: text.slice(available),
+		segment: text.slice(0, segmentEnd),
+		remaining: text.slice(segmentEnd),
 	};
 }
 
 function wrapLine(line: string, width: number) {
-	if (!Number.isFinite(width) || width <= 0 || line.length <= width) return [line];
+	if (!Number.isFinite(width) || width <= 0 || visibleWidth(line) <= width) return [line];
 
 	const lines: string[] = [];
 	let remaining = line;
 	let first = true;
 	while (remaining.length > 0) {
 		const prefix = first ? "" : WRAP_PREFIX;
-		const available = Math.max(1, width - prefix.length);
+		const available = Math.max(1, width - visibleWidth(prefix));
 		const wrapped = takeWrappedSegment(remaining, available);
 		lines.push(`${prefix}${wrapped.segment}`);
 		remaining = wrapped.remaining;
@@ -121,13 +131,20 @@ export function formatBashCommandForDisplay(command: string) {
 	return lines.join("\n");
 }
 
-export function formatBashCommandPreview(command: string, width: number, maxLines = COMMAND_PREVIEW_LINES) {
+export function formatBashCommandPreview(
+	command: string,
+	width: number,
+	maxLines = COMMAND_PREVIEW_LINES,
+) {
 	const formatted = formatBashCommandForDisplay(command).split("\n");
 	const logicalLines = formatted.map((line, index) => (index === 0 ? `$ ${line}` : line));
 	const visualLines = logicalLines.flatMap((line) => wrapLine(line, width));
 	if (visualLines.length <= maxLines) return visualLines;
 
-	return [...visualLines.slice(0, maxLines - 1), truncateLineForEllipsis(visualLines[maxLines - 1] ?? "", width)];
+	return [
+		...visualLines.slice(0, maxLines - 1),
+		truncateLineForEllipsis(visualLines[maxLines - 1] ?? "", width),
+	];
 }
 
 export default function (pi: ExtensionAPI) {
@@ -152,16 +169,21 @@ export default function (pi: ExtensionAPI) {
 			return {
 				invalidate() {},
 				render(width: number) {
-					const lines = formatBashCommandPreview(command, width).map((line, index) => {
+					const timeoutSuffix =
+						args.timeout && Number.isFinite(width) ? ` (timeout: ${args.timeout}s)` : "";
+					const previewWidth = timeoutSuffix
+						? Math.max(1, width - visibleWidth(timeoutSuffix))
+						: width;
+					const lines = formatBashCommandPreview(command, previewWidth).map((line, index) => {
 						if (index === 0 && line.startsWith("$ ")) {
 							return theme.fg("toolTitle", theme.bold("$ ")) + theme.fg("accent", line.slice(2));
 						}
 						return theme.fg("accent", line);
 					});
-					if (args.timeout && lines.length < COMMAND_PREVIEW_LINES) {
-						lines[lines.length - 1] += theme.fg("muted", ` (timeout: ${args.timeout}s)`);
+					if (timeoutSuffix && lines.length < COMMAND_PREVIEW_LINES) {
+						lines[lines.length - 1] += theme.fg("muted", timeoutSuffix);
 					}
-					return lines;
+					return lines.map((line) => truncateToWidth(line, width, ""));
 				},
 			};
 		},
