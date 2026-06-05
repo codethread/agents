@@ -184,9 +184,13 @@ export default function (pi: ExtensionAPI) {
 						},
 					);
 					if (timeoutSuffix && lines.length < maxLines) {
-						lines[lines.length - 1] += theme.fg("muted", timeoutSuffix);
+						lines[lines.length - 1] = truncateToWidth(
+							`${lines[lines.length - 1] ?? ""}${theme.fg("muted", timeoutSuffix)}`,
+							width,
+							theme.fg("muted", " ..."),
+						);
 					}
-					return lines.map((line) => truncateToWidth(line, width, ""));
+					return lines.map((line) => truncateToWidth(line, width, theme.fg("muted", " ...")));
 				},
 			};
 		},
