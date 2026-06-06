@@ -34,6 +34,22 @@ function getInitialSize(size: number | Record<string, number | null>): number {
 
 function createRendererFromResolved(resolved: ResolvedRenderer, size: number): Renderer {
 	const { protocol, multiplexer } = resolved;
+	if (protocol === "none") {
+		return {
+			setTui() {},
+			loadFrames() {},
+			getRenderedFrame: () => null,
+			setSize() {},
+			showFrame: () => false,
+			showRandomFrame: () => false,
+			showTalkFrame: () => false,
+			showTalkCloseFrame: () => false,
+			showCycleFrame: () => false,
+			getCycleFrameCount: () => 0,
+			dispose() {},
+			resetCache() {},
+		};
+	}
 	if (protocol === "kitty-unicode") {
 		log(`createRenderer: using TmuxKittyUnicodeRenderer`);
 		return new TmuxKittyUnicodeRenderer(size);
@@ -142,7 +158,7 @@ export default function (pi: ExtensionAPI) {
 
 		if (lastResolved.warning) {
 			ctx.ui.notify(lastResolved.warning, lastResolved.warningLevel);
-			return;
+			if (lastResolved.warningLevel === "warning") return;
 		}
 
 		ctxRef = ctx;

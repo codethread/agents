@@ -136,7 +136,9 @@ export function createWidgetFactory(deps: WidgetDeps) {
 				const frame = animator.getRenderedFrame();
 				if (!frame) {
 					log(`render: no frame`);
-					return [];
+					return buildCanvasItems(width, deps, theme).map((line) =>
+						truncateToWidth(line, width, theme.fg("dim", config.textEllipsis)),
+					);
 				}
 
 				log(`render: kind=${frame.kind}, set="${deps.getCurrentEmoteSet()}"`);

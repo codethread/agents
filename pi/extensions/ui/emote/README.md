@@ -11,6 +11,8 @@ This package assumes Kitty:
 - direct Kitty: `kitty`
 - tmux in Kitty: `kitty-unicode`
 
+When Pi is running inside an SSH connection (`SSH_CONNECTION`, `SSH_CLIENT`, or `SSH_TTY` is set), image drawing is disabled so the extension does not try to draw remote Kitty images. The widget still renders the session/model footer details.
+
 Avatar size can be a number or a responsive width map:
 
 ```json
