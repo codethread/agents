@@ -82,6 +82,8 @@ def --wrapped pi [
 	--debug-prompt                            # [EXT] Print effective system prompt and exit (optional JSON override arg)
 	--debug-tldr                              # [EXT] Print current session TL;DR and exit
 	--debug-tldr-transcript                   # [EXT] Print transcript used by /tldr and exit
+	--debug-last-message                      # [EXT] Print /last-message editor body and exit
+	--debug-last-message-all                  # [EXT] Print /last-message all editor body and exit
 	--debug-tmux-title                        # [EXT] Print tmux window-title generation details
 	--debug-emote                             # [EXT] Write emote widget debug logs
 	--debug-interactive-shell: string         # [EXT] Run interactive_shell spawn/send/tail/kill directly (optional command)
@@ -129,6 +131,8 @@ def --wrapped pi [
 	if $debug_prompt { $pi_args = ($pi_args | append "--debug-prompt") }
 	if $debug_tldr { $pi_args = ($pi_args | append "--debug-tldr") }
 	if $debug_tldr_transcript { $pi_args = ($pi_args | append "--debug-tldr-transcript") }
+	if $debug_last_message { $pi_args = ($pi_args | append "--debug-last-message") }
+	if $debug_last_message_all { $pi_args = ($pi_args | append "--debug-last-message-all") }
 	if $debug_tmux_title { $pi_args = ($pi_args | append "--debug-tmux-title") }
 	if $debug_emote { $pi_args = ($pi_args | append "--debug-emote") }
 	if $debug_interactive_shell != null { $pi_args = ($pi_args | append ["--debug-interactive-shell" $debug_interactive_shell]) }

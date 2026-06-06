@@ -55,6 +55,7 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 | Extension                                               | Summary                                                        |
 | ------------------------------------------------------- | -------------------------------------------------------------- |
 | [`tldr`](./ui/tldr/README.md)                           | Generate a catch-up summary of the current session.            |
+| [`last-message`](./ui/last-message/README.md)           | Open recent session messages in `$VISUAL`/`$EDITOR`.           |
 | [`tmux-window-title`](./ui/tmux-window-title/README.md) | Set the current tmux window title from the first user message. |
 
 ## Internal shared code
