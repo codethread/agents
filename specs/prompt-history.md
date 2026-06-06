@@ -108,11 +108,11 @@ Records are written as one JSON object per line.
 
 ```json
 {
-  "version": 1,
-  "timestamp": 1791139200000,
-  "message": "User prompt text, possibly multiline Markdown",
-  "cwd": "/path/to/worktree/apps/frontend",
-  "repoRoot": "/path/to/canonical/repo"
+	"version": 1,
+	"timestamp": 1791139200000,
+	"message": "User prompt text, possibly multiline Markdown",
+	"cwd": "/path/to/worktree/apps/frontend",
+	"repoRoot": "/path/to/canonical/repo"
 }
 ```
 
@@ -127,11 +127,11 @@ Contract notes:
 
 ### Keyboard shortcuts
 
-| Shortcut       | Scope      | Behavior                                              |
-| -------------- | ---------- | ----------------------------------------------------- |
-| `up`           | Exact cwd  | Recall prompts submitted from the same exact cwd.     |
-| `ctrl+p`       | Repo root  | Recall prompts from the same canonical repository.    |
-| `ctrl+shift+p` | Global     | Recall all recorded prompts, newest-first.            |
+| Shortcut       | Scope     | Behavior                                           |
+| -------------- | --------- | -------------------------------------------------- |
+| `up`           | Exact cwd | Recall prompts submitted from the same exact cwd.  |
+| `ctrl+p`       | Repo root | Recall prompts from the same canonical repository. |
+| `ctrl+shift+p` | Global    | Recall all recorded prompts, newest-first.         |
 
 These extension shortcuts require moving/unbinding conflicting built-in keybindings in `~/.pi/agent/keybindings.json`. At minimum, move model cycling away from `ctrl+p` and `ctrl+shift+p`; if `up` remains bound to `tui.editor.cursorUp`, the desired replacement behavior may also require unbinding or remapping that built-in editor action.
 
@@ -139,15 +139,15 @@ Example direction:
 
 ```json
 {
-  "app.model.cycleForward": "ctrl+alt+p",
-  "app.model.cycleBackward": "ctrl+shift+alt+p"
+	"app.model.cycleForward": "ctrl+alt+p",
+	"app.model.cycleBackward": "ctrl+shift+alt+p"
 }
 ```
 
 ### CLI flag
 
-| Flag                     | Description                                                                 |
-| ------------------------ | --------------------------------------------------------------------------- |
+| Flag                     | Description                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------- |
 | `--debug-prompt-history` | Print prompt-history diagnostics: cache path, append decisions, scope loads. |
 
 ## 6. Implementation Phases
@@ -177,13 +177,13 @@ Example direction:
 
 ## 7. Code Locations
 
-| File                                      | Change                                  |
-| ----------------------------------------- | --------------------------------------- |
-| `pi/extensions/ui/prompt-history/`        | New prompt-history extension.           |
-| `pi/extensions/README.md`                 | Add extension index entry.              |
-| `scripts/pi.nu`                           | Add `--debug-prompt-history` flag.      |
-| `specs/prompt-history.md`                 | Planning spec for the feature.          |
-| `specs/README.md`                         | Register this spec in the spec index.   |
+| File                               | Change                                |
+| ---------------------------------- | ------------------------------------- |
+| `pi/extensions/ui/prompt-history/` | New prompt-history extension.         |
+| `pi/extensions/README.md`          | Add extension index entry.            |
+| `scripts/pi.nu`                    | Add `--debug-prompt-history` flag.    |
+| `specs/prompt-history.md`          | Planning spec for the feature.        |
+| `specs/README.md`                  | Register this spec in the spec index. |
 
 ## 8. Open Questions
 
