@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import * as path from "node:path";
 import type { Model } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import { fuzzyFilter } from "@earendil-works/pi-tui";
 
 function shellQuote(value: string): string {
 	return `'${value.replaceAll("'", `'"'"'`)}'`;
@@ -62,17 +63,82 @@ async function selectModelArgs(ctx: ExtensionCommandContext): Promise<string[] |
 		defaultChoice,
 		...selectableModelRefs.filter((modelRef) => modelRef !== defaultChoice),
 	];
-	const choices = orderedModelRefs.map((modelRef, index) => {
-		const current = modelRef === currentModelRef ? " (current)" : "";
-		const selected = index === 0 ? " (default)" : "";
-		return `${modelRef}${current}${selected}`;
-	});
+	const choices = orderedModelRefs.map((modelRef, index) => ({
+		value: modelRef,
+		label: `${modelRef}${modelRef === currentModelRef ? " (current)" : ""}${index === 0 ? " (default)" : ""}`,
+	}));
 
-	const selected = await ctx.ui.select("Model for forked session:", choices);
-	if (!selected) return undefined;
+	const selected = await ctx.ui.custom<string | undefined>((tui, theme, _keybindings, done) => {
+		let query = "";
+		let selectedIndex = 0;
 
-	const selectedModelRef = selected.replace(/ \(current\)/, "").replace(/ \(default\)/, "");
-	return ["--model", selectedModelRef];
+		function getFilteredChoices() {
+			return query.trim()
+				? fuzzyFilter(choices, query.trim(), (choice) => choice.label)
+				: choices;
+		}
+
+		function move(delta: number) {
+			const filteredChoices = getFilteredChoices();
+			if (filteredChoices.length === 0) return;
+			selectedIndex = (selectedIndex + delta + filteredChoices.length) % filteredChoices.length;
+		}
+
+		function mutateQuery(nextQuery: string) {
+			query = nextQuery;
+			selectedIndex = 0;
+		}
+
+		return {
+			render(width: number) {
+				const filteredChoices = getFilteredChoices();
+				const horizontalPadding = "  ";
+				const contentWidth = Math.max(20, width - horizontalPadding.length * 2);
+				const border = `${horizontalPadding}${theme.fg("accent", "─".repeat(contentWidth))}`;
+				const padded = (line: string) => `${horizontalPadding}${line}`;
+				const lines = [
+					"",
+					border,
+					padded(theme.fg("accent", theme.bold("Model for forked session"))),
+					padded(`${theme.fg("muted", "Search:")} ${query || theme.fg("dim", "type to fuzzy filter")}`),
+				];
+
+				if (filteredChoices.length === 0) {
+					lines.push(padded(theme.fg("warning", "No matching models")));
+				} else {
+					for (const [index, choice] of filteredChoices.entries()) {
+						const prefix = index === selectedIndex ? "› " : "  ";
+						const text = `${prefix}${choice.label}`;
+						lines.push(padded(index === selectedIndex ? theme.fg("accent", text) : text));
+					}
+				}
+
+				lines.push(padded(theme.fg("dim", "↑↓ navigate • type search • backspace edit • enter select • esc cancel")));
+				lines.push(border);
+				lines.push("");
+				return lines;
+			},
+			invalidate() {},
+			handleInput(data: string) {
+				if (data === "\u001b") {
+					done(undefined);
+					return;
+				}
+				if (data === "\r" || data === "\n") {
+					const filteredChoices = getFilteredChoices();
+					done(filteredChoices[selectedIndex]?.value);
+					return;
+				}
+				if (data === "\u001b[A") move(-1);
+				else if (data === "\u001b[B") move(1);
+				else if (data === "\u007f" || data === "\b") mutateQuery(query.slice(0, -1));
+				else if (data.length === 1 && data >= " " && data !== "\u007f") mutateQuery(query + data);
+				tui.requestRender();
+			},
+		};
+	}, { overlay: true });
+
+	return selected ? ["--model", selected] : undefined;
 }
 
 export default function forkOffExtension(pi: ExtensionAPI) {

@@ -17,7 +17,7 @@ The command:
 
 The new window stays open if child Pi exits so errors remain visible.
 
-With no arguments, `/fork-off` opens a narrowed model selector before launching the forked session. The current model is listed first when it is one of the preferred models.
+With no arguments, `/fork-off` opens a narrowed fuzzy model selector before launching the forked session. The current model is listed first when it is one of the preferred models.
 
 Preferred models:
 
