@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import * as path from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { Model } from "@earendil-works/pi-ai";
+import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 
 function shellQuote(value: string): string {
 	return `'${value.replaceAll("'", `'"'"'`)}'`;
@@ -29,6 +30,51 @@ function buildShellCommand(invocation: { command: string; args: string[] }): str
 	return [invocation.command, ...invocation.args].map(shellQuote).join(" ");
 }
 
+const MODEL_CHOICES = [
+	"openai-codex/gpt-5.5",
+	"openai-codex/gpt-5.4",
+	"openai-codex/gpt-5.4-mini",
+	"anthropic/claude-haiku-4-5",
+	"anthropic/claude-sonnet-4-6",
+	"anthropic/claude-opus-4-6",
+	"anthropic/claude-opus-4-8",
+] as const;
+
+function formatModelRef(model: Model<any>): string {
+	return `${model.provider}/${model.id}`;
+}
+
+async function selectModelArgs(ctx: ExtensionCommandContext): Promise<string[] | undefined> {
+	const availableModels = await ctx.modelRegistry.getAvailable();
+	const availableRefs = new Set(availableModels.map(formatModelRef));
+	const currentModelRef = ctx.model ? formatModelRef(ctx.model) : undefined;
+	const selectableModelRefs = MODEL_CHOICES.filter((modelRef) => availableRefs.has(modelRef));
+
+	if (selectableModelRefs.length === 0) {
+		ctx.ui.notify("/fork-off could not find any authenticated preferred models", "error");
+		return undefined;
+	}
+
+	const defaultChoice = currentModelRef && selectableModelRefs.some((modelRef) => modelRef === currentModelRef)
+		? currentModelRef
+		: selectableModelRefs[0];
+	const orderedModelRefs = [
+		defaultChoice,
+		...selectableModelRefs.filter((modelRef) => modelRef !== defaultChoice),
+	];
+	const choices = orderedModelRefs.map((modelRef, index) => {
+		const current = modelRef === currentModelRef ? " (current)" : "";
+		const selected = index === 0 ? " (default)" : "";
+		return `${modelRef}${current}${selected}`;
+	});
+
+	const selected = await ctx.ui.select("Model for forked session:", choices);
+	if (!selected) return undefined;
+
+	const selectedModelRef = selected.replace(/ \(current\)/, "").replace(/ \(default\)/, "");
+	return ["--model", selectedModelRef];
+}
+
 export default function forkOffExtension(pi: ExtensionAPI) {
 	pi.registerCommand("fork-off", {
 		description: "Open a tmux window with a fork of the current session",
@@ -53,10 +99,12 @@ export default function forkOffExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			const extraArgs = args.trim() ? args.trim().split(/\s+/) : [];
+			const extraArgs = args.trim() ? args.trim().split(/\s+/) : await selectModelArgs(ctx);
+			if (!extraArgs) return;
+
 			const invocation = getPiInvocation(["--fork", sessionFile, ...extraArgs]);
 			const piCommand = buildShellCommand(invocation);
-			const shellCommand = `printf '%s\\n' ${shellQuote(`fork-off: ${piCommand}`)}; ${piCommand}; status=$?; printf '%s\\n' ${shellQuote("fork-off: child pi exited with status $status")}; exec ${process.env.SHELL ? shellQuote(process.env.SHELL) : "$SHELL"}`;
+			const shellCommand = `${piCommand}; exec ${process.env.SHELL ? shellQuote(process.env.SHELL) : "$SHELL"}`;
 			const tmuxArgs = ["new-window", "-c", ctx.cwd, "sh", "-lc", shellCommand];
 
 			try {

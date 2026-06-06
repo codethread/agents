@@ -17,7 +17,19 @@ The command:
 
 The new window stays open if child Pi exits so errors remain visible.
 
-Extra whitespace-separated arguments are appended after the session file:
+With no arguments, `/fork-off` opens a narrowed model selector before launching the forked session. The current model is listed first when it is one of the preferred models.
+
+Preferred models:
+
+- `openai-codex/gpt-5.5`
+- `openai-codex/gpt-5.4`
+- `openai-codex/gpt-5.4-mini`
+- `anthropic/claude-haiku-4-5`
+- `anthropic/claude-sonnet-4-6`
+- `anthropic/claude-opus-4-6`
+- `anthropic/claude-opus-4-8`
+
+Extra whitespace-separated arguments skip the selector and are appended after the session file:
 
 ```text
 /fork-off --model openai/gpt-5.4-nano:low

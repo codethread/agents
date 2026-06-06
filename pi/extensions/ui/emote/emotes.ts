@@ -35,7 +35,7 @@ export function resolveEmoteSet(modelId: string, emotes: EmoteMapping[]): string
 
 // --- Emote Set Location ---
 
-export function findEmoteSetDir(setName: string, extDir: string, cwd: string): string {
+export function findEmoteSetDir(setName: string, extDir: string, cwd: string, options?: { fallback?: boolean }): string {
 	const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? "";
 
 	// Priority: project → user → extension → fallback to default
@@ -47,6 +47,10 @@ export function findEmoteSetDir(setName: string, extDir: string, cwd: string): s
 
 	const extSetDir = join(extDir, "emotes", setName);
 	if (existsSync(extSetDir)) return extSetDir;
+
+	if (options?.fallback === false) {
+		throw new Error(`Unknown emote set "${setName}"`);
+	}
 
 	// Fallback to default
 	const defaultDir = join(extDir, "emotes", "default");

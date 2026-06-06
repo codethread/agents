@@ -40,11 +40,19 @@ Run Pi with `--debug-emote` or set `"debug": true` in config. Logs are written t
 
 ## Emote sets
 
-Bundled set:
+Bundled sets:
 
 - `default`
+- `red`
+- `aza_choi`
 
-Model-to-set mapping uses glob patterns in config:
+Use `--emote <name>` to choose a pack for the session, overriding model-to-set mapping:
+
+```sh
+pi --emote red
+```
+
+Model-to-set mapping uses glob patterns in config when `--emote` is not provided:
 
 ```json
 {

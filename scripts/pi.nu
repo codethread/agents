@@ -86,6 +86,7 @@ def --wrapped pi [
 	--debug-last-message-all                  # [EXT] Print /last-message all editor body and exit
 	--debug-tmux-title                        # [EXT] Print tmux window-title generation details
 	--debug-emote                             # [EXT] Write emote widget debug logs
+	--emote: string                           # [EXT] Select emote widget pack, e.g. red
 	--debug-interactive-shell: string         # [EXT] Run interactive_shell spawn/send/tail/kill directly (optional command)
 	--debug-web-access: string                # [EXT] Run web access debug command: search <query> or fetch <url>
 	--debug-pi-internals                      # [EXT] Print Pi internals discovery report and exit
@@ -135,6 +136,7 @@ def --wrapped pi [
 	if $debug_last_message_all { $pi_args = ($pi_args | append "--debug-last-message-all") }
 	if $debug_tmux_title { $pi_args = ($pi_args | append "--debug-tmux-title") }
 	if $debug_emote { $pi_args = ($pi_args | append "--debug-emote") }
+	if $emote != null { $pi_args = ($pi_args | append ["--emote" $emote]) }
 	if $debug_interactive_shell != null { $pi_args = ($pi_args | append ["--debug-interactive-shell" $debug_interactive_shell]) }
 	if $debug_web_access != null { $pi_args = ($pi_args | append ["--debug-web-access" $debug_web_access]) }
 	if $debug_pi_internals { $pi_args = ($pi_args | append "--debug-pi-internals") }

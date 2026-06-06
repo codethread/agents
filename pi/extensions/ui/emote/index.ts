@@ -66,6 +66,7 @@ function createRendererFromResolved(resolved: ResolvedRenderer, size: number): R
 }
 
 const DEBUG_EMOTE_FLAG = "debug-emote";
+const EMOTE_FLAG = "emote";
 
 export default function (pi: ExtensionAPI) {
 	const extDir = dirname(fileURLToPath(import.meta.url));
@@ -75,6 +76,11 @@ export default function (pi: ExtensionAPI) {
 		description: "Write pi-emote debug logs to pi/extensions/ui/emote/debug.log",
 		type: "boolean",
 		default: false,
+	});
+
+	pi.registerFlag(EMOTE_FLAG, {
+		description: "Select the emote pack to use, e.g. --emote red",
+		type: "string",
 	});
 
 	pi.registerCommand("emote-gen-prompt", {
@@ -117,7 +123,7 @@ export default function (pi: ExtensionAPI) {
 			animator.setRenderer(renderer);
 		}
 
-		const setDir = findEmoteSetDir(setName, extDir, cwd);
+		const setDir = findEmoteSetDir(setName, extDir, cwd, { fallback: false });
 		const emotesConfig = loadEmotesConfig(setDir);
 		renderer.loadFrames(setDir, extDir);
 		animator.setEmotesConfig(emotesConfig);
@@ -125,8 +131,19 @@ export default function (pi: ExtensionAPI) {
 
 	loadEmoteSet("default");
 
+	function getExplicitEmoteSet(): string | null {
+		const value = pi.getFlag(EMOTE_FLAG);
+		if (typeof value !== "string") return null;
+		const trimmed = value.trim();
+		return trimmed.length > 0 ? trimmed : null;
+	}
+
+	function resolveConfiguredEmoteSet(modelId: string): string {
+		return getExplicitEmoteSet() ?? resolveEmoteSet(modelId, config.emotes);
+	}
+
 	function switchEmoteSetForModel(modelId: string) {
-		const setName = resolveEmoteSet(modelId, config.emotes);
+		const setName = resolveConfiguredEmoteSet(modelId);
 		if (setName !== currentEmoteSet) {
 			loadEmoteSet(setName);
 			log(`switchEmoteSet: loaded "${setName}", state="${animator.currentState}"`);
@@ -165,9 +182,9 @@ export default function (pi: ExtensionAPI) {
 
 		if (!config.enabled) return;
 
-		// Resolve emote set for current model
+		// Resolve emote set for current model, unless explicitly chosen with --emote.
 		const modelId = ctx.model?.id ?? "";
-		const setName = resolveEmoteSet(modelId, config.emotes);
+		const setName = resolveConfiguredEmoteSet(modelId);
 		log(
 			`session_start: model="${modelId}" set="${setName}" dir="${findEmoteSetDir(setName, extDir, cwd)}"`,
 		);
@@ -221,7 +238,7 @@ export default function (pi: ExtensionAPI) {
 	pi.on("model_select", async (event) => {
 		if (!widgetActive) return;
 		const modelId = event.model?.id ?? "";
-		const resolved = resolveEmoteSet(modelId, config.emotes);
+		const resolved = resolveConfiguredEmoteSet(modelId);
 		log(`model_select: model="${modelId}" resolved="${resolved}" current="${currentEmoteSet}"`);
 		switchEmoteSetForModel(modelId);
 	});
