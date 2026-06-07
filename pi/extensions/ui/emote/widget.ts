@@ -95,6 +95,7 @@ export interface WidgetDeps {
 	getCtxRef: () => any;
 	getCurrentEmoteSet: () => string;
 	getFooterData: () => any;
+	getImageVisible: () => boolean;
 	placement: EmoteWidgetPlacement;
 }
 
@@ -121,7 +122,7 @@ export function createWidgetFactory(deps: WidgetDeps) {
 				if (width < config.hideBelow) return [];
 
 				const avatarSize = resolveAvatarSize(width, config.size);
-				if (avatarSize === null) {
+				if (avatarSize === null || !deps.getImageVisible()) {
 					activeAvatarSize = null;
 					return buildCanvasItems(width, deps, theme).map((line) =>
 						truncateToWidth(line, width, theme.fg("dim", config.textEllipsis)),

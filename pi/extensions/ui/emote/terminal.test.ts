@@ -54,4 +54,20 @@ describe("resolveRenderer", () => {
 			warningLevel: "warning",
 		});
 	});
+
+	it("can ignore SSH detection for a session-local override", () => {
+		setEnv({
+			SSH_CONNECTION: "client 123 host 22",
+			TMUX: undefined,
+			KITTY_WINDOW_ID: "1",
+			TERM: "xterm-kitty",
+		});
+
+		expect(resolveRenderer(terminals, new Set(), { ignoreSsh: true })).toEqual({
+			protocol: "kitty",
+			multiplexer: null,
+			warning: null,
+			warningLevel: "warning",
+		});
+	});
 });

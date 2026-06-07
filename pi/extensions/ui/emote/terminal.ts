@@ -3,6 +3,10 @@ import { log } from "./log.js";
 
 type TerminalName = "tmux" | "kitty" | "unknown";
 
+type ResolveRendererOptions = {
+	ignoreSsh?: boolean;
+};
+
 function hasSshConnection(): boolean {
 	return Boolean(process.env.SSH_CONNECTION || process.env.SSH_CLIENT || process.env.SSH_TTY);
 }
@@ -19,8 +23,9 @@ function detectTerminalName(): TerminalName {
 export function resolveRenderer(
 	terminals: TerminalMapping[],
 	userConfiguredTerminals: Set<string>,
+	options: ResolveRendererOptions = {},
 ): ResolvedRenderer {
-	if (hasSshConnection()) {
+	if (!options.ignoreSsh && hasSshConnection()) {
 		log(`terminal: SSH connection detected; disabling emote renderer`);
 		return {
 			protocol: "none",

@@ -32,6 +32,35 @@ function getInitialSize(size: number | Record<string, number | null>): number {
 	return Object.values(size).find((value): value is number => typeof value === "number") ?? 6;
 }
 
+type EmoteVisibilityOverride = boolean | null;
+
+type EmoteCommandAction = "toggle" | "on" | "off" | "status";
+
+function parseEmoteCommandAction(args: string): EmoteCommandAction {
+	const normalized = args.trim().toLowerCase();
+	if (!normalized || normalized === "toggle") return "toggle";
+	if (["on", "true", "1", "enable", "enabled", "show", "visible"].includes(normalized)) return "on";
+	if (["off", "false", "0", "disable", "disabled", "hide", "hidden"].includes(normalized))
+		return "off";
+	if (["status"].includes(normalized)) return "status";
+	throw new Error("Usage: /emote [toggle|on|off|status]");
+}
+
+function notify(
+	ctx: {
+		hasUI: boolean;
+		ui?: { notify(message: string, level?: "info" | "warning" | "error"): void };
+	},
+	message: string,
+	level: "info" | "warning" | "error" = "info",
+) {
+	if (ctx.hasUI && ctx.ui) {
+		ctx.ui.notify(message, level);
+		return;
+	}
+	process.stdout.write(`${message}\n`);
+}
+
 function createRendererFromResolved(resolved: ResolvedRenderer, size: number): Renderer {
 	const { protocol, multiplexer } = resolved;
 	if (protocol === "none") {
@@ -101,33 +130,156 @@ export default function (pi: ExtensionAPI) {
 	let { config, userConfiguredTerminals } = loadLayeredConfig(extDir, cwd);
 	setDebug(config.debug || pi.getFlag(DEBUG_EMOTE_FLAG) === true);
 
-	if (!config.enabled) return;
-
 	// Emote set state
 	let currentEmoteSet = "default";
 	let ctxRef: any = null;
 	let footerDataRef: any = null;
 	let widgetActive = false;
+	let visibilityOverride: EmoteVisibilityOverride = null;
 	let lastResolved = resolveRenderer(config.terminals, userConfiguredTerminals);
 	let renderer = createRendererFromResolved(lastResolved, getInitialSize(config.size));
 
 	const animator = new Animator(config, renderer);
 
+	function resolveSessionRenderer(): ResolvedRenderer {
+		if (visibilityOverride === false) {
+			return {
+				protocol: "none",
+				multiplexer: null,
+				warning: null,
+				warningLevel: "info",
+			};
+		}
+		return resolveRenderer(config.terminals, userConfiguredTerminals, {
+			ignoreSsh: visibilityOverride === true,
+		});
+	}
+
+	function installFooter(ctx: any) {
+		ctx.ui.setFooter((tui: any, _theme: any, footerData: any) => {
+			footerDataRef = footerData;
+			const unsubscribe = footerData.onBranchChange(() => tui.requestRender());
+			return {
+				dispose: unsubscribe,
+				invalidate() {},
+				render() {
+					return [];
+				},
+			};
+		});
+	}
+
+	function installWidget(ctx: any) {
+		ctx.ui.setWidget(
+			"emote",
+			createWidgetFactory({
+				animator,
+				config,
+				pi,
+				getCtxRef: () => ctxRef,
+				getCurrentEmoteSet: () => currentEmoteSet,
+				getFooterData: () => footerDataRef,
+				getImageVisible: () => visibilityOverride !== false && lastResolved.protocol !== "none",
+				placement: widgetPlacement,
+			}),
+			{ placement: widgetPlacement },
+		);
+		widgetActive = true;
+	}
+
+	function clearWidget(ctx: any) {
+		if (widgetActive) {
+			ctx.ui.setWidget("emote", undefined);
+			widgetActive = false;
+		}
+		ctx.ui.setFooter(undefined);
+		footerDataRef = null;
+	}
+
+	function syncRenderer() {
+		const detected = createRendererFromResolved(lastResolved, getInitialSize(config.size));
+		if (renderer.constructor === detected.constructor) return;
+		renderer.dispose();
+		renderer = detected;
+		animator.setRenderer(renderer);
+	}
+
 	function loadEmoteSet(setName: string) {
 		currentEmoteSet = setName;
-
-		// Ensure we're using the capability-based renderer
-		const detected = createRendererFromResolved(lastResolved, getInitialSize(config.size));
-		if (renderer.constructor !== detected.constructor) {
-			renderer = detected;
-			animator.setRenderer(renderer);
-		}
+		syncRenderer();
 
 		const setDir = findEmoteSetDir(setName, extDir, cwd, { fallback: false });
 		const emotesConfig = loadEmotesConfig(setDir);
 		renderer.loadFrames(setDir, extDir);
 		animator.setEmotesConfig(emotesConfig);
 	}
+
+	function remountWidgetIfActive() {
+		if (!ctxRef?.hasUI || !widgetActive) return;
+		installWidget(ctxRef);
+	}
+
+	function refreshVisibility(ctx: any, options: { notifyWarning?: boolean } = {}) {
+		lastResolved = resolveSessionRenderer();
+		syncRenderer();
+
+		if (lastResolved.warning && options.notifyWarning !== false) {
+			notify(ctx, lastResolved.warning, lastResolved.warningLevel);
+		}
+
+		const wasWidgetActive = widgetActive;
+		if (!widgetActive) {
+			installFooter(ctx);
+			installWidget(ctx);
+		}
+
+		loadEmoteSet(currentEmoteSet);
+		if (wasWidgetActive) remountWidgetIfActive();
+		animator.transitionTo(animator.currentState);
+	}
+
+	function getVisibilityStatusMessage(): string {
+		const mode =
+			visibilityOverride === true
+				? "forced on"
+				: visibilityOverride === false
+					? "forced off"
+					: "auto";
+		const state =
+			visibilityOverride === false || lastResolved.protocol === "none"
+				? "image hidden"
+				: `image visible via ${lastResolved.protocol}`;
+		const detail = lastResolved.warning ? ` — ${lastResolved.warning}` : "";
+		return `emote ${state} (${mode})${detail}`;
+	}
+
+	pi.registerCommand("emote", {
+		description: "Toggle session-local emote visibility override",
+		handler: async (args, ctx) => {
+			if (!config.enabled) {
+				notify(ctx, "[emote] Extension disabled by config.", "warning");
+				return;
+			}
+
+			try {
+				const action = parseEmoteCommandAction(args);
+				if (action === "status") {
+					notify(ctx, getVisibilityStatusMessage());
+					return;
+				}
+
+				const currentlyVisible = visibilityOverride !== false && lastResolved.protocol !== "none";
+				visibilityOverride = action === "toggle" ? !currentlyVisible : action === "on";
+				ctxRef = ctx;
+				refreshVisibility(ctx, { notifyWarning: visibilityOverride !== false });
+				notify(ctx, getVisibilityStatusMessage());
+			} catch (error) {
+				notify(ctx, error instanceof Error ? error.message : String(error), "error");
+			}
+		},
+	});
+
+	if (!config.enabled) return;
 
 	loadEmoteSet("default");
 
@@ -156,81 +308,51 @@ export default function (pi: ExtensionAPI) {
 		}
 	}
 
-	// --- Events ---
-
-	pi.on("session_start", async (_event, ctx) => {
+	function initializeSession(ctx: any, options: { greet?: boolean } = {}) {
 		log(`session_start: hasUI=${ctx.hasUI}`);
 		if (!ctx.hasUI) return;
 
 		animator.clearAllTimers();
 		cwd = ctx.cwd;
+		visibilityOverride = null;
 		({ config, userConfiguredTerminals } = loadLayeredConfig(extDir, cwd));
 		setDebug(config.debug || pi.getFlag(DEBUG_EMOTE_FLAG) === true);
 		animator.updateConfig(config);
-
-		// Re-create renderer in case terminal capabilities changed
-		lastResolved = resolveRenderer(config.terminals, userConfiguredTerminals);
-		renderer = createRendererFromResolved(lastResolved, getInitialSize(config.size));
-		animator.setRenderer(renderer);
-
-		if (lastResolved.warning) {
-			ctx.ui.notify(lastResolved.warning, lastResolved.warningLevel);
-			if (lastResolved.warningLevel === "warning") return;
-		}
-
 		ctxRef = ctx;
 
-		if (!config.enabled) return;
+		if (!config.enabled) {
+			clearWidget(ctx);
+			return;
+		}
 
-		// Resolve emote set for current model, unless explicitly chosen with --emote.
 		const modelId = ctx.model?.id ?? "";
 		const setName = resolveConfiguredEmoteSet(modelId);
 		log(
 			`session_start: model="${modelId}" set="${setName}" dir="${findEmoteSetDir(setName, extDir, cwd)}"`,
 		);
-		loadEmoteSet(setName);
+		currentEmoteSet = setName;
+		refreshVisibility(ctx);
+		if (options.greet !== false) setTimeout(() => animator.transitionTo("hi"), 500);
+	}
 
-		// MVP: move the footer renderer into the emote widget canvas and hide the real footer.
-		ctx.ui.setFooter((tui, _theme, footerData) => {
-			footerDataRef = footerData;
-			const unsubscribe = footerData.onBranchChange(() => tui.requestRender());
-			return {
-				dispose: unsubscribe,
-				invalidate() {},
-				render() {
-					return [];
-				},
-			};
-		});
+	// --- Events ---
 
-		// Create widget
-		ctx.ui.setWidget(
-			"emote",
-			createWidgetFactory({
-				animator,
-				config,
-				pi,
-				getCtxRef: () => ctxRef,
-				getCurrentEmoteSet: () => currentEmoteSet,
-				getFooterData: () => footerDataRef,
-				placement: widgetPlacement,
-			}),
-			{ placement: widgetPlacement },
-		);
-
-		widgetActive = true;
-		setTimeout(() => animator.transitionTo("hi"), 500);
+	pi.on("session_start", async (_event, ctx) => {
+		initializeSession(ctx);
+	});
+	(
+		pi as ExtensionAPI & {
+			on(event: "session_switch", handler: (_event: unknown, ctx: any) => void): void;
+		}
+	).on("session_switch", (_event, ctx) => {
+		initializeSession(ctx, { greet: false });
 	});
 
 	pi.on("session_shutdown", async (_event, ctx) => {
 		animator.clearAllTimers();
 		animator.disposeRenderer();
-		if (widgetActive && ctx.hasUI) {
-			ctx.ui.setWidget("emote", undefined);
-			widgetActive = false;
-		}
+		if (ctx.hasUI) clearWidget(ctx);
 		animator.setTui(null);
-		ctx.ui.setFooter(undefined);
 		ctxRef = null;
 		footerDataRef = null;
 	});

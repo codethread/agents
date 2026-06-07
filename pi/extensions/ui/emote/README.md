@@ -11,7 +11,9 @@ This package assumes Kitty:
 - direct Kitty: `kitty`
 - tmux in Kitty: `kitty-unicode`
 
-When Pi is running inside an SSH connection (`SSH_CONNECTION`, `SSH_CLIENT`, or `SSH_TTY` is set), image drawing is disabled so the extension does not try to draw remote Kitty images. The widget still renders the session/model footer details.
+When Pi is running inside an SSH connection (`SSH_CONNECTION`, `SSH_CLIENT`, or `SSH_TTY` is set), image drawing is disabled so the extension does not try to draw remote Kitty images. The widget still renders the session/model footer details by default.
+
+Use `/emote on` to force emotes back on for the current session, or `/emote off` to hide them again without restarting Pi.
 
 Avatar size can be a number or a responsive width map:
 
@@ -61,6 +63,17 @@ Model-to-set mapping uses glob patterns in config when `--emote` is not provided
 ```
 
 Custom sets can be placed at `.pi/extensions/pi-emote/emotes/<name>/` or `~/.pi/agent/extensions/pi-emote/emotes/<name>/`.
+
+## `/emote [toggle|on|off|status]`
+
+Toggles a session-local emote visibility override.
+
+- `toggle` or no argument: flip the current effective visibility
+- `on`: force emotes on for this session, even when SSH auto-detection would normally hide them
+- `off`: hide emotes for this session
+- `status`: show the current mode and effective renderer state
+
+This override is not persisted; restarting or reloading the session returns to normal auto-detection.
 
 ## `/emote-gen-prompt <guidance>`
 
