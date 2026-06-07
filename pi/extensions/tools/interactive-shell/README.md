@@ -1,16 +1,16 @@
 # `interactive-shell`
 
-> Spawn and control interactive shell panes.
+> Spawn and control interactive shell tmux sessions.
 
-Provides the `interactive_shell` tool for persistent PTYs: TUIs, REPLs, dev servers, watch processes, or any shell that needs later input/output inspection.
+Provides the `interactive_shell` tool for persistent PTYs: TUIs, REPLs, dev servers, watch processes, or any shell that needs later input/output inspection. Each spawned shell runs in its own detached tmux session.
 
 ## Tool actions
 
 ```json
-{ "action": "spawn" }
+{ "action": "spawn", "name": "dev server" }
 ```
 
-Starts a new empty shell pane using the shell already provided by the environment. The first spawned shell opens beside Pi; later shells stack below the latest live shell. Returns a `shellId`/pane id plus the `$SHELL` value.
+Starts a new empty shell in a detached tmux session using the shell already provided by the environment. `name` is optional, must be 80 characters or fewer, and is shown in `/shells` and `list`. Returns a `shellId`/pane id, the friendly name, the tmux session name, and the `$SHELL` value.
 
 ```json
 { "action": "send", "shellId": "%12", "text": "npm run dev", "submit": true }
@@ -35,6 +35,14 @@ Lists live shells created by this tool with their ids and shell info.
 ```
 
 Stops one shell. If `shellId` is omitted for `send`, `tail`, or `kill`, the latest live shell is used.
+
+## Slash command
+
+```text
+/shells
+```
+
+Opens a fuzzy picker of active shells created by this Pi session, showing each shell's friendly name, pane id, and cwd. Selecting a shell switches the current tmux client to that shell's tmux session.
 
 ## Debug flag
 

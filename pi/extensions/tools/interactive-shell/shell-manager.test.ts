@@ -22,7 +22,7 @@ class FakeRunner implements CommandRunner {
 		this.calls.push({ args, stdin: options.stdin });
 		const command = args[0];
 
-		if (command === "split-window") {
+		if (command === "new-session") {
 			const paneId = `%${this.nextPane++}`;
 			this.livePanes.add(paneId);
 			return { stdout: `${paneId}\n`, stderr: "" };
@@ -37,7 +37,7 @@ class FakeRunner implements CommandRunner {
 		if (command === "send-keys") {
 			const value = args.at(-1) ?? "";
 			this.sendOrder.push(value);
-			if (this.deferFirstSend && this.deferredSendCount++ === 0) {
+			if (value !== "C-u" && this.deferFirstSend && this.deferredSendCount++ === 0) {
 				await new Promise<void>((resolve) => {
 					this.releaseFirstSend = resolve;
 					this.deferredSendReady?.();
@@ -62,35 +62,36 @@ function callArgs(runner: FakeRunner): string[][] {
 }
 
 describe("InteractiveShellManager", () => {
-	it("spawns an empty inherited shell first on the right, then stacks later shells below", async () => {
+	it("spawns each shell in a new detached tmux session", async () => {
 		const runner = new FakeRunner();
-		const manager = new InteractiveShellManager(runner, "%root");
+		const manager = new InteractiveShellManager(runner);
 
-		const first = await manager.spawn("/repo");
-		const second = await manager.spawn("/repo");
+		const first = await manager.spawn("/repo", undefined);
+		const second = await manager.spawn("/repo", undefined);
 
 		expect(first.id).toBe("%1");
 		expect(second.id).toBe("%2");
+		expect(first.name).toBe("shell 1");
+		expect(second.name).toBe("shell 2");
+		expect(first.sessionName).toMatch(/^pi-interactive-shell-.*-shell-1$/);
+		expect(second.sessionName).toMatch(/^pi-interactive-shell-.*-shell-2$/);
+		expect(second.sessionName).not.toBe(first.sessionName);
 		expect(callArgs(runner)[0]).toEqual([
-			"split-window",
-			"-h",
+			"new-session",
 			"-d",
-			"-l",
-			"40%",
-			"-t",
-			"%root",
+			"-s",
+			first.sessionName,
 			"-c",
 			"/repo",
 			"-P",
 			"-F",
 			"#{pane_id}",
 		]);
-		expect(callArgs(runner).at(-2)).toEqual([
-			"split-window",
-			"-v",
+		expect(callArgs(runner).filter((args) => args[0] === "new-session").at(-1)).toEqual([
+			"new-session",
 			"-d",
-			"-t",
-			"%1",
+			"-s",
+			second.sessionName,
 			"-c",
 			"/repo",
 			"-P",
@@ -99,10 +100,29 @@ describe("InteractiveShellManager", () => {
 		]);
 	});
 
+	it("uses friendly names in records and tmux session names", async () => {
+		const runner = new FakeRunner();
+		const manager = new InteractiveShellManager(runner);
+
+		const shell = await manager.spawn("/repo", "Dev server");
+
+		expect(shell.name).toBe("Dev server");
+		expect(shell.sessionName).toMatch(/^pi-interactive-shell-.*-dev-server$/);
+	});
+
+	it("rejects friendly names longer than 80 characters", async () => {
+		const runner = new FakeRunner();
+		const manager = new InteractiveShellManager(runner);
+
+		await expect(manager.spawn("/repo", "x".repeat(81))).rejects.toThrow(
+			"interactive shell name must be 80 characters or fewer",
+		);
+	});
+
 	it("serializes concurrent sends so text and submit stay paired", async () => {
 		const runner = new FakeRunner(true);
-		const manager = new InteractiveShellManager(runner, "%root");
-		const shell = await manager.spawn("/repo");
+		const manager = new InteractiveShellManager(runner);
+		const shell = await manager.spawn("/repo", undefined);
 		runner.calls.length = 0;
 
 		const first = manager.send({ shellId: shell.id, text: "one", submit: true });
@@ -111,13 +131,13 @@ describe("InteractiveShellManager", () => {
 		runner.releaseDeferredSend();
 		await Promise.all([first, second]);
 
-		expect(runner.sendOrder).toEqual(["one", "Enter", "two", "Enter"]);
+		expect(runner.sendOrder).toEqual(["C-u", "one", "Enter", "two", "Enter"]);
 	});
 
 	it("uses a paste buffer for multiline text", async () => {
 		const runner = new FakeRunner();
-		const manager = new InteractiveShellManager(runner, "%root");
-		const shell = await manager.spawn("/repo");
+		const manager = new InteractiveShellManager(runner);
+		const shell = await manager.spawn("/repo", undefined);
 		runner.calls.length = 0;
 
 		await manager.send({ shellId: shell.id, text: "line1\nline2", submit: true });

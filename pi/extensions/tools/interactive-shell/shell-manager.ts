@@ -3,6 +3,8 @@ import { execFile } from "node:child_process";
 export interface ShellRecord {
 	id: string;
 	paneId: string;
+	sessionName: string;
+	name: string;
 	cwd: string;
 	startedAt: string;
 	shell: string;
@@ -54,13 +56,11 @@ export class InteractiveShellManager {
 	private latestId: string | undefined;
 	private spawnQueue: Promise<void> = Promise.resolve();
 	private sendQueue: Promise<void> = Promise.resolve();
+	private nextSession = 1;
 
-	constructor(
-		private readonly runner: CommandRunner,
-		private readonly rootPaneId: string | undefined,
-	) {}
+	constructor(private readonly runner: CommandRunner) {}
 
-	async spawn(cwd: string, signal?: AbortSignal): Promise<ShellRecord> {
+	async spawn(cwd: string, name: string | undefined, signal?: AbortSignal): Promise<ShellRecord> {
 		const previousSpawn = this.spawnQueue;
 		let releaseSpawn!: () => void;
 		this.spawnQueue = new Promise((resolve) => {
@@ -69,23 +69,23 @@ export class InteractiveShellManager {
 
 		await previousSpawn;
 		try {
-			const liveShells = await this.list(signal);
-			const latestLive = liveShells.at(-1);
-			const args = latestLive
-				? this.buildStackedSplitArgs(latestLive.paneId, cwd)
-				: this.buildFirstSplitArgs(cwd);
-
-			const result = await this.runner.run(args, { cwd, signal });
+			await this.list(signal);
+			const displayName = this.normalizeName(name);
+			const sessionName = this.buildSessionName(displayName);
+			const result = await this.runner.run(this.buildNewSessionArgs(sessionName, cwd), { cwd, signal });
 			const paneId = result.stdout.trim().split(/\s+/)[0];
 			if (!paneId) throw new Error("interactive shell did not return a pane id");
 			if (!(await this.isPaneLive(paneId, signal))) {
 				throw new Error("interactive shell pane was not live after spawn");
 			}
+			await this.prepareNewPane(paneId, signal);
 
 			const shellEnv = process.env.SHELL;
 			const record: ShellRecord = {
 				id: paneId,
 				paneId,
+				sessionName,
+				name: displayName,
 				cwd,
 				startedAt: new Date().toISOString(),
 				shell: shellEnv ?? "default",
@@ -159,7 +159,7 @@ export class InteractiveShellManager {
 
 	async kill(shellId: string | undefined, signal?: AbortSignal): Promise<ShellRecord> {
 		const target = await this.resolveTarget(shellId, signal);
-		await this.runner.run(["kill-pane", "-t", target.paneId], { signal });
+		await this.runner.run(["kill-session", "-t", target.sessionName], { signal });
 		this.shells.delete(target.id);
 		this.refreshLatestId();
 		return target;
@@ -182,14 +182,20 @@ export class InteractiveShellManager {
 		});
 	}
 
-	private buildFirstSplitArgs(cwd: string): string[] {
+	private async prepareNewPane(
+		paneId: string,
+		signal: AbortSignal | undefined,
+	): Promise<void> {
+		await this.runner.run(["send-keys", "-t", paneId, "C-u"], { signal });
+		await this.runner.run(["clear-history", "-t", paneId], { signal });
+	}
+
+	private buildNewSessionArgs(sessionName: string, cwd: string): string[] {
 		return [
-			"split-window",
-			"-h",
+			"new-session",
 			"-d",
-			"-l",
-			"40%",
-			...(this.rootPaneId ? ["-t", this.rootPaneId] : []),
+			"-s",
+			sessionName,
 			"-c",
 			cwd,
 			"-P",
@@ -198,8 +204,27 @@ export class InteractiveShellManager {
 		];
 	}
 
-	private buildStackedSplitArgs(targetPaneId: string, cwd: string): string[] {
-		return ["split-window", "-v", "-d", "-t", targetPaneId, "-c", cwd, "-P", "-F", "#{pane_id}"];
+	private buildSessionName(displayName: string): string {
+		const suffix = this.slugifyName(displayName);
+		return `pi-interactive-shell-${process.pid}-${Date.now()}-${this.nextSession++}-${suffix}`;
+	}
+
+	private normalizeName(name: string | undefined): string {
+		const trimmed = name?.trim();
+		if (!trimmed) return `shell ${this.nextSession}`;
+		if (trimmed.length > 80) {
+			throw new Error("interactive shell name must be 80 characters or fewer");
+		}
+		return trimmed;
+	}
+
+	private slugifyName(name: string): string {
+		const slug = name
+			.toLowerCase()
+			.replaceAll(/[^a-z0-9_-]+/g, "-")
+			.replaceAll(/^-|-$/g, "")
+			.slice(0, 32);
+		return slug || "shell";
 	}
 
 	private async resolveTarget(
