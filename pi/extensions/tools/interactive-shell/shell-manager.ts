@@ -72,7 +72,10 @@ export class InteractiveShellManager {
 			await this.list(signal);
 			const displayName = this.normalizeName(name);
 			const sessionName = this.buildSessionName(displayName);
-			const result = await this.runner.run(this.buildNewSessionArgs(sessionName, cwd), { cwd, signal });
+			const result = await this.runner.run(this.buildNewSessionArgs(sessionName, cwd), {
+				cwd,
+				signal,
+			});
 			const paneId = result.stdout.trim().split(/\s+/)[0];
 			if (!paneId) throw new Error("interactive shell did not return a pane id");
 			if (!(await this.isPaneLive(paneId, signal))) {
@@ -182,26 +185,13 @@ export class InteractiveShellManager {
 		});
 	}
 
-	private async prepareNewPane(
-		paneId: string,
-		signal: AbortSignal | undefined,
-	): Promise<void> {
+	private async prepareNewPane(paneId: string, signal: AbortSignal | undefined): Promise<void> {
 		await this.runner.run(["send-keys", "-t", paneId, "C-u"], { signal });
 		await this.runner.run(["clear-history", "-t", paneId], { signal });
 	}
 
 	private buildNewSessionArgs(sessionName: string, cwd: string): string[] {
-		return [
-			"new-session",
-			"-d",
-			"-s",
-			sessionName,
-			"-c",
-			cwd,
-			"-P",
-			"-F",
-			"#{pane_id}",
-		];
+		return ["new-session", "-d", "-s", sessionName, "-c", cwd, "-P", "-F", "#{pane_id}"];
 	}
 
 	private buildSessionName(displayName: string): string {

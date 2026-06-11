@@ -87,7 +87,11 @@ describe("InteractiveShellManager", () => {
 			"-F",
 			"#{pane_id}",
 		]);
-		expect(callArgs(runner).filter((args) => args[0] === "new-session").at(-1)).toEqual([
+		expect(
+			callArgs(runner)
+				.filter((args) => args[0] === "new-session")
+				.at(-1),
+		).toEqual([
 			"new-session",
 			"-d",
 			"-s",

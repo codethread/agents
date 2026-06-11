@@ -39,4 +39,3 @@ Extra whitespace-separated arguments skip the selector and are appended after th
 
 - Must be running inside tmux (`TMUX` is set).
 - The current Pi session must be persisted; `/fork-off` does not work with `--no-session`.
-

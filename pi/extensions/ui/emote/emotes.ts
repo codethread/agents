@@ -35,7 +35,12 @@ export function resolveEmoteSet(modelId: string, emotes: EmoteMapping[]): string
 
 // --- Emote Set Location ---
 
-export function findEmoteSetDir(setName: string, extDir: string, cwd: string, options?: { fallback?: boolean }): string {
+export function findEmoteSetDir(
+	setName: string,
+	extDir: string,
+	cwd: string,
+	options?: { fallback?: boolean },
+): string {
 	const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? "";
 
 	// Priority: project → user → extension → fallback to default
