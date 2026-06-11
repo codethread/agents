@@ -15,17 +15,17 @@ This skill teaches you how to write effective SKILL.md files using a structured 
 
 ## The Six Concerns
 
-| Concern       | What it answers                                     | Required?     |
-| ------------- | --------------------------------------------------- | ------------- |
-| Variables     | What external names/refs does this skill depend on? | Recommended   |
-| Prerequisites | What must be true before execution?                 | If applicable |
-| Knowledge     | What facts/conventions does the agent need?         | Usually       |
-| Procedures    | What steps does the agent follow?                   | Usually       |
-| Decisions     | What branching/state logic governs the flow?        | If applicable |
-| Constraints   | What must the agent never do?                       | Recommended   |
-| Validation    | How does the agent know it succeeded?               | Recommended   |
+| Concern       | What it answers                                         | Required?     |
+| ------------- | ------------------------------------------------------- | ------------- |
+| Variables     | Which reused external values does this skill depend on? | Optional      |
+| Prerequisites | What must be true before execution?                     | If applicable |
+| Knowledge     | What facts/conventions does the agent need?             | Usually       |
+| Procedures    | What steps does the agent follow?                       | Usually       |
+| Decisions     | What branching/state logic governs the flow?            | If applicable |
+| Constraints   | What must the agent never do?                           | Recommended   |
+| Validation    | How does the agent know it succeeded?                   | Recommended   |
 
-Not every skill needs all six. A pure knowledge skill (e.g. "how our API auth works") may only have Variables, Knowledge, and Constraints. A workflow skill will have most or all.
+Not every skill needs all six. Variables is optional: include it only when the skill repeatedly refers to external values supplied by the user, repository, project, or adjacent reference docs. A pure knowledge skill (e.g. "how our API auth works") may only need Knowledge and Constraints. A workflow skill will have most sections, but may still omit Variables if no external value is reused.
 
 The rest of this guide explains each concern, its position in the document, and how to write it well.
 
@@ -36,7 +36,7 @@ The rest of this guide explains each concern, its position in the document, and 
 Skills should follow this order. The rationale: the agent reads top-to-bottom, so it needs context (variables, prerequisites) before instructions (procedures, decisions), and boundaries (constraints, validation) bookending the whole thing.
 
 ```
-1. Variables          ← names, refs, config that may change
+1. Variables          ← optional reused external values
 2. Prerequisites      ← what to check/verify before starting
 3. Knowledge          ← facts, conventions, reference material
 4. Decisions          ← state machine / branching logic (the map)
@@ -51,25 +51,28 @@ Note: Decisions comes before Procedures. The agent should see the full map of po
 
 ## 1. Variables
 
-A lookup table of external references. Anything that could change independently of the skill's logic — agent names, tool names, repo paths, branch conventions, complementary skills — goes here. This avoids scattering references through prose where they fall out of sync.
+An optional lookup table for external values reused throughout the skill or its referenced materials. A value belongs here only when all of these are true:
+
+- It comes from outside the skill's logic: a branch ref, agent id/name, file path, command, spec/reference path, project convention, service URL, or complementary skill.
+- It may vary by repository, project, team, or user.
+- It is referenced more than once, or it is shared between this skill and a reference file the skill points to.
+
+Do not create Variables for one-off values. State those inline where needed. Variables must earn their place by reducing repetition and preventing external references from drifting out of sync.
 
 ### Format
 
-Use a simple key-value table. Keys should be UPPER_SNAKE_CASE so they stand out when referenced later in the document.
+Use a simple key-value table. Keys should be UPPER_SNAKE_CASE so they stand out when referenced later in the document. Every key should be used by name later in the skill or in a referenced file; remove any key that is only defined and never reused.
 
 ### Good example
 
 ```markdown
 ## Variables
 
-| Variable      | Value                                  | Notes                          |
-| ------------- | -------------------------------------- | ------------------------------ |
-| PRIMARY_AGENT | scout                                  | The exploration/research agent |
-| REVIEW_AGENT  | sentinel                               | The code review agent          |
-| RELEASE_SKILL | npm-release                            | Complementary release workflow |
-| MAIN_BRANCH   | main                                   | Protected branch               |
-| REGISTRY      | https://registry.npmjs.org             | Publish target                 |
-| COMMIT_TYPES  | feat, fix, chore, docs, refactor, test | Allowed semantic prefixes      |
+| Variable     | Value                                  | Notes                     |
+| ------------ | -------------------------------------- | ------------------------- |
+| REVIEW_AGENT | sentinel                               | The code review agent     |
+| MAIN_BRANCH  | main                                   | Protected branch ref      |
+| COMMIT_TYPES | feat, fix, chore, docs, refactor, test | Allowed semantic prefixes |
 ```
 
 Then later in the document, refer to these by name:
@@ -94,7 +97,9 @@ This buries references in prose. When the user renames "sentinel" to "guardian",
 
 ### When to skip
 
-Very simple skills with no external references. If the skill is self-contained (e.g. "how to write a good commit message"), you probably don't need this section.
+Skip Variables when the skill has no reused external values. Also skip it for values used only once: put the literal value in the relevant prerequisite, procedure, constraint, or reference instead.
+
+For example, a rendering skill might keep `RENDER_CMD` in Variables if many procedures invoke it. But if `OUTPUT_DIR` appears only in one output-writing step, do not define `OUTPUT_DIR`; simply state the directory in that step.
 
 ---
 
@@ -416,13 +421,12 @@ description: >
 
 ## Variables
 
-| Variable     | Value                                  | Notes                      |
-| ------------ | -------------------------------------- | -------------------------- |
-| MAIN_BRANCH  | main                                   | Protected branch           |
-| REGISTRY     | https://registry.npmjs.org             | Publish target             |
-| COMMIT_TYPES | feat, fix, chore, docs, refactor, test | Semantic prefixes          |
-| BUILD_CMD    | npm run build                          | Project build command      |
-| REVIEW_AGENT | sentinel                               | Hands off for verification |
+| Variable     | Value                                  | Notes                 |
+| ------------ | -------------------------------------- | --------------------- |
+| MAIN_BRANCH  | main                                   | Protected branch      |
+| REGISTRY     | https://registry.npmjs.org             | Publish target        |
+| COMMIT_TYPES | feat, fix, chore, docs, refactor, test | Semantic prefixes     |
+| BUILD_CMD    | npm run build                          | Project build command |
 
 ## Prerequisites
 
@@ -545,9 +549,9 @@ If you find yourself writing "if X then do Y, otherwise do Z" inside a numbered 
 
 Every guard in Decisions should account for failure. If bumping the version can fail, there must be a transition for that. The model will improvise if you leave gaps — and improvisation is exactly what skills are meant to prevent.
 
-### Variables that aren't variable
+### Variables that don't earn their place
 
-Don't put things in Variables that are intrinsic to the skill and would never change (e.g. `GIT_COMMAND = git`). Variables are for things the _user_ might customise.
+Don't put things in Variables that are intrinsic to the skill and would never change (e.g. `GIT_COMMAND = git`). Also don't define variables for one-off literals. Variables are only for external values the _user_, project, repository, or referenced material might supply or customise, and that are reused enough to justify a named handle.
 
 ### Knowledge the model already has
 
