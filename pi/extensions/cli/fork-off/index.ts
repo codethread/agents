@@ -1,4 +1,6 @@
 import { existsSync } from "node:fs";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 import type { Model } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
@@ -29,6 +31,60 @@ function getPiInvocation(args: string[]): { command: string; args: string[] } {
 
 function buildShellCommand(invocation: { command: string; args: string[] }): string {
 	return [invocation.command, ...invocation.args].map(shellQuote).join(" ");
+}
+
+type SessionJsonEntry = {
+	type: string;
+	id?: string;
+	parentId?: string | null;
+	message?: { role?: string };
+};
+
+export function findLatestAssistantEntryId(entries: readonly unknown[]): string | undefined {
+	for (const entry of [...entries].reverse()) {
+		const candidate = entry as SessionJsonEntry;
+		if (candidate.type === "message" && candidate.message?.role === "assistant" && candidate.id) {
+			return candidate.id;
+		}
+	}
+	return undefined;
+}
+
+export async function createPrunedSessionFile(
+	sessionFile: string,
+	targetEntryId: string,
+): Promise<string> {
+	const lines = (await fs.readFile(sessionFile, "utf8")).split("\n").filter((line) => line.trim());
+	if (lines.length === 0) throw new Error("session file is empty");
+
+	const parsedLines = lines.map((line) => ({ line, entry: JSON.parse(line) as SessionJsonEntry }));
+	const header = parsedLines[0];
+	if (!header || header.entry.type !== "session")
+		throw new Error("session file missing session header");
+
+	const entriesById = new Map<string, SessionJsonEntry>();
+	for (const { entry } of parsedLines.slice(1)) {
+		if (entry.id) entriesById.set(entry.id, entry);
+	}
+
+	const keptIds = new Set<string>();
+	let currentId: string | null | undefined = targetEntryId;
+	while (currentId) {
+		const entry = entriesById.get(currentId);
+		if (!entry) throw new Error(`target entry ancestry is missing entry ${currentId}`);
+		keptIds.add(currentId);
+		currentId = entry.parentId;
+	}
+
+	const prunedLines = [header.line];
+	for (const { line, entry } of parsedLines.slice(1)) {
+		if (entry.id && keptIds.has(entry.id)) prunedLines.push(line);
+	}
+
+	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-fork-off-"));
+	const prunedSessionFile = path.join(tempDir, path.basename(sessionFile));
+	await fs.writeFile(prunedSessionFile, `${prunedLines.join("\n")}\n`, "utf8");
+	return prunedSessionFile;
 }
 
 const MODEL_CHOICES = [
@@ -155,19 +211,37 @@ async function selectModelArgs(ctx: ExtensionCommandContext): Promise<string[] |
 }
 
 export default function forkOffExtension(pi: ExtensionAPI) {
+	let activeForkBaseEntryId: string | undefined;
+
+	pi.on("before_agent_start", (_event, ctx) => {
+		activeForkBaseEntryId = findLatestAssistantEntryId(ctx.sessionManager.getBranch());
+	});
+
+	pi.on("agent_end", () => {
+		activeForkBaseEntryId = undefined;
+	});
+
 	pi.registerCommand("fork-off", {
 		description: "Open a tmux window with a fork of the current session",
 		handler: async (args, ctx) => {
 			const queued = !ctx.isIdle();
+			let forkBaseEntryId: string | undefined;
 			if (queued) {
-				ctx.ui.notify("/fork-off queued; will open after the current agent turn finishes", "info");
-				ctx.ui.setStatus("fork-off", "fork-off queued");
+				forkBaseEntryId = activeForkBaseEntryId;
+				if (!forkBaseEntryId) {
+					ctx.ui.notify(
+						"/fork-off could not find a stable assistant message to fork from yet",
+						"error",
+					);
+					return;
+				}
+				ctx.ui.notify("/fork-off opening from the last stable assistant message", "info");
 			}
 
-			await ctx.waitForIdle();
+			if (!queued) await ctx.waitForIdle();
 			ctx.ui.setStatus("fork-off", undefined);
 
-			const sessionFile = ctx.sessionManager.getSessionFile();
+			let sessionFile = ctx.sessionManager.getSessionFile();
 			if (!sessionFile) {
 				ctx.ui.notify("/fork-off requires a persisted session; this session is ephemeral", "error");
 				return;
@@ -180,6 +254,18 @@ export default function forkOffExtension(pi: ExtensionAPI) {
 
 			const extraArgs = args.trim() ? args.trim().split(/\s+/) : await selectModelArgs(ctx);
 			if (!extraArgs) return;
+
+			if (forkBaseEntryId) {
+				try {
+					sessionFile = await createPrunedSessionFile(sessionFile, forkBaseEntryId);
+				} catch (error) {
+					ctx.ui.notify(
+						`/fork-off failed to prepare stable fork: ${getErrorMessage(error)}`,
+						"error",
+					);
+					return;
+				}
+			}
 
 			const invocation = getPiInvocation(["--fork", sessionFile, ...extraArgs]);
 			const piCommand = buildShellCommand(invocation);

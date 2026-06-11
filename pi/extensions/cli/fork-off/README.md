@@ -10,12 +10,11 @@ Registers `/fork-off`, a tmux helper for opening a fork of the current session i
 
 The command:
 
-1. shows a queued notification/status if the agent is currently busy,
-2. waits until the current agent turn is idle,
-3. reads the current persisted session file,
-4. runs `tmux new-window -c <cwd> sh -lc 'pi --fork <session-file>; exec $SHELL'`.
+1. if the agent is currently busy, finds the last completed assistant message from before the active agent turn and prepares a temporary pruned session ending there,
+2. otherwise waits until the session is idle and uses the current persisted session file,
+3. runs `tmux new-window -c <cwd> sh -lc 'pi --fork <session-file>; exec $SHELL'`.
 
-The new window stays open if child Pi exits so errors remain visible.
+This means you can send a message, realize you want to branch from the previous answer, and run `/fork-off` immediately without waiting for the current agent work to finish. The current Pi session keeps running while the fork opens in a new tmux window. The new window stays open if child Pi exits so errors remain visible.
 
 With no arguments, `/fork-off` opens a narrowed fuzzy model selector before launching the forked session. The current model is listed first when it is one of the preferred models.
 
