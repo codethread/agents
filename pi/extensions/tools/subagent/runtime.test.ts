@@ -457,6 +457,27 @@ describe("buildSingleAgentArgs", () => {
 		]);
 	});
 
+	it("forwards resolved --agents-dir roots to child runs", () => {
+		expect(
+			buildSingleAgentArgs("scout", "Map the subagent flow", undefined, undefined, [
+				"/tmp/external-a",
+				"/tmp/external-b",
+			]),
+		).toEqual([
+			"--mode",
+			"json",
+			"-p",
+			"--agent",
+			"scout",
+			"--agents-dir",
+			"/tmp/external-a",
+			"--agents-dir",
+			"/tmp/external-b",
+			"--no-session",
+			"Task: Map the subagent flow",
+		]);
+	});
+
 	it("passes an explicit candidate model without inherited thinking", () => {
 		expect(
 			buildSingleAgentArgs("fixer", "Fix the typecheck errors", {

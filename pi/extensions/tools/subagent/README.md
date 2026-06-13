@@ -2,24 +2,26 @@
 
 > Delegate one task to one specialized agent or swarm with isolated context.
 
-Provides two things: the `subagent` tool for delegating work from within a session, and `--agent <name>` for adopting a single-agent config directly at startup.
+Provides two things: the `subagent` tool for delegating work from within a session, and `--agent <name>` for adopting a single-agent config directly at startup. It also accepts repeatable `--agents-dir <path>` roots for loading extra external agents and swarms.
 
 Discovered agents and swarms are injected into the system prompt as an `<available-subagents>` catalog nested under the `subagent` tool entry, so the parent agent can choose among them where tool guidance is defined. Agents or swarms marked `hidden: true` are callable by name but omitted from that inventory. Discovery is evaluated on demand, so edits to agent markdown or swarm definitions are picked up on the next call. Child processes are tagged `PI_SUBAGENT=1` so extensions can reshape behavior in delegated runs.
 
-Agents are discovered from `agents/` directories, while swarms are discovered from `swarms/` directories; these are separate discovery roots in the same working tree.
+Agents are discovered from `agents/` directories, while swarms are discovered from `swarms/` directories; these are separate discovery roots in the same working tree. When a custom user agents directory is supplied programmatically, the default user swarms directory is resolved as its sibling `swarms/` directory so isolated test or embedded catalogs do not accidentally load the real user swarm catalog.
 
 ---
 
 ## Agent discovery
 
-Three sources merge in priority order — project wins over user, user wins over package:
+Four sources merge in priority order — latest `--agents-dir` wins over earlier `--agents-dir`, which wins over project, user, then package defaults:
 
-| Source  | Location                                  |
-| ------- | ----------------------------------------- |
-| Package | `pi/agents/` (bundled agents)             |
-| User    | `~/.pi/agent/agents/`                     |
-| Project | `.pi/agents/` (nearest ancestor of `cwd`) |
-| Swarm   | `.pi/swarms/` (nearest ancestor of `cwd`) |
+| Source  | Location / behavior                                                                |
+| ------- | ---------------------------------------------------------------------------------- |
+| Package | `pi/agents/` (bundled agents)                                                      |
+| User    | `~/.pi/agent/agents/`                                                              |
+| Project | `.pi/agents/` (nearest ancestor of `cwd`)                                          |
+| Flag    | each `--agents-dir <root>` contributes `<root>/agents/` and `<root>/swarms/` roots |
+
+`--agents-dir` is repeatable. Each supplied path is shell-expanded (`~`, `$HOME`, `${VAR}`, etc.) and resolved once at startup; later flags override earlier ones for same-name agents or swarms.
 
 Swarms are configured in folders that contain a `swarm.json` file. See [Swarm configuration](#swarm-configuration) below.
 
@@ -217,6 +219,7 @@ Adopts a discovered agent's config into the current top-level session:
 - `model` → first valid declared candidate for the active Pi runtime
 - selected candidate thinking suffix (`:low`) → Pi thinking level
 - `tools` → active tool set
+- `--agents-dir` roots participate in discovery here too, with the same precedence used by delegated subagents, `/debug-agents`, `/debug-mcp`, and parent prompt injection
 
 Explicit CLI flags always win over inherited agent fields:
 
@@ -232,7 +235,10 @@ A missing agent name, invalid declared model policy, unavailable candidate chain
 pi --agent scout "Map the retry flow"
 pi --agent fixer --model openai/gpt-5 "Fix typecheck failures"
 pi --agent scout --tools read,bash,edit "Override the inherited tool set"
+pi --agents-dir ~/shared-subagents --agent review "Use an external review panel"
 ```
+
+> **Persistence note.** `--continue` / `--resume` do not automatically remember prior `--agents-dir` values. Pass the same `--agents-dir` flags again when resuming if you need the same external catalog.
 
 ---
 

@@ -4,12 +4,14 @@ import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	discoverAgents,
+	expandShellPath,
 	findAgentByName,
 	findDelegationTarget,
 	formatAgentsForPrompt,
 	formatSelectedAgentPrompt,
 	getAgentRuntimeSettings,
 	getAgentActiveTools,
+	getAgentsDirRootsFromArgv,
 	getInheritedAgentRuntimeSettings,
 	parseAgentFlagCliOverrides,
 	resolveAgentModelCandidate,
@@ -303,6 +305,33 @@ describe("parseAgentFlagCliOverrides", () => {
 			hasThinkingOverride: false,
 			hasToolsOverride: true,
 		});
+	});
+});
+
+describe("agents-dir CLI helpers", () => {
+	it("expands ~ and environment variables in flagged roots", () => {
+		expect(expandShellPath("~/agents", { HOME: "/tmp/home" })).toBe("/tmp/home/agents");
+		expect(expandShellPath("$ROOT/shared", { ROOT: "/tmp/root" })).toBe("/tmp/root/shared");
+		expect(expandShellPath("${ROOT}/shared", { ROOT: "/tmp/root" })).toBe("/tmp/root/shared");
+	});
+
+	it("collects repeated --agents-dir flags, resolves relative paths, and deduplicates by latest occurrence", () => {
+		const roots = getAgentsDirRootsFromArgv(
+			["--agents-dir", "./alpha", "--agents-dir=$ROOT/beta", "--agents-dir", "./alpha/"],
+			"/workspace/app",
+			{ ROOT: "/shared" },
+		);
+
+		expect(roots).toEqual(["/shared/beta", "/workspace/app/alpha"]);
+	});
+
+	it("ignores empty --agents-dir values instead of resolving them to cwd", () => {
+		expect(
+			getAgentsDirRootsFromArgv(
+				["--agents-dir=", "--agents-dir", "", "--agents-dir", "./alpha"],
+				"/workspace/app",
+			),
+		).toEqual(["/workspace/app/alpha"]);
 	});
 });
 
@@ -615,6 +644,141 @@ describe("discoverAgents", () => {
 			source: "project",
 			filePath: projectAgentPath,
 		});
+	});
+
+	it("loads external --agents-dir roots after project/user/package discovery with latest-root precedence", () => {
+		const root = makeTempDir("subagent-flagged-roots-");
+		const packageAgentsDir = path.join(root, "package-agents");
+		const userAgentsDir = path.join(root, "user-agents");
+		const projectAgentsDir = path.join(root, ".pi", "agents");
+		const firstFlagRoot = path.join(root, "external-a");
+		const secondFlagRoot = path.join(root, "external-b");
+		const cwd = path.join(root, "workspace");
+
+		writeAgent(packageAgentsDir, "shared.md", {
+			name: "shared",
+			description: "Package shared",
+			body: "Package shared body",
+		});
+		writeAgent(userAgentsDir, "shared.md", {
+			name: "shared",
+			description: "User shared",
+			body: "User shared body",
+		});
+		writeAgent(projectAgentsDir, "shared.md", {
+			name: "shared",
+			description: "Project shared",
+			body: "Project shared body",
+		});
+		writeAgent(path.join(firstFlagRoot, "agents"), "shared.md", {
+			name: "shared",
+			description: "First external shared",
+			body: "First external body",
+		});
+		const secondFlagAgentPath = writeAgent(path.join(secondFlagRoot, "agents"), "shared.md", {
+			name: "shared",
+			description: "Second external shared",
+			body: "Second external body",
+		});
+		writeAgent(path.join(secondFlagRoot, "agents"), "flag-only.md", {
+			name: "flag-only",
+			description: "Flag-only agent",
+			body: "Flag-only body",
+		});
+		writeAgent(path.join(secondFlagRoot, "swarms", "review"), "security-review.md", {
+			name: "security-review",
+			description: "Security review specialist",
+		});
+		writeSwarm(path.join(secondFlagRoot, "swarms"), "review", {
+			name: "review",
+			description: "External review swarm",
+			members: ["security-review"],
+		});
+
+		const discovery = discoverAgents(cwd, {
+			packageAgentsDir,
+			userAgentsDir,
+			projectAgentsDir,
+			packageSwarmsDir: null,
+			userSwarmsDir: path.join(root, "user-swarms"),
+			projectSwarmsDir: null,
+			agentsDirRoots: [firstFlagRoot, secondFlagRoot],
+			settingsPath: null,
+		});
+
+		expect(findAgentByName(discovery.agents, "shared")).toMatchObject({
+			source: "flag",
+			description: "Second external shared",
+		});
+		expect(findAgentByName(discovery.agents, "flag-only")).toMatchObject({
+			source: "flag",
+			filePath: path.join(secondFlagRoot, "agents", "flag-only.md"),
+		});
+		expect(findAgentByName(discovery.agents, "security-review")).toMatchObject({
+			source: "flag",
+		});
+		expect(findDelegationTarget(discovery, "review")).toMatchObject({
+			kind: "swarm",
+			swarm: expect.objectContaining({
+				source: "flag",
+				description: "External review swarm",
+			}),
+		});
+		expect(findAgentByName(discovery.agents, "shared")?.filePath).toBe(secondFlagAgentPath);
+	});
+
+	it("applies flagged-root shell expansion before discovery", () => {
+		const fakeHome = makeTempDir("subagent-flag-home-");
+		process.env.HOME = fakeHome;
+		process.env.USERPROFILE = fakeHome;
+		const root = makeTempDir("subagent-flag-shell-expand-");
+		const cwd = path.join(root, "workspace");
+		const externalRoot = path.join(fakeHome, "external-targets");
+
+		writeAgent(path.join(externalRoot, "agents"), "shell-agent.md", {
+			name: "shell-agent",
+			description: "Shell expanded agent",
+		});
+
+		const discovery = discoverAgents(cwd, {
+			packageAgentsDir: path.join(root, "package-agents"),
+			userAgentsDir: path.join(root, "user-agents"),
+			projectAgentsDir: null,
+			packageSwarmsDir: null,
+			projectSwarmsDir: null,
+			agentsDirRoots: getAgentsDirRootsFromArgv(["--agents-dir", "~/external-targets"], cwd),
+			settingsPath: null,
+		});
+
+		expect(findAgentByName(discovery.agents, "shell-agent")).toMatchObject({
+			name: "shell-agent",
+			source: "flag",
+			filePath: path.join(externalRoot, "agents", "shell-agent.md"),
+		});
+	});
+
+	it("fails discovery when a flagged root contains invalid swarm content", () => {
+		const root = makeTempDir("subagent-flag-invalid-");
+		const flaggedRoot = path.join(root, "external");
+		const cwd = path.join(root, "workspace");
+
+		writeSwarm(path.join(flaggedRoot, "swarms"), "review", {
+			name: "review",
+			description: "Broken review",
+			members: ["missing-member"],
+		});
+
+		expect(() =>
+			discoverAgents(cwd, {
+				packageAgentsDir: path.join(root, "package-agents"),
+				userAgentsDir: path.join(root, "user-agents"),
+				projectAgentsDir: null,
+				packageSwarmsDir: null,
+				projectSwarmsDir: null,
+				agentsDirRoots: [flaggedRoot],
+				settingsPath: null,
+			}),
+		).toThrowError(/unknown member/i);
 	});
 
 	it("parses model policy strings, objects, gated lists, deduplication, and omitted inheritance", () => {

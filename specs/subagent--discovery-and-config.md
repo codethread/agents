@@ -1,7 +1,7 @@
 # Agent Discovery and Configuration Specification
 
 **Status:** Implemented
-**Last Updated:** 2026-06-03
+**Last Updated:** 2026-06-11
 
 ## 1. Overview
 
@@ -11,7 +11,7 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 
 ### Goals
 
-- Discover agents from bundled package content plus optional user and project directories.
+- Discover agents from bundled package content plus optional user, project, and `--agents-dir` directories.
 - Return a uniform `AgentConfig` shape regardless of source file location.
 - Present Pi with one effective merged list of available delegation targets.
 - Re-read agent markdown and swarm configuration on each discovery call so edits take effect without restarting Pi.
@@ -24,7 +24,7 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 - Parse declared model policy at the discovery boundary into ordered candidates and per-agent config errors.
 - Parse Claude Code-style `mcpServers` frontmatter into normalized server configs, recording per-agent config errors for malformed declarations.
 - Connect an adopted/spawned agent's MCP servers and expose their tools to that agent, namespaced to avoid collisions.
-- Apply deterministic source precedence so agent name collisions resolve predictably.
+- Apply deterministic source precedence so agent and swarm name collisions resolve predictably, including repeatable `--agents-dir` roots.
 
 ### Non-Goals
 
@@ -42,7 +42,10 @@ The subagent extension needs a stable way to find delegation targets, normalize 
   - **Rationale:** A single file can carry both runtime metadata and the system prompt, while also allowing author-only notes such as `meta`, matching how bundled agents in `pi/agents/*.md` are authored.
 
 - **Decision:** Pi sees one merged target list rather than choosing among discovery scopes.
-  - **Rationale:** Runtime behavior is simpler when user/project/package sources are a discovery concern, not a tool-call concern.
+  - **Rationale:** Runtime behavior is simpler when user/project/package/flag sources are a discovery concern, not a tool-call concern.
+
+- **Decision:** Repeatable `--agents-dir <root>` contributes external roots after project discovery, and later flags override earlier flags for same-name targets.
+  - **Rationale:** Operators need an explicit way to inject shared external agents/swarms without copying them into every repo, while keeping precedence deterministic and aligned across direct mode, delegated runs, debug commands, and prompt injection.
 
 - **Decision:** `hidden: true` removes an agent from the parent prompt inventory only; it does not remove the agent from discovery.
   - **Rationale:** Some agents should remain callable via `subagent` or `--agent` by operators who know their names without advertising them to the parent agent's general delegation chooser.
@@ -104,33 +107,33 @@ Agent and swarm discovery live inside the `pi/extensions/tools/subagent/` module
 
 ### Discovery pipeline
 
-1. `discoverAgents(cwd)` derives three candidate roots:
-   - bundled package agents from `findBundledAgentsDir()`
-   - user agents from `path.join(getAgentDir(), "agents")`
-   - project agents from the nearest ancestor `.pi/agents` directory via `findNearestProjectAgentsDir(cwd)`
+1. `discoverAgents(cwd)` derives bundled, user, and project defaults plus any normalized CLI `--agents-dir` roots.
 2. Each discovered directory is loaded through `loadAgentsFromDir(dir, source, env)`.
 3. Each markdown file is parsed with `parseFrontmatter(...)`.
 4. Required frontmatter fields plus optional runtime visibility metadata are projected into `AgentConfig`, while the markdown body becomes `systemPrompt`.
 5. `normalizeTools(...)` maps the optional `tools` list into Pi tool names.
 6. `parseModelPolicy(...)` parses optional `model` frontmatter into ordered `modelCandidates`, preserves the first accepted candidate as `model`, or records `modelPolicyError` on that agent.
-7. A `Map<string, AgentConfig>` applies source precedence by agent name and produces the final effective `agents` array.
-8. Swarm discovery loads `swarm.json` definitions from source-specific swarm roots and applies same-kind swarm precedence in one merged `swarms` view while still retaining `userSwarms`/`projectSwarms`.
-9. Swarm folder `.md` files are loaded with the same source before swarm merging so a swarm can reference colocated members.
-10. The same discovery pass also returns raw `userAgents` and `projectAgents` lists for debug output.
+7. Each `--agents-dir <root>` is shell-expanded (`~`, `$VAR`, `${VAR}`), resolved once against the startup cwd, deduplicated by latest occurrence, then contributes `<root>/agents` plus any swarm-local agent markdown under `<root>/swarms/*/*.md`.
+8. A `Map<string, AgentConfig>` applies source precedence by agent name and produces the final effective `agents` array.
+9. Swarm discovery loads `swarm.json` definitions from source-specific swarm roots and applies same-kind swarm precedence in one merged `swarms` view while still retaining `userSwarms`/`projectSwarms`.
+10. Swarm folder `.md` files are loaded with the same source before swarm merging so a swarm can reference colocated members.
+11. The same discovery pass also returns raw `userAgents` and `projectAgents` lists for debug output.
 
 ### Source locations and precedence
 
-Discovery supports three agent sources:
+Discovery supports four agent sources:
 
 - **package** — bundled agents under repo-level `pi/agents/`.
 - **user** — agents under `~/.pi/agent/agents`
 - **project** — agents under the nearest ancestor `.pi/agents`
+- **flag** — each `--agents-dir <root>` contributes `<root>/agents`
 
 Swarm sources mirror this model:
 
 - **package** — package-provided swarm folders, when shipped
 - **user** — swarm folders under `~/.pi/agent/swarms/<name>/swarm.json`
 - **project** — swarm folders under the nearest ancestor `.pi/swarms/<name>/swarm.json`
+- **flag** — each `--agents-dir <root>` contributes `<root>/swarms/<name>/swarm.json`
 
 A swarm folder may also contain markdown agent files. Those agents are loaded as part of the same source before member-name validation, so a self-contained folder can define both the panel and its specialists.
 
@@ -139,6 +142,7 @@ Precedence is name-based and deterministic within each target kind:
 - package agents/swarms are inserted first
 - user agents/swarms overwrite package definitions of the same kind with the same name
 - project agents/swarms overwrite both package and user definitions of the same kind with the same name
+- `--agents-dir` roots are applied last in CLI order, so later flags overwrite earlier flags for the same kind and name
 
 There is no field-by-field merge. The later source replaces the earlier same-kind definition for the same `name`. After same-kind precedence is applied, any effective agent and effective swarm with the same name is a hard discovery error.
 
@@ -190,6 +194,8 @@ MCP connection and tool registration live in `pi/extensions/tools/subagent/mcp.t
 
 This means discovery is the configuration boundary; runtime execution trusts the normalized `AgentConfig` or swarm target it receives.
 
+`--agents-dir` is a startup-only CLI input. Current session persistence does not serialize and replay prior `--agents-dir` values for later top-level `--continue` / `--resume`; operators must pass those flags again when they need the same external catalog.
+
 ## 4. Data Model
 
 Discovery's public contract is exported by the `pi/extensions/tools/subagent/` module: single-agent configs, swarm configs, the merged discovery result, and delegation target resolution. The spec intentionally does not duplicate those TypeScript interfaces; the module is the source of truth for exact fields and signatures.
@@ -222,7 +228,8 @@ Behavioral contract:
 - bundled package agents are always considered
 - user agents are always considered
 - project agents are loaded from the nearest ancestor `.pi/agents`, when present
-- user/project/package swarms are loaded from source-specific `swarms/<name>/swarm.json` folders
+- each `--agents-dir <root>` contributes optional `<root>/agents` and `<root>/swarms` directories after shell expansion and cwd-relative resolution
+- user/project/package/flag swarms are loaded from source-specific `swarms/<name>/swarm.json` folders
 - swarm-local markdown files are loaded before validating that swarm's member list
 - project directory metadata reports the nearest project directories even when no project targets are ultimately loaded
 - unreadable directories, unreadable files, and invalid JSON settings fail closed by omission rather than throwing

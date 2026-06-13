@@ -1,7 +1,7 @@
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { describe, expect, it } from "vitest";
 
-import { formatBashCommandForDisplay, formatBashCommandPreview } from "./bash.js";
+import bashExtension, { formatBashCommandForDisplay, formatBashCommandPreview } from "./bash.js";
 
 describe("formatBashCommandForDisplay", () => {
 	it("line breaks chained commands on && and ||", () => {
@@ -53,5 +53,38 @@ describe("formatBashCommandPreview", () => {
 
 		expect(lines.length).toBeGreaterThan(1);
 		expect(lines.every((line) => visibleWidth(line) <= 20)).toBe(true);
+	});
+});
+
+describe("bash tool renderCall", () => {
+	it("shows the full command when expanded", () => {
+		let tool: any;
+		bashExtension({
+			registerTool(definition: any) {
+				tool = definition;
+			},
+		} as any);
+
+		const theme = {
+			fg: (_name: string, value: string) => value,
+			bold: (value: string) => value,
+		};
+		const command =
+			"echo doing thing && echo doing thing 2 && echo doing thing 3 && echo doing thing 4 && echo doing thing 5 && echo doing thing 6";
+
+		const collapsed = tool
+			.renderCall({ command }, theme, { expanded: false })
+			.render(120)
+			.map((line: string) => line.trimEnd())
+			.join("\n");
+		const expanded = tool
+			.renderCall({ command }, theme, { expanded: true })
+			.render(120)
+			.map((line: string) => line.trimEnd())
+			.join("\n");
+
+		expect(collapsed).not.toContain("echo doing thing 6");
+		expect(expanded).toContain("echo doing thing 6");
+		expect(expanded).not.toContain("...");
 	});
 });

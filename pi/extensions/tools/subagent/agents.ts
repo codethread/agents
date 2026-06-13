@@ -9,6 +9,8 @@ import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { wrapSystemReminder } from "../../shared/xml.js";
 import { parseMcpServers, type McpServerConfig } from "./mcp.js";
 
+export type AgentDiscoverySource = "package" | "user" | "project" | "flag";
+
 export interface AgentConfig {
 	name: string;
 	description: string;
@@ -20,7 +22,7 @@ export interface AgentConfig {
 	mcpServers?: McpServerConfig[];
 	mcpServersError?: string;
 	systemPrompt: string;
-	source: "package" | "user" | "project";
+	source: AgentDiscoverySource;
 	filePath: string;
 }
 
@@ -29,7 +31,7 @@ export interface SwarmConfig {
 	description: string;
 	hidden: boolean;
 	members: string[];
-	source: "package" | "user" | "project";
+	source: AgentDiscoverySource;
 	filePath: string;
 }
 
@@ -55,6 +57,7 @@ export interface AgentDiscoveryOptions {
 	packageSwarmsDir?: string | null;
 	userSwarmsDir?: string;
 	projectSwarmsDir?: string | null;
+	agentsDirRoots?: string[];
 	settingsPath?: string | null;
 	env?: NodeJS.ProcessEnv;
 }
@@ -134,6 +137,72 @@ function normalizeTools(rawTools: string[] | undefined): string[] {
 		.filter((tool): tool is string => tool !== null);
 
 	return Array.from(new Set(mapped));
+}
+
+function normalizePathForDedup(input: string): string {
+	const resolved = path.resolve(input);
+	const root = path.parse(resolved).root;
+	const normalized = path.normalize(resolved).replace(/[\\/]+$/, "");
+	return normalized === root.replace(/[\\/]+$/, "") ? root : normalized;
+}
+
+function dedupePathsPreserveLast(paths: string[]): string[] {
+	const seen = new Set<string>();
+	const deduped: string[] = [];
+	for (let i = paths.length - 1; i >= 0; i--) {
+		const normalized = normalizePathForDedup(paths[i]!);
+		if (seen.has(normalized)) continue;
+		seen.add(normalized);
+		deduped.push(normalized);
+	}
+	return deduped.reverse();
+}
+
+export function expandShellPath(input: string, env: NodeJS.ProcessEnv = process.env): string {
+	const trimmed = input.trim();
+	const home = env.HOME || env.USERPROFILE;
+	const withHome = trimmed.replace(/^~(?=$|[\\/])/, () => {
+		if (!home) throw new Error(`Cannot expand path "${input}": HOME is not set`);
+		return home;
+	});
+	return withHome.replace(/\$([A-Za-z_][A-Za-z0-9_]*)|\$\{([^}]+)\}/g, (_match, bare, braced) => {
+		const name = (bare ?? braced) as string;
+		return env[name] ?? "";
+	});
+}
+
+export function resolveAgentsDirRoot(
+	input: string,
+	cwd: string,
+	env: NodeJS.ProcessEnv = process.env,
+): string {
+	const expanded = expandShellPath(input, env);
+	const resolved = path.isAbsolute(expanded) ? expanded : path.resolve(cwd, expanded);
+	return normalizePathForDedup(resolved);
+}
+
+export function getAgentsDirRootsFromArgv(
+	argv: string[],
+	cwd: string,
+	env: NodeJS.ProcessEnv = process.env,
+): string[] {
+	const roots: string[] = [];
+	for (let i = 0; i < argv.length; i++) {
+		const arg = argv[i];
+		if (arg === "--agents-dir") {
+			const next = argv[i + 1];
+			if (typeof next === "string" && next.trim() && !next.startsWith("-")) {
+				roots.push(resolveAgentsDirRoot(next, cwd, env));
+				i++;
+			}
+			continue;
+		}
+		if (arg.startsWith("--agents-dir=")) {
+			const value = arg.slice("--agents-dir=".length).trim();
+			if (value) roots.push(resolveAgentsDirRoot(value, cwd, env));
+		}
+	}
+	return dedupePathsPreserveLast(roots);
 }
 
 function readJsonFile<T>(filePath: string): T | null {
@@ -261,7 +330,7 @@ function parseSwarmMembers(value: unknown): string[] | null {
 
 function loadAgentsFromDir(
 	dir: string,
-	source: "package" | "user" | "project",
+	source: AgentDiscoverySource,
 	env: NodeJS.ProcessEnv,
 ): AgentConfig[] {
 	const agents: AgentConfig[] = [];
@@ -326,7 +395,7 @@ function isDirectory(p: string): boolean {
 
 function loadAgentsFromSwarmsDir(
 	dir: string,
-	source: "package" | "user" | "project",
+	source: AgentDiscoverySource,
 	env: NodeJS.ProcessEnv,
 ): AgentConfig[] {
 	const agents: AgentConfig[] = [];
@@ -354,7 +423,7 @@ interface SwarmJsonFile {
 	members?: unknown;
 }
 
-function loadSwarmsFromDir(dir: string, source: "package" | "user" | "project"): SwarmConfig[] {
+function loadSwarmsFromDir(dir: string, source: AgentDiscoverySource): SwarmConfig[] {
 	const swarms: SwarmConfig[] = [];
 	if (!fs.existsSync(dir)) return swarms;
 
@@ -442,11 +511,16 @@ export function discoverAgents(
 			: options.projectAgentsDir;
 	const packageSwarmsDir =
 		options.packageSwarmsDir === undefined ? findBundledSwarmsDir() : options.packageSwarmsDir;
-	const userSwarmsDir = options.userSwarmsDir ?? path.join(getAgentDir(), "swarms");
+	const userSwarmsDir =
+		options.userSwarmsDir ??
+		(options.userAgentsDir === undefined
+			? path.join(getAgentDir(), "swarms")
+			: path.join(path.dirname(userAgentsDir), "swarms"));
 	const projectSwarmsDir =
 		options.projectSwarmsDir === undefined
 			? findNearestProjectSwarmsDir(cwd)
 			: options.projectSwarmsDir;
+	const agentsDirRoots = dedupePathsPreserveLast(options.agentsDirRoots ?? []);
 	const env = options.env ?? process.env;
 
 	const packageAgents = [
@@ -467,15 +541,25 @@ export function discoverAgents(
 	];
 	const projectSwarms = projectSwarmsDir ? loadSwarmsFromDir(projectSwarmsDir, "project") : [];
 
+	const flagAgents = agentsDirRoots.flatMap((root) => [
+		...loadAgentsFromDir(path.join(root, "agents"), "flag", env),
+		...loadAgentsFromSwarmsDir(path.join(root, "swarms"), "flag", env),
+	]);
+	const flagSwarms = agentsDirRoots.flatMap((root) =>
+		loadSwarmsFromDir(path.join(root, "swarms"), "flag"),
+	);
+
 	const agentMap = new Map<string, AgentConfig>();
 	for (const agent of packageAgents) agentMap.set(agent.name, agent);
 	for (const agent of userAgents) agentMap.set(agent.name, agent);
 	for (const agent of projectAgents) agentMap.set(agent.name, agent);
+	for (const agent of flagAgents) agentMap.set(agent.name, agent);
 
 	const swarmMap = new Map<string, SwarmConfig>();
 	for (const swarm of packageSwarms) swarmMap.set(swarm.name, swarm);
 	for (const swarm of userSwarms) swarmMap.set(swarm.name, swarm);
 	for (const swarm of projectSwarms) swarmMap.set(swarm.name, swarm);
+	for (const swarm of flagSwarms) swarmMap.set(swarm.name, swarm);
 
 	const discovery: AgentDiscoveryResult = {
 		agents: Array.from(agentMap.values()),

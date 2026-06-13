@@ -5,6 +5,7 @@ import type { Message } from "@earendil-works/pi-ai";
 import { isContextOverflow } from "@earendil-works/pi-ai";
 import {
 	getAgentRuntimeSettings,
+	getAgentsDirRootsFromArgv,
 	getFirstValidAgentModelCandidate,
 	getValidAgentModelCandidates,
 	type AgentConfig,
@@ -48,8 +49,10 @@ export function buildSingleAgentArgs(
 	task: string,
 	candidate?: AgentModelCandidate,
 	session?: { file: string } | { id: string; dir: string },
+	agentsDirRoots: string[] = [],
 ): string[] {
 	const args = ["--mode", "json", "-p", "--agent", agentName];
+	for (const root of agentsDirRoots) args.push("--agents-dir", root);
 	if (candidate) {
 		const settings = getAgentRuntimeSettings({
 			name: agentName,
@@ -248,6 +251,7 @@ export async function runSingleAgent(
 	}
 	const shouldTrackAttempts = Boolean(validModelCandidates?.length);
 	const candidates = validModelCandidates?.length ? validModelCandidates : [undefined];
+	const agentsDirRoots = getAgentsDirRootsFromArgv(process.argv.slice(2), process.cwd());
 	const startTime = Date.now();
 	const attempts: AttemptMetadata[] = [];
 	let wasAborted = false;
@@ -283,6 +287,7 @@ export async function runSingleAgent(
 				request.task,
 				selectedCandidate,
 				attemptSession?.cliSession,
+				agentsDirRoots,
 			);
 
 			currentResult = {

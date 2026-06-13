@@ -78,6 +78,7 @@ def --wrapped pi [
 	--long-cache                              # Set PI_CACHE_RETENTION=long for this invocation
 	# Extension flags — update when new extensions add CLI flags (see pi/extensions/README.md)
 	--agent: string                           # [EXT] Inherit discovered agent config by name (prompt/model/tools/mcpServers, unless overridden)
+	--agents-dir: list<string>               # [EXT] Add one or more external subagent discovery roots containing optional agents/ and swarms/ dirs
 	--debug-mcp: string                       # [EXT] Connect a discovered agent's MCP servers headlessly, print the report, and exit
 	--debug-prompt                            # [EXT] Print effective system prompt and exit (optional JSON override arg)
 	--debug-tldr                              # [EXT] Print current session TL;DR and exit
@@ -128,6 +129,11 @@ def --wrapped pi [
 	if $help { $pi_args = ($pi_args | append "--help") }
 	if $version { $pi_args = ($pi_args | append "--version") }
 	if $agent != null { $pi_args = ($pi_args | append ["--agent" $agent]) }
+	if $agents_dir != null {
+		for root in $agents_dir {
+			$pi_args = ($pi_args | append ["--agents-dir" $root])
+		}
+	}
 	if $debug_mcp != null { $pi_args = ($pi_args | append ["--debug-mcp" $debug_mcp]) }
 	if $debug_prompt { $pi_args = ($pi_args | append "--debug-prompt") }
 	if $debug_tldr { $pi_args = ($pi_args | append "--debug-tldr") }

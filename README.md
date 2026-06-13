@@ -27,7 +27,7 @@ pi install git:github.com/<you>/agents
 ```
 
 Pi loads the package's extensions from `pi/extensions/`, plugin prompts and skills from `plugins/*/`, themes from `pi/themes/`, through `package.json#pi`. It also auto-loads this checkout's project-local extensions from `.pi/extensions/` when Pi runs inside this repository.
-The bundled agents are discovered by the `subagent` extension from `pi/agents/`, so they travel with the package too. Project-specific agents still load from the nearest `.pi/agents/` directory when you run Pi inside another repo.
+The bundled agents are discovered by the `subagent` extension from `pi/agents/`, so they travel with the package too. Project-specific agents still load from the nearest `.pi/agents/` directory when you run Pi inside another repo, and you can inject extra shared roots with repeatable `--agents-dir <root>` flags.
 
 This package ships a `system-prompt` extension that:
 

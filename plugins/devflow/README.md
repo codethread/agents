@@ -2,6 +2,18 @@
 
 Workflow helpers for turning planned work into small, reviewable implementation slices.
 
+## Planning documents
+
+Three skills cover the spec → plan → tasks pipeline, each owning one kind of knowledge:
+
+| Skill                              | Document     | Owns                                                      | Lifetime                       |
+| ---------------------------------- | ------------ | --------------------------------------------------------- | ------------------------------ |
+| `skills/spec-authoring/SKILL.md`   | `specs/*.md` | Why, boundaries, domain contracts; module-level refs only | Permanent, evolves with domain |
+| `skills/plan-authoring/SKILL.md`   | `plans/*.md` | How and where: file paths, phases, migrations             | Deleted when the change ships  |
+| `skills/afk-create-tasks/SKILL.md` | `tasks/`     | Execution slices for the AFK loop                         | Lives with the task queue      |
+
+Specs never contain file paths or implementation phases — that detail lives in a technical plan, which is retired (durable decisions harvested into the spec, then deleted) once the change is complete.
+
 ## AFK loop
 
 The AFK loop is a single-worktree automation flow for repeatedly running one task slice at a time:

@@ -15,12 +15,12 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 
 ## Tools
 
-| Extension                                                  | Summary                                                                                                                      |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| [`subagent`](./tools/subagent/README.md)                   | Delegate to isolated agents or configured swarms, inherit one config via `--agent`, and connect agent-declared `mcpServers`. |
-| [`interactive-shell`](./tools/interactive-shell/README.md) | Spawn and control interactive shell tmux sessions for TUIs, REPLs, dev servers, and watch processes.                         |
-| [`builtins`](./tools/builtins/README.md)                   | Register compact built-in `read` and `bash` tools.                                                                           |
-| [`web-access`](./tools/web-access/README.md)               | Simple Exa-backed `web_search` plus HTTP(S) `fetch_content`.                                                                 |
+| Extension                                                  | Summary                                                                                                                                                             |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`subagent`](./tools/subagent/README.md)                   | Delegate to isolated agents or configured swarms, inherit one config via `--agent`, add external roots via `--agents-dir`, and connect agent-declared `mcpServers`. |
+| [`interactive-shell`](./tools/interactive-shell/README.md) | Spawn and control interactive shell tmux sessions for TUIs, REPLs, dev servers, and watch processes.                                                                |
+| [`builtins`](./tools/builtins/README.md)                   | Register compact built-in `read` and `bash` tools.                                                                                                                  |
+| [`web-access`](./tools/web-access/README.md)               | Simple Exa-backed `web_search` plus HTTP(S) `fetch_content`.                                                                                                        |
 
 ## UI
 

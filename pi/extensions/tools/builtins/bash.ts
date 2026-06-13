@@ -164,7 +164,7 @@ export default function (pi: ExtensionAPI) {
 			}
 		},
 
-		renderCall(args, theme) {
+		renderCall(args, theme, context) {
 			const command = args.command ?? "...";
 			return {
 				invalidate() {},
@@ -174,13 +174,16 @@ export default function (pi: ExtensionAPI) {
 					const previewWidth = timeoutSuffix
 						? Math.max(1, width - visibleWidth(timeoutSuffix))
 						: width;
-					const lines = formatBashCommandPreview(command, previewWidth).map((line, index) => {
-						if (index === 0 && line.startsWith("$ ")) {
-							return theme.fg("toolTitle", theme.bold("$ ")) + theme.fg("accent", line.slice(2));
-						}
-						return theme.fg("accent", line);
-					});
-					if (timeoutSuffix && lines.length < COMMAND_PREVIEW_LINES) {
+					const maxLines = context.expanded ? Number.POSITIVE_INFINITY : COMMAND_PREVIEW_LINES;
+					const lines = formatBashCommandPreview(command, previewWidth, maxLines).map(
+						(line, index) => {
+							if (index === 0 && line.startsWith("$ ")) {
+								return theme.fg("toolTitle", theme.bold("$ ")) + theme.fg("accent", line.slice(2));
+							}
+							return theme.fg("accent", line);
+						},
+					);
+					if (timeoutSuffix && lines.length < maxLines) {
 						lines[lines.length - 1] += theme.fg("muted", timeoutSuffix);
 					}
 					return lines.map((line) => truncateToWidth(line, width, ""));

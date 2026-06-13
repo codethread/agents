@@ -8,7 +8,7 @@ Compact file read display. File contents are hidden in the TUI (only the path is
 
 ## `bash`
 
-Compact shell output display. Output is collapsed to 5 lines by default; press `Ctrl+o` to expand. Truncation notices are shown when output was clipped.
+Compact shell display. The command and output are collapsed to 5 lines by default; press `Ctrl+o` to expand the full command and output. Truncation notices are shown when output was clipped.
 
 ## `write`
 
