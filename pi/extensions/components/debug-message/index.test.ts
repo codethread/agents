@@ -60,9 +60,12 @@ describe("showDebugMessage", () => {
 
 		expect(mocks.openMarkdownInExternalEditor).toHaveBeenCalledWith(
 			"## Summary\n\nOnly the markdown body should be written.",
-			{ fileNameStem: "TL;DR" },
+			expect.objectContaining({
+				fileNameStem: "TL;DR",
+				signal: expect.any(AbortSignal),
+			}),
 		);
-		expect(custom).toHaveBeenCalledTimes(2);
+		expect(custom).toHaveBeenCalledTimes(3);
 		expect(sendMarkdownToAgent).not.toHaveBeenCalled();
 		expect(notify).not.toHaveBeenCalled();
 	});

@@ -40,6 +40,42 @@ function getFooterText(): string {
 	return "Ctrl+G open in editor • Ctrl+Enter send to agent • Enter/Esc close";
 }
 
+function showExternalEditorCancelPrompt(
+	ctx: Pick<ExtensionContext, "ui">,
+	abortController: AbortController,
+): Promise<void> {
+	return ctx.ui.custom<void>((_tui, theme, _kb, done) => {
+		let closed = false;
+		function close(): void {
+			if (closed) return;
+			closed = true;
+			abortController.signal.removeEventListener("abort", close);
+			done();
+		}
+		abortController.signal.addEventListener("abort", close, { once: true });
+		if (abortController.signal.aborted) close();
+
+		const container = new Container();
+		container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
+		container.addChild(new Text(theme.fg("accent", theme.bold("External editor is open")), 1, 0));
+		container.addChild(
+			new Text(theme.fg("dim", "Close the editor to return • Esc cancel editor"), 1, 0),
+		);
+		container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
+
+		return {
+			render: (width: number) => container.render(width),
+			invalidate: () => container.invalidate(),
+			handleInput: (data: string) => {
+				if (matchesKey(data, "escape")) {
+					abortController.abort();
+					close();
+				}
+			},
+		};
+	});
+}
+
 function getErrorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
@@ -86,9 +122,14 @@ export async function showDebugMessage(
 		});
 
 		if (action === "openInEditor") {
-			const result = await openMarkdownInExternalEditor(props.markdownBody, {
+			const abortController = new AbortController();
+			const editorPromise = openMarkdownInExternalEditor(props.markdownBody, {
 				fileNameStem: props.headingText,
+				signal: abortController.signal,
 			});
+			const cancelPromptPromise = showExternalEditorCancelPrompt(ctx, abortController);
+			const result = await editorPromise.finally(() => abortController.abort());
+			await cancelPromptPromise;
 			if (!result.ok) {
 				ctx.ui.notify(result.message, result.level);
 			}
