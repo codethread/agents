@@ -14,9 +14,9 @@ Operational notes and a small jq cookbook for inspecting Pi session files.
 This skill is **not** the source of truth for Pi's session schema. For canonical
 format and lifecycle details, first consult the bundled Pi docs:
 
-- `/Users/codethread/.pi/pi-source/docs/sessions.md`
-- `/Users/codethread/.pi/pi-source/docs/session-format.md`
-- `/Users/codethread/.pi/pi-source/docs/compaction.md`
+- `~/.pi/pi-source/docs/sessions.md`
+- `~/.pi/pi-source/docs/session-format.md`
+- `~/.pi/pi-source/docs/compaction.md`
 
 Use this skill for the pieces the docs do not optimize for: quickly finding local
 session files, avoiding common jq mistakes, and inspecting this repo's subagent
