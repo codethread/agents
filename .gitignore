@@ -1,4 +1,3 @@
 .DS_Store
 node_modules/
 .pi/bench-matrix.json
-.hello_count
