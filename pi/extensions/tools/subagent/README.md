@@ -2,7 +2,7 @@
 
 > Delegate one task to one specialized agent or swarm with isolated context.
 
-Provides two things: the `subagent` tool for delegating work from within a session, and `--agent <name>` for adopting a single-agent config directly at startup. It also accepts repeatable `--agents-dir <path>` roots for loading extra external agents and swarms.
+Provides two things: the `subagent` tool for delegating work from within a session, and `--agent <name>` for adopting a single-agent config directly at startup. Local extension/package paths provide agent and swarm catalogs from their direct `agents/` and `swarms/` directories.
 
 Discovered agents and swarms are injected into the system prompt as an `<available-subagents>` catalog nested under the `subagent` tool entry, so the parent agent can choose among them where tool guidance is defined. Agents or swarms marked `hidden: true` are callable by name but omitted from that inventory. Discovery is evaluated on demand, so edits to agent markdown or swarm definitions are picked up on the next call. Child processes are tagged `PI_SUBAGENT=1` so extensions can reshape behavior in delegated runs.
 
@@ -12,18 +12,15 @@ Agents are discovered from `agents/` directories, while swarms are discovered fr
 
 ## Agent discovery
 
-Four sources merge in priority order — latest `--agents-dir` wins over earlier `--agents-dir`, which wins over project, user, extension roots, then explicit package defaults used by tests/embedders:
+Three sources merge in priority order — project wins over user, which wins over extension roots; explicit package defaults remain available to tests/embedders:
 
 | Source    | Location / behavior                                                                   |
 | --------- | ------------------------------------------------------------------------------------- |
 | Extension | local loaded extension/package roots contribute `<root>/agents/` and `<root>/swarms/` |
 | User      | `~/.pi/agent/agents/`                                                                 |
 | Project   | `.pi/agents/` (nearest ancestor of `cwd`)                                             |
-| Flag      | each `--agents-dir <root>` contributes `<root>/agents/` and `<root>/swarms/` roots    |
 
-Extension roots are inferred from local path sources in `--extension` / `-e`, `settings.json` `extensions`, and local `settings.json` `packages` entries. Non-local npm/git sources are ignored by this inference. Resource entries with `+` are accepted; `-` and `!` entries are treated as disables/exclusions and ignored. The extension no longer auto-loads this package's `pi/agents/` directory by default; ship agents under a local extension/package root's direct `agents/` directory or pass `--agents-dir` explicitly.
-
-`--agents-dir` is repeatable. Each supplied path is shell-expanded (`~`, `$HOME`, `${VAR}`, etc.) and resolved once at startup; later flags override earlier ones for same-name agents or swarms.
+Extension roots are inferred from local path sources in `--extension` / `-e`, `settings.json` `extensions`, and local `settings.json` `packages` entries. Non-local npm/git sources are ignored by this inference. Resource entries with `+` are accepted; `-` and `!` entries are treated as disables/exclusions and ignored. The extension no longer auto-loads this package's `pi/agents/` directory by default; ship agents under a local extension/package root's direct `agents/` directory.
 
 Swarms are configured in folders that contain a `swarm.json` file. See [Swarm configuration](#swarm-configuration) below.
 
@@ -223,7 +220,6 @@ Adopts a discovered agent's config into the current top-level session:
 - `model` → first valid declared candidate for the active Pi runtime
 - selected candidate thinking suffix (`:low`) → Pi thinking level
 - `tools` → active tool set
-- `--agents-dir` roots participate in discovery here too, with the same precedence used by delegated subagents, `/debug-agents`, `/debug-mcp`, and parent prompt injection
 
 Explicit CLI flags always win over inherited agent fields:
 
@@ -239,10 +235,10 @@ A missing agent name, invalid declared model policy, unavailable candidate chain
 pi --agent scout "Map the retry flow"
 pi --agent fixer --model openai/gpt-5 "Fix typecheck failures"
 pi --agent scout --tools read,bash,edit "Override the inherited tool set"
-pi --agents-dir ~/shared-subagents --agent review "Use an external review panel"
+pi -e ~/shared-subagents --agent review "Use an external review panel"
 ```
 
-> **Persistence note.** `--continue` / `--resume` do not automatically remember prior `--agents-dir` values. Pass the same `--agents-dir` flags again when resuming if you need the same external catalog.
+> **Persistence note.** `--continue` / `--resume` do not automatically remember one-off `-e` extension paths. Pass the same `-e` flags again when resuming if you need the same external catalog.
 
 ---
 

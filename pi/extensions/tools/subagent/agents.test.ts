@@ -623,7 +623,7 @@ describe("discoverAgents", () => {
 			source: "package",
 			filePath: packageAgentPath,
 			hidden: false,
-			tools: ["read", "bash"],
+			tools: ["read", "bash", "web_search"],
 			model: "anthropic/claude-sonnet-4-6",
 			modelCandidates: [{ id: "anthropic/claude-sonnet-4-6" }],
 		});

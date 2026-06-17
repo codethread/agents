@@ -4,7 +4,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { PassThrough } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildSingleAgentArgs, runSingleAgent } from "./runtime.js";
+import {
+	buildSingleAgentArgs,
+	getInheritedResourceArgsFromArgv,
+	runSingleAgent,
+} from "./runtime.js";
 
 const spawnMock = vi.hoisted(() => vi.fn());
 
@@ -444,6 +448,32 @@ describe("runSingleAgent model chain", () => {
 	});
 });
 
+describe("child inherited resources", () => {
+	it("forwards extension and skill flags to child runs", () => {
+		expect(
+			getInheritedResourceArgsFromArgv([
+				"--extension",
+				"./plugin",
+				"-e",
+				"./other.ts",
+				"--extension=./inline",
+				"--skill",
+				"./skills/review/SKILL.md",
+				"--model",
+				"x",
+			]),
+		).toEqual([
+			"--extension",
+			"./plugin",
+			"-e",
+			"./other.ts",
+			"--extension=./inline",
+			"--skill",
+			"./skills/review/SKILL.md",
+		]);
+	});
+});
+
 describe("buildSingleAgentArgs", () => {
 	it("uses --agent so child runs inherit the exact agent config", () => {
 		expect(buildSingleAgentArgs("scout", "Map the subagent flow")).toEqual([
@@ -457,22 +487,24 @@ describe("buildSingleAgentArgs", () => {
 		]);
 	});
 
-	it("forwards resolved --agents-dir roots to child runs", () => {
+	it("forwards inherited resource flags to child runs", () => {
 		expect(
 			buildSingleAgentArgs("scout", "Map the subagent flow", undefined, undefined, [
-				"/tmp/external-a",
-				"/tmp/external-b",
+				"--extension",
+				"./plugin",
+				"--skill",
+				"./skill/SKILL.md",
 			]),
 		).toEqual([
 			"--mode",
 			"json",
 			"-p",
+			"--extension",
+			"./plugin",
+			"--skill",
+			"./skill/SKILL.md",
 			"--agent",
 			"scout",
-			"--agents-dir",
-			"/tmp/external-a",
-			"--agents-dir",
-			"/tmp/external-b",
 			"--no-session",
 			"Task: Map the subagent flow",
 		]);

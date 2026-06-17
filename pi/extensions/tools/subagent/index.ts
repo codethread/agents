@@ -17,7 +17,6 @@ import {
 	formatAgentsForPrompt,
 	formatSelectedAgentPrompt,
 	getAgentActiveTools,
-	getAgentsDirRootsFromArgv,
 	getInheritedAgentRuntimeSettings,
 	parseAgentFlagCliOverrides,
 	resolveAgentModelCandidate,
@@ -198,13 +197,6 @@ export function hasAllSwarmMembersFailed(results: SingleResult[]): boolean {
 }
 
 const DEBUG_MCP_FLAG = "debug-mcp";
-const AGENTS_DIR_FLAG = "agents-dir";
-
-function getCliAgentDiscoveryOptions(cwd: string) {
-	const agentsDirRoots = getAgentsDirRootsFromArgv(process.argv.slice(2), cwd);
-	return agentsDirRoots.length > 0 ? { agentsDirRoots } : {};
-}
-
 export default function (pi: ExtensionAPI) {
 	let selectedAgentName: string | undefined;
 	let agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
@@ -222,7 +214,7 @@ export default function (pi: ExtensionAPI) {
 
 	const requireSelectedAgent = (ctx: Pick<ExtensionContext, "cwd" | "hasUI" | "ui">) => {
 		if (!selectedAgentName) return undefined;
-		const discovery = discoverAgents(ctx.cwd, getCliAgentDiscoveryOptions(ctx.cwd));
+		const discovery = discoverAgents(ctx.cwd);
 		const agent = findAgentByName(discovery.agents, selectedAgentName);
 		if (!agent) {
 			failAgentSelection(
@@ -311,12 +303,6 @@ export default function (pi: ExtensionAPI) {
 		type: "string",
 	});
 
-	pi.registerFlag(AGENTS_DIR_FLAG, {
-		description:
-			"Add an external discovery root containing optional agents/ and swarms/ subdirectories (repeatable, latest wins)",
-		type: "string",
-	});
-
 	pi.registerFlag(DEBUG_MCP_FLAG, {
 		description:
 			"Connect a discovered agent's MCP servers headlessly, print the tool/connection report, and exit",
@@ -324,7 +310,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	const runMcpSmokeReport = async (agentName: string, cwd: string): Promise<string> => {
-		const discovery = discoverAgents(cwd, getCliAgentDiscoveryOptions(cwd));
+		const discovery = discoverAgents(cwd);
 		const agent = findAgentByName(discovery.agents, agentName);
 		if (!agent) {
 			return `Unknown agent "${agentName}". Available agents: ${getAvailableAgentsText(discovery.agents)}`;
@@ -352,7 +338,7 @@ export default function (pi: ExtensionAPI) {
 		}
 		const agentFlag = pi.getFlag("agent");
 		selectedAgentName = typeof agentFlag === "string" ? agentFlag.trim() : undefined;
-		const discovery = discoverAgents(ctx.cwd, getCliAgentDiscoveryOptions(ctx.cwd));
+		const discovery = discoverAgents(ctx.cwd);
 		const isSubagentChild = process.env.PI_SUBAGENT === "1";
 		if (!selectedAgentName) {
 			validateStartupModelPolicies(discovery, ctx, selectedAgentName, isSubagentChild);
@@ -373,8 +359,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("before_agent_start", (event, ctx) => {
 		const selected = requireSelectedAgent(ctx);
-		const discovery =
-			selected?.discovery ?? discoverAgents(ctx.cwd, getCliAgentDiscoveryOptions(ctx.cwd));
+		const discovery = selected?.discovery ?? discoverAgents(ctx.cwd);
 		const promptAddon = formatAgentsForPrompt(discovery.agents, discovery.swarms);
 		const selectedPromptAddon = formatSelectedAgentPrompt(selected?.agent);
 		const mcpStatusAddon = formatMcpStatusPrompt(mcpSetupWarnings);
@@ -387,7 +372,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("debug-agents", {
 		description: "Show discovered subagent information",
 		handler: async (_args, ctx) => {
-			const discovery = discoverAgents(ctx.cwd, getCliAgentDiscoveryOptions(ctx.cwd));
+			const discovery = discoverAgents(ctx.cwd);
 			const sections = [
 				formatDebugSection("Available agents:", discovery.agents),
 				formatDebugSwarmSection("Available swarms:", discovery.swarms),
@@ -436,7 +421,7 @@ export default function (pi: ExtensionAPI) {
 		handler: async (args, ctx) => {
 			const agentName = args.trim();
 			if (!agentName) {
-				const discovery = discoverAgents(ctx.cwd, getCliAgentDiscoveryOptions(ctx.cwd));
+				const discovery = discoverAgents(ctx.cwd);
 				const withMcp = discovery.agents.filter(
 					(agent) => (agent.mcpServers?.length ?? 0) > 0 || Boolean(agent.mcpServersError),
 				);
@@ -477,7 +462,7 @@ export default function (pi: ExtensionAPI) {
 			"Provide agent, description, task, and cwd.",
 			"When asking a follow-up of the same delegated target, first wait for the prior tool result, then pass resume with the exact ID from its <subagent-resume-id> tag; otherwise a fresh isolated session starts.",
 			"A terse description field is required for the delegated task.",
-			"Bundled, user, and project agents are discovered automatically.",
+			"Extension, user, and project agents are discovered automatically.",
 		].join(" "),
 		promptSnippet:
 			"Delegate one task to one subagent or swarm. Independent subagent calls may run concurrently. For follow-ups, wait for the prior result, then pass resume from its <subagent-resume-id> tag.",
@@ -494,7 +479,7 @@ export default function (pi: ExtensionAPI) {
 		parameters: SubagentParams,
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
-			const discovery = discoverAgents(params.cwd, getCliAgentDiscoveryOptions(ctx.cwd));
+			const discovery = discoverAgents(params.cwd);
 			const agents = discovery.agents;
 			const parentSessionFile = ctx.sessionManager.getSessionFile();
 			const parentSessionId = ctx.sessionManager.getSessionId();

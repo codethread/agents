@@ -5,7 +5,6 @@ import type { Message } from "@earendil-works/pi-ai";
 import { isContextOverflow } from "@earendil-works/pi-ai";
 import {
 	getAgentRuntimeSettings,
-	getAgentsDirRootsFromArgv,
 	getFirstValidAgentModelCandidate,
 	getValidAgentModelCandidates,
 	type AgentConfig,
@@ -49,10 +48,9 @@ export function buildSingleAgentArgs(
 	task: string,
 	candidate?: AgentModelCandidate,
 	session?: { file: string } | { id: string; dir: string },
-	agentsDirRoots: string[] = [],
+	inheritedResourceArgs: string[] = getInheritedResourceArgsFromArgv(process.argv.slice(2)),
 ): string[] {
-	const args = ["--mode", "json", "-p", "--agent", agentName];
-	for (const root of agentsDirRoots) args.push("--agents-dir", root);
+	const args = ["--mode", "json", "-p", ...inheritedResourceArgs, "--agent", agentName];
 	if (candidate) {
 		const settings = getAgentRuntimeSettings({
 			name: agentName,
@@ -80,6 +78,23 @@ export function buildSingleAgentArgs(
 type ModelFailureKind = "success" | "context_overflow" | "deterministic" | "transient" | "other";
 
 const MAX_TRANSIENT_ATTEMPTS_PER_CANDIDATE = 3;
+
+export function getInheritedResourceArgsFromArgv(argv: string[]): string[] {
+	const inherited: string[] = [];
+	for (let i = 0; i < argv.length; i++) {
+		const arg = argv[i];
+		if (arg === "--extension" || arg === "-e" || arg === "--skill") {
+			const next = argv[i + 1];
+			if (typeof next === "string" && next.trim() && !next.startsWith("-")) {
+				inherited.push(arg, next);
+				i++;
+			}
+			continue;
+		}
+		if (arg.startsWith("--extension=") || arg.startsWith("--skill=")) inherited.push(arg);
+	}
+	return inherited;
+}
 
 function getMessageText(message: Message | undefined): string {
 	if (!message || (message.role !== "assistant" && message.role !== "toolResult")) return "";
@@ -251,7 +266,7 @@ export async function runSingleAgent(
 	}
 	const shouldTrackAttempts = Boolean(validModelCandidates?.length);
 	const candidates = validModelCandidates?.length ? validModelCandidates : [undefined];
-	const agentsDirRoots = getAgentsDirRootsFromArgv(process.argv.slice(2), process.cwd());
+	const inheritedResourceArgs = getInheritedResourceArgsFromArgv(process.argv.slice(2));
 	const startTime = Date.now();
 	const attempts: AttemptMetadata[] = [];
 	let wasAborted = false;
@@ -287,7 +302,7 @@ export async function runSingleAgent(
 				request.task,
 				selectedCandidate,
 				attemptSession?.cliSession,
-				agentsDirRoots,
+				inheritedResourceArgs,
 			);
 
 			currentResult = {
