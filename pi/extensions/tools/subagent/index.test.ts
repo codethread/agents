@@ -136,10 +136,13 @@ describe("runtime model policy validation", () => {
 			userAgents: [],
 			projectAgents: [selected, unrelatedInvalid],
 			projectAgentsDir: "/tmp/.pi/agents",
+			extensionAgents: [],
+			extensionAgentRoots: [],
 			swarms: [],
 			userSwarms: [],
 			projectSwarms: [],
 			projectSwarmsDir: null,
+			extensionSwarms: [],
 		};
 
 		expect(getStartupModelPolicyErrors(discovery, modelRegistry, "valid", true)).toEqual([]);

@@ -385,12 +385,17 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("debug-agents", {
-		description: "Send discovered subagent information into the conversation",
+		description: "Show discovered subagent information",
 		handler: async (_args, ctx) => {
 			const discovery = discoverAgents(ctx.cwd, getCliAgentDiscoveryOptions(ctx.cwd));
 			const sections = [
 				formatDebugSection("Available agents:", discovery.agents),
 				formatDebugSwarmSection("Available swarms:", discovery.swarms),
+				[
+					`Extension agent roots: ${discovery.extensionAgentRoots.length > 0 ? discovery.extensionAgentRoots.join(", ") : "(none)"}`,
+					formatDebugSection("Extension agents:", discovery.extensionAgents),
+					formatDebugSwarmSection("Extension swarms:", discovery.extensionSwarms),
+				].join("\n"),
 				formatDebugSection("User agents:", discovery.userAgents),
 				formatDebugSwarmSection("User swarms:", discovery.userSwarms),
 				[
@@ -405,13 +410,23 @@ export default function (pi: ExtensionAPI) {
 
 			const content = `Here are the currently discovered subagents:\n\n${sections.join("\n\n")}`;
 
-			if (!ctx.isIdle()) {
-				pi.sendUserMessage(content, { deliverAs: "followUp" });
-				if (ctx.hasUI) ctx.ui.notify("Queued agent debug info as follow-up", "info");
+			if (!ctx.hasUI) {
+				process.stdout.write(`${content}\n`);
 				return;
 			}
 
-			pi.sendUserMessage(content);
+			await showDebugMessage(ctx, {
+				headingText: "Debug Agents",
+				subheadingText: "discovered subagents and swarms",
+				markdownBody: content,
+				sendMarkdownToAgent: async () => {
+					if (!ctx.isIdle()) {
+						pi.sendUserMessage(content, { deliverAs: "followUp" });
+						return;
+					}
+					pi.sendUserMessage(content);
+				},
+			});
 		},
 	});
 

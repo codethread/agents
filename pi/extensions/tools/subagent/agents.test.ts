@@ -12,6 +12,7 @@ import {
 	getAgentRuntimeSettings,
 	getAgentActiveTools,
 	getAgentsDirRootsFromArgv,
+	getExtensionAgentRoots,
 	getInheritedAgentRuntimeSettings,
 	parseAgentFlagCliOverrides,
 	resolveAgentModelCandidate,
@@ -1369,37 +1370,75 @@ Body.
 		).toThrowError(/duplicate member/i);
 	});
 
-	it("loads bundled repo agents from pi/agents by default", () => {
-		const root = makeTempDir("subagent-bundled-");
-		const userAgentsDir = path.join(root, "user-agents");
-		const cwd = path.join(root, "workspace");
-
-		const discovery = discoverAgents(cwd, {
-			userAgentsDir,
+	it("does not load bundled repo agents by default", () => {
+		const root = makeTempDir("subagent-no-bundled-");
+		const discovery = discoverAgents(path.join(root, "workspace"), {
+			userAgentsDir: path.join(root, "user-agents"),
 			projectAgentsDir: null,
 			settingsPath: null,
 		});
 
-		const bundledAgents = discovery.agents.filter((agent) => agent.source === "package");
-		expect(bundledAgents.length).toBeGreaterThan(0);
-		for (const agent of bundledAgents) {
-			expect(agent.name).not.toBe("");
-			expect(agent.description).not.toBe("");
-			expect(agent.filePath).toContain(`${path.sep}pi${path.sep}agents${path.sep}`);
-		}
+		expect(discovery.agents.filter((agent) => agent.source === "package")).toEqual([]);
+		expect(discovery.swarms.filter((swarm) => swarm.source === "package")).toEqual([]);
+	});
 
-		const bundledSwarms = discovery.swarms.filter((swarm) => swarm.source === "package");
-		expect(bundledSwarms.length).toBeGreaterThan(0);
-		const bundledAgentNames = new Set(bundledAgents.map((agent) => agent.name));
-		for (const swarm of bundledSwarms) {
-			expect(swarm.name).not.toBe("");
-			expect(swarm.description).not.toBe("");
-			expect(swarm.filePath).toContain(`${path.sep}pi${path.sep}agents${path.sep}`);
-			expect(swarm.members.length).toBeGreaterThan(0);
-			for (const member of swarm.members) {
-				expect(bundledAgentNames.has(member)).toBe(true);
-			}
-		}
+	it("discovers agents from local extension roots inferred from settings and CLI flags", () => {
+		const root = makeTempDir("subagent-extension-roots-");
+		const cwd = path.join(root, "workspace");
+		const globalAgentDir = path.join(root, "agent-dir");
+		const settingsExtension = path.join(globalAgentDir, "extensions", "settings-ext");
+		const cliExtension = path.join(root, "cli-ext");
+		writeJson(path.join(globalAgentDir, "settings.json"), {
+			extensions: ["+./extensions/settings-ext", "-./extensions/disabled-ext", "npm:not-local"],
+		});
+		writeAgent(path.join(settingsExtension, "agents"), "settings.md", {
+			name: "settings-agent",
+			description: "From settings",
+		});
+		writeAgent(path.join(cliExtension, "agents"), "cli.md", {
+			name: "cli-agent",
+			description: "From CLI",
+		});
+
+		const discovery = discoverAgents(cwd, {
+			userAgentsDir: path.join(root, "user-agents"),
+			projectAgentsDir: null,
+			settingsPath: path.join(globalAgentDir, "settings.json"),
+			agentDir: globalAgentDir,
+			argv: ["--extension", cliExtension],
+		});
+
+		expect(discovery.extensionAgentRoots).toEqual([
+			path.join(settingsExtension, "agents"),
+			path.join(cliExtension, "agents"),
+		]);
+		expect(findAgentByName(discovery.agents, "settings-agent")).toMatchObject({
+			source: "extension",
+		});
+		expect(findAgentByName(discovery.agents, "cli-agent")).toMatchObject({
+			source: "extension",
+		});
+	});
+
+	it("resolves local package sources to extension agent roots", () => {
+		const root = makeTempDir("subagent-local-package-roots-");
+		const cwd = path.join(root, "workspace");
+		const agentDir = path.join(root, "agent-dir");
+		const packageRoot = path.join(root, "local-package");
+		writeJson(path.join(agentDir, "settings.json"), {
+			packages: [{ source: "../local-package", extensions: ["+extensions/index.ts"] }],
+		});
+		writeAgent(path.join(packageRoot, "agents"), "pkg.md", {
+			name: "package-agent",
+			description: "From package root",
+		});
+
+		expect(
+			getExtensionAgentRoots(cwd, {
+				settingsPath: path.join(agentDir, "settings.json"),
+				agentDir,
+			}),
+		).toEqual([path.join(packageRoot, "agents")]);
 	});
 });
 

@@ -12,14 +12,16 @@ Agents are discovered from `agents/` directories, while swarms are discovered fr
 
 ## Agent discovery
 
-Four sources merge in priority order — latest `--agents-dir` wins over earlier `--agents-dir`, which wins over project, user, then package defaults:
+Four sources merge in priority order — latest `--agents-dir` wins over earlier `--agents-dir`, which wins over project, user, extension roots, then explicit package defaults used by tests/embedders:
 
-| Source  | Location / behavior                                                                |
-| ------- | ---------------------------------------------------------------------------------- |
-| Package | `pi/agents/` (bundled agents)                                                      |
-| User    | `~/.pi/agent/agents/`                                                              |
-| Project | `.pi/agents/` (nearest ancestor of `cwd`)                                          |
-| Flag    | each `--agents-dir <root>` contributes `<root>/agents/` and `<root>/swarms/` roots |
+| Source    | Location / behavior                                                                   |
+| --------- | ------------------------------------------------------------------------------------- |
+| Extension | local loaded extension/package roots contribute `<root>/agents/` and `<root>/swarms/` |
+| User      | `~/.pi/agent/agents/`                                                                 |
+| Project   | `.pi/agents/` (nearest ancestor of `cwd`)                                             |
+| Flag      | each `--agents-dir <root>` contributes `<root>/agents/` and `<root>/swarms/` roots    |
+
+Extension roots are inferred from local path sources in `--extension` / `-e`, `settings.json` `extensions`, and local `settings.json` `packages` entries. Non-local npm/git sources are ignored by this inference. Resource entries with `+` are accepted; `-` and `!` entries are treated as disables/exclusions and ignored. The extension no longer auto-loads this package's `pi/agents/` directory by default; ship agents under a local extension/package root's direct `agents/` directory or pass `--agents-dir` explicitly.
 
 `--agents-dir` is repeatable. Each supplied path is shell-expanded (`~`, `$HOME`, `${VAR}`, etc.) and resolved once at startup; later flags override earlier ones for same-name agents or swarms.
 
@@ -274,7 +276,7 @@ In the Pi UI, subagent runs are labeled as `(fresh)` or `(resumed)` and show the
 /debug-agents
 ```
 
-Sends discovered agent + swarm inventory into the conversation, including effective and user/project sections, project swarm/agent directory paths, and member lists for each swarm.
+Shows discovered agent + swarm inventory in a hidden debug panel, including effective, extension, user, and project sections, extension root inference, project swarm/agent directory paths, and member lists for each swarm. Press `Ctrl+G` to open the markdown in your external editor, or `Ctrl+Enter` to intentionally send it to the agent.
 
 ```
 /debug-mcp <agent>

@@ -5,11 +5,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import minimist from "minimist";
 import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { wrapSystemReminder } from "../../shared/xml.js";
 import { parseMcpServers, type McpServerConfig } from "./mcp.js";
 
-export type AgentDiscoverySource = "package" | "user" | "project" | "flag";
+export type AgentDiscoverySource = "package" | "extension" | "user" | "project" | "flag";
 
 export interface AgentConfig {
 	name: string;
@@ -40,10 +41,13 @@ export interface AgentDiscoveryResult {
 	userAgents: AgentConfig[];
 	projectAgents: AgentConfig[];
 	projectAgentsDir: string | null;
+	extensionAgents: AgentConfig[];
+	extensionAgentRoots: string[];
 	swarms: SwarmConfig[];
 	userSwarms: SwarmConfig[];
 	projectSwarms: SwarmConfig[];
 	projectSwarmsDir: string | null;
+	extensionSwarms: SwarmConfig[];
 }
 
 export type DelegationTarget =
@@ -58,8 +62,12 @@ export interface AgentDiscoveryOptions {
 	userSwarmsDir?: string;
 	projectSwarmsDir?: string | null;
 	agentsDirRoots?: string[];
+	extensionRoots?: string[];
 	settingsPath?: string | null;
 	env?: NodeJS.ProcessEnv;
+	argv?: string[];
+	agentDir?: string;
+	includeBundledAgents?: boolean;
 }
 
 export type AgentThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
@@ -498,19 +506,142 @@ function findBundledSwarmsDir(): string | null {
 	return findBundledAgentsDir();
 }
 
+interface ResourceSettings {
+	extensions?: unknown;
+	packages?: unknown;
+}
+
+function normalizeResourcePathEntry(entry: unknown): string | null {
+	if (typeof entry !== "string") return null;
+	const trimmed = entry.trim();
+	if (!trimmed || trimmed.startsWith("!") || trimmed.startsWith("-")) return null;
+	return trimmed.startsWith("+") ? trimmed.slice(1).trim() || null : trimmed;
+}
+
+function isLocalPathSource(source: string): boolean {
+	return (
+		source.startsWith(".") ||
+		source.startsWith("/") ||
+		source.startsWith("~") ||
+		source.startsWith("$HOME") ||
+		source.startsWith("${HOME}")
+	);
+}
+
+function resolveLocalResourcePath(
+	entry: string,
+	baseDir: string,
+	env: NodeJS.ProcessEnv,
+): string | null {
+	if (!isLocalPathSource(entry)) return null;
+	return path.resolve(baseDir, expandShellPath(entry, env));
+}
+
+function getExtensionRoot(extensionPath: string): string {
+	if (isDirectory(extensionPath)) return extensionPath;
+	const basename = path.basename(extensionPath);
+	return basename === "index.ts" || basename === "index.js"
+		? path.dirname(extensionPath)
+		: path.dirname(extensionPath);
+}
+
+function getCliExtensionPaths(argv: string[], cwd: string, env: NodeJS.ProcessEnv): string[] {
+	const parsed = minimist(argv, {
+		string: ["extension", "e"],
+		alias: { e: "extension" },
+		boolean: ["no-extensions", "ne"],
+	});
+	const raw = parsed.extension;
+	const values = Array.isArray(raw) ? raw : raw === undefined ? [] : [raw];
+	return values.flatMap((value) => {
+		const entry = normalizeResourcePathEntry(value);
+		const resolved = entry ? resolveLocalResourcePath(entry, cwd, env) : null;
+		return resolved ? [resolved] : [];
+	});
+}
+
+function getSettingsExtensionPaths(settingsPath: string, env: NodeJS.ProcessEnv): string[] {
+	const settings = readJsonFile<ResourceSettings>(settingsPath);
+	if (!settings) return [];
+	const settingsDir = path.dirname(settingsPath);
+	const extensions = Array.isArray(settings.extensions) ? settings.extensions : [];
+	const directPaths = extensions.flatMap((entry) => {
+		const normalized = normalizeResourcePathEntry(entry);
+		const resolved = normalized ? resolveLocalResourcePath(normalized, settingsDir, env) : null;
+		return resolved ? [resolved] : [];
+	});
+	const packages = Array.isArray(settings.packages) ? settings.packages : [];
+	const packagePaths = packages.flatMap((entry) => {
+		const source =
+			typeof entry === "string"
+				? entry
+				: entry && typeof entry === "object" && "source" in entry
+					? (entry as { source?: unknown }).source
+					: undefined;
+		const normalized = normalizeResourcePathEntry(source);
+		const resolved = normalized ? resolveLocalResourcePath(normalized, settingsDir, env) : null;
+		return resolved ? [resolved] : [];
+	});
+	return [...directPaths, ...packagePaths];
+}
+
+function getDefaultSettingsPaths(cwd: string, agentDir: string): string[] {
+	const paths = [path.join(agentDir, "settings.json")];
+	const projectSettingsPath = path.join(cwd, ".pi", "settings.json");
+	if (fs.existsSync(projectSettingsPath)) paths.push(projectSettingsPath);
+	return paths;
+}
+
+export function getExtensionAgentRoots(
+	cwd: string,
+	options: Pick<
+		AgentDiscoveryOptions,
+		"extensionRoots" | "settingsPath" | "env" | "argv" | "agentDir"
+	> = {},
+): string[] {
+	const env = options.env ?? process.env;
+	const agentDir = options.agentDir ?? getAgentDir();
+	const configuredRoots = options.extensionRoots ?? [];
+	const settingsPaths =
+		options.settingsPath === null
+			? []
+			: options.settingsPath
+				? [options.settingsPath]
+				: getDefaultSettingsPaths(cwd, agentDir);
+	const extensionPaths = [
+		...configuredRoots,
+		...settingsPaths.flatMap((settingsPath) => getSettingsExtensionPaths(settingsPath, env)),
+		...getCliExtensionPaths(options.argv ?? process.argv.slice(2), cwd, env),
+	];
+	const agentRoots = extensionPaths.map((extensionPath) =>
+		path.join(getExtensionRoot(extensionPath), "agents"),
+	);
+	return dedupePathsPreserveLast(agentRoots);
+}
+
 export function discoverAgents(
 	cwd: string,
 	options: AgentDiscoveryOptions = {},
 ): AgentDiscoveryResult {
+	const includeBundledAgents = options.includeBundledAgents ?? false;
 	const packageAgentsDir =
-		options.packageAgentsDir === undefined ? findBundledAgentsDir() : options.packageAgentsDir;
-	const userAgentsDir = options.userAgentsDir ?? path.join(getAgentDir(), "agents");
+		options.packageAgentsDir === undefined
+			? includeBundledAgents
+				? findBundledAgentsDir()
+				: null
+			: options.packageAgentsDir;
+	const agentDir = options.agentDir ?? getAgentDir();
+	const userAgentsDir = options.userAgentsDir ?? path.join(agentDir, "agents");
 	const projectAgentsDir =
 		options.projectAgentsDir === undefined
 			? findNearestProjectAgentsDir(cwd)
 			: options.projectAgentsDir;
 	const packageSwarmsDir =
-		options.packageSwarmsDir === undefined ? findBundledSwarmsDir() : options.packageSwarmsDir;
+		options.packageSwarmsDir === undefined
+			? includeBundledAgents
+				? findBundledSwarmsDir()
+				: null
+			: options.packageSwarmsDir;
 	const userSwarmsDir =
 		options.userSwarmsDir ??
 		(options.userAgentsDir === undefined
@@ -522,6 +653,7 @@ export function discoverAgents(
 			: options.projectSwarmsDir;
 	const agentsDirRoots = dedupePathsPreserveLast(options.agentsDirRoots ?? []);
 	const env = options.env ?? process.env;
+	const extensionAgentRoots = getExtensionAgentRoots(cwd, options);
 
 	const packageAgents = [
 		...(packageAgentsDir ? loadAgentsFromDir(packageAgentsDir, "package", env) : []),
@@ -541,6 +673,14 @@ export function discoverAgents(
 	];
 	const projectSwarms = projectSwarmsDir ? loadSwarmsFromDir(projectSwarmsDir, "project") : [];
 
+	const extensionAgents = extensionAgentRoots.flatMap((root) => [
+		...loadAgentsFromDir(root, "extension", env),
+		...loadAgentsFromSwarmsDir(path.join(path.dirname(root), "swarms"), "extension", env),
+	]);
+	const extensionSwarms = extensionAgentRoots.flatMap((root) =>
+		loadSwarmsFromDir(path.join(path.dirname(root), "swarms"), "extension"),
+	);
+
 	const flagAgents = agentsDirRoots.flatMap((root) => [
 		...loadAgentsFromDir(path.join(root, "agents"), "flag", env),
 		...loadAgentsFromSwarmsDir(path.join(root, "swarms"), "flag", env),
@@ -551,12 +691,14 @@ export function discoverAgents(
 
 	const agentMap = new Map<string, AgentConfig>();
 	for (const agent of packageAgents) agentMap.set(agent.name, agent);
+	for (const agent of extensionAgents) agentMap.set(agent.name, agent);
 	for (const agent of userAgents) agentMap.set(agent.name, agent);
 	for (const agent of projectAgents) agentMap.set(agent.name, agent);
 	for (const agent of flagAgents) agentMap.set(agent.name, agent);
 
 	const swarmMap = new Map<string, SwarmConfig>();
 	for (const swarm of packageSwarms) swarmMap.set(swarm.name, swarm);
+	for (const swarm of extensionSwarms) swarmMap.set(swarm.name, swarm);
 	for (const swarm of userSwarms) swarmMap.set(swarm.name, swarm);
 	for (const swarm of projectSwarms) swarmMap.set(swarm.name, swarm);
 	for (const swarm of flagSwarms) swarmMap.set(swarm.name, swarm);
@@ -566,10 +708,13 @@ export function discoverAgents(
 		userAgents,
 		projectAgents,
 		projectAgentsDir,
+		extensionAgents,
+		extensionAgentRoots,
 		swarms: Array.from(swarmMap.values()),
 		userSwarms,
 		projectSwarms,
 		projectSwarmsDir,
+		extensionSwarms,
 	};
 	validateDelegationTargets(discovery);
 	return discovery;
