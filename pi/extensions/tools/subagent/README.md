@@ -48,17 +48,19 @@ mcpServers:
 You are a specialist in [whatever]...
 ```
 
-| Field         | Required | Notes                                                                                                                                                                                           |
-| ------------- | :------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`        |    ✅    | Identifier used in tool calls and `--agent`                                                                                                                                                     |
-| `description` |    ✅    | Shown to parent agent unless `hidden: true`                                                                                                                                                     |
-| `meta`        |          | Author note; not surfaced to runtime or parent                                                                                                                                                  |
-| `hidden`      |          | Hides from inventory; agent remains discoverable and callable                                                                                                                                   |
-| `tools`       |          | Comma-separated. Omit → empty tool set. Extension tools (`subagent`) must be listed explicitly                                                                                                  |
-| `model`       |          | Optional model policy. Omit to inherit the parent/default model. Use a non-empty string, `{ id, when? }`, or a non-empty ordered list of strings/objects. Append `:low` etc. for thinking level |
-| `mcpServers`  |          | Optional Claude Code-style list of MCP servers. Their tools are connected and exposed under `mcp__<server>__<tool>` when the agent is spawned or adopted. See [MCP servers](#mcp-servers)       |
+| Field             | Required | Notes                                                                                                                                                                                                                                                                            |
+| ----------------- | :------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`            |    ✅    | Identifier used in tool calls and `--agent`                                                                                                                                                                                                                                      |
+| `description`     |    ✅    | Shown to parent agent unless `hidden: true`                                                                                                                                                                                                                                      |
+| `meta`            |          | Author note; not surfaced to runtime or parent                                                                                                                                                                                                                                   |
+| `hidden`          |          | Hides from inventory; agent remains discoverable and callable                                                                                                                                                                                                                    |
+| `tools`           |          | Comma/space-separated string or array. Omit → empty tool set. Claude Code names map through `~/.pi/agent/extensions/pi-subagent/settings.json`; permission patterns like `Bash(git:*)` are reduced to `Bash`. Extension tools (`subagent`) must be listed explicitly             |
+| `disallowedTools` |          | Optional denylist using the same syntax and mapping as `tools`; removed from the final allowlist                                                                                                                                                                                 |
+| `model`           |          | Optional model policy. Omit to inherit the parent/default model. Use a non-empty string, `{ id, when? }`, or a non-empty ordered list of strings/objects. Claude aliases (`sonnet`, `haiku`, etc.) map through the compatibility settings; append `:low` etc. for thinking level |
+| `effort`          |          | Optional Claude Code effort hint mapped to Pi thinking (`low`, `medium`, `high`, `xhigh`, `max` by default) and applied when the model does not already include a thinking suffix                                                                                                |
+| `mcpServers`      |          | Optional Claude Code-style list of MCP servers. Their tools are connected and exposed under `mcp__<server>__<tool>` when the agent is spawned or adopted. See [MCP servers](#mcp-servers)                                                                                        |
 
-Canonical Pi tool names: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`. Some legacy Claude names are normalized but prefer Pi names.
+Canonical Pi tool names: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`, `subagent`. Claude Code compatibility settings are created automatically at `~/.pi/agent/extensions/pi-subagent/settings.json`; edit that file to change tool/model/effort mappings. Unrecognized or `null`-mapped Claude tools are ignored.
 
 Model policy examples:
 

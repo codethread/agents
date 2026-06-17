@@ -9,6 +9,8 @@
 
 The subagent extension needs a stable way to find delegation targets, normalize them into Pi-ready runtime configuration, and expose enough metadata for both execution and debugging. This domain covers markdown-backed agent definitions and named fan-out swarm definitions backed by `swarm.json`; how those definitions are discovered from package, user, and project locations; how agent frontmatter fields are parsed into `AgentConfig`; how tool and model metadata are normalized; and how the resulting catalog is handed to the subagent runtime.
 
+Claude Code compatibility is based on the Claude Code subagent frontmatter reference supplied on 2026-06-17: fields include `name`, `description`, `tools`, `disallowedTools`, `model`, `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`, `background`, `effort`, `isolation`, `color`, and `initialPrompt`; Pi currently maps only `tools`, `disallowedTools`, `model`, and `effort` from that set beyond fields it already supported.
+
 ### Goals
 
 - Discover agents from bundled package content plus optional user, project, and `--agents-dir` directories.
@@ -20,8 +22,8 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 - Allow agents to be hidden from the parent prompt inventory without removing them from discovery or explicit name-based execution.
 - Preserve source metadata for debug output and project-agent confirmation.
 - Allow direct top-level selection of one discovered agent config via `--agent <name>`.
-- Normalize legacy Claude-flavored tool names while treating agent `tools` as an exact allowlist across built-in and extension tools.
-- Parse declared model policy at the discovery boundary into ordered candidates and per-agent config errors.
+- Normalize Claude Code-compatible `tools` and `disallowedTools` declarations through a user-editable compatibility map while treating agent `tools` as an exact allowlist across built-in and extension tools.
+- Parse declared model policy at the discovery boundary into ordered candidates and per-agent config errors, mapping Claude Code model aliases and `effort` through compatibility settings.
 - Parse Claude Code-style `mcpServers` frontmatter into normalized server configs, recording per-agent config errors for malformed declarations.
 - Connect an adopted/spawned agent's MCP servers and expose their tools to that agent, namespaced to avoid collisions.
 - Apply deterministic source precedence so agent and swarm name collisions resolve predictably, including repeatable `--agents-dir` roots.
@@ -74,11 +76,14 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 - **Decision:** Agent `tools` is an exact allowlist over the full active tool namespace, not just built-ins.
   - **Rationale:** Built-in and extension tools must obey the same least-privilege contract. If an agent file does not name `subagent` or any other extension tool, direct `--agent` mode and delegated child runs must not quietly keep that tool active.
 
-- **Decision:** Tool normalization is only lossy for unsupported Claude-only aliases.
-  - **Rationale:** Known Claude aliases should map to Pi equivalents, unsupported Claude tools such as `task`, `websearch`, `webfetch`, and `skill` should be dropped, and all other tool names should be preserved so extension-defined tools remain configurable from agent frontmatter.
+- **Decision:** Claude Code compatibility mappings live in `~/.pi/agent/extensions/pi-subagent/settings.json`, created on first discovery if missing.
+  - **Rationale:** Agent authors can copy Claude Code subagent frontmatter while Pi keeps mapping policy explicit and user-editable. The default file maps known Claude tool names to Pi tool names (`Read` → `read`, `Agent` → `subagent`, etc.), drops unsupported Claude-only tools with `null`, maps Claude model aliases (`haiku`, `sonnet`, `opus`, `fable`) to current Pi model IDs, and maps Claude `effort` to Pi thinking levels.
 
-- **Decision:** Discovery does not rewrite model aliases.
-  - **Rationale:** Agent model strings should use Pi's normal model resolution path. Keeping alias policy out of the subagent extension avoids a second model naming layer.
+- **Decision:** Tool normalization is conservative and permission-pattern agnostic.
+  - **Rationale:** Known Claude aliases should map to Pi equivalents, unsupported or unrecognized Claude tools should be dropped, and Claude permission syntax such as `Bash(git:*)` or `Agent(worker)` should be reduced to the outer tool name because Pi does not implement that permission model.
+
+- **Decision:** Claude Code model aliases are rewritten only through the compatibility settings map; provider-qualified Pi model IDs continue through Pi's normal model resolution path.
+  - **Rationale:** We should not guess at Claude model names. A copied Claude alias must be mapped explicitly, while existing Pi-native agent files remain valid.
 
 - **Decision:** Declared `model` policy is parsed at the discovery boundary and malformed policy is recorded per agent.
   - **Rationale:** Discovery can preserve enough error detail for strict startup validation and target-scoped runtime validation without aborting every snapshot unconditionally.
@@ -244,8 +249,10 @@ Discovery relies on these frontmatter fields:
 - `description` — required; files without it are skipped
 - `meta` — optional author-only string; ignored by discovery/runtime and not exposed to parent agents
 - `hidden` — optional boolean/string flag; truthy `true` hides the agent from parent prompt inventory while keeping it discoverable and callable by explicit name
-- `tools` — optional comma-separated string of tool names; built-ins and extension tools share the same namespace here, and omitted/blank resolves to an empty allowlist
-- `model` — optional unified model policy: non-empty string, object with `id` and optional `when`, or non-empty ordered list of strings/objects. Discovery does not rewrite aliases.
+- `tools` — optional comma/space-separated string or string array of tool names; built-ins and extension tools share the same namespace here, and omitted/blank resolves to an empty allowlist. Claude Code permission patterns in parentheses are ignored during mapping.
+- `disallowedTools` — optional comma/space-separated string or string array. Mapped through the same compatibility rules as `tools` and removed from the final allowlist.
+- `model` — optional unified model policy: non-empty string, object with `id` and optional `when`, or non-empty ordered list of strings/objects. Claude Code aliases are resolved via `~/.pi/agent/extensions/pi-subagent/settings.json`; provider-qualified Pi IDs pass through to Pi model validation.
+- `effort` — optional Claude Code effort hint (`low`, `medium`, `high`, `xhigh`, `max` by default). When mapped, it appends the corresponding Pi thinking suffix to mapped model candidates that do not already declare one.
 - `mcpServers` — optional Claude Code-style list of single-key maps. Each entry maps a server name to either a remote config (`type` of `http`/`sse` with a `url` and optional `headers`) or a local stdio config (`command` with optional `args`/`env`). Malformed declarations are recorded as a per-agent `mcpServersError` and leave `mcpServers` empty without aborting discovery.
 
 All remaining markdown body content is passed through as the agent system prompt.
@@ -263,7 +270,7 @@ The subagent runtime treats discovery as the configuration boundary. Single-agen
 
 ## 8. Code Locations
 
-- `pi/extensions/tools/subagent/` — discovery, formatting, direct-agent inheritance, and runtime consumption
+- `pi/extensions/tools/subagent/` — discovery, formatting, direct-agent inheritance, Claude Code compatibility mapping, and runtime consumption
 - `pi/extensions/tools/subagent/mcp.ts` — `mcpServers` parsing, MCP client connection, namespacing, smoke test
 - `pi/extensions/tools/subagent/mcp-runtime.ts` — Pi-side MCP tool registration for adopted/spawned agents
 - `pi/agents/jira-mcp.md` — bundled example agent using the Atlassian MCP server

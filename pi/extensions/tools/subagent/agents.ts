@@ -99,23 +99,60 @@ interface ToolLike {
 	};
 }
 
-const PI_CANONICAL_TOOLS = new Set(["read", "bash", "edit", "write", "grep", "find", "ls"]);
+interface CompatSettings {
+	compat: {
+		tools: Record<string, string | null>;
+		models: Record<string, string>;
+		effort: Record<string, AgentThinkingLevel>;
+	};
+}
 
-const CLAUDE_TOOL_MAP: Record<string, string | null> = {
-	read: "read",
-	bash: "bash",
-	edit: "edit",
-	write: "write",
-	grep: "grep",
-	glob: "find",
-	ls: "ls",
-	multiedit: "edit",
-	notebookedit: "edit",
-	task: null,
-	websearch: null,
-	webfetch: null,
-	skill: null,
+const DEFAULT_COMPAT_SETTINGS: CompatSettings = {
+	compat: {
+		tools: {
+			Read: "read",
+			Edit: "edit",
+			Write: "write",
+			Bash: "bash",
+			Glob: "find",
+			Grep: "grep",
+			LS: "ls",
+			Agent: "subagent",
+			MultiEdit: "edit",
+			NotebookEdit: "edit",
+			PowerShell: null,
+			WebFetch: null,
+			WebSearch: null,
+			Monitor: null,
+			LSP: null,
+			Skill: null,
+		},
+		models: {
+			haiku: "anthropic/claude-haiku-4-5",
+			sonnet: "anthropic/claude-sonnet-4-6",
+			opus: "anthropic/claude-opus-4-8",
+			fable: "anthropic/claude-fable-5",
+		},
+		effort: {
+			low: "low",
+			medium: "medium",
+			high: "high",
+			xhigh: "xhigh",
+			max: "xhigh",
+		},
+	},
 };
+
+const PI_CANONICAL_TOOLS = new Set([
+	"read",
+	"bash",
+	"edit",
+	"write",
+	"grep",
+	"find",
+	"ls",
+	"subagent",
+]);
 
 export interface AgentModelCandidate {
 	id: string;
@@ -130,21 +167,67 @@ const THINKING_LEVELS = new Set<AgentThinkingLevel>([
 	"xhigh",
 ]);
 
-function normalizeTools(rawTools: string[] | undefined): string[] {
-	if (!rawTools || rawTools.length === 0) return [];
+function getCompatSettingsPath(agentDir = getAgentDir()): string {
+	return path.join(agentDir, "extensions", "pi-subagent", "settings.json");
+}
 
+function readCompatSettings(settingsPath = getCompatSettingsPath()): CompatSettings {
+	try {
+		if (!fs.existsSync(settingsPath)) {
+			fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+			fs.writeFileSync(settingsPath, `${JSON.stringify(DEFAULT_COMPAT_SETTINGS, null, "\t")}\n`);
+			return DEFAULT_COMPAT_SETTINGS;
+		}
+		const parsed = JSON.parse(fs.readFileSync(settingsPath, "utf-8")) as Partial<CompatSettings>;
+		return {
+			compat: {
+				tools: { ...DEFAULT_COMPAT_SETTINGS.compat.tools, ...(parsed.compat?.tools ?? {}) },
+				models: { ...DEFAULT_COMPAT_SETTINGS.compat.models, ...(parsed.compat?.models ?? {}) },
+				effort: { ...DEFAULT_COMPAT_SETTINGS.compat.effort, ...(parsed.compat?.effort ?? {}) },
+			},
+		};
+	} catch (error) {
+		throw new Error(
+			`Invalid Claude Code compatibility settings at ${settingsPath}: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
+}
+
+function normalizeClaudeToolName(tool: string): string {
+	return tool
+		.trim()
+		.replace(/\([^)]*\)/g, "")
+		.trim();
+}
+
+function normalizeTools(
+	rawTools: string[] | undefined,
+	disallowedTools: string[] | undefined,
+	compatSettings: CompatSettings,
+): string[] {
+	if (!rawTools || rawTools.length === 0) return [];
+	const disallowed = new Set(
+		(disallowedTools ?? [])
+			.map((tool) => mapToolName(tool, compatSettings))
+			.filter((tool): tool is string => Boolean(tool)),
+	);
 	const mapped = rawTools
-		.map((tool) => tool.trim())
-		.filter(Boolean)
-		.map((tool) => {
-			const lower = tool.toLowerCase();
-			if (PI_CANONICAL_TOOLS.has(lower)) return lower;
-			if (Object.hasOwn(CLAUDE_TOOL_MAP, lower)) return CLAUDE_TOOL_MAP[lower];
-			return lower;
-		})
-		.filter((tool): tool is string => tool !== null);
+		.map((tool) => mapToolName(tool, compatSettings))
+		.filter((tool): tool is string => Boolean(tool))
+		.filter((tool) => !disallowed.has(tool));
 
 	return Array.from(new Set(mapped));
+}
+
+function mapToolName(tool: string, compatSettings: CompatSettings): string | null {
+	const normalized = normalizeClaudeToolName(tool);
+	if (!normalized) return null;
+	const lower = normalized.toLowerCase();
+	if (PI_CANONICAL_TOOLS.has(lower)) return lower;
+	const entry = Object.entries(compatSettings.compat.tools).find(
+		([claudeName]) => claudeName.toLowerCase() === lower,
+	);
+	return entry ? entry[1] : null;
 }
 
 function normalizePathForDedup(input: string): string {
@@ -258,6 +341,8 @@ function parseModelPolicy(
 	agentName: string,
 	filePath: string,
 	env: NodeJS.ProcessEnv = process.env,
+	compatSettings: CompatSettings = DEFAULT_COMPAT_SETTINGS,
+	effort?: unknown,
 ): { model?: string; modelCandidates?: AgentModelCandidate[]; modelPolicyError?: string } {
 	if (value === undefined) return {};
 
@@ -268,7 +353,7 @@ function parseModelPolicy(
 		const candidates: AgentModelCandidate[] = [];
 		const seen = new Set<string>();
 		for (const entry of entries) {
-			const candidate = parseModelCandidate(entry, env);
+			const candidate = parseModelCandidate(entry, env, compatSettings, effort);
 			if (!candidate) continue;
 			if (seen.has(candidate.id)) continue;
 			seen.add(candidate.id);
@@ -286,11 +371,31 @@ function parseModelPolicy(
 	}
 }
 
-function parseModelCandidate(entry: unknown, env: NodeJS.ProcessEnv): AgentModelCandidate | null {
+function applyEffort(modelId: string, effort: unknown, compatSettings: CompatSettings): string {
+	if (typeof effort !== "string" || !effort.trim()) return modelId;
+	const mapped = compatSettings.compat.effort[effort.trim()];
+	if (!mapped) throw new Error(`unsupported effort "${effort}"`);
+	const parsed = parseAgentModel(modelId);
+	return parsed.thinkingLevel ? modelId : `${modelId}:${mapped}`;
+}
+
+function mapModelId(modelId: string, compatSettings: CompatSettings): string {
+	const trimmed = modelId.trim();
+	if (!trimmed) throw new Error("model id must be a non-empty string");
+	if (trimmed.includes("/")) return trimmed;
+	const mapped = compatSettings.compat.models[trimmed];
+	if (!mapped) throw new Error(`model "${trimmed}" is not mapped in Claude Code compatibility settings`);
+	return mapped;
+}
+
+function parseModelCandidate(
+	entry: unknown,
+	env: NodeJS.ProcessEnv,
+	compatSettings: CompatSettings,
+	effort: unknown,
+): AgentModelCandidate | null {
 	if (typeof entry === "string") {
-		const id = entry.trim();
-		if (!id) throw new Error("model id must be a non-empty string");
-		return { id };
+		return { id: applyEffort(mapModelId(entry, compatSettings), effort, compatSettings) };
 	}
 
 	if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
@@ -310,11 +415,29 @@ function parseModelCandidate(entry: unknown, env: NodeJS.ProcessEnv): AgentModel
 		throw new Error("model object when must be a string");
 	}
 	if (raw.when !== undefined && !evaluateWhenExpression(raw.when, env)) return null;
-	return { id: raw.id.trim() };
+	return { id: applyEffort(mapModelId(raw.id, compatSettings), effort, compatSettings) };
 }
 
 function getFrontmatterString(value: unknown): string | undefined {
 	return typeof value === "string" ? value : undefined;
+}
+
+function getFrontmatterStringList(value: unknown): string[] | undefined {
+	if (typeof value === "string") {
+		return value
+			.split(/[\s,]+/)
+			.map((entry) => entry.trim())
+			.filter(Boolean);
+	}
+	if (Array.isArray(value)) {
+		const entries: string[] = [];
+		for (const item of value) {
+			if (typeof item !== "string") return undefined;
+			entries.push(...getFrontmatterStringList(item)!);
+		}
+		return entries;
+	}
+	return undefined;
 }
 
 function parseHiddenFrontmatter(value: unknown): boolean {
@@ -340,6 +463,7 @@ function loadAgentsFromDir(
 	dir: string,
 	source: AgentDiscoverySource,
 	env: NodeJS.ProcessEnv,
+	compatSettings: CompatSettings,
 ): AgentConfig[] {
 	const agents: AgentConfig[] = [];
 	if (!fs.existsSync(dir)) return agents;
@@ -368,19 +492,24 @@ function loadAgentsFromDir(
 		const description = getFrontmatterString(frontmatter.description);
 		if (!name || !description) continue;
 
-		const parsedTools = getFrontmatterString(frontmatter.tools)
-			?.split(",")
-			.map((tool: string) => tool.trim())
-			.filter(Boolean);
+		const parsedTools = getFrontmatterStringList(frontmatter.tools);
+		const parsedDisallowedTools = getFrontmatterStringList(frontmatter.disallowedTools);
 
-		const parsedModel = parseModelPolicy(frontmatter.model, name, filePath, env);
+		const parsedModel = parseModelPolicy(
+			frontmatter.model,
+			name,
+			filePath,
+			env,
+			compatSettings,
+			frontmatter.effort,
+		);
 		const parsedMcp = parseMcpServers(frontmatter.mcpServers, name, filePath);
 
 		agents.push({
 			name,
 			description,
 			hidden: parseHiddenFrontmatter(frontmatter.hidden),
-			tools: normalizeTools(parsedTools),
+			tools: normalizeTools(parsedTools, parsedDisallowedTools, compatSettings),
 			...parsedModel,
 			mcpServers: parsedMcp.servers,
 			...(parsedMcp.error ? { mcpServersError: parsedMcp.error } : {}),
@@ -405,6 +534,7 @@ function loadAgentsFromSwarmsDir(
 	dir: string,
 	source: AgentDiscoverySource,
 	env: NodeJS.ProcessEnv,
+	compatSettings: CompatSettings,
 ): AgentConfig[] {
 	const agents: AgentConfig[] = [];
 	if (!fs.existsSync(dir)) return agents;
@@ -418,7 +548,7 @@ function loadAgentsFromSwarmsDir(
 
 	for (const entry of entries) {
 		if (!entry.isDirectory()) continue;
-		agents.push(...loadAgentsFromDir(path.join(dir, entry.name), source, env));
+		agents.push(...loadAgentsFromDir(path.join(dir, entry.name), source, env, compatSettings));
 	}
 
 	return agents;
@@ -654,36 +784,50 @@ export function discoverAgents(
 	const agentsDirRoots = dedupePathsPreserveLast(options.agentsDirRoots ?? []);
 	const env = options.env ?? process.env;
 	const extensionAgentRoots = getExtensionAgentRoots(cwd, options);
+	const compatSettings = readCompatSettings(getCompatSettingsPath(agentDir));
 
 	const packageAgents = [
-		...(packageAgentsDir ? loadAgentsFromDir(packageAgentsDir, "package", env) : []),
-		...(packageSwarmsDir ? loadAgentsFromSwarmsDir(packageSwarmsDir, "package", env) : []),
+		...(packageAgentsDir
+			? loadAgentsFromDir(packageAgentsDir, "package", env, compatSettings)
+			: []),
+		...(packageSwarmsDir
+			? loadAgentsFromSwarmsDir(packageSwarmsDir, "package", env, compatSettings)
+			: []),
 	];
 	const packageSwarms = packageSwarmsDir ? loadSwarmsFromDir(packageSwarmsDir, "package") : [];
 
 	const userAgents = [
-		...loadAgentsFromDir(userAgentsDir, "user", env),
-		...(userSwarmsDir ? loadAgentsFromSwarmsDir(userSwarmsDir, "user", env) : []),
+		...loadAgentsFromDir(userAgentsDir, "user", env, compatSettings),
+		...(userSwarmsDir ? loadAgentsFromSwarmsDir(userSwarmsDir, "user", env, compatSettings) : []),
 	];
 	const userSwarms = userSwarmsDir ? loadSwarmsFromDir(userSwarmsDir, "user") : [];
 
 	const projectAgents = [
-		...(projectAgentsDir ? loadAgentsFromDir(projectAgentsDir, "project", env) : []),
-		...(projectSwarmsDir ? loadAgentsFromSwarmsDir(projectSwarmsDir, "project", env) : []),
+		...(projectAgentsDir
+			? loadAgentsFromDir(projectAgentsDir, "project", env, compatSettings)
+			: []),
+		...(projectSwarmsDir
+			? loadAgentsFromSwarmsDir(projectSwarmsDir, "project", env, compatSettings)
+			: []),
 	];
 	const projectSwarms = projectSwarmsDir ? loadSwarmsFromDir(projectSwarmsDir, "project") : [];
 
 	const extensionAgents = extensionAgentRoots.flatMap((root) => [
-		...loadAgentsFromDir(root, "extension", env),
-		...loadAgentsFromSwarmsDir(path.join(path.dirname(root), "swarms"), "extension", env),
+		...loadAgentsFromDir(root, "extension", env, compatSettings),
+		...loadAgentsFromSwarmsDir(
+			path.join(path.dirname(root), "swarms"),
+			"extension",
+			env,
+			compatSettings,
+		),
 	]);
 	const extensionSwarms = extensionAgentRoots.flatMap((root) =>
 		loadSwarmsFromDir(path.join(path.dirname(root), "swarms"), "extension"),
 	);
 
 	const flagAgents = agentsDirRoots.flatMap((root) => [
-		...loadAgentsFromDir(path.join(root, "agents"), "flag", env),
-		...loadAgentsFromSwarmsDir(path.join(root, "swarms"), "flag", env),
+		...loadAgentsFromDir(path.join(root, "agents"), "flag", env, compatSettings),
+		...loadAgentsFromSwarmsDir(path.join(root, "swarms"), "flag", env, compatSettings),
 	]);
 	const flagSwarms = agentsDirRoots.flatMap((root) =>
 		loadSwarmsFromDir(path.join(root, "swarms"), "flag"),

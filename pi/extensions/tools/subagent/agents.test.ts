@@ -624,13 +624,13 @@ describe("discoverAgents", () => {
 			filePath: packageAgentPath,
 			hidden: false,
 			tools: ["read", "bash"],
-			model: "sonnet",
-			modelCandidates: [{ id: "sonnet" }],
+			model: "anthropic/claude-sonnet-4-6",
+			modelCandidates: [{ id: "anthropic/claude-sonnet-4-6" }],
 		});
 		expect(byName.get("gamma")).toMatchObject({
 			source: "user",
 			hidden: false,
-			tools: ["find", "custom-tool", "subagent"],
+			tools: ["find", "subagent"],
 		});
 		expect(byName.get("shared")).toMatchObject({
 			source: "project",
@@ -865,11 +865,11 @@ Mixed body.
 name: env-model
 description: Env model
 model:
-  - id: false-is-skipped
+  - id: openai/false-is-skipped
     when: "$FLAG"
-  - id: negated-false-is-included
+  - id: openai/negated-false-is-included
     when: "!$FLAG"
-  - id: raw-comparison
+  - id: openai/raw-comparison
     when: "$RAW == ' value '"
 ---
 Env body.
@@ -886,8 +886,8 @@ Env body.
 		});
 
 		expect(discovery.agents[0]?.modelCandidates).toEqual([
-			{ id: "negated-false-is-included" },
-			{ id: "raw-comparison" },
+			{ id: "openai/negated-false-is-included" },
+			{ id: "openai/raw-comparison" },
 		]);
 	});
 
@@ -973,7 +973,7 @@ Body.
 		writeAgent(packageAgentsDir, "valid.md", {
 			name: "valid",
 			description: "Valid agent",
-			model: "model-b",
+			model: "openai/model-b",
 		});
 
 		const discovery = discoverAgents(cwd, {
