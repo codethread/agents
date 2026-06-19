@@ -19,6 +19,8 @@ It also renders Nunjucks rule templates into the owned prompt:
 
 If both exist, both are rendered as separate XML blocks: global inside `<system-reminder type="rules">`, project inside `<system-reminder type="project-rules">`.
 
+The owned prompt also includes a stable `<system-reminder type="project-rules">` instruction explaining that project-rule reminders may be injected automatically when matching files are mentioned or read. Agents are told to apply those reminders silently, not acknowledge or summarize them, and continue the assigned task.
+
 ## Template variables
 
 Templates receive:
@@ -56,4 +58,7 @@ Example:
 pi --debug-prompt --print ping '{"model":"claude-sonnet"}'
 ```
 
-Related messaging behavior: [`../messaging/project-structure/README.md`](../messaging/project-structure/README.md)
+Related messaging behavior:
+
+- [`../messaging/project-structure/README.md`](../messaging/project-structure/README.md)
+- [`../messaging/project-rules/README.md`](../messaging/project-rules/README.md)

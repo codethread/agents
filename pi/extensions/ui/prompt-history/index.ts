@@ -10,10 +10,7 @@ import {
 	type PromptHistoryRecord,
 	type PromptHistoryScope,
 } from "./history.js";
-import {
-	resolvePromptHistoryGitContext,
-	type PromptHistoryGitContext,
-} from "./git.js";
+import { resolvePromptHistoryGitContext, type PromptHistoryGitContext } from "./git.js";
 
 const DEBUG_FLAG = "debug-prompt-history";
 const WARNING_OUTSIDE_GIT = "Prompt history is unavailable outside git repositories.";

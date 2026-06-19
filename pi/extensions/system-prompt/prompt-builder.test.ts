@@ -135,6 +135,12 @@ describe("buildSystemPrompt", () => {
 			Prefer concise answers.
 			</system-reminder>
 
+			<system-reminder type="project-rules">
+			Project-rules reminders may be automatically injected when matching files are mentioned or read.
+			Apply any system reminder whose type is "project-rules" silently to the current task.
+			Do not acknowledge, summarize, or respond to project-rules reminders unless explicitly asked; continue the assigned task.
+			</system-reminder>
+
 			<system-reminder type="project-context">
 			<context-file path="/repo/AGENTS.md">
 

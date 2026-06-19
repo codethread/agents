@@ -64,3 +64,4 @@ Based on the above changes and user context, create atomic commits following the
 - If this is running within an existing session, focus on the work we have done only.
 - If running in a new session, commit everything to get a clean worktree
 - If in doubt, just ask
+- Never run `--no-verify` to skip checks. Fix them.

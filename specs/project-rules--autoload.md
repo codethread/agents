@@ -15,7 +15,7 @@ Define project-local rule loading for Pi so repositories can provide Claude-comp
 - Preserve Claude-style unconditional vs path-scoped rule behavior.
 - Let `.agents/rules` override `.claude/rules` for the same relative rule path.
 - Put unconditional rules in the effective system prompt.
-- Send path-scoped rules as model-visible follow-up context when triggered by user file mentions or successful `read` results.
+- Send path-scoped rules as model-visible custom context when triggered by user file mentions or successful `read` results.
 - Render a visible TUI notice when path-scoped rules are sent.
 - Keep implementation shared enough that `system-prompt` and `messaging` use the same discovery, parsing, matching, and override semantics.
 
@@ -42,8 +42,8 @@ Define project-local rule loading for Pi so repositories can provide Claude-comp
 - **Decision:** Path-scoped rules are sent as custom messages, not appended to the system prompt.
   - **Rationale:** They are volatile context triggered by the active files. Custom messages can be displayed in the UI like project-structure and can refresh as work shifts without rebuilding the system prompt.
 
-- **Decision:** Read-triggered rules are sent as custom messages to start, not appended directly to read tool results.
-  - **Rationale:** The closest Pi analogue to Claude's “trigger when Claude reads files matching the pattern” is the read tool result lifecycle, but custom messages satisfy the explicit UI requirement and match the project-structure extension pattern. Tool-result augmentation can be reconsidered later if adjacency proves more important.
+- **Decision:** Read-triggered rules are sent as steering custom messages, not appended directly to read tool results.
+  - **Rationale:** The closest Pi analogue to Claude's “trigger when Claude reads files matching the pattern” is the read tool result lifecycle, but custom messages satisfy the explicit UI requirement and match the project-structure extension pattern. Pi's `steer` delivery applies the reminder before the next LLM call instead of making it an end-of-task follow-up that small subagents may acknowledge as their final task. Tool-result augmentation can be reconsidered later if adjacency proves more important.
 
 - **Decision:** User-prompt file triggers are detected during `before_agent_start`.
   - **Rationale:** Pi exposes the expanded prompt before the agent loop. This catches CLI `@file` content rendered as `<file name="...">` and literal user mentions such as `@src/foo.ts` before the model starts planning.
@@ -96,7 +96,7 @@ ctx.cwd
   │
   └─ messaging triggers
         before_agent_start prompt file mentions -> matching scoped rules -> custom message
-        successful read tool_result             -> matching scoped rules -> custom message
+        successful read tool_result             -> matching scoped rules -> steering custom message
 ```
 
 ## 4. Rule Semantics
@@ -166,7 +166,7 @@ paths:
 </system-reminder>
 ```
 
-This section appears with other operating rules, before project context files and skills.
+This section appears with other operating rules, before project context files and skills. The owned prompt also includes a stable project-rules reminder telling agents that project-rule reminders may be automatically injected when matching files are mentioned or read, and that they should apply those reminders silently without acknowledging or summarizing them unless explicitly asked.
 
 ### Path-scoped messaging integration
 
@@ -204,7 +204,7 @@ During `tool_result` for successful `read` calls:
 
 - Resolve `event.input.path` to a project-relative path.
 - Match scoped rules.
-- Send matching rules as a custom message.
+- Send matching rules as a custom message with Pi `steer` delivery.
 - Show the custom message renderer in the UI when rules are sent.
 
 The implementation must avoid repeatedly sending the same rule for the same triggering project path in a session unless the rule file changes, a new overriding rule appears, or the session resets.
@@ -222,7 +222,7 @@ Rules are rediscovered on each turn and when relevant rule files are observed to
 
 ## 6. Debug and UX
 
-- `/debug-prompt` and `--debug-prompt` should include unconditional rules because they are part of the system prompt.
+- `/debug-prompt` and `--debug-prompt` should include the stable project-rules handling instruction and unconditional rules because they are part of the system prompt.
 - Path-scoped rules should not appear in `/debug-prompt` unless they have been sent as conversation messages; provide separate tests/README examples instead.
 - Unconditional rules discovered after the initial system prompt was materialized should be visible as project-rule custom messages, not retroactively inserted into `/debug-prompt` for an existing turn.
 - The custom message renderer should be visible like project-structure, not hidden.

@@ -38,6 +38,12 @@ const DEFAULT_GUIDELINES = [
 	"Show file paths clearly when working with files",
 ];
 
+const PROJECT_RULES_HANDLING_REMINDER = [
+	"Project-rules reminders may be automatically injected when matching files are mentioned or read.",
+	'Apply any system reminder whose type is "project-rules" silently to the current task.',
+	"Do not acknowledge, summarize, or respond to project-rules reminders unless explicitly asked; continue the assigned task.",
+].join("\n");
+
 function compact(lines: Array<string | null | undefined>): string[] {
 	return lines.map((line) => line?.trim()).filter((line): line is string => Boolean(line));
 }
@@ -168,7 +174,11 @@ export function buildSystemPrompt(
 		renderSection(
 			"Operating rules",
 			"",
-			joinSections([input.dynamicPrompt, renderProjectRulesReminder(input.projectRules ?? [])]),
+			joinSections([
+				input.dynamicPrompt,
+				wrapReminder("project-rules", PROJECT_RULES_HANDLING_REMINDER),
+				renderProjectRulesReminder(input.projectRules ?? []),
+			]),
 		),
 		renderContextFiles(input.contextFiles, wrapReminder),
 		renderSkills(input.skills),

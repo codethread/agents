@@ -165,6 +165,6 @@ export default function projectRulesMessagingExtension(pi: ExtensionAPI) {
 		});
 		const message = buildMessage(rules, [projectPath]);
 		if (!message) return;
-		pi.sendMessage(message, { deliverAs: "followUp" });
+		pi.sendMessage(message, { deliverAs: "steer" });
 	});
 }

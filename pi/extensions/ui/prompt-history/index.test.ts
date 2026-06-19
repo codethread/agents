@@ -160,10 +160,7 @@ describe("prompt-history extension", () => {
 			ui: { setEditorText, notify: vi.fn() },
 		};
 		await shortcuts.get("ctrl+p")?.(ctx);
-		await handlers.get("message_end")?.(
-			{ message: { role: "user", content: "newest" } },
-			ctx,
-		);
+		await handlers.get("message_end")?.({ message: { role: "user", content: "newest" } }, ctx);
 		await shortcuts.get("ctrl+p")?.(ctx);
 
 		expect(mocks.appendPromptHistoryRecord).toHaveBeenCalledTimes(1);

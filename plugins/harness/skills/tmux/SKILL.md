@@ -15,12 +15,12 @@ commands whose output you need to inspect later.
 
 ## Variables
 
-| Variable        | Value                         | Notes                                      |
-| --------------- | ----------------------------- | ------------------------------------------ |
-| `NAME_PREFIX`   | `agent`                       | Stable prefix for easy search and cleanup  |
-| `TASK_SLUG`     | short lowercase kebab-case    | Project/task label, e.g. `api-dev-server`  |
-| `SESSION_NAME`  | `NAME_PREFIX-TASK_SLUG`       | Full tmux session name                     |
-| `TAIL_LINES`    | `80`                          | Default output lines to inspect            |
+| Variable       | Value                      | Notes                                     |
+| -------------- | -------------------------- | ----------------------------------------- |
+| `NAME_PREFIX`  | `agent`                    | Stable prefix for easy search and cleanup |
+| `TASK_SLUG`    | short lowercase kebab-case | Project/task label, e.g. `api-dev-server` |
+| `SESSION_NAME` | `NAME_PREFIX-TASK_SLUG`    | Full tmux session name                    |
+| `TAIL_LINES`   | `80`                       | Default output lines to inspect           |
 
 ## Knowledge
 

@@ -384,7 +384,8 @@ function mapModelId(modelId: string, compatSettings: CompatSettings): string {
 	if (!trimmed) throw new Error("model id must be a non-empty string");
 	if (trimmed.includes("/")) return trimmed;
 	const mapped = compatSettings.compat.models[trimmed];
-	if (!mapped) throw new Error(`model "${trimmed}" is not mapped in Claude Code compatibility settings`);
+	if (!mapped)
+		throw new Error(`model "${trimmed}" is not mapped in Claude Code compatibility settings`);
 	return mapped;
 }
 
@@ -1123,6 +1124,14 @@ function escapeXml(str: string): string {
 	return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+function toCdataSafeText(str: string): string {
+	return str.replace(/\]\]>/g, "]]" + "]]><![CDATA[>");
+}
+
+function wrapCdata(str: string): string {
+	return `<![CDATA[${toCdataSafeText(str)}]]>`;
+}
+
 export function formatAgentsForPrompt(agents: AgentConfig[], swarms: SwarmConfig[] = []): string {
 	const visibleTargets = [...agents, ...swarms].filter((target) => !target.hidden);
 	if (visibleTargets.length === 0) return "";
@@ -1136,7 +1145,7 @@ export function formatAgentsForPrompt(agents: AgentConfig[], swarms: SwarmConfig
 	for (const target of visibleTargets) {
 		lines.push("  <subagent>");
 		lines.push(`    <name>${escapeXml(target.name)}</name>`);
-		lines.push(`    <description>${escapeXml(target.description)}</description>`);
+		lines.push(`    <description>${wrapCdata(target.description)}</description>`);
 		lines.push("  </subagent>");
 	}
 

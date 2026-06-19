@@ -118,7 +118,7 @@ describe("formatAgentsForPrompt", () => {
 		expect(formatAgentsForPrompt([])).toBe("");
 	});
 
-	it("formats visible subagents as an indented tool catalog with escaped names and descriptions", () => {
+	it("formats visible subagents as an indented tool catalog with escaped names and CDATA descriptions", () => {
 		const agents: AgentConfig[] = [
 			{
 				name: "alpha",
@@ -147,14 +147,14 @@ describe("formatAgentsForPrompt", () => {
 				"  <available-subagents>",
 				"    <subagent>",
 				"      <name>alpha</name>",
-				"      <description>General-purpose helper</description>",
+				"      <description><![CDATA[General-purpose helper]]></description>",
 				"    </subagent>",
 				"  </available-subagents>",
 			].join("\n"),
 		);
 	});
 
-	it("includes visible swarms alongside agents with XML escaping and omits hidden swarms", () => {
+	it("includes visible swarms alongside agents with XML-escaped names, CDATA descriptions, and hidden swarms omitted", () => {
 		const agents: AgentConfig[] = [
 			{
 				name: "alpha",
@@ -192,14 +192,32 @@ describe("formatAgentsForPrompt", () => {
 				"  <available-subagents>",
 				"    <subagent>",
 				"      <name>alpha</name>",
-				"      <description>General-purpose helper</description>",
+				"      <description><![CDATA[General-purpose helper]]></description>",
 				"    </subagent>",
 				"    <subagent>",
 				"      <name>panel &amp; review</name>",
-				"      <description>&lt;team&gt; checks</description>",
+				"      <description><![CDATA[<team> checks]]></description>",
 				"    </subagent>",
 				"  </available-subagents>",
 			].join("\n"),
+		);
+	});
+
+	it("splits CDATA terminators in descriptions to keep the prompt XML-valid", () => {
+		const agents: AgentConfig[] = [
+			{
+				name: "alpha",
+				description: "literal ]]> marker",
+				hidden: false,
+				tools: [],
+				systemPrompt: "prompt",
+				source: "package",
+				filePath: "/tmp/alpha.md",
+			},
+		];
+
+		expect(formatAgentsForPrompt(agents)).toContain(
+			"<description><![CDATA[literal ]]]]><![CDATA[> marker]]></description>",
 		);
 	});
 
