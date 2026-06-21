@@ -1,5 +1,5 @@
 ---
-name: afk-create-tasks
+name: task-authoring
 description: >
   Create deterministic AFK task files from current planning context. Use when the user asks to
   create an AFK task plan, break work into tasks for the AFK loop, generate tasks/index.yml,
