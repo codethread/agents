@@ -15,7 +15,7 @@ Your job: finalise the current slice without starting new work.
 2. Include all intended worktree changes in git.
 3. Prefer amending the slice commit when there is an obvious previous slice commit to amend.
 4. Otherwise create one conventional commit that captures all current work.
-5. Keep the task index/status and task notes consistent with the actual state.
+5. Keep the active feature folder's task index/status and feature plan Developer Notes consistent with the actual state.
 6. Ensure `git status --porcelain` is empty before you finish.
 
 ## Failure handling

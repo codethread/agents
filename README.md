@@ -57,8 +57,8 @@ See `pi/extensions/system-prompt/README.md` for prompt-layer extension details a
 
 ## Included plugins
 
-- `plugins/devflow/` — AFK workflow prompts/skill plus HITL, shrug, and grill-me prompts
-- `plugins/writing/` — skill authoring, spec authoring, and Mermaid writing skills
+- `plugins/devflow/` — RFC/spec/reviewable-plan/disposable-task skills plus AFK workflow prompts, HITL, shrug, and grill-me prompts
+- `plugins/writing/` — skill authoring and Mermaid writing skills
 - `plugins/coding/` — git, robustness, writing-tests skills plus coding prompts
 - `plugins/harness/` — harness/session affordances such as Pi and Claude Code session introspection and rich responses
 

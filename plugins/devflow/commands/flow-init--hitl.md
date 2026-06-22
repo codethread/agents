@@ -1,6 +1,6 @@
 ---
 description: Human-in-the-loop single tick for AFK-style task work
-argument-hint: provide the task index YAML, task files, and any specs to study
+argument-hint: provide active feature folder, proposal, task index, feature plan, and any specs to study
 disable-model-invocation: true
 ---
 
@@ -9,6 +9,8 @@ disable-model-invocation: true
 Study $ARGUMENTS
 
 Your job: work on **exactly one** task slice, then report normally to the user.
+
+The prompt arguments must identify the active feature folder, proposal file, task index file, and feature plan file. Resolve task `task_file` paths relative to the active feature folder.
 
 ## Slice selection
 
@@ -27,8 +29,8 @@ Pick **exactly one** slice from the task index YAML using these rules:
 ## Workflow
 
 1. Load `plugins/coding/skills/robustness/SKILL.md` before making implementation decisions, and apply it when handling edge cases, failure modes, validation, or review feedback.
-2. If the chosen slice is `status: pending`, change it to `status: in_progress`. If it is already `status: in_progress`, continue from the current worktree state and task notes.
-3. Read the chosen slice's `task_file` and `tasks/README.md` before implementing.
+2. If the chosen slice is `status: pending`, change it to `status: in_progress` in the provided task index file. If it is already `status: in_progress`, continue from the current worktree state and feature plan notes.
+3. Read the chosen slice's `task_file`, the provided proposal file, the provided feature plan file, and any root or feature-local specs referenced by them before implementing.
 4. Implement the slice fully, following:
    - its `Scope`
    - its `Must implement exactly`
@@ -37,14 +39,14 @@ Pick **exactly one** slice from the task index YAML using these rules:
 5. Update all required code, tests, command help, and docs for that slice.
 6. Run the project validation required by the repo rules.
 7. If validation fails, fix it. Assume the tree was green before your edits — do not attribute failures to pre-existing state. If the only fix lies outside the slice's scope, see **Failure handling**.
-8. Append any useful discoveries, deferred edge cases, or follow-up scope to `tasks/README.md` under `Developer Notes`. Do not add extra fields to the task YAML.
+8. Append any useful discoveries, deferred edge cases, or follow-up scope to the feature plan file under `Developer Notes`. Do not add extra fields to the task YAML.
 9. When the slice is fully complete, update the task index YAML:
    - change `status: in_progress` to `status: complete`
 10. Commit with detailed status including the task number and title as the commit header.
 11. Review the work with the right scope:
     1. Use `review` for fast spot checks while iterating on a narrow concern or risky change.
     2. Use `deep-review` once near the end of the slice, after validation passes and the commit exists.
-    3. Pass `deep-review` the commit/diff, task file, task index entry, relevant specs/PRDs, touched paths, validation results, known risks, and any upfront exploration notes so each review agent starts from shared context instead of rediscovering it.
+    3. Pass `deep-review` the commit/diff, task file, task index entry, feature proposal, relevant specs, touched paths, validation results, known risks, and any upfront exploration notes so each review agent starts from shared context instead of rediscovering it.
     4. Handle the important review comments.
        - NOTE: reviewers may over-specify correctness.
        - use your judgment to move toward working software, and capture edge cases needing later robustness checks in the slice notes rather than expanding scope.
@@ -66,7 +68,7 @@ If you cannot honestly mark the slice `complete`, stop and explain the blocker t
 When blocked:
 
 1. Change the slice status to `blocked`. Do **not** revert to `pending`. Do **not** mark `complete`.
-2. Append a concise blocker note to `tasks/README.md` under `Developer Notes` so the user can adjudicate.
+2. Append a concise blocker note to the feature plan file under `Developer Notes` so the user can adjudicate.
 3. Commit the in-progress work and the note. Header references the task number/title with a ` (BLOCKED)` suffix. Skip the review subagent.
 
 Block when any of these hold:

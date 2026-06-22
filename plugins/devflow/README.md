@@ -1,47 +1,153 @@
 # Devflow Plugin
 
-Workflow helpers for turning planned work into small, reviewable implementation slices.
+Workflow helpers for turning ideas into durable specs, feature-local plans, and AFK task slices.
 
-## Planning documents
+This plugin assumes each repository may keep a planning workspace at `devflow/`. That workspace is distinct from this plugin directory (`plugins/devflow/`).
 
-Three skills cover the spec → plan → tasks pipeline, each owning one kind of knowledge:
+Start by loading `plugins/devflow/skills/devflow/SKILL.md`. It is the cheap lifecycle entrypoint; it explains the current phase, prerequisites, and which deeper reference skill to load.
 
-| Skill                              | Document     | Owns                                                      | Lifetime                       |
-| ---------------------------------- | ------------ | --------------------------------------------------------- | ------------------------------ |
-| `skills/spec-authoring/SKILL.md`   | `specs/*.md` | Why, boundaries, domain contracts; module-level refs only | Permanent, evolves with domain |
-| `skills/plan-authoring/SKILL.md`   | `plans/*.md` | How and where: file paths, phases, migrations             | Deleted when the change ships  |
-| `skills/afk-create-tasks/SKILL.md` | `tasks/`     | Execution slices for the AFK loop                         | Lives with the task queue      |
+## Planning workspace
 
-Specs never contain file paths or implementation phases — that detail lives in a technical plan, which is retired (durable decisions harvested into the spec, then deleted) once the change is complete.
+`devflow/` is organized around durable domain specs plus one folder per active feature or change.
+
+```text
+devflow/
+|-- README.md
+|-- rfcs/
+|-- specs/
+|   |-- <spec-name>.md
+|   |-- feature-name-spec.md
+|   `-- other-spec.md
+|-- <feat-name>/
+|   |-- proposal.md
+|   |-- specs/
+|   |   |-- other-spec.delta.md
+|   |   `-- new-spec.md
+|   |-- <feat-name>.plan.md
+|   `-- tasks/
+|       |-- index.yml
+|       `-- <zero-padded-id>-<slug>.md
+`-- archive/
+    `-- yy-mm-dd__<older-feat-name>/
+        `-- ...everything from devflow/<older-feat-name>/
+```
+
+### Root files
+
+- `devflow/README.md` — index into root specs and a short explanation of this structure. It may link to `rfcs/`, but should not summarize or duplicate RFC content.
+- `devflow/specs/` — durable domain specs. These describe stable boundaries, contracts, non-goals, and design decisions.
+- `devflow/rfcs/` — durable decision records for unresolved ideas, alternatives, and tradeoffs. RFCs feed specs and feature folders, but are not re-explained by the root README.
+- `devflow/archive/` — completed or abandoned feature folders, moved intact so proposal/plan/task context remains available without crowding active work.
+
+### Active feature folders
+
+Each active feature or substantial change gets `devflow/<feat-name>/`.
+
+| File or folder                 | Purpose                                                                                         | Lifetime                                           |
+| ------------------------------ | ----------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `proposal.md`                  | Feature-local problem framing and desired outcome. May reference an RFC if one exists.          | Archived with the feature folder                   |
+| `specs/*.delta.md`             | Proposed changes to existing root specs, to be incorporated when the feature ships.             | Merged into `devflow/specs/`, then archived        |
+| `specs/<new-spec>.md`          | New spec drafted with the feature before promotion to root `devflow/specs/`.                    | Promoted to root specs, then archived copy remains |
+| `<feat-name>.plan.md`          | Reviewable build strategy, phase shape, validation strategy, task context, and developer notes. | Archived with the feature folder                   |
+| `tasks/index.yml` + task files | AFK task queue using the existing task index schema and per-task markdown files.                | Archived with the feature folder                   |
+
+Put task context, important references, and append-only developer notes in `<feat-name>.plan.md`.
+
+## Typical workflow
+
+```dot
+digraph devflow {
+  rankdir = LR;
+
+  idea [label = "Feature idea"];
+  rfc [label = "optional RFC\ndevflow/rfcs/*"];
+  feature [label = "feature folder\ndevflow/<feat-name>/"];
+  proposal [label = "proposal.md"];
+  specwork [label = "feature-local specs\n*.delta.md / new specs"];
+  plan [label = "<feat-name>.plan.md"];
+  tasks [label = "tasks/index.yml\n+ task files"];
+  afk [label = "AFK loop"];
+  rootspecs [label = "root specs\ndevflow/specs/*"];
+  archive [label = "archive feature folder\ndevflow/archive/yy-mm-dd__<feat-name>/"];
+
+  idea -> rfc [label = "meaningful uncertainty", style = dashed];
+  idea -> feature;
+  rfc -> proposal [label = "decision history", style = dashed];
+  feature -> proposal -> specwork -> plan -> tasks -> afk;
+  afk -> rootspecs [label = "merge durable outcomes"];
+  afk -> archive [label = "ship, abandon, or supersede"];
+}
+```
+
+Recommended sequence:
+
+1. Use an RFC only when there is meaningful uncertainty or a decision record is valuable.
+2. Create `devflow/<feat-name>/` for active feature context.
+3. Write `proposal.md` for the problem space and intended outcome.
+4. Draft feature-local spec changes in `specs/`.
+5. Write `<feat-name>.plan.md` with the build approach, validation strategy, task context, and developer notes.
+6. Generate AFK tasks under `tasks/` from the reviewed plan.
+7. When the feature ships, merge durable spec changes into `devflow/specs/` and move the whole feature folder to `devflow/archive/yy-mm-dd__<feat-name>/`.
+
+## User phase commands
+
+These commands are user opt-in entrypoints. Each command tells the agent to load `skills/devflow/SKILL.md`, jump to the requested phase, satisfy prerequisites, and then load deeper reference skills only as needed.
+
+| Command             | Phase                                |
+| ------------------- | ------------------------------------ |
+| `/devflow`          | Orient and choose the current phase  |
+| `/devflow-rfc`      | RFC / decision record                |
+| `/devflow-proposal` | Feature folder and `proposal.md`     |
+| `/devflow-spec`     | Root specs, feature specs, or deltas |
+| `/devflow-plan`     | Feature implementation plan          |
+| `/devflow-tasks`    | AFK task queue                       |
+| `/devflow-afk`      | Prepare/explain running the AFK loop |
+| `/devflow-finish`   | Promote specs, mark outcome, archive |
+| `/migrate`          | One-time migration to this workspace |
+
+## Document ownership
+
+| Document                 | Owns                                                              | Does not own                                     |
+| ------------------------ | ----------------------------------------------------------------- | ------------------------------------------------ |
+| RFC                      | Alternatives, tradeoffs, recommendation, decision outcome         | Implementation tracking or current feature state |
+| Root spec                | Durable domain contracts, boundaries, rationale, non-goals        | Feature-local sequencing or task detail          |
+| Feature proposal         | Problem framing, goals, scope, and links to relevant decisions    | Alternatives history that belongs in an RFC      |
+| Feature-local spec delta | Pending changes to durable specs                                  | Long-term duplicated spec content                |
+| Feature plan             | Build strategy, phase boundaries, validation, and developer notes | Per-slice execution contracts                    |
+| Task files               | Exact AFK slices, acceptance criteria, dependencies               | Durable design knowledge or ongoing notes        |
+| Archive                  | Historical feature context after completion or abandonment        | Active source of truth for current specs         |
+
+The root spec is the future-facing source of truth. Archived feature folders are historical context: useful for understanding why a feature changed, not for discovering the current contract.
 
 ## AFK loop
 
-The AFK loop is a single-worktree automation flow for repeatedly running one task slice at a time:
+The AFK loop is a single-worktree automation flow for repeatedly running one task slice at a time. Task paths below are relative to the active feature folder (`devflow/<feat-name>/`).
 
 1. select the next runnable task from `tasks/index.yml`
-2. run `/flow-init--afk` against that selected slice, with notes from `tasks/README.md`
+2. run `/flow-init--afk` against that selected slice, passing the feature proposal, feature plan, and task index
 3. run `/flow-build--refine`, `/flow-build--smoke`, and `/flow-build--finalise` as needed
 4. stop when tasks are exhausted, blocked, the initial runner call fails, or repeated later runner failures occur
 
-By default the loop uses Pi (`openai-codex/gpt-5.5:low`). Pass `--claude` to use the Claude CLI instead (default model: `sonnet`). Pass `--model` to override the model for either runner.
+Run the loop with an active feature name or folder, for example `afk-loop my-feature "also read @README.md"`. The loop requires `proposal.md`, `<feat-name>.plan.md`, and `tasks/index.yml` in that feature folder. By default it uses Pi (`openai-codex/gpt-5.5:low`). Pass `--claude` to use the Claude CLI instead (default model: `sonnet`). Pass `--model` to override the model for either runner.
 
 Use separate git worktrees for parallelism. The loop intentionally does not run concurrent tasks in one worktree.
 
 ### Main files
 
+- `skills/devflow/SKILL.md` — lifecycle entrypoint and state machine for agents
+- `commands/devflow*.md` — user-invoked phase commands that load the entry skill and jump to a workflow phase
+- `commands/migrate.md` — one-time migration prompt for repositories adopting the `devflow/` workspace
 - `scripts/afk-loop.nu` — orchestration, task selection, retry limits, stop-token parsing, and clean-worktree checks
 - `commands/flow-init--afk.md` — unattended single-slice implementation prompt
 - `commands/flow-init--hitl.md` — human-in-the-loop single-slice prompt
 - `commands/flow-build--refine.md` — simplify the just-built slice
 - `commands/flow-build--smoke.md` — smoke-test the just-built slice
 - `commands/flow-build--finalise.md` — cleanup prompt after refine/smoke leaves uncommitted work
-- `skills/afk-create-tasks/SKILL.md` — creates deterministic `tasks/index.yml`, `tasks/README.md`, and per-task markdown files
+- `skills/task-authoring/SKILL.md` — creates deterministic task indexes and per-task markdown files
 
 ### Task queue shape
 
-The loop always reads tasks from `tasks/index.yml` and task notes from `tasks/README.md`; these paths are not inferred from the `study` argument.
-
-`tasks/index.yml` uses one top-level `tasks` list:
+The existing task queue schema is unchanged. New feature folders keep the task queue under `devflow/<feat-name>/tasks/`; paths inside the queue remain relative to the feature folder. The queue itself still uses one top-level `tasks` list:
 
 ```yaml
 tasks:
@@ -59,7 +165,7 @@ Statuses:
 - `blocked` — needs human input; skipped by the AFK loop
 - `complete` — finished and committed
 
-Keep dependencies in `blocked_by`. Put discoveries, blockers, and follow-up notes in `tasks/README.md` under `Developer Notes` rather than adding YAML fields.
+Keep dependencies in `blocked_by`. Put discoveries, blockers, and follow-up notes in the feature plan's developer notes rather than adding YAML fields.
 
 ### AFK vs HITL slices
 

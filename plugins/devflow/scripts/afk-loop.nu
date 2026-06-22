@@ -1,11 +1,20 @@
-# Repeatedly run the /flow-init--afk prompt until the queue is blocked or exhausted.
+# Repeatedly run the /flow-init--afk prompt for one devflow feature until its queue is blocked or exhausted.
 #
 # Example:
-#   use /Users/codethread/dev/projects/agents/plugins/devflow/scripts/afk-loop.nu
-#   afk-loop "@tasks/index.yml, task files under @tasks/, ALL @specs/README.md and @UBIQUITOUS_LANGUAGE.md"
+#   use plugins/devflow/scripts/afk-loop.nu *
+#   afk-loop my-feature "also read @README.md and @devflow/specs/task-engine.md"
 
 def has-token [out: string, token: string] {
   $out == $token or ($out | str contains $token)
+}
+
+def feature-dir [feature: string] {
+  let trimmed = ($feature | str trim)
+  if ($trimmed | str starts-with "devflow/") {
+    $trimmed
+  } else {
+    $"devflow/($trimmed)"
+  }
 }
 
 def task-items [task_index: string] {
@@ -61,7 +70,7 @@ def task-status [task: string] {
   ($task | from yaml).status
 }
 
-def task-session-name [task: string, loop_count: int] {
+def task-session-name [feature_name: string, task: string, loop_count: int] {
   let task = ($task | from yaml)
   let id = $task.id
   let description = (
@@ -71,11 +80,12 @@ def task-session-name [task: string, loop_count: int] {
     | str replace --all --regex "[^A-Za-z0-9._ -]" "-"
   )
 
-  $"afk-($loop_count)-($id)-($description)"
+  $"afk-($feature_name)-($loop_count)-($id)-($description)"
 }
 
 export def main [
-  study: string                                # Text appended after `/flow-init--afk study `: specs/context to read; tasks are loaded from tasks/index.yml
+  feature: string                              # Feature name or active feature folder, e.g. `my-feature` or `devflow/my-feature`
+  study: string = ""                           # Additional context appended after the feature proposal/plan/spec context
   --agent: string = "main"                     # Pi agent to run (ignored when --claude is set)
   --model: string = ""                         # Model to run (defaults: pi=openai-codex/gpt-5.5:low, claude=sonnet)
   --claude                                     # Use claude CLI instead of pi
@@ -87,11 +97,27 @@ export def main [
   }
   let cli = if $claude { "claude" } else { "pi" }
 
+  let active_feature_dir = (feature-dir $feature)
+  let feature_name = ($active_feature_dir | path basename)
+  let proposal_file = $"($active_feature_dir)/proposal.md"
+  let task_index = $"($active_feature_dir)/tasks/index.yml"
+  let feature_plan = $"($active_feature_dir)/($feature_name).plan.md"
+
+  if not ($proposal_file | path exists) {
+    error make { msg: $"missing feature proposal: ($proposal_file)" }
+  }
+
+  if not ($task_index | path exists) {
+    error make { msg: $"missing task index: ($task_index)" }
+  }
+
+  if not ($feature_plan | path exists) {
+    error make { msg: $"missing feature plan: ($feature_plan)" }
+  }
+
   mut failures = 0
   mut loop_count = 0
   let max_failures = 3
-  let task_index = "tasks/index.yml"
-  let task_notes = "tasks/README.md"
 
   loop {
     let task = (next-task $task_index | str trim)
@@ -108,11 +134,11 @@ export def main [
     }
 
     $loop_count = ($loop_count + 1)
-    let session_name = (task-session-name $task $loop_count)
+    let session_name = (task-session-name $feature_name $task $loop_count)
     # mint a session id so build phases resume this exact session, not "most recent in cwd"
     let session_id = (random uuid)
     let init_command = if $claude { "/devflow:flow-init--afk" } else { "/flow-init--afk" }
-    let prompt = $"($init_command) study ($study)\n\nSelected task:\n($task)\n\nTask notes file: ($task_notes)"
+    let prompt = $"($init_command) study Active feature folder: ($active_feature_dir)\nProposal file: ($proposal_file)\nTask index file: ($task_index)\nFeature plan file: ($feature_plan)\nAdditional context: ($study)\n\nSelected task:\n($task)"
     print $"running: ($init_command) with next task from ($task_index) as ($session_name)"
 
     let res = if $claude {

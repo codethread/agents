@@ -2,6 +2,8 @@
 
 Persistent domain specifications. Organized by system area, not feature chronology.
 
+RFCs for early-stage idea exploration and decision records live in [`rfcs/`](./rfcs/README.md). Plans and task queues are ephemeral; once work ships, durable outcomes belong here.
+
 **Rule:** specs describe intent, code describes reality. Always check the codebase before assuming a spec is fully implemented.
 
 ## Cross-Cutting Architecture
