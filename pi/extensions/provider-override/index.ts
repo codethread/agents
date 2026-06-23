@@ -53,6 +53,7 @@ async function enforceProviderOverride(
 	const currentModel = ctx.model;
 	if (!currentModel) return;
 	if (!config.providers.includes(currentModel.provider)) return;
+	if (config.ignore.includes(formatModel(currentModel))) return;
 
 	const policyProvider = getPolicyProvider(config, ctx.cwd);
 	if (currentModel.provider === policyProvider) return;

@@ -10,6 +10,7 @@ export interface ProviderOverridePathRule {
 export interface ProviderOverrideConfig {
 	providers: string[];
 	default: string;
+	ignore: string[];
 	paths: ProviderOverridePathRule[];
 }
 
@@ -22,6 +23,7 @@ const configSchema = z
 	.object({
 		providers: z.array(z.string().trim().min(1)).min(2),
 		default: z.string().trim().min(1),
+		ignore: z.array(z.string().trim().min(1)).default([]),
 		paths: z.array(pathRuleSchema).default([]),
 	})
 	.strict();
@@ -80,6 +82,25 @@ export function parseProviderOverrideConfig(
 	}
 
 	const providerSet = new Set(providers);
+	const duplicateIgnoredModels = parsed.data.ignore.filter(isDuplicate);
+	if (duplicateIgnoredModels.length > 0) {
+		throw new Error(
+			`Invalid provider override config: duplicate ignored model(s): ${Array.from(new Set(duplicateIgnoredModels)).join(", ")}`,
+		);
+	}
+	for (const [index, slug] of parsed.data.ignore.entries()) {
+		const [provider, modelId, ...extra] = slug.split("/");
+		if (!provider || !modelId || extra.length > 0) {
+			throw new Error(
+				`Invalid provider override config: ignore[${index}] must be a full provider/model slug`,
+			);
+		}
+		if (!providerSet.has(provider)) {
+			throw new Error(
+				`Invalid provider override config: ignore[${index}] provider "${provider}" is not listed in providers`,
+			);
+		}
+	}
 	if (!providerSet.has(parsed.data.default)) {
 		throw new Error(
 			`Invalid provider override config: default provider "${parsed.data.default}" is not listed in providers`,
@@ -89,6 +110,7 @@ export function parseProviderOverrideConfig(
 	return {
 		providers,
 		default: parsed.data.default,
+		ignore: parsed.data.ignore,
 		paths: parsed.data.paths.map((rule, index) => {
 			if (!providerSet.has(rule.provider)) {
 				throw new Error(

@@ -18,6 +18,7 @@ Example:
 {
 	"providers": ["openai", "openai-codex"],
 	"default": "openai-codex",
+	"ignore": ["openai-codex/gpt-5.3-codex-spark"],
 	"paths": [
 		{ "path": "~/dev/sponsored-project", "provider": "openai" },
 		{ "path": "~/dev", "provider": "openai-codex" },
@@ -29,6 +30,8 @@ Example:
 `paths` are ordered path-prefix rules. First match wins. A rule matches the exact configured path or any child directory. Paths must be absolute or start with `~/`; matching is lexical and does not resolve symlinks.
 
 If no path rule matches, `default` is used for managed providers only. Providers not listed in `providers` are never rewritten.
+
+`ignore` is an optional list of full `provider/model` slugs that must never be rewritten. Use it for managed-provider model ids that are not available from the target provider API, for example `openai-codex/gpt-5.3-codex-spark`. Ignored slug providers must be listed in `providers`.
 
 ## Failure behavior
 

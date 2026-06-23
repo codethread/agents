@@ -17,6 +17,7 @@ describe("provider override config", () => {
 			env,
 		);
 
+		expect(config.ignore).toEqual([]);
 		expect(config.paths).toEqual([
 			{ path: "/Users/alice/dev/sponsored", provider: "openai" },
 			{ path: "/Users/alice/dev", provider: "openai-codex" },
@@ -30,6 +31,20 @@ describe("provider override config", () => {
 		expect(matchesPathRule("/Users/alice/dev", "/Users/alice/dev")).toBe(true);
 		expect(matchesPathRule("/Users/alice/dev/project", "/Users/alice/dev")).toBe(true);
 		expect(matchesPathRule("/Users/alice/development/project", "/Users/alice/dev")).toBe(false);
+	});
+
+	it("parses ignored model slugs", () => {
+		const config = parseProviderOverrideConfig(
+			{
+				providers: ["openai", "openai-codex"],
+				default: "openai-codex",
+				ignore: ["openai-codex/gpt-5.3-codex-spark"],
+				paths: [],
+			},
+			env,
+		);
+
+		expect(config.ignore).toEqual(["openai-codex/gpt-5.3-codex-spark"]);
 	});
 
 	it("rejects relative paths", () => {
@@ -56,6 +71,34 @@ describe("provider override config", () => {
 				env,
 			),
 		).toThrow(/not listed in providers/);
+	});
+
+	it("rejects ignored model slugs outside the managed provider set", () => {
+		expect(() =>
+			parseProviderOverrideConfig(
+				{
+					providers: ["openai", "openai-codex"],
+					default: "openai-codex",
+					ignore: ["anthropic/claude-opus"],
+					paths: [],
+				},
+				env,
+			),
+		).toThrow(/not listed in providers/);
+	});
+
+	it("rejects malformed ignored model slugs", () => {
+		expect(() =>
+			parseProviderOverrideConfig(
+				{
+					providers: ["openai", "openai-codex"],
+					default: "openai-codex",
+					ignore: ["gpt-5.3-codex-spark"],
+					paths: [],
+				},
+				env,
+			),
+		).toThrow(/full provider\/model slug/);
 	});
 
 	it("rejects duplicate providers", () => {
