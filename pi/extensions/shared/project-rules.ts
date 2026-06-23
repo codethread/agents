@@ -36,6 +36,10 @@ const RULE_DIRS: Array<{ source: ProjectRuleSource; dir: string }> = [
 	{ source: "claude", dir: path.join(".claude", "rules") },
 	{ source: "agents", dir: path.join(".agents", "rules") },
 ];
+const RULE_DIR_BY_SOURCE: Record<ProjectRuleSource, string> = {
+	claude: toPosix(path.join(".claude", "rules")),
+	agents: toPosix(path.join(".agents", "rules")),
+};
 
 export async function resolveProjectRoot(
 	cwd: string,
@@ -227,6 +231,12 @@ export function matchingRules(rules: ProjectRule[], projectRelativePaths: string
 		matched.push(rule);
 	}
 	return matched;
+}
+
+export function projectRelativeRuleFilePath(
+	rule: Pick<ProjectRule, "source" | "relativeRulePath">,
+): string {
+	return `${RULE_DIR_BY_SOURCE[rule.source]}/${rule.relativeRulePath}`;
 }
 
 export function renderProjectRulesReminder(

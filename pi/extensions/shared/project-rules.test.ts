@@ -9,6 +9,7 @@ import {
 	getUnconditionalRules,
 	matchesRule,
 	normalizeProjectPath,
+	projectRelativeRuleFilePath,
 } from "./project-rules.js";
 
 function makeRoot() {
@@ -78,6 +79,21 @@ paths:
 		expect(normalizeProjectPath("src/index.ts", root, root)).toBe("src/index.ts");
 		expect(normalizeProjectPath(path.join(root, "src/index.ts"), root, root)).toBe("src/index.ts");
 		expect(normalizeProjectPath(path.dirname(root), root, root)).toBeNull();
+	});
+
+	it("formats project-relative rule file paths with their source directories", () => {
+		expect(
+			projectRelativeRuleFilePath({
+				source: "claude",
+				relativeRulePath: "nested/some-rule.md",
+			} as const),
+		).toBe(".claude/rules/nested/some-rule.md");
+		expect(
+			projectRelativeRuleFilePath({
+				source: "agents",
+				relativeRulePath: "other-rule.md",
+			} as const),
+		).toBe(".agents/rules/other-rule.md");
 	});
 
 	it("warns and skips malformed frontmatter without blocking discovery", async () => {

@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { formatProjectRulesNotice } from "./index.js";
 import projectRulesMessagingExtension from "./index.js";
 
 function makeRoot() {
@@ -32,6 +33,21 @@ function createCtx(root: string) {
 }
 
 describe("project-rules messaging extension", () => {
+	it("formats a single visible notice inline and multiple notices as a list", () => {
+		expect(formatProjectRulesNotice([".claude/rules/some-rule.md"])).toBe(
+			"Project rules sent to agent (.claude/rules/some-rule.md)",
+		);
+		expect(
+			formatProjectRulesNotice([".claude/rules/some-rule.md", ".agents/rules/some-other-rule.md"]),
+		).toBe(
+			[
+				"Project rules sent to agent",
+				"  - .claude/rules/some-rule.md",
+				"  - .agents/rules/some-other-rule.md",
+			].join("\n"),
+		);
+	});
+
 	it("steers read-triggered project rules instead of queuing them as follow-ups", async () => {
 		const root = makeRoot();
 		write(
@@ -72,6 +88,10 @@ paths:
 				customType: "project-rules",
 				content: expect.stringContaining('<system-reminder type="project-rules">'),
 				display: true,
+				details: {
+					rulePaths: [".agents/rules/typescript.md"],
+					triggeredBy: ["src/app.ts"],
+				},
 			}),
 			{ deliverAs: "steer" },
 		);

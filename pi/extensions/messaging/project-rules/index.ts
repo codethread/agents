@@ -6,6 +6,7 @@ import {
 	matchesRule,
 	matchingRules,
 	normalizeProjectPath,
+	projectRelativeRuleFilePath,
 	renderProjectRulesReminder,
 	ruleSignature,
 	type ProjectRule,
@@ -25,14 +26,24 @@ type ToolResultEvent = {
 	isError: boolean;
 };
 
+export function formatProjectRulesNotice(rulePaths: string[]): string {
+	if (rulePaths.length === 0) return "Project rules sent to agent";
+	if (rulePaths.length === 1) return `Project rules sent to agent (${rulePaths[0]})`;
+	return ["Project rules sent to agent", ...rulePaths.map((rulePath) => `  - ${rulePath}`)].join(
+		"\n",
+	);
+}
+
 export function renderProjectRulesMessage(
 	message: { details?: RuleMessageDetails },
 	_options: unknown,
 	theme: Theme,
 ) {
-	const count = message.details?.rulePaths.length ?? 0;
-	const suffix = count > 0 ? ` (${count})` : "";
-	return new Text(theme.fg("dim", `Project rules sent to agent${suffix}`), 1, 0);
+	return new Text(
+		theme.fg("dim", formatProjectRulesNotice(message.details?.rulePaths ?? [])),
+		1,
+		0,
+	);
 }
 
 function notifyWarnings(ctx: Pick<ExtensionContext, "hasUI" | "ui">, warnings: string[]) {
@@ -91,7 +102,7 @@ export default function projectRulesMessagingExtension(pi: ExtensionAPI) {
 			content,
 			display: true,
 			details: {
-				rulePaths: rules.map((rule) => rule.path),
+				rulePaths: rules.map(projectRelativeRuleFilePath),
 				triggeredBy,
 			} satisfies RuleMessageDetails,
 		};
