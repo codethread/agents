@@ -4,7 +4,7 @@ Workflow helpers for turning ideas into durable specs, feature-local plans, and 
 
 This plugin assumes each repository may keep a planning workspace at `devflow/`. That workspace is distinct from this plugin directory (`plugins/devflow/`).
 
-Start by loading `plugins/devflow/skills/devflow/SKILL.md`. It is the cheap lifecycle entrypoint; it explains the current phase, prerequisites, and which deeper reference skill to load.
+Start by loading `plugins/devflow/skills/devflow/SKILL.md`. It is the cheap lifecycle entrypoint; it explains the current stage, prerequisites, and which reference file to read for stage details.
 
 ## Planning workspace
 
@@ -18,18 +18,19 @@ devflow/
 |   |-- <spec-name>.md
 |   |-- feature-name-spec.md
 |   `-- other-spec.md
-|-- <feat-name>/
-|   |-- proposal.md
-|   |-- specs/
-|   |   |-- other-spec.delta.md
-|   |   `-- new-spec.md
-|   |-- <feat-name>.plan.md
-|   `-- tasks/
-|       |-- index.yml
-|       `-- <zero-padded-id>-<slug>.md
+|-- feat/
+|   `-- <feat-name>/
+|       |-- proposal.md
+|       |-- specs/
+|       |   |-- other-spec.delta.md
+|       |   `-- new-spec.md
+|       |-- <feat-name>.plan.md
+|       `-- tasks/
+|           |-- index.yml
+|           `-- <zero-padded-id>-<slug>.md
 `-- archive/
     `-- yy-mm-dd__<older-feat-name>/
-        `-- ...everything from devflow/<older-feat-name>/
+        `-- ...everything from devflow/feat/<older-feat-name>/
 ```
 
 ### Root files
@@ -41,7 +42,7 @@ devflow/
 
 ### Active feature folders
 
-Each active feature or substantial change gets `devflow/<feat-name>/`.
+Each active feature or substantial change gets `devflow/feat/<feat-name>/`.
 
 | File or folder                 | Purpose                                                                                         | Lifetime                                           |
 | ------------------------------ | ----------------------------------------------------------------------------------------------- | -------------------------------------------------- |
@@ -61,7 +62,7 @@ digraph devflow {
 
   idea [label = "Feature idea"];
   rfc [label = "optional RFC\ndevflow/rfcs/*"];
-  feature [label = "feature folder\ndevflow/<feat-name>/"];
+  feature [label = "feature folder\ndevflow/feat/<feat-name>/"];
   proposal [label = "proposal.md"];
   specwork [label = "feature-local specs\n*.delta.md / new specs"];
   plan [label = "<feat-name>.plan.md"];
@@ -82,20 +83,20 @@ digraph devflow {
 Recommended sequence:
 
 1. Use an RFC only when there is meaningful uncertainty or a decision record is valuable.
-2. Create `devflow/<feat-name>/` for active feature context.
+2. Create `devflow/feat/<feat-name>/` for active feature context.
 3. Write `proposal.md` for the problem space and intended outcome.
 4. Draft feature-local spec changes in `specs/`.
 5. Write `<feat-name>.plan.md` with the build approach, validation strategy, task context, and developer notes.
 6. Generate AFK tasks under `tasks/` from the reviewed plan.
 7. When the feature ships, merge durable spec changes into `devflow/specs/` and move the whole feature folder to `devflow/archive/yy-mm-dd__<feat-name>/`.
 
-## User phase commands
+## User stage commands
 
-These commands are user opt-in entrypoints. Each command tells the agent to load `skills/devflow/SKILL.md`, jump to the requested phase, satisfy prerequisites, and then load deeper reference skills only as needed.
+These commands are user opt-in entrypoints. Each command tells the agent to load `plugins/devflow/skills/devflow/SKILL.md`, jump to the requested stage, satisfy prerequisites, and then read the stage reference file only as needed.
 
-| Command             | Phase                                |
+| Command             | Stage                                |
 | ------------------- | ------------------------------------ |
-| `/devflow`          | Orient and choose the current phase  |
+| `/devflow`          | Orient and choose the current stage  |
 | `/devflow-rfc`      | RFC / decision record                |
 | `/devflow-proposal` | Feature folder and `proposal.md`     |
 | `/devflow-spec`     | Root specs, feature specs, or deltas |
@@ -121,7 +122,7 @@ The root spec is the future-facing source of truth. Archived feature folders are
 
 ## AFK loop
 
-The AFK loop is a single-worktree automation flow for repeatedly running one task slice at a time. Task paths below are relative to the active feature folder (`devflow/<feat-name>/`).
+The AFK loop is a single-worktree automation flow for repeatedly running one task slice at a time. Task paths below are relative to the active feature folder (`devflow/feat/<feat-name>/`).
 
 1. select the next runnable task from `tasks/index.yml`
 2. run `/flow-init--afk` against that selected slice, passing the feature proposal, feature plan, and task index
@@ -134,8 +135,8 @@ Use separate git worktrees for parallelism. The loop intentionally does not run 
 
 ### Main files
 
-- `skills/devflow/SKILL.md` — lifecycle entrypoint and state machine for agents
-- `commands/devflow*.md` — user-invoked phase commands that load the entry skill and jump to a workflow phase
+- `plugins/devflow/skills/devflow/SKILL.md` — lifecycle entrypoint and state machine for agents
+- `commands/devflow*.md` — user-invoked stage commands that load the entry skill and jump to a workflow stage
 - `commands/migrate.md` — one-time migration prompt for repositories adopting the `devflow/` workspace
 - `scripts/afk-loop.nu` — orchestration, task selection, retry limits, stop-token parsing, and clean-worktree checks
 - `commands/flow-init--afk.md` — unattended single-slice implementation prompt
@@ -143,11 +144,11 @@ Use separate git worktrees for parallelism. The loop intentionally does not run 
 - `commands/flow-build--refine.md` — simplify the just-built slice
 - `commands/flow-build--smoke.md` — smoke-test the just-built slice
 - `commands/flow-build--finalise.md` — cleanup prompt after refine/smoke leaves uncommitted work
-- `skills/task-authoring/SKILL.md` — creates deterministic task indexes and per-task markdown files
+- `plugins/devflow/skills/devflow/references/task-authoring.md` — creates deterministic task indexes and per-task markdown files
 
 ### Task queue shape
 
-The existing task queue schema is unchanged. New feature folders keep the task queue under `devflow/<feat-name>/tasks/`; paths inside the queue remain relative to the feature folder. The queue itself still uses one top-level `tasks` list:
+The existing task queue schema is unchanged. New feature folders keep the task queue under `devflow/feat/<feat-name>/tasks/`; paths inside the queue remain relative to the feature folder. The queue itself still uses one top-level `tasks` list:
 
 ```yaml
 tasks:

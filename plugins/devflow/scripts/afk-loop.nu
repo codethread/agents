@@ -10,10 +10,12 @@ def has-token [out: string, token: string] {
 
 def feature-dir [feature: string] {
   let trimmed = ($feature | str trim)
-  if ($trimmed | str starts-with "devflow/") {
+  if ($trimmed | str starts-with "devflow/feat/") {
     $trimmed
+  } else if ($trimmed | str starts-with "devflow/") {
+    error make { msg: $"active feature folders live under devflow/feat/: ($trimmed)" }
   } else {
-    $"devflow/($trimmed)"
+    $"devflow/feat/($trimmed)"
   }
 }
 
@@ -84,7 +86,7 @@ def task-session-name [feature_name: string, task: string, loop_count: int] {
 }
 
 export def main [
-  feature: string                              # Feature name or active feature folder, e.g. `my-feature` or `devflow/my-feature`
+  feature: string                              # Feature name or active feature folder, e.g. `my-feature` or `devflow/feat/my-feature`
   study: string = ""                           # Additional context appended after the feature proposal/plan/spec context
   --agent: string = "main"                     # Pi agent to run (ignored when --claude is set)
   --model: string = ""                         # Model to run (defaults: pi=openai-codex/gpt-5.5:low, claude=sonnet)

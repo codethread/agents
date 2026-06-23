@@ -1,16 +1,8 @@
----
-name: task-authoring
-description: >
-  Create deterministic AFK task queues inside devflow feature folders. Use when the user asks to create
-  or amend a task queue, break a reviewed feature plan into tasks, generate tasks/index.yml, or convert
-  a small feature/problem/spec/RFC into unattended implementation slices.
----
-
 # Task Authoring Guide
 
-Use this skill to create or update a deterministic, feature-local AFK task queue that can be consumed by the AFK loop. Tasks are the execution layer: they may be more specific than the feature plan, but they should reference the proposal/spec/RFC/plan instead of duplicating rationale.
+Use this reference to create or update a deterministic, feature-local AFK task queue that can be consumed by the AFK loop. Tasks are the execution layer: they may be more specific than the feature plan, but they should reference the proposal/spec/RFC/plan instead of duplicating rationale.
 
-Task queues live under `devflow/<feat-name>/tasks/`. Task context and append-only developer notes live in `devflow/<feat-name>/<feat-name>.plan.md`; do not create a task README.
+Task queues live under `devflow/feat/<feat-name>/tasks/`. Task context and append-only developer notes live in `devflow/feat/<feat-name>/<feat-name>.plan.md`; do not create a task README.
 
 ## Process
 
@@ -18,13 +10,13 @@ Task queues live under `devflow/<feat-name>/tasks/`. Task context and append-onl
 
 Work from the current conversation and the user's request. If references are provided, read them fully before drafting tasks.
 
-A task queue always requires `devflow/<feat-name>/proposal.md` and a Reviewed `devflow/<feat-name>/<feat-name>.plan.md`. For non-trivial work, prefer a reviewed feature plan as the source of sequencing. If the request jumps from a broad proposal/spec/RFC directly to tasks and the implementation approach is not yet reviewable, use `plan-authoring` first. For small, obvious changes, create a minimal plan and mark it Reviewed after a lightweight sanity check before writing tasks.
+A task queue always requires `devflow/feat/<feat-name>/proposal.md` and a Reviewed `devflow/feat/<feat-name>/<feat-name>.plan.md`. For non-trivial work, prefer a reviewed feature plan as the source of sequencing. If the request jumps from a broad proposal/spec/RFC directly to tasks and the implementation approach is not yet reviewable, use `plan-authoring` first. For small, obvious changes, create a minimal plan and mark it Reviewed after a lightweight sanity check before writing tasks.
 
 Read, as relevant:
 
-- `devflow/<feat-name>/proposal.md`
-- `devflow/<feat-name>/<feat-name>.plan.md`
-- `devflow/<feat-name>/specs/*`
+- `devflow/feat/<feat-name>/proposal.md`
+- `devflow/feat/<feat-name>/<feat-name>.plan.md`
+- `devflow/feat/<feat-name>/specs/*`
 - `devflow/specs/*`
 - `devflow/rfcs/*`
 - affected code and tests
@@ -37,9 +29,9 @@ Tasks must belong to exactly one active feature folder. If the feature name is n
 
 Expected output paths:
 
-- `devflow/<feat-name>/tasks/index.yml`
-- `devflow/<feat-name>/tasks/<zero-padded-id>-<slug>.md`
-- developer notes in `devflow/<feat-name>/<feat-name>.plan.md`
+- `devflow/feat/<feat-name>/tasks/index.yml`
+- `devflow/feat/<feat-name>/tasks/<zero-padded-id>-<slug>.md`
+- developer notes in `devflow/feat/<feat-name>/<feat-name>.plan.md`
 
 ### 3. Explore the codebase when needed
 
@@ -56,6 +48,7 @@ Slice rules:
 - Prefer AFK-ready tasks where possible.
 - Mark dependencies in YAML `blocked_by`, not in task markdown prose.
 - Put human/architectural uncertainty into the feature plan's Task context or Developer Notes, not hidden in task scope.
+- Give each task file a stable sequential `TASK-<nnn>` document ID and prefix each section/list/table item with that document ID so discussion can cite exact globally grepable task points.
 
 ### 5. Add execution-level specificity
 
@@ -80,7 +73,7 @@ Encoding rules:
 - Do not add a YAML `type` field. The task index schema is fixed.
 - For AFK tasks, use `status: pending`; use `blocked_by` for dependencies instead of setting dependency-blocked AFK work to `blocked`.
 - For HITL tasks, prefix the `description` with `[HITL]` and set `status: blocked` unless the required human input has already been provided.
-- In each task file, put `Type: AFK` or `Type: HITL` as the first line under `## Scope`.
+- In each task file, put `Type: AFK` or `Type: HITL` as the first line under `## TASK-<nnn>.P1 Scope`.
 - If HITL produces a decision that unlocks implementation, make the decision task HITL and create separate AFK implementation task(s) blocked by that HITL task.
 - Keep human uncertainty out of AFK task scope.
 
@@ -98,25 +91,16 @@ Before finalizing a new or substantially changed task queue:
 
 ## Output files
 
-Create or update `devflow/<feat-name>/tasks/` containing:
+Create or update `devflow/feat/<feat-name>/tasks/` containing:
 
-- `tasks/index.yml` — machine-readable task queue in the exact format below, stored at `devflow/<feat-name>/tasks/index.yml`.
-- `tasks/<zero-padded-id>-<slug>.md` — one markdown file per task, e.g. `devflow/<feat-name>/tasks/001-terse-task-title.md`.
+- `tasks/index.yml` — machine-readable task queue using the format in `./task-authoring.template.md`, stored at `devflow/feat/<feat-name>/tasks/index.yml`.
+- `tasks/<zero-padded-id>-<slug>.md` — one markdown file per task, e.g. `devflow/feat/<feat-name>/tasks/001-terse-task-title.md`.
 
-Put task context, important references, amendment rationale, discoveries, blockers, and follow-up scope in the feature plan under `## 8. Task context` or `## 9. Developer Notes`.
+Put task context, important references, amendment rationale, discoveries, blockers, and follow-up scope in the feature plan under `## PL8 Task context` or `## PL9 Developer Notes`.
 
 ## `tasks/index.yml` format
 
-Use this exact top-level shape. Paths are relative to the feature folder, so task files are written as `tasks/<file>.md`:
-
-```yaml
-tasks:
-  - id: 1
-    description: Terse task title
-    task_file: tasks/001-terse-task-title.md
-    status: pending
-    blocked_by: []
-```
+Use the task queue format in `./task-authoring.template.md`.
 
 Rules:
 
@@ -130,45 +114,17 @@ Rules:
 
 ## Feature plan notes format
 
-Ensure the feature plan includes these sections:
+Use the feature plan notes template in `./task-authoring.template.md`.
 
-```markdown
-## 8. Task context
-
-Problem statement / MVP goal, important references, and task strategy.
-
-## 9. Developer Notes
-
-Append notes here. Do not rewrite earlier notes.
-
-### Task <id>: <description> — <YYYY-MM-DD>
-
-- Note relevant for later agents or follow-up scope.
-```
-
-If the plan uses different numbering, preserve the local numbering but keep `Task context` and `Developer Notes` headings.
+If the plan uses different numbering, preserve the local numbering but keep `Task context` and `Developer Notes` headings with document-prefixed sub IDs.
 
 ## Task file format
 
-Each `tasks/<zero-padded-id>-<slug>.md` should include exactly these headings:
-
-```markdown
-# Task <id>: <description>
-
-## Scope
-
-## Must implement exactly
-
-## Done when
-
-## Out of scope
-
-## References
-```
+Each task markdown should follow `./task-authoring.template.md`.
 
 Guidance:
 
-- Start `## Scope` with exactly one classification line: `Type: AFK` or `Type: HITL`.
+- Start `## TASK-<nnn>.P1 Scope` with exactly one classification line: `Type: AFK` or `Type: HITL`.
 - Describe end-to-end behavior, not a layer-by-layer checklist.
 - Include exact files/functions/commands when they make the task safer for unattended execution.
 - Reference accepted RFCs, root specs, feature-local specs, the proposal, and the plan when needed; do not duplicate their rationale or alternatives.
@@ -177,6 +133,7 @@ Guidance:
 - Keep slices small enough for one agent run.
 - Prefer a workable MVP over comprehensive scope.
 - Put follow-up ideas in the feature plan's Developer Notes rather than expanding the slice.
+- Preserve existing reference IDs when editing; append new IDs rather than renumbering unless the task is still a draft with no external references.
 
 ## Boundaries
 
@@ -189,7 +146,7 @@ Guidance:
 
 When updating an existing queue:
 
-- Read `devflow/<feat-name>/tasks/index.yml`, the feature plan, and relevant task files before editing.
+- Read `devflow/feat/<feat-name>/tasks/index.yml`, the feature plan, and relevant task files before editing.
 - Preserve task ids, file names, and history for existing tasks unless the task has not started and the change is purely clarifying.
 - Do not edit completed task files except to fix broken formatting or references that prevent the queue from running.
 - Prefer adding new follow-up tasks over rewriting old tasks. Use the next available integer ids; do not use decimal ids.
