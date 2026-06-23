@@ -262,5 +262,5 @@ export function renderProjectRulesReminder(
 }
 
 export function ruleSignature(rule: ProjectRule): string {
-	return `${rule.path}:${rule.mtimeMs}`;
+	return `${rule.path}:${rule.mtimeMs}:${rule.content}`;
 }

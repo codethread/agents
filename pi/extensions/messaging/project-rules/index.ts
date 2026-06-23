@@ -3,7 +3,6 @@ import { Text } from "@earendil-works/pi-tui";
 import {
 	discoverProjectRules,
 	getUnconditionalRules,
-	matchesRule,
 	matchingRules,
 	normalizeProjectPath,
 	projectRelativeRuleFilePath,
@@ -63,8 +62,8 @@ function extractPromptPaths(prompt: string): string[] {
 	return [...paths];
 }
 
-function sendKey(rule: ProjectRule, trigger: string): string {
-	return `${ruleSignature(rule)}:${trigger}`;
+function scopedRuleKey(rule: ProjectRule): string {
+	return ruleSignature(rule);
 }
 
 function changedUnconditionalKey(rule: ProjectRule): string {
@@ -129,17 +128,10 @@ export default function projectRulesMessagingExtension(pi: ExtensionAPI) {
 		const promptPaths = extractPromptPaths(event.prompt)
 			.map((filePath) => normalizeProjectPath(filePath, ctx.cwd, discovery.projectRoot))
 			.filter((filePath): filePath is string => Boolean(filePath));
-		const scopedRules = matchingRules(discovery.rules, promptPaths).filter((rule) => {
-			const triggers = promptPaths.filter((filePath) =>
-				matchingRules([rule], [filePath]).some((match) => match.path === rule.path),
-			);
-			return triggers.some((trigger) => !sentScoped.has(sendKey(rule, trigger)));
-		});
-		for (const rule of scopedRules) {
-			for (const trigger of promptPaths) {
-				if (matchesRule(rule, trigger)) sentScoped.add(sendKey(rule, trigger));
-			}
-		}
+		const scopedRules = matchingRules(discovery.rules, promptPaths).filter(
+			(rule) => !sentScoped.has(scopedRuleKey(rule)),
+		);
+		for (const rule of scopedRules) sentScoped.add(scopedRuleKey(rule));
 		messages.push(buildMessage(scopedRules, promptPaths));
 
 		const built = messages.filter((message): message is NonNullable<typeof message> =>
@@ -169,7 +161,7 @@ export default function projectRulesMessagingExtension(pi: ExtensionAPI) {
 		const projectPath = normalizeProjectPath(rawPath, ctx.cwd, discovery.projectRoot);
 		if (!projectPath) return;
 		const rules = matchingRules(discovery.rules, [projectPath]).filter((rule) => {
-			const key = sendKey(rule, projectPath);
+			const key = scopedRuleKey(rule);
 			if (sentScoped.has(key)) return false;
 			sentScoped.add(key);
 			return true;

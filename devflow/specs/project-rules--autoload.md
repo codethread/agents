@@ -3,7 +3,7 @@
 **Document ID:** `SPEC-001`
 
 **Status:** Implemented  
-**Last Updated:** 2026-05-23
+**Last Updated:** 2026-06-23
 **Configuration identification:** `SPEC-001` prefixes section and point identifiers in this document. Existing human-readable numbering is preserved for migration traceability.
 
 ## SPEC-001.P1 1. Overview
@@ -210,7 +210,7 @@ During `tool_result` for successful `read` calls:
 - **SPEC-001.B26:** Send matching rules as a custom message.
 - **SPEC-001.B27:** Show the custom message renderer in the UI when rules are sent.
 
-The implementation must avoid repeatedly sending the same rule for the same triggering project path in a session unless the rule file changes, a new overriding rule appears, or the session resets.
+The implementation must avoid repeatedly sending the same unchanged effective path-scoped rule version within a session, even when later triggers come from different matching project paths. A changed rule file, changed effective content/mtime, new overriding rule, or session reset makes that rule eligible to send once again.
 
 ### SPEC-001.P19 Hot reload and invalidation
 
@@ -249,7 +249,7 @@ Broader behavior to preserve:
 - **SPEC-001.B46:** User prompt file mentions trigger matching path-scoped rules.
 - **SPEC-001.B47:** Successful `read` results trigger matching path-scoped rules.
 - **SPEC-001.B48:** Non-matching files do not trigger scoped rules.
-- **SPEC-001.B49:** Duplicate rule/path sends are suppressed within a session.
+- **SPEC-001.B49:** Duplicate unchanged path-scoped rule versions are suppressed within a session, regardless of which matching project path triggered them.
 - **SPEC-001.B50:** Project-structure and project-rules custom messages can coexist.
 
 ## SPEC-001.P22 8. Code Locations
