@@ -129,8 +129,8 @@ Contract notes:
 
 ### SPEC-002.P12 Keyboard shortcuts
 
-| Shortcut       | Scope     | Behavior                                           |
-| -------------- | --------- | -------------------------------------------------- |
+| Shortcut       | Scope                  | Behavior                                                                                        |
+| -------------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
 | `Up`           | Current editor history | Pi built-in `tui.editor.cursorUp` recalls prior prompt text in the current editor history flow. |
 | `Ctrl+P`       | Repo root              | Extension recalls prompts from the same canonical repository.                                   |
 | `Ctrl+Shift+P` | Global                 | Extension recalls all recorded prompts, newest-first.                                           |
