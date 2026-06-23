@@ -45,7 +45,6 @@ tools: read, bash, edit, write
 #     when: "!$IS_WORK"
 #   - openai/gpt-5.5:low
 model: openai-codex/gpt-5.3-codex-spark:low
-# model: openai-codex/gpt-5.5:off
 ---
 
 You are a fixer agent. You make failing code pass and complete narrow mechanical tasks.
