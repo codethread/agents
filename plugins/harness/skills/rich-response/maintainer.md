@@ -6,7 +6,8 @@
 - All CSS inlined. No external stylesheet, no build step.
 - Vanilla JS for copy-to-clipboard on `<pre>` blocks (auto-attached on load).
 - Monospace `<pre>` blocks wrap by default; add `.no-wrap` on `<pre>` when horizontal scrolling is preferred for fixed-width layouts.
-- Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block.
+- Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block, and uses page-aligned theme variables for its initial render.
+- Graphviz (`@viz-js/viz`) is loaded only if the page contains a `<pre class="graphviz">` block; after render, default black/white output and opposite Rose Pine hard-coded colors are normalized to the active page palette for readable initial light/dark renders.
 - Two placeholders to fill: `{{TITLE}}` (appears twice — `<title>` and `<h1>`) and `{{BODY}}`.
 
 ## Why a localhost server (not `file://`)

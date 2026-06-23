@@ -1,6 +1,7 @@
 Have an agent create your reponse in html rather than markdown, allowing a richer view for more complex discussions. Supports
 
-- mermaid
+- Mermaid with page-aligned light/dark theming
+- Graphviz with readable initial light/dark normalization
 - basic styling
 - tabs
 - code snippets / diffs

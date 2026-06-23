@@ -314,6 +314,7 @@
 			.graphviz svg {
 				max-width: 100%;
 				height: auto;
+				background: transparent;
 			}
 
 			/* Tabs — CSS-only via :has(). Supports up to 5 tabs per group. */
@@ -599,6 +600,198 @@
 			});
 		</script>
 
+		<script>
+			const richResponseTheme = (() => {
+				const palette = {
+					dawn: {
+						bg: "#fdf9f5",
+						fg: "#575279",
+						muted: "#9893a5",
+						dim: "#797593",
+						border: "#dfdad9",
+						codeBg: "#fffaf3",
+						accent: "#b85c58",
+						link: "#286983",
+						infoBg: "#f4ede8",
+						infoBd: "#56949f",
+						warnBd: "#a86a00",
+						errorBd: "#b4637a",
+						successBd: "#a86a00",
+					},
+					moon: {
+						bg: "#232136",
+						fg: "#e0def4",
+						muted: "#6e6a86",
+						dim: "#6e698f",
+						border: "#2e2a42",
+						codeBg: "#2a273f",
+						accent: "#c4a7e7",
+						link: "#9ccfd8",
+						infoBg: "#2a283e",
+						infoBd: "#9a68d6",
+						warnBd: "#f6c177",
+						errorBd: "#eb6f92",
+						successBd: "#9ccfd8",
+					},
+				};
+
+				const isDark = () => matchMedia("(prefers-color-scheme: dark)").matches;
+				const currentPalette = () => (isDark() ? palette.moon : palette.dawn);
+				const oppositePalette = () => (isDark() ? palette.dawn : palette.moon);
+				const css = (name) =>
+					getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+				const current = () => ({
+					bg: css("--bg"),
+					fg: css("--fg"),
+					muted: css("--muted"),
+					dim: css("--dim"),
+					border: css("--border"),
+					codeBg: css("--code-bg"),
+					accent: css("--accent"),
+					link: css("--link"),
+					infoBg: css("--info-bg"),
+					infoBd: css("--info-bd"),
+					warnBd: css("--warn-bd"),
+					errorBd: css("--error-bd"),
+					successBd: css("--success-bd"),
+				});
+
+				const normalizeColor = (value) => {
+					if (!value) return value;
+					const normalized = value.trim().toLowerCase();
+					if (/^#[0-9a-f]{3}$/i.test(normalized)) {
+						return "#" + [...normalized.slice(1)].map((ch) => ch + ch).join("");
+					}
+					const rgb = normalized.match(/^rgba?\(([^)]+)\)$/);
+					if (rgb) {
+						const [r, g, b] = rgb[1]
+							.split(",")
+							.slice(0, 3)
+							.map((part) => Number.parseInt(part.trim(), 10));
+						if ([r, g, b].every((part) => Number.isFinite(part))) {
+							return "#" + [r, g, b].map((part) => part.toString(16).padStart(2, "0")).join("");
+						}
+					}
+					return normalized;
+				};
+
+				const themedGraphvizColor = (value) => {
+					const normalized = normalizeColor(value);
+					if (!normalized || normalized === "none" || normalized === "transparent") return value;
+					if (normalized === "black" || normalized === "#000000") return current().fg;
+					if (normalized === "white" || normalized === "#ffffff") return current().bg;
+
+					const from = oppositePalette();
+					const to = currentPalette();
+					for (const [key, source] of Object.entries(from)) {
+						if (normalized === source) return to[key];
+					}
+					return value;
+				};
+
+				const rewriteStyleColors = (styleValue) =>
+					styleValue
+						.split(";")
+						.map((entry) => {
+							const [prop, raw] = entry.split(":");
+							if (!prop || raw == null) return entry;
+							if (!["fill", "stroke", "color", "stop-color"].includes(prop.trim().toLowerCase())) {
+								return entry;
+							}
+							return `${prop}:${themedGraphvizColor(raw)}`;
+						})
+						.join(";");
+
+				const themeGraphvizSvg = (svg) => {
+					svg.style.background = "transparent";
+					svg.querySelectorAll("*").forEach((node) => {
+						["fill", "stroke", "color", "stop-color"].forEach((attr) => {
+							if (node.hasAttribute(attr)) {
+								node.setAttribute(attr, themedGraphvizColor(node.getAttribute(attr)));
+							}
+						});
+						if (node.hasAttribute("style")) {
+							node.setAttribute("style", rewriteStyleColors(node.getAttribute("style")));
+						}
+					});
+					return svg;
+				};
+
+				const mermaidTheme = () => {
+					const colors = current();
+					return {
+						theme: "base",
+						darkMode: isDark(),
+						themeVariables: {
+							background: colors.bg,
+							fontFamily:
+								'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
+							fontSize: "16px",
+							textColor: colors.fg,
+							primaryColor: colors.codeBg,
+							primaryTextColor: colors.fg,
+							primaryBorderColor: colors.border,
+							secondaryColor: colors.infoBg,
+							secondaryTextColor: colors.fg,
+							secondaryBorderColor: colors.infoBd,
+							tertiaryColor: colors.bg,
+							tertiaryTextColor: colors.fg,
+							tertiaryBorderColor: colors.border,
+							lineColor: colors.link,
+							mainBkg: colors.codeBg,
+							secondBkg: colors.infoBg,
+							tertiaryBkg: colors.bg,
+							clusterBkg: colors.codeBg,
+							clusterBorder: colors.border,
+							nodeBorder: colors.border,
+							edgeLabelBackground: colors.bg,
+							defaultLinkColor: colors.link,
+							titleColor: colors.fg,
+							labelColor: colors.fg,
+							labelTextColor: colors.fg,
+							actorBkg: colors.codeBg,
+							actorBorder: colors.border,
+							actorTextColor: colors.fg,
+							actorLineColor: colors.link,
+							signalColor: colors.link,
+							signalTextColor: colors.fg,
+							noteBkgColor: colors.infoBg,
+							noteBorderColor: colors.infoBd,
+							noteTextColor: colors.fg,
+							activationBkgColor: colors.codeBg,
+							activationBorderColor: colors.border,
+							sequenceNumberColor: colors.bg,
+							sectionBkgColor: colors.codeBg,
+							altSectionBkgColor: colors.infoBg,
+							sectionBkgColor2: colors.bg,
+							gridColor: colors.border,
+							cScale0: colors.codeBg,
+							cScale1: colors.infoBg,
+							cScale2: colors.bg,
+							cScale3: colors.codeBg,
+							cScale4: colors.infoBg,
+							cScale5: colors.bg,
+							pie1: colors.link,
+							pie2: colors.accent,
+							pie3: colors.infoBd,
+							pie4: colors.warnBd,
+							pie5: colors.errorBd,
+							pieOuterStrokeColor: colors.border,
+							pieSectionTextColor: colors.fg,
+							pieTitleTextColor: colors.fg,
+							ganttTaskBkgColor: colors.link,
+							ganttTaskTextColor: colors.bg,
+							ganttTaskOutsideColor: colors.fg,
+							ganttTaskBorderColor: colors.link,
+							ganttGridColor: colors.border,
+						},
+					};
+				};
+
+				return { mermaidTheme, themeGraphvizSvg };
+			})();
+		</script>
+
 		<!--
   Mermaid: loaded only if a .mermaid block exists. UMD build (not ESM) so it works
   from file:// origins — `file://` is a unique security origin and blocks ES-module
@@ -606,12 +799,15 @@
 -->
 		<script>
 			if (document.querySelector(".mermaid")) {
-				const theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default";
 				const s = document.createElement("script");
 				s.src = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js";
 				s.onload = async () => {
 					try {
-						window.mermaid.initialize({ startOnLoad: false, theme, securityLevel: "loose" });
+						window.mermaid.initialize({
+							startOnLoad: false,
+							securityLevel: "loose",
+							...richResponseTheme.mermaidTheme(),
+						});
 						await window.mermaid.run({ querySelector: ".mermaid" });
 					} catch (e) {
 						console.error("[mermaid] render failed:", e?.message || e, e);
@@ -649,7 +845,7 @@
 					try {
 						const viz = await window.Viz.instance();
 						document.querySelectorAll(".graphviz").forEach((el) => {
-							const svg = viz.renderSVGElement(el.textContent);
+							const svg = richResponseTheme.themeGraphvizSvg(viz.renderSVGElement(el.textContent));
 							el.replaceChildren(svg);
 						});
 					} catch (e) {

@@ -73,8 +73,8 @@ After it returns: one-line chat reply pointing at the rendered file. No long rec
 - OS-respecting light/dark via `prefers-color-scheme` — Dawn colors from `pi/themes/rose-pine-dawn.json` in light mode and Moon colors from `pi/themes/rose-pine-moon.json` in dark mode.
 - All CSS inlined. No external stylesheet, no build step.
 - Vanilla JS for copy-to-clipboard on `<pre>` blocks (auto-attached on load).
-- Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block.
-- Graphviz (`@viz-js/viz`, Graphviz compiled to WebAssembly) is loaded from CDN **only if** the page contains a `<pre class="graphviz">` block. No local `dot` binary is required.
+- Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block, and is initialized with page-aligned theme variables instead of Mermaid's stock light/dark palettes.
+- Graphviz (`@viz-js/viz`, Graphviz compiled to WebAssembly) is loaded from CDN **only if** the page contains a `<pre class="graphviz">` block. No local `dot` binary is required. After render, default black/white output and opposite Rose Pine hard-coded colors are normalized to the active page palette for readable initial light/dark renders.
 - Two placeholders to fill: `{{TITLE}}` (appears twice — `<title>` and `<h1>`) and `{{BODY}}`.
 
 ### Available primitives
@@ -136,7 +136,7 @@ Plain `<pre><code>…</code></pre>` (no language class) stays unhighlighted — 
 
 ### Mermaid
 
-Use `<pre class="mermaid">…</pre>`. Theme follows OS dark/light automatically. See the **mermaid** skill for syntax pitfalls — multi-space alignment, reserved IDs (`End`, `class`, etc.), label quoting. Don't HTML-entity-encode arrows inside the `<pre>` (`-->`, not `--&gt;`).
+Use `<pre class="mermaid">…</pre>`. Theme follows the page's initial OS light/dark mode using Rose Pine-aligned Mermaid theme variables. See the **mermaid** skill for syntax pitfalls — multi-space alignment, reserved IDs (`End`, `class`, etc.), label quoting. Don't HTML-entity-encode arrows inside the `<pre>` (`-->`, not `--&gt;`).
 
 ### Graphviz
 
@@ -153,6 +153,8 @@ digraph G {
 ```
 
 Prefer browser-side Graphviz for rich responses. Use a local `dot -Tsvg` step only if the CDN/WASM path is unsuitable for a specific document (for example, strict offline use or needing a Graphviz feature not supported by `@viz-js/viz`). Don't HTML-entity-encode arrows inside the `<pre>` (`->`, not `-&gt;`).
+
+Prefer authored colors only when they carry meaning. If you hard-code Rose Pine Dawn/Moon colors, the template will normalize opposite-mode values to the active scheme on initial render; unrelated explicit colors are preserved.
 
 ## Constraints
 
