@@ -86,7 +86,19 @@ describe("renderStatuslineItems", () => {
 		process.env.PI_CACHE_RETENTION = "short";
 		vi.setSystemTime(new Date("2026-06-25T12:35:30Z"));
 		const missTimestamp = "2026-06-25T12:35:00Z";
+		const hitTimestamp = "2026-06-25T12:34:00Z";
+		const latestHitTimestamp = "2026-06-25T12:35:20Z";
+		const expectedHitTime = new Date(hitTimestamp).toLocaleTimeString("en-GB", {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false,
+		});
 		const expectedMissTime = new Date(missTimestamp).toLocaleTimeString("en-GB", {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false,
+		});
+		const expectedLatestHitTime = new Date(latestHitTimestamp).toLocaleTimeString("en-GB", {
 			hour: "2-digit",
 			minute: "2-digit",
 			hour12: false,
@@ -107,13 +119,18 @@ describe("renderStatuslineItems", () => {
 				getBranch: () => [
 					{
 						type: "message",
-						timestamp: "2026-06-25T12:34:00Z",
+						timestamp: hitTimestamp,
 						message: { role: "assistant", usage: { cacheRead: 1000, cost: { total: 0.01 } } },
 					},
 					{
 						type: "message",
 						timestamp: missTimestamp,
 						message: { role: "assistant", usage: { cacheRead: 0, cost: { total: 0.02 } } },
+					},
+					{
+						type: "message",
+						timestamp: latestHitTimestamp,
+						message: { role: "assistant", usage: { cacheRead: 1000, cost: { total: 0.03 } } },
 					},
 				],
 			},
@@ -122,7 +139,7 @@ describe("renderStatuslineItems", () => {
 		const theme = { fg: (_color: string, text: string) => text };
 
 		expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[2]).toBe(
-			`$0.030 (sub) • ❗cache miss ${expectedMissTime}`,
+			`$0.060 [${expectedLatestHitTime} !miss ${expectedHitTime} -> ${expectedMissTime}] (sub)`,
 		);
 	});
 
@@ -130,6 +147,12 @@ describe("renderStatuslineItems", () => {
 		vi.useFakeTimers();
 		process.env.PI_CACHE_RETENTION = "short";
 		vi.setSystemTime(new Date("2026-06-25T12:36:01Z"));
+		const hitTimestamp = "2026-06-25T12:34:00Z";
+		const expectedHitTime = new Date(hitTimestamp).toLocaleTimeString("en-GB", {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false,
+		});
 		const footerData = {
 			getGitBranch: () => null,
 			getExtensionStatuses: () => new Map(),
@@ -146,7 +169,7 @@ describe("renderStatuslineItems", () => {
 				getBranch: () => [
 					{
 						type: "message",
-						timestamp: "2026-06-25T12:34:00Z",
+						timestamp: hitTimestamp,
 						message: { role: "assistant", usage: { cacheRead: 1000, cost: { total: 0.01 } } },
 					},
 					{
@@ -160,6 +183,8 @@ describe("renderStatuslineItems", () => {
 		const pi = { getThinkingLevel: () => "off" } as any;
 		const theme = { fg: (_color: string, text: string) => text };
 
-		expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[2]).toBe("$0.030");
+		expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[2]).toBe(
+			`$0.030 [${expectedHitTime}]`,
+		);
 	});
 });

@@ -68,7 +68,7 @@ export function isLongCacheRetentionEnabled(env: NodeJS.ProcessEnv = process.env
 
 const CACHE_MISS_DISPLAY_MS = 60_000;
 
-function formatCacheMissTime(timestamp: string | number | Date): string {
+function formatCacheTime(timestamp: string | number | Date): string {
 	return new Date(timestamp).toLocaleTimeString("en-GB", {
 		hour: "2-digit",
 		minute: "2-digit",
@@ -76,34 +76,53 @@ function formatCacheMissTime(timestamp: string | number | Date): string {
 	});
 }
 
-function getRecentCacheMissDisplay(
+function getCacheStatusDisplay(
 	entries: ReturnType<ExtensionContext["sessionManager"]["getBranch"]>,
+	warn: (text: string) => string,
 	now = Date.now(),
 ): string | null {
-	let sawCacheHit = false;
+	let latestHitTimestamp: string | number | Date | null = null;
 	let latestMissTimestamp: string | number | Date | null = null;
+	let hitBeforeLatestMissTimestamp: string | number | Date | null = null;
 
 	for (const entry of entries) {
 		if (entry.type !== "message" || entry.message.role !== "assistant") continue;
 		const assistant = entry.message as AssistantMessage;
 		if (assistant.usage.cacheRead > 0) {
-			sawCacheHit = true;
-			latestMissTimestamp = null;
+			latestHitTimestamp = entry.timestamp;
 			continue;
 		}
-		if (sawCacheHit && assistant.usage.cacheRead === 0) {
+		if (latestHitTimestamp && assistant.usage.cacheRead === 0) {
+			hitBeforeLatestMissTimestamp = latestHitTimestamp;
 			latestMissTimestamp = entry.timestamp;
 		}
 	}
 
-	if (!latestMissTimestamp) return null;
-	const missTime = new Date(latestMissTimestamp).getTime();
-	if (now - missTime > CACHE_MISS_DISPLAY_MS) return null;
-	return `❗cache miss ${formatCacheMissTime(latestMissTimestamp)}`;
+	if (!latestHitTimestamp) return null;
+	const parts = [formatCacheTime(latestHitTimestamp)];
+	if (latestMissTimestamp && hitBeforeLatestMissTimestamp) {
+		const missTime = new Date(latestMissTimestamp).getTime();
+		if (now - missTime <= CACHE_MISS_DISPLAY_MS) {
+			parts.push(
+				warn(
+					`!miss ${formatCacheTime(hitBeforeLatestMissTimestamp)} -> ${formatCacheTime(latestMissTimestamp)}`,
+				),
+			);
+		}
+	}
+	return `[${parts.join(" ")}]`;
 }
 
-function formatCostLine(costDisplay: string, cacheMissDisplay: string | null): string {
-	return [costDisplay, isLongCacheRetentionEnabled() ? "cache long" : null, cacheMissDisplay]
+function formatCostLine(
+	costDisplay: string,
+	usingSubscription: boolean,
+	cacheStatusDisplay: string | null,
+): string {
+	const costWithCacheStatus = [costDisplay, cacheStatusDisplay].filter(Boolean).join(" ");
+	return [
+		`${costWithCacheStatus}${usingSubscription ? " (sub)" : ""}`,
+		isLongCacheRetentionEnabled() ? "cache long" : null,
+	]
 		.filter((part): part is string => Boolean(part))
 		.join(" • ");
 }
@@ -150,8 +169,10 @@ export function renderStatuslineItems({
 		contextPercent: contextUsage?.percent,
 	});
 	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
-	const cacheMissDisplay = getRecentCacheMissDisplay(branchEntries);
-	const costDisplay = `${formatCostLine(formatCost(totalCost, usingSubscription, 3), cacheMissDisplay)}${overrideDisplay}`;
+	const cacheStatusDisplay = getCacheStatusDisplay(branchEntries, (text) =>
+		theme.fg("warning", text),
+	);
+	const costDisplay = `${formatCostLine(formatCost(totalCost, false, 3), usingSubscription, cacheStatusDisplay)}${overrideDisplay}`;
 
 	let styledContextDisplay = theme.fg("dim", contextDisplay);
 	if (contextPercentValue > 90) {
@@ -233,8 +254,10 @@ export function renderStatuslineLines({
 		contextPercent: contextUsage?.percent,
 	});
 	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
-	const cacheMissDisplay = getRecentCacheMissDisplay(branchEntries);
-	const costDisplay = `${formatCostLine(formatCost(totalCost, usingSubscription, 3), cacheMissDisplay)}${overrideDisplay}`;
+	const cacheStatusDisplay = getCacheStatusDisplay(branchEntries, (text) =>
+		theme.fg("warning", text),
+	);
+	const costDisplay = `${formatCostLine(formatCost(totalCost, false, 3), usingSubscription, cacheStatusDisplay)}${overrideDisplay}`;
 
 	let styledContextDisplay = theme.fg("dim", contextDisplay);
 	if (contextPercentValue > 90) {
