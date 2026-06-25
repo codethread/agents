@@ -66,8 +66,46 @@ export function isLongCacheRetentionEnabled(env: NodeJS.ProcessEnv = process.env
 	return env.PI_CACHE_RETENTION === "long";
 }
 
-function formatCostLine(costDisplay: string): string {
-	return isLongCacheRetentionEnabled() ? `${costDisplay} • cache long` : costDisplay;
+const CACHE_MISS_DISPLAY_MS = 60_000;
+
+function formatCacheMissTime(timestamp: string | number | Date): string {
+	return new Date(timestamp).toLocaleTimeString("en-GB", {
+		hour: "2-digit",
+		minute: "2-digit",
+		hour12: false,
+	});
+}
+
+function getRecentCacheMissDisplay(
+	entries: ReturnType<ExtensionContext["sessionManager"]["getBranch"]>,
+	now = Date.now(),
+): string | null {
+	let sawCacheHit = false;
+	let latestMissTimestamp: string | number | Date | null = null;
+
+	for (const entry of entries) {
+		if (entry.type !== "message" || entry.message.role !== "assistant") continue;
+		const assistant = entry.message as AssistantMessage;
+		if (assistant.usage.cacheRead > 0) {
+			sawCacheHit = true;
+			latestMissTimestamp = null;
+			continue;
+		}
+		if (sawCacheHit && assistant.usage.cacheRead === 0) {
+			latestMissTimestamp = entry.timestamp;
+		}
+	}
+
+	if (!latestMissTimestamp) return null;
+	const missTime = new Date(latestMissTimestamp).getTime();
+	if (now - missTime > CACHE_MISS_DISPLAY_MS) return null;
+	return `❗cache miss ${formatCacheMissTime(latestMissTimestamp)}`;
+}
+
+function formatCostLine(costDisplay: string, cacheMissDisplay: string | null): string {
+	return [costDisplay, isLongCacheRetentionEnabled() ? "cache long" : null, cacheMissDisplay]
+		.filter((part): part is string => Boolean(part))
+		.join(" • ");
 }
 
 export function renderStatuslineItems({
@@ -91,8 +129,9 @@ export function renderStatuslineItems({
 	);
 	if (sessionLabel) pwd = `${pwd} • ${sessionLabel}`;
 
+	const branchEntries = ctx.sessionManager.getBranch();
 	let totalCost = 0;
-	for (const entry of ctx.sessionManager.getBranch()) {
+	for (const entry of branchEntries) {
 		if (entry.type === "message" && entry.message.role === "assistant") {
 			const assistant = entry.message as AssistantMessage;
 			totalCost += assistant.usage.cost.total;
@@ -111,7 +150,8 @@ export function renderStatuslineItems({
 		contextPercent: contextUsage?.percent,
 	});
 	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
-	const costDisplay = `${formatCostLine(formatCost(totalCost, usingSubscription, 3))}${overrideDisplay}`;
+	const cacheMissDisplay = getRecentCacheMissDisplay(branchEntries);
+	const costDisplay = `${formatCostLine(formatCost(totalCost, usingSubscription, 3), cacheMissDisplay)}${overrideDisplay}`;
 
 	let styledContextDisplay = theme.fg("dim", contextDisplay);
 	if (contextPercentValue > 90) {
@@ -172,8 +212,9 @@ export function renderStatuslineLines({
 	);
 	if (sessionLabel) pwd = `${pwd} • ${sessionLabel}`;
 
+	const branchEntries = ctx.sessionManager.getBranch();
 	let totalCost = 0;
-	for (const entry of ctx.sessionManager.getBranch()) {
+	for (const entry of branchEntries) {
 		if (entry.type === "message" && entry.message.role === "assistant") {
 			const assistant = entry.message as AssistantMessage;
 			totalCost += assistant.usage.cost.total;
@@ -192,7 +233,8 @@ export function renderStatuslineLines({
 		contextPercent: contextUsage?.percent,
 	});
 	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
-	const costDisplay = `${formatCostLine(formatCost(totalCost, usingSubscription, 3))}${overrideDisplay}`;
+	const cacheMissDisplay = getRecentCacheMissDisplay(branchEntries);
+	const costDisplay = `${formatCostLine(formatCost(totalCost, usingSubscription, 3), cacheMissDisplay)}${overrideDisplay}`;
 
 	let styledContextDisplay = theme.fg("dim", contextDisplay);
 	if (contextPercentValue > 90) {

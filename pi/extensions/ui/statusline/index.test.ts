@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatSessionLabel, isLongCacheRetentionEnabled, renderStatuslineItems } from "./index.js";
+
+const ORIGINAL_CACHE_RETENTION = process.env.PI_CACHE_RETENTION;
 
 describe("formatSessionLabel", () => {
 	it("shows the session id next to the name", () => {
@@ -20,6 +22,15 @@ describe("formatSessionLabel", () => {
 });
 
 describe("renderStatuslineItems", () => {
+	afterEach(() => {
+		vi.useRealTimers();
+		if (ORIGINAL_CACHE_RETENTION === undefined) {
+			delete process.env.PI_CACHE_RETENTION;
+		} else {
+			process.env.PI_CACHE_RETENTION = ORIGINAL_CACHE_RETENTION;
+		}
+	});
+
 	it("detects long cache retention from the environment", () => {
 		expect(isLongCacheRetentionEnabled({ PI_CACHE_RETENTION: "long" })).toBe(true);
 		expect(isLongCacheRetentionEnabled({ PI_CACHE_RETENTION: "short" })).toBe(false);
@@ -68,5 +79,87 @@ describe("renderStatuslineItems", () => {
 				process.env.PI_CACHE_RETENTION = previous;
 			}
 		}
+	});
+
+	it("shows a recent cache miss after a prior cache hit", () => {
+		vi.useFakeTimers();
+		process.env.PI_CACHE_RETENTION = "short";
+		vi.setSystemTime(new Date("2026-06-25T12:35:30Z"));
+		const missTimestamp = "2026-06-25T12:35:00Z";
+		const expectedMissTime = new Date(missTimestamp).toLocaleTimeString("en-GB", {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false,
+		});
+		const footerData = {
+			getGitBranch: () => null,
+			getExtensionStatuses: () => new Map(),
+			getAvailableProviderCount: () => 1,
+		};
+		const ctx = {
+			cwd: "/repo",
+			model: { id: "gpt-test", reasoning: false, contextWindow: 10000 },
+			modelRegistry: { isUsingOAuth: () => true },
+			getContextUsage: () => ({ tokens: 2500, percent: 25, contextWindow: 10000 }),
+			sessionManager: {
+				getSessionName: () => undefined,
+				getSessionId: () => undefined,
+				getBranch: () => [
+					{
+						type: "message",
+						timestamp: "2026-06-25T12:34:00Z",
+						message: { role: "assistant", usage: { cacheRead: 1000, cost: { total: 0.01 } } },
+					},
+					{
+						type: "message",
+						timestamp: missTimestamp,
+						message: { role: "assistant", usage: { cacheRead: 0, cost: { total: 0.02 } } },
+					},
+				],
+			},
+		} as any;
+		const pi = { getThinkingLevel: () => "off" } as any;
+		const theme = { fg: (_color: string, text: string) => text };
+
+		expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[2]).toBe(
+			`$0.030 (sub) • ❗cache miss ${expectedMissTime}`,
+		);
+	});
+
+	it("stops showing a cache miss after one minute on the next render", () => {
+		vi.useFakeTimers();
+		process.env.PI_CACHE_RETENTION = "short";
+		vi.setSystemTime(new Date("2026-06-25T12:36:01Z"));
+		const footerData = {
+			getGitBranch: () => null,
+			getExtensionStatuses: () => new Map(),
+			getAvailableProviderCount: () => 1,
+		};
+		const ctx = {
+			cwd: "/repo",
+			model: { id: "gpt-test", reasoning: false, contextWindow: 10000 },
+			modelRegistry: { isUsingOAuth: () => false },
+			getContextUsage: () => ({ tokens: 2500, percent: 25, contextWindow: 10000 }),
+			sessionManager: {
+				getSessionName: () => undefined,
+				getSessionId: () => undefined,
+				getBranch: () => [
+					{
+						type: "message",
+						timestamp: "2026-06-25T12:34:00Z",
+						message: { role: "assistant", usage: { cacheRead: 1000, cost: { total: 0.01 } } },
+					},
+					{
+						type: "message",
+						timestamp: "2026-06-25T12:35:00Z",
+						message: { role: "assistant", usage: { cacheRead: 0, cost: { total: 0.02 } } },
+					},
+				],
+			},
+		} as any;
+		const pi = { getThinkingLevel: () => "off" } as any;
+		const theme = { fg: (_color: string, text: string) => text };
+
+		expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[2]).toBe("$0.030");
 	});
 });
