@@ -1,0 +1,6 @@
+tasks:
+  - id: 1
+    description: "write AFK loop smoke marker"
+    task_file: "tasks/001-write-smoke-marker.md"
+    status: complete
+    blocked_by: []
