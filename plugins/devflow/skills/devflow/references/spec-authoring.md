@@ -162,10 +162,10 @@ Entry state: DETERMINE_MODE
 1. Read accepted RFCs, existing root specs, relevant feature folders, and code for implemented behavior.
 2. Create `devflow/specs/` if it does not exist.
 3. Create `devflow/specs/<stable-domain-name>.md`.
-4. Write the lightest spec that captures the boundary using the root spec section in `./spec-authoring.template.md`, including the document ID and document-prefixed sub IDs for sections and list/table items.
-
-5. Omit sections that genuinely do not apply, but Purpose, Goals, Non-goals, and Design decisions are expected for most specs.
-6. Add or update the spec row in `devflow/README.md`.
+4. Run `devflow-ids next SPEC devflow` from `../scripts/devflow-ids.nu` when available; otherwise scan existing root, feature, and archived specs before choosing the next globally unused spec document ID.
+5. Write the lightest spec that captures the boundary using the root spec section in `./spec-authoring.template.md`, including the document ID and document-prefixed sub IDs for sections and list/table items.
+6. Omit sections that genuinely do not apply, but Purpose, Goals, Non-goals, and Design decisions are expected for most specs.
+7. Add or update the spec row in `devflow/README.md`.
 
 ### UPDATE_ROOT_SPEC
 
@@ -179,11 +179,11 @@ Entry state: DETERMINE_MODE
 
 1. Read `devflow/feat/<feat-name>/proposal.md`, the feature plan if present, relevant root specs, RFCs, and code.
 2. Create `devflow/feat/<feat-name>/specs/` if needed.
-3. For an existing root spec, create `devflow/feat/<feat-name>/specs/<spec-name>.delta.md` using the feature delta section in `./spec-authoring.template.md`.
-
-4. For a new feature-owned spec, use the root spec format in `devflow/feat/<feat-name>/specs/<spec-name>.md` and mark status Planned or Draft.
-5. Preserve existing reference IDs when editing; append new IDs rather than renumbering unless the spec is still a draft with no external references.
-6. Link the file from the feature plan/proposal when present.
+3. Run `devflow-ids next DELTA devflow` from `../scripts/devflow-ids.nu` when available; otherwise scan existing root, feature, and archived specs before choosing the next globally unused delta document ID.
+4. For an existing root spec, create `devflow/feat/<feat-name>/specs/<spec-name>.delta.md` using the feature delta section in `./spec-authoring.template.md`.
+5. For a new feature-owned spec, use the root spec format in `devflow/feat/<feat-name>/specs/<spec-name>.md` and mark status Planned or Draft.
+6. Preserve existing reference IDs when editing; append new IDs rather than renumbering unless the spec is still a draft with no external references.
+7. Link the file from the feature plan/proposal when present.
 
 ### PROMOTE_FEATURE_SPECS
 

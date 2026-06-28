@@ -34,10 +34,11 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 
 ## CLI
 
-| Extension                                            | Summary                                                  |
-| ---------------------------------------------------- | -------------------------------------------------------- |
-| [`print-mode-exit`](./cli/print-mode-exit/README.md) | Force stuck `pi -p` processes to exit after `agent_end`. |
-| [`fork-off`](./cli/fork-off/README.md)               | Open a fork of the current session in a new tmux window. |
+| Extension                                            | Summary                                                                |
+| ---------------------------------------------------- | ---------------------------------------------------------------------- |
+| [`print-mode-exit`](./cli/print-mode-exit/README.md) | Force stuck `pi -p` processes to exit after `agent_end`.               |
+| [`fork-off`](./cli/fork-off/README.md)               | Open a fork of the current session in a new tmux window.               |
+| [`delay`](./cli/delay/README.md)                     | Schedule `/delay <time> <prompt>` to send a user prompt after a timer. |
 
 ## System prompt
 

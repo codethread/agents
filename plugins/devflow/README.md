@@ -30,15 +30,17 @@ devflow/
 |           `-- <zero-padded-id>-<slug>.md
 `-- archive/
     `-- yy-mm-dd__<older-feat-name>/
-        `-- ...everything from devflow/feat/<older-feat-name>/
+        |-- ...everything from devflow/feat/<older-feat-name>/
+        `-- rfcs/
+            `-- YYYY-MM-DD-<implemented-rfc>.md
 ```
 
 ### Root files
 
 - `devflow/README.md` — index into root specs and a short explanation of this structure. It may link to `rfcs/`, but should not summarize or duplicate RFC content.
 - `devflow/specs/` — durable domain specs. These describe stable boundaries, contracts, non-goals, and design decisions.
-- `devflow/rfcs/` — durable decision records for unresolved ideas, alternatives, and tradeoffs. RFCs feed specs and feature folders, but are not re-explained by the root README.
-- `devflow/archive/` — completed or abandoned feature folders, moved intact so proposal/plan/task context remains available without crowding active work.
+- `devflow/rfcs/` — active decision records for unresolved or not-yet-implemented ideas, alternatives, and tradeoffs. RFCs feed specs and feature folders, but are not re-explained by the root README.
+- `devflow/archive/` — completed or abandoned feature folders, moved intact so proposal/plan/task context remains available without crowding active work. When a feature implements an RFC, move that RFC into the feature archive under `rfcs/`.
 
 ### Active feature folders
 
@@ -88,7 +90,7 @@ Recommended sequence:
 4. Draft feature-local spec changes in `specs/`.
 5. Write `<feat-name>.plan.md` with the build approach, validation strategy, task context, and developer notes.
 6. Generate AFK tasks under `tasks/` from the reviewed plan.
-7. When the feature ships, merge durable spec changes into `devflow/specs/` and move the whole feature folder to `devflow/archive/yy-mm-dd__<feat-name>/`.
+7. When the feature ships, merge durable spec changes into `devflow/specs/`, move the whole feature folder to `devflow/archive/yy-mm-dd__<feat-name>/`, and move any RFC implemented by the feature into that archive's `rfcs/` folder.
 
 ## User stage commands
 
@@ -108,15 +110,15 @@ These commands are user opt-in entrypoints. Each command tells the agent to load
 
 ## Document ownership
 
-| Document                 | Owns                                                              | Does not own                                     |
-| ------------------------ | ----------------------------------------------------------------- | ------------------------------------------------ |
-| RFC                      | Alternatives, tradeoffs, recommendation, decision outcome         | Implementation tracking or current feature state |
-| Root spec                | Durable domain contracts, boundaries, rationale, non-goals        | Feature-local sequencing or task detail          |
-| Feature proposal         | Problem framing, goals, scope, and links to relevant decisions    | Alternatives history that belongs in an RFC      |
-| Feature-local spec delta | Pending changes to durable specs                                  | Long-term duplicated spec content                |
-| Feature plan             | Build strategy, phase boundaries, validation, and developer notes | Per-slice execution contracts                    |
-| Task files               | Exact AFK slices, acceptance criteria, dependencies               | Durable design knowledge or ongoing notes        |
-| Archive                  | Historical feature context after completion or abandonment        | Active source of truth for current specs         |
+| Document                 | Owns                                                                                                        | Does not own                                     |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| RFC                      | Alternatives, tradeoffs, recommendation, decision outcome                                                   | Implementation tracking or current feature state |
+| Root spec                | Durable domain contracts, boundaries, rationale, non-goals                                                  | Feature-local sequencing or task detail          |
+| Feature proposal         | Problem framing, goals, scope, and links to relevant decisions                                              | Alternatives history that belongs in an RFC      |
+| Feature-local spec delta | Pending changes to durable specs                                                                            | Long-term duplicated spec content                |
+| Feature plan             | Build strategy, phase boundaries, validation, and developer notes                                           | Per-slice execution contracts                    |
+| Task files               | Exact AFK slices, acceptance criteria, dependencies                                                         | Durable design knowledge or ongoing notes        |
+| Archive                  | Historical feature context after completion or abandonment, including RFCs implemented by archived features | Active source of truth for current specs         |
 
 The root spec is the future-facing source of truth. Archived feature folders are historical context: useful for understanding why a feature changed, not for discovering the current contract.
 
@@ -129,7 +131,7 @@ The AFK loop is a single-worktree automation flow for repeatedly running one tas
 3. run `/flow-build--refine`, `/flow-build--smoke`, and `/flow-build--finalise` as needed
 4. stop when tasks are exhausted, blocked, the initial runner call fails, or repeated later runner failures occur
 
-Run the loop with an active feature name or folder, for example `afk-loop my-feature "also read @README.md"`. The loop requires `proposal.md`, `<feat-name>.plan.md`, and `tasks/index.yml` in that feature folder. By default it uses Pi (`openai-codex/gpt-5.5:low`). Pass `--claude` to use the Claude CLI instead (default model: `sonnet`). Pass `--model` to override the model for either runner.
+Run the loop with an active feature name or folder, for example `afk-loop my-feature "also read @README.md"`. The loop requires `proposal.md`, `<feat-name>.plan.md`, and `tasks/index.yml` in that feature folder. By default it uses Pi (`openai-codex/gpt-5.5:low`). Pass `--claude` to use the Claude CLI instead (default model: `sonnet`). Pass `--model` to override the model for either runner. Pass the original owner conversation as `--session-id <id>` to run `/flow-review--owner <feat-name>` in that session after every task is complete; without it, owner review is skipped.
 
 Use separate git worktrees for parallelism. The loop intentionally does not run concurrent tasks in one worktree.
 
@@ -139,12 +141,25 @@ Use separate git worktrees for parallelism. The loop intentionally does not run 
 - `commands/devflow*.md` — user-invoked stage commands that load the entry skill and jump to a workflow stage
 - `commands/migrate.md` — one-time migration prompt for repositories adopting the `devflow/` workspace
 - `scripts/afk-loop.nu` — orchestration, task selection, retry limits, stop-token parsing, and clean-worktree checks
+- `skills/devflow/scripts/devflow-ids.nu` — scans devflow document IDs, reports duplicates, and prints next IDs for new documents
 - `commands/flow-init--afk.md` — unattended single-slice implementation prompt
 - `commands/flow-init--hitl.md` — human-in-the-loop single-slice prompt
 - `commands/flow-build--refine.md` — simplify the just-built slice
 - `commands/flow-build--smoke.md` — smoke-test the just-built slice
 - `commands/flow-build--finalise.md` — cleanup prompt after refine/smoke leaves uncommitted work
 - `plugins/devflow/skills/devflow/references/task-authoring.md` — creates deterministic task indexes and per-task markdown files
+
+### Document IDs
+
+Devflow documents use stable IDs such as `SPEC-002`, `DELTA-004`, `PLAN-003`, and `TASK-001`; nested point IDs are prefixed by the document ID. Before creating a new document, scan the whole planning workspace so active and archived feature folders do not reuse IDs:
+
+```nu
+use plugins/devflow/skills/devflow/scripts/devflow-ids.nu *
+devflow-ids scan devflow
+devflow-ids next DELTA devflow
+```
+
+`devflow-ids scan` returns document rows, duplicate document IDs, and the next ID for each known prefix.
 
 ### Task queue shape
 

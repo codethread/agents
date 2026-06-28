@@ -7,7 +7,7 @@
 **Last Updated:** <YYYY-MM-DD>
 **Related RFCs:** <links or "None">
 **Code:** <module/package root or "Not implemented yet">
-**Configuration identification:** Use the next stable sequential spec document ID, for example `SPEC-001`. Prefix every nested point ID with that document ID, for example `SPEC-001.P1` or `SPEC-001.IC1`, so references are globally grepable and do not clash across documents. If the next number is unclear, ask before creating the spec.
+**Configuration identification:** Use the next globally unused stable sequential spec document ID, for example `SPEC-001`; prefer `devflow-ids next SPEC devflow` from `../scripts/devflow-ids.nu` when available. Prefix every nested point ID with that document ID, for example `SPEC-001.P1` or `SPEC-001.IC1`, so references are globally grepable and do not clash across documents. If the next number is unclear, ask before creating the spec.
 
 ## SPEC-<nnn>.P1 Purpose
 
@@ -50,7 +50,7 @@ Why this system exists.
 **Feature:** [../proposal.md](../proposal.md)
 **Status:** Draft | Reviewed | Merged
 **Last Updated:** <YYYY-MM-DD>
-**Configuration identification:** Use the next stable sequential delta document ID, for example `DELTA-001`. Prefix every nested point ID with that document ID, for example `DELTA-001.P1` or `DELTA-001.CC1`, so references are globally grepable and do not clash across documents. If the next number is unclear, ask before creating the delta.
+**Configuration identification:** Use the next globally unused stable sequential delta document ID, for example `DELTA-001`; prefer `devflow-ids next DELTA devflow` from `../scripts/devflow-ids.nu` when available. Prefix every nested point ID with that document ID, for example `DELTA-001.P1` or `DELTA-001.CC1`, so references are globally grepable and do not clash across documents. If the next number is unclear, ask before creating the delta.
 
 ## DELTA-<nnn>.P1 Summary
 

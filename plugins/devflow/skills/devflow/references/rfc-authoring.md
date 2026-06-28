@@ -2,7 +2,7 @@
 
 RFCs are pre-feature decision records. They frame an unresolved idea, compare options, recommend a direction, and record the outcome before the work becomes a feature proposal, spec delta, plan, or task queue.
 
-RFCs live in the repository planning workspace at `devflow/rfcs/`. They are durable historical context, but the current contract belongs in `devflow/specs/`.
+RFCs live in the repository planning workspace at `devflow/rfcs/` while they are unresolved or not yet implemented. When a feature implements an RFC and is finished, move that RFC into the feature archive at `devflow/archive/yy-mm-dd__<feat-name>/rfcs/`. The current contract belongs in `devflow/specs/`.
 
 ## Variables
 
@@ -26,14 +26,14 @@ RFCs live in the repository planning workspace at `devflow/rfcs/`. They are dura
 
 ### Document split
 
-| Document         | Owns                                                                    | Lifetime                       |
-| ---------------- | ----------------------------------------------------------------------- | ------------------------------ |
-| RFC              | Idea framing, alternatives, tradeoffs, recommendation, decision outcome | Durable historical record      |
-| Root spec        | Current durable contracts, boundaries, rationale, non-goals             | Permanent, evolves with domain |
-| Feature proposal | Problem framing, goals, scope, links to decisions                       | Archived with feature          |
-| Feature plan     | Reviewable build strategy, phases, validation, developer notes          | Archived with feature          |
-| Task queue       | AFK execution slices, exact references, acceptance checks               | Archived with feature          |
-| Code + tests     | What exists and how it behaves                                          | Ground truth                   |
+| Document         | Owns                                                                    | Lifetime                                                              |
+| ---------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| RFC              | Idea framing, alternatives, tradeoffs, recommendation, decision outcome | Active until implemented, then archived with the implementing feature |
+| Root spec        | Current durable contracts, boundaries, rationale, non-goals             | Permanent, evolves with domain                                        |
+| Feature proposal | Problem framing, goals, scope, links to decisions                       | Archived with feature                                                 |
+| Feature plan     | Reviewable build strategy, phases, validation, developer notes          | Archived with feature                                                 |
+| Task queue       | AFK execution slices, exact references, acceptance checks               | Archived with feature                                                 |
+| Code + tests     | What exists and how it behaves                                          | Ground truth                                                          |
 
 Accepted RFCs feed durable outcomes into root specs and feature-local planning. Downstream documents link to the RFC for decision history; they do not copy the alternatives table or debate.
 
@@ -72,7 +72,7 @@ Good filenames describe the idea or decision. The RFC's `Document ID` is separat
 - **Rejected** — proposal intentionally not pursued
 - **Superseded** — replaced by a newer RFC; link to the replacement
 
-RFC status records the decision state, not implementation progress. Do not add implementation statuses to RFCs.
+RFC status records the decision state, not implementation progress. Do not add implementation statuses to RFCs. Finished feature work retires the implemented RFC by moving the RFC file into that feature's archive.
 
 ## Decisions
 

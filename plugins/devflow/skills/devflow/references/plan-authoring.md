@@ -2,7 +2,7 @@
 
 A technical plan is the reviewable bridge between feature framing/spec work and a detailed AFK task queue. It answers: "How should we build this, at a level worth reviewing before we commit to task slices?"
 
-Plans live inside active feature folders: `devflow/feat/<feat-name>/<feat-name>.plan.md`. They are feature-local context, not root documentation. When work ships or is abandoned, the whole feature folder is moved to `devflow/archive/yy-mm-dd__<feat-name>/` after durable spec outcomes are merged into `devflow/specs/`.
+Plans live inside active feature folders: `devflow/feat/<feat-name>/<feat-name>.plan.md`. They are feature-local context, not root documentation. When work ships or is abandoned, the whole feature folder is moved to `devflow/archive/yy-mm-dd__<feat-name>/` after durable spec outcomes are merged into `devflow/specs/`; any RFC implemented by the feature moves into that archive's `rfcs/` folder.
 
 ## Variables
 
@@ -31,15 +31,15 @@ Plans live inside active feature folders: `devflow/feat/<feat-name>/<feat-name>.
 
 ### Document split
 
-| Document         | Owns                                                              | Lifetime                       |
-| ---------------- | ----------------------------------------------------------------- | ------------------------------ |
-| RFC              | Idea framing, alternatives, tradeoffs, recommendation, decision   | Durable historical record      |
-| Root spec        | Current durable contracts, boundaries, rationale, non-goals       | Permanent, evolves with domain |
-| Feature proposal | Problem framing, goals, scope, links to decisions                 | Archived with feature          |
-| Feature spec     | New specs or deltas to merge into root specs                      | Promoted/merged, then archived |
-| Feature plan     | Build strategy, phases, validation, task context, developer notes | Archived with feature          |
-| Task queue       | Detailed AFK slices and acceptance checks                         | Archived with feature          |
-| Code + tests     | What exists and how it behaves                                    | Ground truth                   |
+| Document         | Owns                                                              | Lifetime                                                              |
+| ---------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------- |
+| RFC              | Idea framing, alternatives, tradeoffs, recommendation, decision   | Active until implemented, then archived with the implementing feature |
+| Root spec        | Current durable contracts, boundaries, rationale, non-goals       | Permanent, evolves with domain                                        |
+| Feature proposal | Problem framing, goals, scope, links to decisions                 | Archived with feature                                                 |
+| Feature spec     | New specs or deltas to merge into root specs                      | Promoted/merged, then archived                                        |
+| Feature plan     | Build strategy, phases, validation, task context, developer notes | Archived with feature                                                 |
+| Task queue       | Detailed AFK slices and acceptance checks                         | Archived with feature                                                 |
+| Code + tests     | What exists and how it behaves                                    | Ground truth                                                          |
 
 The plan links to accepted RFCs, the proposal, and spec deltas. It never restates their full rationale. Durable contracts belong in root specs or feature-local spec deltas; exact execution contracts belong in task files.
 
@@ -141,7 +141,8 @@ Run when a feature has shipped or been intentionally abandoned.
 2. Confirm code and tests cover shipped task scope. Record cut, deferred, or abandoned scope in the plan's final Developer Notes; do not promote unshipped behavior into root specs unless the user explicitly asks.
 3. Set plan status to Shipped or Abandoned and update `Last Updated`.
 4. Move `devflow/feat/<feat-name>/` to `devflow/archive/yy-mm-dd__<feat-name>/`.
-5. Do not delete proposal, plan, or task files from the archived folder; preserving feature-local context is the point of the archive.
+5. Move any RFC implemented by this feature from `devflow/rfcs/` into `devflow/archive/yy-mm-dd__<feat-name>/rfcs/`.
+6. Do not delete proposal, plan, task, or archived RFC files from the archived folder; preserving feature-local context is the point of the archive.
 
 ## Constraints
 
@@ -150,7 +151,7 @@ Run when a feature has shipped or been intentionally abandoned.
 - Never plan against imagined code structure; read affected code first.
 - A Draft plan must not be sliced into AFK tasks; for small obvious queued work, create and use a minimal reviewed plan.
 - Once [task-authoring](./task-authoring.md) has generated tasks, the task index owns sequencing and detailed acceptance criteria; stop maintaining the phase list as a parallel task tracker.
-- When work completes, root specs become the current source of truth and the feature folder moves to archive.
+- When work completes, root specs become the current source of truth, the feature folder moves to archive, and implemented RFCs move with it.
 - Preserve existing reference IDs when editing; append new IDs rather than renumbering unless the document is still a draft with no external references.
 
 ## Validation
@@ -172,3 +173,4 @@ For archiving:
 - [ ] Shipped durable outcomes are merged into root specs
 - [ ] Cut or abandoned scope is recorded before archive
 - [ ] Feature folder moved intact to `devflow/archive/yy-mm-dd__<feat-name>/`
+- [ ] Implemented RFCs moved into `devflow/archive/yy-mm-dd__<feat-name>/rfcs/`

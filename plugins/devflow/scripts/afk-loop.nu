@@ -72,6 +72,11 @@ def task-status [task: string] {
   ($task | from yaml).status
 }
 
+def all-tasks-complete [task_index: string] {
+  let items = (task-items $task_index)
+  ($items | length) > 0 and (($items | where status != "complete" | length) == 0)
+}
+
 def task-session-name [feature_name: string, task: string, loop_count: int] {
   let task = ($task | from yaml)
   let id = $task.id
@@ -85,11 +90,36 @@ def task-session-name [feature_name: string, task: string, loop_count: int] {
   $"afk-($feature_name)-($loop_count)-($id)-($description)"
 }
 
+def color-line [color: string, message: string] {
+  print $"(ansi $color)($message)(ansi reset)"
+}
+
+def loop-line [message: string] {
+  color-line cyan_bold $"▶ ($message)"
+}
+
+def stage-line [message: string] {
+  color-line purple_bold $"  ◆ ($message)"
+}
+
+def stop-line [message: string] {
+  color-line yellow_bold $"■ ($message)"
+}
+
+def error-line [message: string] {
+  color-line red_bold $"✖ ($message)"
+}
+
+def success-line [message: string] {
+  color-line green_bold $"✓ ($message)"
+}
+
 export def main [
   feature: string                              # Feature name or active feature folder, e.g. `my-feature` or `devflow/feat/my-feature`
   study: string = ""                           # Additional context appended after the feature proposal/plan/spec context
   --agent: string = "main"                     # Pi agent to run (ignored when --claude is set)
   --model: string = ""                         # Model to run (defaults: pi=openai-codex/gpt-5.5:low, claude=sonnet)
+  --session-id: string = ""                    # Original owner session to resume for final /flow-review--owner when all tasks complete
   --claude                                     # Use claude CLI instead of pi
 ] {
   let effective_model = if $model == "" {
@@ -124,29 +154,30 @@ export def main [
   loop {
     let task = (next-task $task_index | str trim)
     if $task == "" {
-      print "afk loop stopped: no runnable tasks remain"
+      stop-line "afk loop stopped: no runnable tasks remain"
       break
     }
 
     let dirty_status = (git status --porcelain | str trim)
     if $dirty_status != "" and (task-status $task) != "in_progress" {
-      print "afk loop stopped: uncommitted work before starting pending task"
+      error-line "afk loop stopped: uncommitted work before starting pending task"
       print (git status --short)
       error make { msg: "uncommitted work before pending task" }
     }
 
     $loop_count = ($loop_count + 1)
     let session_name = (task-session-name $feature_name $task $loop_count)
-    # mint a session id so build phases resume this exact session, not "most recent in cwd"
-    let session_id = (random uuid)
+    # mint a task session id so build phases resume this exact session, not "most recent in cwd"
+    let task_session_id = (random uuid)
     let init_command = if $claude { "/devflow:flow-init--afk" } else { "/flow-init--afk" }
     let prompt = $"($init_command) study Active feature folder: ($active_feature_dir)\nProposal file: ($proposal_file)\nTask index file: ($task_index)\nFeature plan file: ($feature_plan)\nAdditional context: ($study)\n\nSelected task:\n($task)"
-    print $"running: ($init_command) with next task from ($task_index) as ($session_name)"
+    loop-line $"loop ($loop_count): ($session_name)"
+    stage-line $"running: ($init_command) with next task from ($task_index)"
 
     let res = if $claude {
-      $prompt | claude --print --dangerously-skip-permissions --model $effective_model --name $session_name --session-id $session_id | complete
+      $prompt | claude --print --dangerously-skip-permissions --model $effective_model --name $session_name --session-id $task_session_id | complete
     } else {
-      pi --agent $agent --model $effective_model --name $session_name --session-id $session_id -p $prompt | complete
+      pi --agent $agent --model $effective_model --name $session_name --session-id $task_session_id -p $prompt | complete
     }
 
     if $res.exit_code != 0 {
@@ -157,8 +188,7 @@ export def main [
         error make { msg: $"initial ($cli) ($init_command) run failed; aborting afk loop" }
       }
 
-      print $"($cli) failed; retrying afk loop (($failures)/($max_failures))"
-
+      error-line $"($cli) failed; retrying afk loop (($failures)/($max_failures))"
       if $failures >= $max_failures {
         error make { msg: $"($cli) failed ($max_failures) times in a row" }
       }
@@ -171,23 +201,23 @@ export def main [
 
     if (has-token $out "BLOCKED") {
       $failures = 0
-      print "afk loop stopped: task blocked"
+      stop-line "afk loop stopped: task blocked"
       break
     }
 
     if (has-token $out "NO_TASKS_REMAIN") {
       $failures = 0
-      print "afk loop stopped: no runnable tasks remain"
+      stop-line "afk loop stopped: no runnable tasks remain"
       break
     }
 
     # likely success
     let refine_command = if $claude { "/devflow:flow-build--refine" } else { "/flow-build--refine" }
-    print $"running: ($refine_command)"
+    stage-line $"running: ($refine_command)"
     let refine = if $claude {
-      $refine_command | claude --print --dangerously-skip-permissions --resume $session_id | complete
+      $refine_command | claude --print --dangerously-skip-permissions --resume $task_session_id | complete
     } else {
-      pi --session-id $session_id -p $refine_command | complete
+      pi --session-id $task_session_id -p $refine_command | complete
     }
     if $refine.exit_code != 0 {
       print $refine.stderr
@@ -196,11 +226,11 @@ export def main [
     print ($refine.stdout | str trim)
 
     let smoke_command = if $claude { "/devflow:flow-build--smoke" } else { "/flow-build--smoke" }
-    print $"running: ($smoke_command)"
+    stage-line $"running: ($smoke_command)"
     let smoke = if $claude {
-      $smoke_command | claude --print --dangerously-skip-permissions --resume $session_id | complete
+      $smoke_command | claude --print --dangerously-skip-permissions --resume $task_session_id | complete
     } else {
-      pi --session-id $session_id -p $smoke_command | complete
+      pi --session-id $task_session_id -p $smoke_command | complete
     }
     if $smoke.exit_code != 0 {
       print $smoke.stderr
@@ -211,13 +241,13 @@ export def main [
     let git_status = (git status --porcelain)
     if ($git_status | str trim) != "" {
       let finalise_command = if $claude { "/devflow:flow-build--finalise" } else { "/flow-build--finalise" }
-      print $"running: ($finalise_command)"
+      stage-line $"running: ($finalise_command)"
       print (git status --short)
 
       let finalise = if $claude {
-        $finalise_command | claude --print --dangerously-skip-permissions --resume $session_id | complete
+        $finalise_command | claude --print --dangerously-skip-permissions --resume $task_session_id | complete
       } else {
-        pi --session-id $session_id -p $finalise_command | complete
+        pi --session-id $task_session_id -p $finalise_command | complete
       }
       if $finalise.exit_code != 0 {
         print $finalise.stderr
@@ -229,24 +259,43 @@ export def main [
 
       let final_status = (git status --porcelain)
       if ($final_status | str trim) != "" {
-        print "afk loop stopped: flow-build--finalise left uncommitted work"
+        error-line "afk loop stopped: flow-build--finalise left uncommitted work"
         print (git status --short)
         error make { msg: "flow-build--finalise left uncommitted work" }
       }
 
       if (has-token $finalise_out "BLOCKED") {
         $failures = 0
-        print "afk loop stopped: finalise blocked"
+        stop-line "afk loop stopped: finalise blocked"
         break
       }
 
       if (has-token $finalise_out "NO_TASKS_REMAIN") {
         $failures = 0
-        print "afk loop stopped: no runnable tasks remain"
+        stop-line "afk loop stopped: no runnable tasks remain"
         break
       }
     }
 
     $failures = 0
+  }
+
+  if (all-tasks-complete $task_index) {
+    if $session_id == "" {
+      success-line "afk loop completed all tasks; skipping owner review because --session-id was not provided"
+    } else {
+      let owner_review_command = if $claude { $"/devflow:flow-review--owner ($feature_name)" } else { $"/flow-review--owner ($feature_name)" }
+      stage-line $"running owner review in original session: ($owner_review_command)"
+      let owner_review = if $claude {
+        $owner_review_command | claude --print --dangerously-skip-permissions --resume $session_id | complete
+      } else {
+        pi --session-id $session_id -p $owner_review_command | complete
+      }
+      if $owner_review.exit_code != 0 {
+        print $owner_review.stderr
+        error make { msg: "flow-review--owner failed" }
+      }
+      print ($owner_review.stdout | str trim)
+    }
   }
 }

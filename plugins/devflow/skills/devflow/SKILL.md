@@ -34,23 +34,25 @@ devflow/
 |           `-- <zero-padded-id>-<slug>.md
 `-- archive/
     `-- yy-mm-dd__<feat-name>/
+        `-- rfcs/
+            `-- YYYY-MM-DD-<slug>.md
 ```
 
-Root specs in `devflow/specs/` are canonical. Feature-local specs/deltas are pending work. Archived feature folders are historical context only.
+Root specs in `devflow/specs/` are canonical. Feature-local specs/deltas are pending work. Archived feature folders and their implemented RFCs are historical context only.
 
 ## Reference table
 
-| Phase            | Artifact(s)                                                                  | Reference file                                                | Required?                                |
-| ---------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------- |
-| Orient           | existing `devflow/` state, relevant code                                     | this skill                                                    | Always                                   |
-| RFC              | `devflow/rfcs/YYYY-MM-DD-<slug>.md`                                          | [rfc-authoring](./references/rfc-authoring.md)                | Optional; use for meaningful uncertainty |
-| Proposal         | `devflow/feat/<feat-name>/proposal.md`                                       | [proposal-authoring](./references/proposal-authoring.md)      | Required for feature folders             |
-| Spec work        | `devflow/specs/*.md`, `devflow/feat/<feat-name>/specs/*.md`, `*.delta.md`    | [spec-authoring](./references/spec-authoring.md)              | Optional unless durable contracts change |
-| Plan             | `devflow/feat/<feat-name>/<feat-name>.plan.md`                               | [plan-authoring](./references/plan-authoring.md)              | Required for queued/AFK work             |
-| Tasks            | `devflow/feat/<feat-name>/tasks/index.yml`, `tasks/*.md`                     | [task-authoring](./references/task-authoring.md)              | Required for AFK loop                    |
-| AFK execution    | task status changes, code commits, plan Developer Notes                      | `plugins/devflow/scripts/afk-loop.nu`, `commands/flow-init-*` | Optional execution mode                  |
-| Finish / archive | promoted root specs, updated index, shipped/abandoned plan, archived feature | this skill + spec/plan references for detailed edits          | Required when feature work ends          |
-| Migration        | moved planning files into `devflow/`                                         | `plugins/devflow/commands/migrate.md`                         | One-time user command only               |
+| Phase            | Artifact(s)                                                                                    | Reference file                                                | Required?                                |
+| ---------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------- |
+| Orient           | existing `devflow/` state, relevant code                                                       | this skill                                                    | Always                                   |
+| RFC              | `devflow/rfcs/YYYY-MM-DD-<slug>.md`                                                            | [rfc-authoring](./references/rfc-authoring.md)                | Optional; use for meaningful uncertainty |
+| Proposal         | `devflow/feat/<feat-name>/proposal.md`                                                         | [proposal-authoring](./references/proposal-authoring.md)      | Required for feature folders             |
+| Spec work        | `devflow/specs/*.md`, `devflow/feat/<feat-name>/specs/*.md`, `*.delta.md`                      | [spec-authoring](./references/spec-authoring.md)              | Optional unless durable contracts change |
+| Plan             | `devflow/feat/<feat-name>/<feat-name>.plan.md`                                                 | [plan-authoring](./references/plan-authoring.md)              | Required for queued/AFK work             |
+| Tasks            | `devflow/feat/<feat-name>/tasks/index.yml`, `tasks/*.md`                                       | [task-authoring](./references/task-authoring.md)              | Required for AFK loop                    |
+| AFK execution    | task status changes, code commits, plan Developer Notes                                        | `plugins/devflow/scripts/afk-loop.nu`, `commands/flow-init-*` | Optional execution mode                  |
+| Finish / archive | promoted root specs, updated index, shipped/abandoned plan, archived feature, implemented RFCs | this skill + spec/plan references for detailed edits          | Required when feature work ends          |
+| Migration        | moved planning files into `devflow/`                                                           | `plugins/devflow/commands/migrate.md`                         | One-time user command only               |
 
 ## Lifecycle flow
 
@@ -137,10 +139,10 @@ Run this when the user asks to run or prepare the AFK loop.
 
 ```nu
 use plugins/devflow/scripts/afk-loop.nu *
-afk-loop <feat-name> "<additional context>"
+afk-loop <feat-name> "<additional context>" --session-id <owner-session-id>
 ```
 
-Use `afk-loop devflow/feat/<feat-name> "<additional context>"` when the user supplied a folder path instead of a feature name.
+Use `afk-loop devflow/feat/<feat-name> "<additional context>" --session-id <owner-session-id>` when the user supplied a folder path instead of a feature name. Omit `--session-id` only when no original owner session is available; the loop will then skip the final owner review.
 
 ### FINISH_ARCHIVE
 
@@ -150,28 +152,34 @@ Run this when feature work is shipped, intentionally abandoned, or the user asks
 2. Read:
    - `proposal.md`
    - `<feat-name>.plan.md`
+   - linked RFCs from proposal/plan frontmatter, if present
    - `tasks/index.yml` and task files if present
    - `specs/*` feature-local specs/deltas
    - affected root specs in `devflow/specs/`
-3. Reconcile task state and implementation reality:
+3. Identify RFCs to archive with the feature:
+   - Include RFC files explicitly linked from `proposal.md` (`Related RFCs`) or `<feat-name>.plan.md` (`RFC`).
+   - If multiple active features link the same RFC, ask before moving it; otherwise the feature that implemented the RFC owns archiving it.
+   - Do not archive RFCs that are only background reading or still need another active feature.
+4. Reconcile task state and implementation reality:
    - For shipped work, confirm tasks intended for the shipped scope are complete and code/tests cover that scope.
    - If tasks remain incomplete, classify them as cut scope before archiving.
    - Record cut, deferred, or abandoned scope in the plan's final Developer Notes; do not promote unshipped behavior into root specs unless the user explicitly asks.
-4. Decide outcome:
+5. Decide outcome:
    - **Shipped:** implementation is complete enough that durable outcomes should become canonical.
    - **Abandoned:** work stops intentionally; do not promote unshipped contract changes unless the user explicitly asks.
-5. For shipped work:
+6. For shipped work:
    - use the spec reference for detailed merge rules
    - merge each `devflow/feat/<feat-name>/specs/*.delta.md` into its matching root spec
    - promote each new feature spec that should become canonical into `devflow/specs/`
    - update `devflow/README.md` spec index
    - mark feature-local deltas `Merged`
-6. Update `<feat-name>.plan.md`:
+7. Update `<feat-name>.plan.md`:
    - set `Status: Shipped` or `Status: Abandoned`
    - update `Last Updated`
-   - add a final Developer Notes entry summarizing shipped scope, cut scope, or abandonment reason
-7. Move the whole folder to `devflow/archive/yy-mm-dd__<feat-name>/`.
-8. Report the root specs updated, folder archived, and any cut or unpromoted scope.
+   - add a final Developer Notes entry summarizing shipped scope, cut scope, abandonment reason, and any RFCs archived with the feature
+8. Move the feature folder to `devflow/archive/yy-mm-dd__<feat-name>/`.
+9. Move each identified implemented RFC from `devflow/rfcs/` into `devflow/archive/yy-mm-dd__<feat-name>/rfcs/`.
+10. Report the root specs updated, feature folder archived, RFCs archived, and any cut or unpromoted scope.
 
 ## Delegation rules
 
