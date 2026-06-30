@@ -1,7 +1,12 @@
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { formatContextDisplay, formatCost, formatModelDisplay } from "./usage-format.js";
+import {
+	formatContextDisplay,
+	formatCost,
+	formatModelDisplay,
+	formatTokens,
+} from "./usage-format.js";
 
 function sanitizeStatusText(text: string): string {
 	return text
@@ -76,36 +81,75 @@ function formatCacheTime(timestamp: string | number | Date): string {
 	});
 }
 
+function getThemeForegroundPrefix(
+	theme: { fg(color: string, text: string): string },
+	color: string,
+): string {
+	const resetForeground = "\x1b[39m";
+	const styledEmpty = theme.fg(color, "");
+	return styledEmpty.endsWith(resetForeground)
+		? styledEmpty.slice(0, -resetForeground.length)
+		: styledEmpty;
+}
+
+function formatCacheMissEstimate(previousHit: AssistantMessage, miss: AssistantMessage): string {
+	const missedTokens = previousHit.usage.cacheRead;
+	const parts = [`~${formatTokens(missedTokens)} tok`];
+
+	const uncachedInputRate = miss.usage.input > 0 ? miss.usage.cost.input / miss.usage.input : null;
+	const cachedInputRate =
+		previousHit.usage.cacheRead > 0
+			? previousHit.usage.cost.cacheRead / previousHit.usage.cacheRead
+			: null;
+	if (uncachedInputRate !== null && cachedInputRate !== null) {
+		const extraCost = missedTokens * Math.max(0, uncachedInputRate - cachedInputRate);
+		parts.push(`~${formatCost(extraCost, false, 3)}`);
+	}
+
+	return parts.join(" ");
+}
+
 function getCacheStatusDisplay(
 	entries: ReturnType<ExtensionContext["sessionManager"]["getBranch"]>,
 	warn: (text: string) => string,
 	now = Date.now(),
 ): string | null {
 	let latestHitTimestamp: string | number | Date | null = null;
+	let latestHitMessage: AssistantMessage | null = null;
 	let latestMissTimestamp: string | number | Date | null = null;
+	let latestMissMessage: AssistantMessage | null = null;
 	let hitBeforeLatestMissTimestamp: string | number | Date | null = null;
+	let hitBeforeLatestMissMessage: AssistantMessage | null = null;
 
 	for (const entry of entries) {
 		if (entry.type !== "message" || entry.message.role !== "assistant") continue;
 		const assistant = entry.message as AssistantMessage;
 		if (assistant.usage.cacheRead > 0) {
 			latestHitTimestamp = entry.timestamp;
+			latestHitMessage = assistant;
 			continue;
 		}
-		if (latestHitTimestamp && assistant.usage.cacheRead === 0) {
+		if (latestHitTimestamp && latestHitMessage && assistant.usage.cacheRead === 0) {
 			hitBeforeLatestMissTimestamp = latestHitTimestamp;
+			hitBeforeLatestMissMessage = latestHitMessage;
 			latestMissTimestamp = entry.timestamp;
+			latestMissMessage = assistant;
 		}
 	}
 
 	if (!latestHitTimestamp) return null;
 	const parts = [formatCacheTime(latestHitTimestamp)];
-	if (latestMissTimestamp && hitBeforeLatestMissTimestamp) {
+	if (
+		latestMissTimestamp &&
+		hitBeforeLatestMissTimestamp &&
+		hitBeforeLatestMissMessage &&
+		latestMissMessage
+	) {
 		const missTime = new Date(latestMissTimestamp).getTime();
 		if (now - missTime <= CACHE_MISS_DISPLAY_MS) {
 			parts.push(
 				warn(
-					`!miss ${formatCacheTime(hitBeforeLatestMissTimestamp)} -> ${formatCacheTime(latestMissTimestamp)}`,
+					`!miss ${formatCacheTime(hitBeforeLatestMissTimestamp)} -> ${formatCacheTime(latestMissTimestamp)} ${formatCacheMissEstimate(hitBeforeLatestMissMessage, latestMissMessage)}`,
 				),
 			);
 		}
@@ -169,8 +213,10 @@ export function renderStatuslineItems({
 		contextPercent: contextUsage?.percent,
 	});
 	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
-	const cacheStatusDisplay = getCacheStatusDisplay(branchEntries, (text) =>
-		theme.fg("warning", text),
+	const dimForegroundPrefix = getThemeForegroundPrefix(theme, "dim");
+	const cacheStatusDisplay = getCacheStatusDisplay(
+		branchEntries,
+		(text) => `${theme.fg("warning", text)}${dimForegroundPrefix}`,
 	);
 	const costDisplay = `${formatCostLine(formatCost(totalCost, false, 3), usingSubscription, cacheStatusDisplay)}${overrideDisplay}`;
 
@@ -254,8 +300,10 @@ export function renderStatuslineLines({
 		contextPercent: contextUsage?.percent,
 	});
 	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
-	const cacheStatusDisplay = getCacheStatusDisplay(branchEntries, (text) =>
-		theme.fg("warning", text),
+	const dimForegroundPrefix = getThemeForegroundPrefix(theme, "dim");
+	const cacheStatusDisplay = getCacheStatusDisplay(
+		branchEntries,
+		(text) => `${theme.fg("warning", text)}${dimForegroundPrefix}`,
 	);
 	const costDisplay = `${formatCostLine(formatCost(totalCost, false, 3), usingSubscription, cacheStatusDisplay)}${overrideDisplay}`;
 

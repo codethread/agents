@@ -120,12 +120,26 @@ describe("renderStatuslineItems", () => {
 					{
 						type: "message",
 						timestamp: hitTimestamp,
-						message: { role: "assistant", usage: { cacheRead: 1000, cost: { total: 0.01 } } },
+						message: {
+							role: "assistant",
+							usage: {
+								input: 100,
+								cacheRead: 1000,
+								cost: { input: 0.001, cacheRead: 0.001, total: 0.01 },
+							},
+						},
 					},
 					{
 						type: "message",
 						timestamp: missTimestamp,
-						message: { role: "assistant", usage: { cacheRead: 0, cost: { total: 0.02 } } },
+						message: {
+							role: "assistant",
+							usage: {
+								input: 1100,
+								cacheRead: 0,
+								cost: { input: 0.011, cacheRead: 0, total: 0.02 },
+							},
+						},
 					},
 					{
 						type: "message",
@@ -139,7 +153,7 @@ describe("renderStatuslineItems", () => {
 		const theme = { fg: (_color: string, text: string) => text };
 
 		expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[2]).toBe(
-			`$0.060 [${expectedLatestHitTime} !miss ${expectedHitTime} -> ${expectedMissTime}] (sub)`,
+			`$0.060 [${expectedLatestHitTime} !miss ${expectedHitTime} -> ${expectedMissTime} ~1.0k tok ~$0.009] (sub)`,
 		);
 	});
 

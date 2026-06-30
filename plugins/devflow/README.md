@@ -142,6 +142,7 @@ use plugins/devflow/scripts/devflow
 devflow all my-feature "also read @README.md"
 devflow next my-feature
 devflow run my-feature 3
+devflow show my-feature
 ```
 
 Subcommands:
@@ -149,6 +150,7 @@ Subcommands:
 - `all` — repeatedly run runnable tasks until blocked or exhausted.
 - `next` — run one cycle for the next runnable task.
 - `run <task-id>` — run one cycle for a specific task id from `tasks/index.yml`.
+- `show` — print `tasks/index.yml` as a nested, human-readable ASCII DAG with task status and dependencies.
 
 Each subcommand requires `proposal.md`, `<feat-name>.plan.md`, and `tasks/index.yml` in that feature folder. In Nushell, the `feature` argument autocompletes from directory names under `devflow/feat/`. By default it uses Pi (`openai-codex/gpt-5.5:low`). Pass `--claude` to use the Claude CLI instead (default model: `sonnet`). Pass `--model` to override the model for either runner. Pass the original owner conversation as `--session-id <id>` to run `/flow-review--owner <feat-name>` in that session after every task is complete; without it, owner review is skipped.
 
