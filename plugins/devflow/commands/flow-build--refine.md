@@ -10,3 +10,5 @@ Reflect on the changes you made and what you built. Focus hard on MVP and simple
 then self review what code you could simplify or remove
 
 Finally refactor aggressively to follow YAGNI principle for MVP
+
+$ARGUMENTS

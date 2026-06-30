@@ -78,3 +78,5 @@ Block when any of these hold:
 - You catch yourself contradicting earlier reasoning to force a fit.
 - The task index YAML is malformed (e.g. `blocked_by` cites a task id that does not exist).
 - Reviewer feedback would require work outside the chosen slice and the slice cannot honestly be marked `complete` without it.
+
+$ARGUMENTS

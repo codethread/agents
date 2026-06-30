@@ -76,3 +76,5 @@ If the task is blocked, reply with `BLOCKED`.
 If the selected task is missing or cannot be reconciled with the task index, reply with `NO_TASKS_REMAIN`.
 
 Otherwise, reply with a terse summary of the completed work. Do not include the literal tokens `BLOCKED` or `NO_TASKS_REMAIN` in a success summary.
+
+$ARGUMENTS

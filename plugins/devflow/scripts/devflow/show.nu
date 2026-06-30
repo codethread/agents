@@ -3,18 +3,25 @@
 use helpers.nu *
 
 # Render a feature task queue or tasks/index.yml as a readable terminal DAG.
+#
+# Requires `graph-easy` on PATH. The Nix dev profile provides it via Graph::Easy.
+# Use --dot to print Graphviz DOT without requiring graph-easy.
 export def main [
   input: string@complete-features           # Feature name, active feature folder, or tasks/index.yml path
   --format: string = "boxart"              # graph-easy output format: boxart or ascii
-  --wrap: int = 20                          # Maximum label line width before wrapping words
+  --wrap: int = 0                           # Maximum label line width; 0 infers from terminal width
+  --direction: string = "auto"              # auto, LR, or TB
+  --padding: int = 16                       # Columns to reserve when inferring wrap/direction
   --dot                                      # Print DOT instead of rendering
 ] {
   let task_index = (resolve-task-index $input)
   let items = (task-items $task_index)
   validate-task-index $items
   validate-graph-easy-format $format
+  let effective_direction = (effective-direction $direction $padding)
+  let effective_wrap = (effective-wrap $wrap $items $effective_direction $padding)
 
-  let dot_text = (tasks-to-dot $items $wrap)
+  let dot_text = (tasks-to-dot $items $effective_wrap $effective_direction)
 
   if $dot {
     print $dot_text
@@ -26,23 +33,10 @@ export def main [
 
   if not (is-graph-easy-available) {
     print $dot_text
-    error make { msg: "graph-easy not found. Install with `PERL_MM_USE_DEFAULT=1 cpan -T Graph::Easy`, then ensure ~/perl5/bin is on PATH and ~/perl5/lib/perl5 is on PERL5LIB. Re-run with --dot to print DOT only." }
+    error make { msg: "graph-easy not found on PATH. Install the Nix dev profile that includes Graph::Easy, or re-run with --dot to print DOT only." }
   }
 
-  with-env (graph-easy-env) {
-    ^graph-easy $dot_file --as $format
-  }
-}
-
-# Print only the generated DOT for a feature task queue or index file.
-export def dot [
-  input: string@complete-features
-  --wrap: int = 20
-] {
-  let task_index = (resolve-task-index $input)
-  let items = (task-items $task_index)
-  validate-task-index $items
-  print (tasks-to-dot $items $wrap)
+  ^graph-easy $dot_file --as $format
 }
 
 def resolve-task-index [input: string] {
@@ -64,7 +58,37 @@ def resolve-task-index [input: string] {
   }
 }
 
-def tasks-to-dot [items: table, wrap: int] {
+def effective-direction [requested: string, padding: int] {
+  let normalized = ($requested | str upcase)
+  if $normalized in ["LR" "TB"] {
+    return $normalized
+  }
+  if $normalized != "AUTO" {
+    error make { msg: "--direction must be auto, LR, or TB" }
+  }
+
+  let usable_columns = ([20 (((term size).columns? | default 80) - $padding)] | math max)
+  if $usable_columns < 120 { "TB" } else { "LR" }
+}
+
+def effective-wrap [requested: int, items: table, direction: string, padding: int] {
+  if $requested != 0 {
+    if $requested < 8 {
+      error make { msg: "--wrap must be 0 or at least 8" }
+    }
+    return $requested
+  }
+
+  let columns = ((term size).columns? | default 80)
+  let usable_columns = ([20 ($columns - $padding)] | math max)
+  let node_count = ($items | length)
+  let rank_nodes = if $direction == "TB" { 3 } else { [$node_count 6] | math min }
+  let inferred = (($usable_columns / $rank_nodes | into int) - 5)
+  let floor_applied = ([8 $inferred] | math max)
+  [$floor_applied 24] | math min
+}
+
+def tasks-to-dot [items: table, wrap: int, direction: string] {
   if $wrap < 8 {
     error make { msg: "--wrap must be at least 8" }
   }
@@ -97,14 +121,14 @@ def tasks-to-dot [items: table, wrap: int] {
 
   let body = if $edge_lines == "" { $node_lines } else { [$node_lines $edge_lines] | str join "\n\n" }
 
-  $"digraph devflow_tasks {\n  rankdir = LR;\n  node [shape = box];\n\n($body)\n}\n"
+  $"digraph devflow_tasks {\n  rankdir = ($direction);\n  node [shape = box];\n\n($body)\n}\n"
 }
 
 def dot-label [task: record, wrap: int] {
   let header = $"(task-id $task.id) ($task.status)"
   let desc = ($task.description | str trim | wrap-words $wrap)
   let label = ([$header] | append $desc | str join "\\n")
-  dot-escape-label $label
+  $label | dot-escape-label
 }
 
 def wrap-words [width: int]: string -> list<string> {
@@ -137,15 +161,5 @@ def validate-graph-easy-format [format: string] {
 }
 
 def is-graph-easy-available [] {
-  (which graph-easy | length) > 0 or ($"($env.HOME)/perl5/bin/graph-easy" | path exists)
-}
-
-def graph-easy-env [] {
-  let perl5_bin = $"($env.HOME)/perl5/bin"
-  let perl5_lib = $"($env.HOME)/perl5/lib/perl5"
-  let perl5_arch = $"($env.HOME)/perl5/lib/perl5/darwin-thread-multi-2level"
-  let path = if ($perl5_bin | path exists) { $"($perl5_bin):($env.PATH)" } else { $env.PATH }
-  let existing_perl5lib = ($env.PERL5LIB? | default "")
-  let perl5lib_parts = ([$perl5_lib $perl5_arch $existing_perl5lib] | where {|part| $part != "" })
-  { PATH: $path, PERL5LIB: ($perl5lib_parts | str join ":") }
+  (which graph-easy | length) > 0
 }
