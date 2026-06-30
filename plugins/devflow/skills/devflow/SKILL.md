@@ -42,17 +42,17 @@ Root specs in `devflow/specs/` are canonical. Feature-local specs/deltas are pen
 
 ## Reference table
 
-| Phase            | Artifact(s)                                                                                    | Reference file                                                | Required?                                |
-| ---------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------- |
-| Orient           | existing `devflow/` state, relevant code                                                       | this skill                                                    | Always                                   |
-| RFC              | `devflow/rfcs/YYYY-MM-DD-<slug>.md`                                                            | [rfc-authoring](./references/rfc-authoring.md)                | Optional; use for meaningful uncertainty |
-| Proposal         | `devflow/feat/<feat-name>/proposal.md`                                                         | [proposal-authoring](./references/proposal-authoring.md)      | Required for feature folders             |
-| Spec work        | `devflow/specs/*.md`, `devflow/feat/<feat-name>/specs/*.md`, `*.delta.md`                      | [spec-authoring](./references/spec-authoring.md)              | Optional unless durable contracts change |
-| Plan             | `devflow/feat/<feat-name>/<feat-name>.plan.md`                                                 | [plan-authoring](./references/plan-authoring.md)              | Required for queued/AFK work             |
-| Tasks            | `devflow/feat/<feat-name>/tasks/index.yml`, `tasks/*.md`                                       | [task-authoring](./references/task-authoring.md)              | Required for AFK loop                    |
-| AFK execution    | task status changes, code commits, plan Developer Notes                                        | `plugins/devflow/scripts/afk-loop.nu`, `commands/flow-init-*` | Optional execution mode                  |
-| Finish / archive | promoted root specs, updated index, shipped/abandoned plan, archived feature, implemented RFCs | this skill + spec/plan references for detailed edits          | Required when feature work ends          |
-| Migration        | moved planning files into `devflow/`                                                           | `plugins/devflow/commands/migrate.md`                         | One-time user command only               |
+| Phase            | Artifact(s)                                                                                    | Reference file                                             | Required?                                |
+| ---------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------- |
+| Orient           | existing `devflow/` state, relevant code                                                       | this skill                                                 | Always                                   |
+| RFC              | `devflow/rfcs/YYYY-MM-DD-<slug>.md`                                                            | [rfc-authoring](./references/rfc-authoring.md)             | Optional; use for meaningful uncertainty |
+| Proposal         | `devflow/feat/<feat-name>/proposal.md`                                                         | [proposal-authoring](./references/proposal-authoring.md)   | Required for feature folders             |
+| Spec work        | `devflow/specs/*.md`, `devflow/feat/<feat-name>/specs/*.md`, `*.delta.md`                      | [spec-authoring](./references/spec-authoring.md)           | Optional unless durable contracts change |
+| Plan             | `devflow/feat/<feat-name>/<feat-name>.plan.md`                                                 | [plan-authoring](./references/plan-authoring.md)           | Required for queued/AFK work             |
+| Tasks            | `devflow/feat/<feat-name>/tasks/index.yml`, `tasks/*.md`                                       | [task-authoring](./references/task-authoring.md)           | Required for AFK loop                    |
+| AFK execution    | task status changes, code commits, plan Developer Notes                                        | `plugins/devflow/scripts/devflow/`, `commands/flow-init-*` | Optional execution mode                  |
+| Finish / archive | promoted root specs, updated index, shipped/abandoned plan, archived feature, implemented RFCs | this skill + spec/plan references for detailed edits       | Required when feature work ends          |
+| Migration        | moved planning files into `devflow/`                                                           | `plugins/devflow/commands/migrate.md`                      | One-time user command only               |
 
 ## Lifecycle flow
 
@@ -138,11 +138,11 @@ Run this when the user asks to run or prepare the AFK loop.
 8. Give the user a Nushell command using a repo-relative path:
 
 ```nu
-use plugins/devflow/scripts/afk-loop.nu *
-afk-loop <feat-name> "<additional context>" --session-id <owner-session-id>
+use plugins/devflow/scripts/devflow
+devflow all <feat-name> "<additional context>" --session-id <owner-session-id>
 ```
 
-Use `afk-loop devflow/feat/<feat-name> "<additional context>" --session-id <owner-session-id>` when the user supplied a folder path instead of a feature name. Omit `--session-id` only when no original owner session is available; the loop will then skip the final owner review.
+Use `devflow all devflow/feat/<feat-name> "<additional context>" --session-id <owner-session-id>` when the user supplied a folder path instead of a feature name. Omit `--session-id` only when no original owner session is available; the loop will then skip the final owner review.
 
 ### FINISH_ARCHIVE
 

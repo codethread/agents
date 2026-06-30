@@ -48,7 +48,7 @@ Slice rules:
 - Prefer AFK-ready tasks where possible.
 - Mark dependencies in YAML `blocked_by`, not in task markdown prose.
 - Put human/architectural uncertainty into the feature plan's Task context or Developer Notes, not hidden in task scope.
-- Give each task file a stable sequential `TASK-<nnn>` document ID and prefix each section/list/table item with that document ID so discussion can cite exact globally grepable task points.
+- Give each task file a stable `TASK-<name>-<nnn>[@<version>]` document ID and prefix each section/list/table item with that document ID so discussion can cite exact globally grepable task points.
 
 ### 5. Add execution-level specificity
 
@@ -73,7 +73,7 @@ Encoding rules:
 - Do not add a YAML `type` field. The task index schema is fixed.
 - For AFK tasks, use `status: pending`; use `blocked_by` for dependencies instead of setting dependency-blocked AFK work to `blocked`.
 - For HITL tasks, prefix the `description` with `[HITL]` and set `status: blocked` unless the required human input has already been provided.
-- In each task file, put `Type: AFK` or `Type: HITL` as the first line under `## TASK-<nnn>.P1 Scope`.
+- In each task file, put `Type: AFK` or `Type: HITL` as the first line under `## TASK-<name>-<nnn>.P1 Scope`.
 - If HITL produces a decision that unlocks implementation, make the decision task HITL and create separate AFK implementation task(s) blocked by that HITL task.
 - Keep human uncertainty out of AFK task scope.
 
@@ -124,7 +124,7 @@ Each task markdown should follow `./task-authoring.template.md`.
 
 Guidance:
 
-- Start `## TASK-<nnn>.P1 Scope` with exactly one classification line: `Type: AFK` or `Type: HITL`.
+- Start `## TASK-<name>-<nnn>.P1 Scope` with exactly one classification line: `Type: AFK` or `Type: HITL`.
 - Describe end-to-end behavior, not a layer-by-layer checklist.
 - Include exact files/functions/commands when they make the task safer for unattended execution.
 - Reference accepted RFCs, root specs, feature-local specs, the proposal, and the plan when needed; do not duplicate their rationale or alternatives.

@@ -60,7 +60,7 @@ A proposal should link to accepted RFCs and relevant root specs. It should not d
 - [ ] File lives at `devflow/feat/<feat-name>/proposal.md`
 - [ ] Feature folder and `specs/` staging folder exist
 - [ ] Problem, goals, non-goals, proposed scope, and open questions are present
-- [ ] Document has a stable sequential `PROP-<nnn>` ID
+- [ ] Document has a stable `PROP-<name>-<nnn>[@<version>]` ID
 - [ ] Sections and list/table items have stable document-prefixed sub IDs
 - [ ] Relevant RFCs and root specs are linked or explicitly marked `None`
 - [ ] Proposed scope avoids implementation phases and task detail

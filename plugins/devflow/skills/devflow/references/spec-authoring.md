@@ -162,7 +162,7 @@ Entry state: DETERMINE_MODE
 1. Read accepted RFCs, existing root specs, relevant feature folders, and code for implemented behavior.
 2. Create `devflow/specs/` if it does not exist.
 3. Create `devflow/specs/<stable-domain-name>.md`.
-4. Run `devflow-ids next SPEC devflow` from `../scripts/devflow-ids.nu` when available; otherwise scan existing root, feature, and archived specs before choosing the next globally unused spec document ID.
+4. Run `devflow-ids next SPEC <name> devflow` from `../scripts/devflow-ids.nu` when available; otherwise scan existing root, feature, and archived specs before choosing the next globally unused spec document ID.
 5. Write the lightest spec that captures the boundary using the root spec section in `./spec-authoring.template.md`, including the document ID and document-prefixed sub IDs for sections and list/table items.
 6. Omit sections that genuinely do not apply, but Purpose, Goals, Non-goals, and Design decisions are expected for most specs.
 7. Add or update the spec row in `devflow/README.md`.
@@ -179,7 +179,7 @@ Entry state: DETERMINE_MODE
 
 1. Read `devflow/feat/<feat-name>/proposal.md`, the feature plan if present, relevant root specs, RFCs, and code.
 2. Create `devflow/feat/<feat-name>/specs/` if needed.
-3. Run `devflow-ids next DELTA devflow` from `../scripts/devflow-ids.nu` when available; otherwise scan existing root, feature, and archived specs before choosing the next globally unused delta document ID.
+3. Run `devflow-ids next DELTA <name> devflow` from `../scripts/devflow-ids.nu` when available; otherwise scan existing root, feature, and archived specs before choosing the next globally unused delta document ID.
 4. For an existing root spec, create `devflow/feat/<feat-name>/specs/<spec-name>.delta.md` using the feature delta section in `./spec-authoring.template.md`.
 5. For a new feature-owned spec, use the root spec format in `devflow/feat/<feat-name>/specs/<spec-name>.md` and mark status Planned or Draft.
 6. Preserve existing reference IDs when editing; append new IDs rather than renumbering unless the spec is still a draft with no external references.
@@ -210,7 +210,7 @@ For root specs:
 - [ ] Status is valid
 - [ ] Module-level code pointer only
 - [ ] Durable contracts and design decisions are captured
-- [ ] Document has a stable sequential `SPEC-<nnn>` ID
+- [ ] Document has a stable `SPEC-<name>-<nnn>[@<version>]` ID
 - [ ] Sections and list/table items have stable document-prefixed sub IDs
 - [ ] No implementation phases, task checklists, file trees, or test inventories
 - [ ] `devflow/README.md` index is updated
@@ -220,7 +220,7 @@ For feature specs/deltas:
 - [ ] File lives in `devflow/feat/<feat-name>/specs/`
 - [ ] Existing spec changes use `<spec-name>.delta.md`
 - [ ] Delta states only changes relative to the root spec
-- [ ] Document has a stable sequential `DELTA-<nnn>` ID
+- [ ] Document has a stable `DELTA-<name>-<nnn>[@<version>]` ID
 - [ ] Sections and list/table items have stable document-prefixed sub IDs
 - [ ] New specs are ready to promote into `devflow/specs/` when the feature ships
 - [ ] Feature plan/proposal links are updated when present

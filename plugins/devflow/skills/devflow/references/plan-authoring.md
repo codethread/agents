@@ -161,7 +161,7 @@ For a written or updated plan:
 - [ ] Lives at `devflow/feat/<feat-name>/<feat-name>.plan.md`
 - [ ] Links to the proposal, relevant RFCs, root specs, and feature-local specs
 - [ ] Goal and scope, Approach, Affected areas, Implementation phases, Validation strategy, Task context, and Developer Notes are present
-- [ ] Document has a stable sequential `PLAN-<nnn>` ID
+- [ ] Document has a stable `PLAN-<name>-<nnn>[@<version>]` ID
 - [ ] Sections and list/table items have stable document-prefixed sub IDs
 - [ ] Phase outcomes are independently buildable and verifiable
 - [ ] Plan stays at strategy/phase level; no per-task implementation checklist

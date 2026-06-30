@@ -62,7 +62,7 @@ Create RFCs in `devflow/rfcs/` with creation date plus a short kebab-case slug:
 - `2026-06-22-subagent-cost-budget.md`
 - `2026-06-22-devflow-workspace.md`
 
-Good filenames describe the idea or decision. The RFC's `Document ID` is separate from the filename and uses the next sequential stable ID, such as `RFC-001`, so points inside the document can be globally grepable as `RFC-001.O1`, `RFC-001.REC1`, and so on.
+Good filenames describe the idea or decision. The RFC's `Document ID` is separate from the filename and uses the next sequential stable ID, such as `RFC-Dwr-001` for v1 or `RFC-Dwr-001@2` for v2, so points inside the document can be globally grepable as `RFC-Dwr-001.O1`, `RFC-Dwr-001.REC1`, or `RFC-Dwr-001@2.O1`.
 
 ### RFC status values
 
@@ -117,7 +117,7 @@ Entry state: DETERMINE_MODE
 1. Read relevant existing context: root specs, active feature folders, READMEs, and code when the idea affects existing behavior.
 2. Create `devflow/rfcs/` if it does not exist.
 3. Create `devflow/rfcs/YYYY-MM-DD-<slug>.md` using the current date and a short idea slug.
-4. Assign the next sequential stable `Document ID` by scanning existing RFCs for `RFC-<nnn>` IDs. If the next number is ambiguous, ask the user before writing.
+4. Assign the next sequential stable `Document ID` by scanning existing RFCs for `RFC-<name>-<nnn>[@<version>]` IDs. If the next number is ambiguous, ask the user before writing.
 5. Write this structure using `./rfc-authoring.template.md`, including the document ID and document-prefixed sub IDs for sections and list/table items.
 
 6. Keep implementation details at consequence level. Do not write phases, task checklists, or code-level runbooks.
@@ -150,7 +150,7 @@ Entry state: DETERMINE_MODE
 - [ ] File lives in `devflow/rfcs/` and follows `YYYY-MM-DD-<slug>.md` naming
 - [ ] Status is one of the allowed RFC statuses
 - [ ] Problem, goals, options, recommendation, consequences, and outcome are present when relevant
-- [ ] Document has a stable `RFC-<nnn>` ID
+- [ ] Document has a stable `RFC-<name>-<nnn>[@<version>]` ID
 - [ ] Sections and list/table items have stable document-prefixed sub IDs
 - [ ] Alternatives and tradeoffs are clear enough to make the decision repeatable
 - [ ] Accepted outcomes that affect current contracts are represented in root specs or feature-local spec deltas

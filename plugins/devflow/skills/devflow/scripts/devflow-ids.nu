@@ -3,11 +3,11 @@
 # Usage:
 #   use plugins/devflow/skills/devflow/scripts/devflow-ids.nu *
 #   devflow-ids scan devflow
-#   devflow-ids next DELTA devflow
+#   devflow-ids next DELTA Dwr devflow
 
-const known_prefixes = [RFC SPEC DELTA PROP PLAN TASK]
+const known_prefixes = [RFC SPEC DELTA PROP PLAN TASK PRD TEN]
 
-# Scan devflow markdown documents for `**Document ID:**` values, duplicate IDs, and next IDs by prefix.
+# Scan devflow markdown documents for `**Document ID:**` values, duplicate IDs, and next IDs by prefix/name.
 export def "devflow-ids scan" [
   devflow_dir: path = "devflow" # Planning workspace root to scan.
 ] {
@@ -22,9 +22,10 @@ export def "devflow-ids scan" [
   }
 }
 
-# Print the next unused document ID for a prefix such as DELTA, SPEC, PLAN, PROP, RFC, or TASK.
+# Print the next unused document ID for a prefix/name pair, such as DELTA Dwr.
 export def "devflow-ids next" [
   prefix: string # Document prefix, e.g. DELTA.
+  name: string # Short document/family name, e.g. Dwr.
   devflow_dir: path = "devflow" # Planning workspace root to scan.
 ] {
   let normalized = ($prefix | str upcase)
@@ -33,14 +34,15 @@ export def "devflow-ids next" [
   }
 
   let rows = (document_id_rows $devflow_dir)
-  let max_num = ($rows | where prefix == $normalized | get num --optional | math max)
-  let next_num = (($max_num | default 0) + 1)
-  $"($normalized)-($next_num | fill --alignment right --character '0' --width 3)"
+  let nums = ($rows | where prefix == $normalized | where name == $name | get num --optional)
+  let max_num = (if ($nums | is-empty) { 0 } else { $nums | math max })
+  let next_num = ($max_num + 1)
+  format_id $normalized $name $next_num
 }
 
 # Internal: collect one row per markdown `Document ID` declaration.
 def document_id_rows [devflow_dir: path] {
-  let pattern = '^\*\*Document ID:\*\* `(?<id>(?<prefix>RFC|SPEC|DELTA|PROP|PLAN|TASK)-(?<num>\d{3}))`'
+  let pattern = '^\*\*Document ID:\*\* `(?<id>(?<prefix>[A-Z]+)-(?:(?<name>[A-Za-z][A-Za-z0-9]*)-)?(?<num>\d{2,3})(?:@(?<version>\d+))?)`'
   let output = (do { ^rg --no-heading --line-number --pcre2 $pattern $devflow_dir -g '*.md' } | complete)
 
   if $output.exit_code not-in [0 1] {
@@ -49,21 +51,37 @@ def document_id_rows [devflow_dir: path] {
 
   $output.stdout
   | lines
-  | parse --regex '^(?<path>.*):(?<line>\d+):\*\*Document ID:\*\* `(?<id>(?<prefix>RFC|SPEC|DELTA|PROP|PLAN|TASK)-(?<num>\d{3}))`'
+  | parse --regex '^(?<path>.*):(?<line>\d+):\*\*Document ID:\*\* `(?<id>(?<prefix>[A-Z]+)-(?:(?<name>[A-Za-z][A-Za-z0-9]*)-)?(?<num>\d{2,3})(?:@(?<version>\d+))?)`'
   | update line { |row| $row.line | into int }
   | update num { |row| $row.num | into int }
-  | sort-by prefix num path
+  | update name { |row| $row.name | default '' }
+  | update version { |row| if (($row.version | default '') | is-empty) { 1 } else { $row.version | into int } }
+  | sort-by prefix name num version path
 }
 
-# Internal: compute next IDs for all known prefixes.
+# Internal: compute next IDs for all known prefix/name pairs already present.
 def next_id_rows [rows: table] {
-  $known_prefixes
-  | each { |prefix|
-      let max_num = ($rows | where prefix == $prefix | get num --optional | math max)
-      let next_num = (($max_num | default 0) + 1)
+  $rows
+  | select prefix name
+  | uniq
+  | each { |pair|
+      let pair_name = ($pair.name | default '')
+      let matching = ($rows | where prefix == $pair.prefix | where name == $pair_name)
+      let max_num = ($matching | get num | math max)
+      let next_num = ($max_num + 1)
       {
-        prefix: $prefix
-        next: $"($prefix)-($next_num | fill --alignment right --character '0' --width 3)"
+        prefix: $pair.prefix
+        name: $pair_name
+        next: (format_id $pair.prefix $pair_name $next_num)
       }
     }
+  | sort-by prefix name
+}
+
+def format_id [prefix: string, name: string, num: int] {
+  if ($name | is-empty) {
+    $"($prefix)-($num | fill --alignment right --character '0' --width 2)"
+  } else {
+    $"($prefix)-($name)-($num | fill --alignment right --character '0' --width 3)"
+  }
 }

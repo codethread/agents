@@ -14,4 +14,4 @@ Use a single tiny task to verify the AFK loop runs visibly with colored stage an
 
 ## PL9 Developer Notes
 
-- PL9.1 Created as temporary smoke-test queue for `plugins/devflow/scripts/afk-loop.nu` output readability.
+- PL9.1 Created as temporary smoke-test queue for `plugins/devflow/scripts/devflow/mod.nu` output readability.

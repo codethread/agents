@@ -4,6 +4,8 @@ Workflow helpers for turning ideas into durable specs, feature-local plans, and 
 
 This plugin assumes each repository may keep a planning workspace at `devflow/`. That workspace is distinct from this plugin directory (`plugins/devflow/`).
 
+Devflow work is scoped to the current active feature. Unless the user explicitly asks for migration or finish/archive work, agents must not edit `devflow/archive/`, other folders under `devflow/feat/`, or unrelated feature/RFC/spec documents. Create and update only the selected feature folder plus root `devflow/specs/` or `devflow/rfcs/` files that are directly required by that feature's current stage.
+
 Start by loading `plugins/devflow/skills/devflow/SKILL.md`. It is the cheap lifecycle entrypoint; it explains the current stage, prerequisites, and which reference file to read for stage details.
 
 ## Planning workspace
@@ -44,7 +46,7 @@ devflow/
 
 ### Active feature folders
 
-Each active feature or substantial change gets `devflow/feat/<feat-name>/`.
+Each active feature or substantial change gets `devflow/feat/<feat-name>/`. Treat that folder as the working boundary for the feature: proposals, plans, task files, developer notes, and feature-local spec deltas belong there. Do not update archived features or sibling feature folders while working on the current feature.
 
 | File or folder                 | Purpose                                                                                         | Lifetime                                           |
 | ------------------------------ | ----------------------------------------------------------------------------------------------- | -------------------------------------------------- |
@@ -110,6 +112,8 @@ These commands are user opt-in entrypoints. Each command tells the agent to load
 
 ## Document ownership
 
+Only the current feature's documents are writable during normal proposal/spec/plan/task/AFK stages. Archives are historical records, and sibling feature folders belong to other work; never "keep them in sync" or opportunistically clean them up. Root specs/RFCs may be edited only when the current stage explicitly promotes or records durable outcomes for the selected feature.
+
 | Document                 | Owns                                                                                                        | Does not own                                     |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | RFC                      | Alternatives, tradeoffs, recommendation, decision outcome                                                   | Implementation tracking or current feature state |
@@ -129,18 +133,33 @@ The AFK loop is a single-worktree automation flow for repeatedly running one tas
 1. select the next runnable task from `tasks/index.yml`
 2. run `/flow-init--afk` against that selected slice, passing the feature proposal, feature plan, and task index
 3. run `/flow-build--refine`, `/flow-build--smoke`, and `/flow-build--finalise` as needed
-4. stop when tasks are exhausted, blocked, the initial runner call fails, or repeated later runner failures occur
+4. stop when tasks are exhausted, blocked, the first `/flow-init--afk` call fails, repeated later `/flow-init--afk` calls fail, or any build-stage prompt fails
 
-Run the loop with an active feature name or folder, for example `afk-loop my-feature "also read @README.md"`. The loop requires `proposal.md`, `<feat-name>.plan.md`, and `tasks/index.yml` in that feature folder. By default it uses Pi (`openai-codex/gpt-5.5:low`). Pass `--claude` to use the Claude CLI instead (default model: `sonnet`). Pass `--model` to override the model for either runner. Pass the original owner conversation as `--session-id <id>` to run `/flow-review--owner <feat-name>` in that session after every task is complete; without it, owner review is skipped.
+Run AFK automation with an active feature name or folder:
 
-Use separate git worktrees for parallelism. The loop intentionally does not run concurrent tasks in one worktree.
+```nu
+use plugins/devflow/scripts/devflow
+devflow all my-feature "also read @README.md"
+devflow next my-feature
+devflow run my-feature 3
+```
+
+Subcommands:
+
+- `all` — repeatedly run runnable tasks until blocked or exhausted.
+- `next` — run one cycle for the next runnable task.
+- `run <task-id>` — run one cycle for a specific task id from `tasks/index.yml`.
+
+Each subcommand requires `proposal.md`, `<feat-name>.plan.md`, and `tasks/index.yml` in that feature folder. In Nushell, the `feature` argument autocompletes from directory names under `devflow/feat/`. By default it uses Pi (`openai-codex/gpt-5.5:low`). Pass `--claude` to use the Claude CLI instead (default model: `sonnet`). Pass `--model` to override the model for either runner. Pass the original owner conversation as `--session-id <id>` to run `/flow-review--owner <feat-name>` in that session after every task is complete; without it, owner review is skipped.
+
+Use separate git worktrees for parallelism. AFK automation intentionally does not run concurrent tasks in one worktree.
 
 ### Main files
 
 - `plugins/devflow/skills/devflow/SKILL.md` — lifecycle entrypoint and state machine for agents
 - `commands/devflow*.md` — user-invoked stage commands that load the entry skill and jump to a workflow stage
 - `commands/migrate.md` — one-time migration prompt for repositories adopting the `devflow/` workspace
-- `scripts/afk-loop.nu` — orchestration, task selection, retry limits, stop-token parsing, and clean-worktree checks
+- `scripts/devflow/` — Nushell module for orchestration, task selection, retry limits, stop-token parsing, and clean-worktree checks
 - `skills/devflow/scripts/devflow-ids.nu` — scans devflow document IDs, reports duplicates, and prints next IDs for new documents
 - `commands/flow-init--afk.md` — unattended single-slice implementation prompt
 - `commands/flow-init--hitl.md` — human-in-the-loop single-slice prompt
@@ -151,15 +170,15 @@ Use separate git worktrees for parallelism. The loop intentionally does not run 
 
 ### Document IDs
 
-Devflow documents use stable IDs such as `SPEC-002`, `DELTA-004`, `PLAN-003`, and `TASK-001`; nested point IDs are prefixed by the document ID. Before creating a new document, scan the whole planning workspace so active and archived feature folders do not reuse IDs:
+Devflow documents use stable IDs ordered as document type, short name, sequential id, then optional version: `PRD-Dwr-001` for v1, `TEN-01@2` for v2 of TENNET-style documents, or `SPEC-Dwr-002@3` for a third version. Omit `@1`; append `@2`, `@3`, etc. only when a new version supersedes an externally referenced document. Nested point IDs are prefixed by the full document ID, for example `PRD-Dwr-001.P1` or `TEN-01@2.P1`. Before creating a new document, scan the whole planning workspace so active and archived feature folders do not reuse IDs:
 
 ```nu
 use plugins/devflow/skills/devflow/scripts/devflow-ids.nu *
 devflow-ids scan devflow
-devflow-ids next DELTA devflow
+devflow-ids next DELTA Dwr devflow
 ```
 
-`devflow-ids scan` returns document rows, duplicate document IDs, and the next ID for each known prefix.
+`devflow-ids scan` returns document rows, duplicate document IDs, and the next ID for each known prefix/name pair.
 
 ### Task queue shape
 

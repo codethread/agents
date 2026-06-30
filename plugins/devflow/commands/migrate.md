@@ -86,7 +86,7 @@ Do not invent a feature name unless it is obvious from an existing plan/task con
 After migrating:
 
 1. Run `tree --charset=ascii --gitignore devflow` and inspect the result.
-2. Run a repository search to ensure planning references point at the new `devflow/feat/<feat-name>` paths, except inside archived historical content if any was already archived; specifically catch stale `afk-loop devflow/<feat-name>` callers.
+2. Run a repository search to ensure planning references point at the new `devflow/feat/<feat-name>` paths, except inside archived historical content if any was already archived; specifically catch stale `devflow all devflow/<feat-name>` callers.
 3. Inspect migrated devflow documents for configuration identification: stable `Document ID` and `Configuration identification` metadata where supported, document-prefixed sub IDs on sections/list items/table rows, and cross-document references updated to point at specific IDs when safe.
 4. Run formatting for touched markdown if the repository provides a formatter.
 5. Report:
