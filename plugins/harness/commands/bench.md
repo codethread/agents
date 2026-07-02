@@ -451,7 +451,7 @@ CLAUDE_SESSION_ID="$(cat "$SESSION_DIR/$slug.claude-session-id")"
 CLAUDE_SESSION="$(fd "$CLAUDE_SESSION_ID.jsonl" "$HOME/.claude/projects" | head -1)"
 ```
 
-Use Claude's JSONL for operational metrics only. Do not use hidden reasoning/transcript content to judge solution quality. Claude JSONL caveats: assistant responses can be split across multiple rows with the same `.message.id`; tool results are `user.message.content[]` blocks of type `tool_result`; assistant tool calls are `assistant.message.content[]` blocks of type `tool_use`; thinking blocks should be ignored for benchmark reporting.
+Use Claude's JSONL for operational metrics only. Do not use hidden reasoning/transcript content to judge solution quality. The snippets below cover the standard bench metrics; for anything deeper (schema caveats, multi-row assistant messages, `toolUseResult` shapes, sidechains) load the `claude-session-introspection` skill instead of improvising jq. For cost, defer to ccusage (`bunx ccusage session --json`, fallback `npx -y ccusage`) rather than the `--output-format json` stdout when comparing across runs.
 
 ```bash
 # Metadata
@@ -481,13 +481,13 @@ jq -r '
   .name
 ' "$CLAUDE_SESSION" | sort | uniq -c | sort -rn
 
-# Tool errors
+# Tool errors (the is_error flag catches failures the <tool_use_error> content
+# marker misses)
 jq -c '
   select(.type == "user" and (.message.content | type == "array")) |
   .message.content[]? |
-  select(.type == "tool_result") |
-  select((.content | tostring) | test("<tool_use_error>")) |
-  {tool_use_id, content}
+  select(.type == "tool_result" and .is_error == true) |
+  {tool_use_id, preview: ((.content | tostring)[:200])}
 ' "$CLAUDE_SESSION"
 ```
 
