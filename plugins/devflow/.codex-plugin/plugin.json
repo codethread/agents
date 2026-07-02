@@ -1,0 +1,6 @@
+{
+	"name": "devflow",
+	"version": "0.1.0",
+	"description": "Devflow lifecycle skills for RFCs, specs, plans, tasks, and AFK work.",
+	"skills": "./skills"
+}

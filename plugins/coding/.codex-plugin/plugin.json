@@ -1,0 +1,6 @@
+{
+	"name": "coding",
+	"version": "0.1.0",
+	"description": "Coding workflow skills for commits, merges, robustness, and tests.",
+	"skills": "./skills"
+}

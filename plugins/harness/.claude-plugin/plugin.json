@@ -1,1 +1,51 @@
-{ "name": "harness" }
+{
+	"name": "harness",
+	"description": "Session introspection skills and Claude dialogue-capture hooks.",
+	"hooks": {
+		"UserPromptSubmit": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/hooks/capture.sh",
+						"args": []
+					}
+				]
+			}
+		],
+		"Stop": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/hooks/capture.sh",
+						"args": []
+					}
+				]
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "Read|Edit|Write|NotebookEdit",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/hooks/capture.sh",
+						"args": []
+					}
+				]
+			}
+		],
+		"SessionEnd": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/hooks/capture.sh",
+						"args": []
+					}
+				]
+			}
+		]
+	}
+}

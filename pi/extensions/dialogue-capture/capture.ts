@@ -19,6 +19,8 @@ export type DialogueRecord = {
 	cwd: string | null;
 	agent_id: string | null;
 	agent_type: string | null;
+	model: string | null;
+	thinking_level: string | null;
 	text?: string;
 	tool?: string;
 	file_path?: string | null;
@@ -26,6 +28,8 @@ export type DialogueRecord = {
 };
 
 export type Envelope = Omit<DialogueRecord, "event" | "text" | "tool" | "file_path" | "reason">;
+
+export type ModelLike = { provider?: unknown; id?: unknown };
 
 /** Pi builtin tool names → the schema's Claude-style tool labels. */
 export const FILE_TOOLS: Record<string, string> = {
@@ -53,6 +57,15 @@ export function agentTypeFromArgv(argv: readonly string[]): string | null {
 		}
 	}
 	return null;
+}
+
+export function modelSlug(model: ModelLike | null | undefined): string | null {
+	if (!model || typeof model.provider !== "string" || typeof model.id !== "string") return null;
+	return `${model.provider}/${model.id}`;
+}
+
+export function normalizeThinkingLevel(thinkingLevel: unknown): string | null {
+	return typeof thinkingLevel === "string" && thinkingLevel.trim() ? thinkingLevel : null;
 }
 
 type MessageLike = { role?: string; content?: unknown };

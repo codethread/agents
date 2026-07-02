@@ -1,0 +1,6 @@
+{
+	"name": "writing",
+	"version": "0.1.0",
+	"description": "Writing skills for skill authoring and Mermaid diagrams.",
+	"skills": "./skills"
+}

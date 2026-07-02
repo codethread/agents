@@ -1,6 +1,6 @@
 # agents
 
-Pi-specific agent tooling extracted from my dotfiles repo. Still need to port more of the old [claude stuff](https://github.com/codethread/claude-code-plugins).
+Agent tooling for Pi, Claude Code, and Codex.
 
 ## Contents
 
@@ -8,6 +8,7 @@ Pi-specific agent tooling extracted from my dotfiles repo. Still need to port mo
 - `.pi/extensions/` — project-local Pi extensions for this repository only
 - `pi/agents/` — bundled subagents used by the `subagent` extension
 - `plugins/` — reusable prompt/skill plugins grouped by domain (`devflow/`, `writing/`, `coding/`, `harness/`)
+- `.agents/plugins/marketplace.json` — Codex local marketplace for the repo's plugins
 - `pi/themes/` — Pi themes
 
 **Note on Cache Invalidation:** Changing prompt-layer context mid-session, or changing the model/provider, can drop provider prompt-cache reuse. Treat dynamic context injection as a cost/latency tradeoff; keep injected context bounded and stable when possible.
@@ -44,6 +45,24 @@ This repository additionally keeps a project-local `.pi/extensions/pi-internals/
 
 See `pi/extensions/system-prompt/README.md` for prompt-layer extension details and `.pi/extensions/pi-internals/README.md` for project-local Pi internals discovery.
 
+## Install as Codex plugins
+
+Codex discovers this repo through the local marketplace at `.agents/plugins/marketplace.json`. Add the checkout as a Codex marketplace, then install/enable the plugins from `/plugins`:
+
+```bash
+codex plugin marketplace add /absolute/path/to/agents
+```
+
+This exposes:
+
+- `plugins/coding/`, `plugins/devflow/`, `plugins/writing/`, and `plugins/harness/` as Codex plugins via `.codex-plugin/plugin.json`
+- their `skills/` directories as Codex skills
+- `plugins/harness/.codex-plugin/hooks/` as Codex lifecycle hooks for dialogue/file-touch capture. Hook commands use Codex's `PLUGIN_ROOT` environment variable so they resolve from the installed plugin root.
+
+Codex custom prompts are deprecated and live under `~/.codex/prompts`, so the `plugins/*/commands/*.md` slash prompts are not mirrored as repo-packaged Codex commands. Convert high-value command workflows into skills when they should be portable to Codex.
+
+Codex also has no direct equivalent for Pi extensions (`pi/extensions/*`) or Pi bundled subagents (`pi/agents/*`). Those remain Pi-specific unless reimplemented as Codex skills, hooks, MCP servers, or future Codex plugin capabilities.
+
 ## Bundled agents
 
 - `pi/agents/scout.md` — fast codebase recon and architecture mapping
@@ -60,7 +79,7 @@ See `pi/extensions/system-prompt/README.md` for prompt-layer extension details a
 - `plugins/devflow/` — RFC/spec/reviewable-plan/disposable-task skills plus AFK workflow prompts, HITL, shrug, and grill-me prompts
 - `plugins/writing/` — skill authoring and Mermaid writing skills
 - `plugins/coding/` — git, robustness, writing-tests skills plus coding prompts
-- `plugins/harness/` — harness/session affordances: Pi and Claude Code session introspection, dialogue-capture hooks (stable Q&A/file-touch log), bench orchestration, and rich responses
+- `plugins/harness/` — harness/session affordances: Pi, Claude Code, and Codex session introspection, dialogue-capture hooks, bench orchestration, and rich responses
 
 ## Development
 

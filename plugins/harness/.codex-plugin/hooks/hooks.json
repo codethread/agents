@@ -1,0 +1,45 @@
+{
+	"hooks": {
+		"SessionStart": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bash \"${PLUGIN_ROOT}/.codex-plugin/hooks/capture.sh\""
+					}
+				]
+			}
+		],
+		"UserPromptSubmit": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bash \"${PLUGIN_ROOT}/.codex-plugin/hooks/capture.sh\""
+					}
+				]
+			}
+		],
+		"Stop": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bash \"${PLUGIN_ROOT}/.codex-plugin/hooks/capture.sh\""
+					}
+				]
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "*",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bash \"${PLUGIN_ROOT}/.codex-plugin/hooks/capture.sh\""
+					}
+				]
+			}
+		]
+	}
+}

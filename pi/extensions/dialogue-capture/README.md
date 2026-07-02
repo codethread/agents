@@ -17,7 +17,7 @@ The schema is owned by this repo and shared with the Claude log (`claude-dialogu
 | `file`        | `tool_result`        | Successful `read`/`edit`/`write`, normalized to `Read`/`Edit`/`Write`    |
 | `session_end` | `session_shutdown`   | `reason`: `quit`, `reload`, `new`, `resume`, `fork`                      |
 
-Envelope fields match the Claude schema. `agent_type` is the `--agent <name>` the process runs as. Pi subagents are separate processes with their own sessions, so subagent records land in the subagent's own log file with `agent_id` set to that session id (`agent_id` null still means "main thread", as in the Claude log); parent↔child linking goes through the subagent session manifests.
+Envelope fields match the Claude schema, including `model` (`provider/id`) and `thinking_level` from Pi's active model/thinking settings. `agent_type` is the `--agent <name>` the process runs as. Pi subagents are separate processes with their own sessions, so subagent records land in the subagent's own log file with `agent_id` set to that session id (`agent_id` null still means "main thread", as in the Claude log); parent↔child linking goes through the subagent session manifests.
 
 ## Divergences from the Claude capture
 

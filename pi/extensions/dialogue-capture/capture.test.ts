@@ -6,6 +6,8 @@ import {
 	formatReport,
 	lastAssistantText,
 	messageText,
+	modelSlug,
+	normalizeThinkingLevel,
 	SCHEMA_VERSION,
 } from "./capture.js";
 
@@ -32,6 +34,24 @@ describe("agentTypeFromArgv", () => {
 	it("returns null when absent or the value is another flag", () => {
 		expect(agentTypeFromArgv(["pi", "-p", "hello"])).toBeNull();
 		expect(agentTypeFromArgv(["pi", "--agent", "--print"])).toBeNull();
+	});
+});
+
+describe("modelSlug / normalizeThinkingLevel", () => {
+	it("formats Pi model metadata as provider/model", () => {
+		expect(modelSlug({ provider: "openai", id: "gpt-5.5" })).toBe("openai/gpt-5.5");
+	});
+
+	it("returns null for incomplete model metadata", () => {
+		expect(modelSlug(null)).toBeNull();
+		expect(modelSlug({ provider: "openai" })).toBeNull();
+		expect(modelSlug({ provider: "openai", id: 42 })).toBeNull();
+	});
+
+	it("keeps non-empty thinking levels and normalizes missing values to null", () => {
+		expect(normalizeThinkingLevel("low")).toBe("low");
+		expect(normalizeThinkingLevel(" ")).toBeNull();
+		expect(normalizeThinkingLevel(undefined)).toBeNull();
 	});
 });
 
@@ -81,6 +101,8 @@ describe("buildRecord", () => {
 			cwd: "/repo",
 			agent_id: null,
 			agent_type: "main",
+			model: "openai/gpt-5.5",
+			thinking_level: "low",
 		} as const;
 		expect(buildRecord(envelope, "file", { tool: "Read", file_path: "/repo/a.ts" })).toEqual({
 			...envelope,
@@ -100,6 +122,8 @@ describe("formatReport", () => {
 		cwd: "/repo",
 		agent_id: null,
 		agent_type: null,
+		model: "openai/gpt-5.5",
+		thinking_level: "low",
 	} as const;
 
 	it("summarizes counts and recent records", () => {
