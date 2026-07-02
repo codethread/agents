@@ -1,0 +1,50 @@
+{
+	"description": "Capture user/assistant dialogue and file-touch events to a stable JSONL log in the XDG state dir",
+	"hooks": {
+		"UserPromptSubmit": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "${CLAUDE_PLUGIN_ROOT}/hooks/capture.sh",
+						"args": []
+					}
+				]
+			}
+		],
+		"Stop": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "${CLAUDE_PLUGIN_ROOT}/hooks/capture.sh",
+						"args": []
+					}
+				]
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "Read|Edit|Write|NotebookEdit",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "${CLAUDE_PLUGIN_ROOT}/hooks/capture.sh",
+						"args": []
+					}
+				]
+			}
+		],
+		"SessionEnd": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "${CLAUDE_PLUGIN_ROOT}/hooks/capture.sh",
+						"args": []
+					}
+				]
+			}
+		]
+	}
+}
