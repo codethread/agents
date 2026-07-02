@@ -4,8 +4,10 @@ description: >
   Practical Claude Code session forensics quickstart. Use when the user wants to
   inspect Claude Code .jsonl session transcripts, locate a session from a message
   they saw in the UI, extract user/assistant messages, audit tool calls (reads,
-  edits, writes, bash), or pull a tool result for a given request. Covers the
-  on-disk session schema and the ~/.claude (or CLAUDE_CONFIG_DIR) layout.
+  edits, writes, bash), pull a tool result for a given request, or check session
+  cost/usage (deferred to ccusage). Covers the on-disk session schema, the
+  ~/.claude (or CLAUDE_CONFIG_DIR) layout, and the harness plugin's stable
+  dialogue log for clean user/assistant Q&A extraction.
 ---
 
 # Claude Code Session Introspection
@@ -13,11 +15,28 @@ description: >
 Operational notes and a small jq cookbook for inspecting Claude Code session
 transcripts.
 
-Unlike Pi, Claude Code ships no bundled session-format docs on disk. The schema
-below is reconstructed from observed `.jsonl` files and is **not** authoritative —
-field names can drift across Claude Code versions (see `version` on each entry).
-When a recipe returns nothing, re-derive the shape from the file before trusting
-the snippet (`jq -r '.type' "$SESSION" | sort | uniq -c`).
+Anthropic documents the on-disk entry format as internal: "scripts that parse
+these files directly can break on any release"
+(https://code.claude.com/docs/en/sessions). The schema below is reconstructed
+from observed `.jsonl` files and is **not** authoritative — field names drift
+across Claude Code versions (see `version` on each entry). When a recipe returns
+nothing, re-derive the shape from the file before trusting the snippet
+(`jq -r '.type' "$SESSION" | sort | uniq -c`).
+
+## Prefer stable sources first
+
+Reach for raw transcript parsing only when these don't cover the question:
+
+- **Dialogue (user ↔ assistant text)**: sessions run with the harness plugin
+  enabled also write a stable, plugin-owned JSONL dialogue log to
+  `${XDG_STATE_HOME:-$HOME/.local/state}/claude-dialogue/<session_id>.jsonl`
+  (schema v1 and queries: `../../README.md`, the harness plugin README). Prefer
+  it whenever it exists for the session; it already excludes tool noise,
+  thinking, and mid-turn preamble.
+- **Cost / token usage**: defer to ccusage — `bunx ccusage session --json`
+  (fallback: `npx -y ccusage session --json`; also `daily`, `blocks`, see
+  `--help`). Transcript usage entries carry **no cost field**, and pricing
+  tables drift; don't hand-roll cost math.
 
 ## Variables
 
@@ -50,17 +69,28 @@ by reading `.cwd` off a conversation entry rather than trusting the path.
 - Entries chain via `parentUuid` → `uuid` (a linked list). `parentUuid` is `null`
   on the first entry of a chain.
 - `.message.content` is **not** uniform:
-  - user content is a **string** for typed messages, or a **content-block array**
-    when it carries `tool_result` blocks
+  - user content is a **string** for typed messages and command/hook-injected
+    text, or a **content-block array** — usually carrying `tool_result` blocks,
+    but sometimes `text` blocks (skill-content injections with `isMeta: true`,
+    `[Request interrupted by user]` markers)
   - assistant content is **always an array** of blocks: `text`, `thinking`,
     `tool_use`
+- Genuinely-typed user messages are best identified by `promptSource == "typed"`
+  (equivalently `origin.kind == "human"`). Both fields exist **only on typed
+  entries** — absence on one entry doesn't mean an old session. The
+  string-content heuristic also matches slash-command envelopes
+  (`<command-name>…`) and hook-injected messages; fall back to it only when no
+  entry in the whole session carries `promptSource` (older versions).
 - Tool results are **not** their own `type`. They are `type: "user"` entries whose
   `message.content[]` holds `tool_result` blocks, plus a structured top-level
   `toolUseResult` field.
 - `isSidechain: true` marks subagent (Task tool) entries; they share the same file
   and `sessionId` as the parent but form their own `parentUuid` chain.
 - Non-conversation entry types exist (`mode`, `permission-mode`, `attachment`,
-  `last-prompt`, `system`, `summary`) — filter them out for conversation analysis.
+  `last-prompt`, `system`, `summary`, `queue-operation`, `custom-title`,
+  `agent-name`, and others that come and go, e.g. `file-history-snapshot`,
+  `ai-title`) — filter them out for conversation analysis by selecting only
+  `type == "user"` / `type == "assistant"`.
 - **A single assistant response can span multiple `assistant` rows** sharing one
   `.message.id` (e.g. a text row then a tool_use row). Row-based snippets below are
   therefore approximate: dedupe/group by `.message.id` when you need true turn
@@ -75,16 +105,20 @@ type, uuid, parentUuid, isSidechain, sessionId, timestamp,
 cwd, gitBranch, version, userType, entrypoint
 ```
 
-| `type`            | shape / key fields                                                                                               |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `user`            | `message.role:"user"`, `message.content`: string **or** array; `promptId`; optional `isMeta`                     |
-| `assistant`       | `message.role:"assistant"`, `message.content[]` blocks; `message.{id,model,stop_reason,usage}`; `requestId`      |
-| (tool result)     | a `user` entry: `message.content[]` has `{type:"tool_result", tool_use_id, content}` + top-level `toolUseResult` |
-| `attachment`      | `attachment.{type,content,...}` (e.g. skill listings) — context, not a message                                   |
-| `mode`            | `mode`: `"normal"` \| `"plan"`                                                                                   |
-| `permission-mode` | `permissionMode`: e.g. `"acceptEdits"`, `"analyzeOnly"`                                                          |
-| `last-prompt`     | `lastPrompt`, `leafUuid` (resume bookkeeping)                                                                    |
-| `summary`         | rollup entry written on compaction/resume                                                                        |
+| `type`            | shape / key fields                                                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `user`            | `message.role:"user"`, `message.content`: string **or** array; `promptId`, `promptSource`, `origin`; optional `isMeta` |
+| `assistant`       | `message.role:"assistant"`, `message.content[]` blocks; `message.{id,model,stop_reason,usage}`; `requestId`            |
+| (tool result)     | a `user` entry: `message.content[]` has `{type:"tool_result", tool_use_id, content}` + top-level `toolUseResult`       |
+| `attachment`      | `attachment.{type,content,...}` (e.g. skill listings) — context, not a message                                         |
+| `mode`            | `mode`: `"normal"` \| `"plan"`                                                                                         |
+| `permission-mode` | `permissionMode`: e.g. `"acceptEdits"`, `"analyzeOnly"`                                                                |
+| `last-prompt`     | `lastPrompt`, `leafUuid` (resume bookkeeping)                                                                          |
+| `summary`         | rollup entry written on compaction/resume                                                                              |
+| `queue-operation` | `operation`: `"enqueue"` \| `"remove"`; `content` on enqueue (message-queue bookkeeping)                               |
+| `custom-title`    | `customTitle` (session title)                                                                                          |
+| `agent-name`      | `agentName` (session agent name)                                                                                       |
+| `system`          | `subtype`, `isMeta`, `durationMs`, … (harness notices)                                                                 |
 
 Assistant content blocks:
 
@@ -97,8 +131,17 @@ on the matching `tool_result` block in a later `user` entry.
 
 ## Finding sessions
 
+**Your own session**: if you are the running Claude Code agent, your session id
+is in the Bash tool environment as `$CLAUDE_CODE_SESSION_ID`. Your own dialogue
+log (when the harness plugin was active at session start) is
+`${XDG_STATE_HOME:-$HOME/.local/state}/claude-dialogue/$CLAUDE_CODE_SESSION_ID.jsonl`,
+and your own transcript resolves via the `fd` recipe below with that id.
+
 ```bash
 BASE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+
+# The current session, from inside it
+SESSION_ID="$CLAUDE_CODE_SESSION_ID"
 
 # Most robust: locate a known session id anywhere under projects/ (no encoding guess)
 fd "$SESSION_ID.jsonl" "$BASE_DIR/projects" | head -1
@@ -145,9 +188,14 @@ jq -r 'select(.type=="user" and (.message.content|type=="string")) |
 ## Conversation extraction
 
 ```bash
-# All user messages (typed text only; skips tool_result-carrying user entries).
-# Add `and .isMeta != true` to drop system-injected user messages.
-jq -r 'select(.type=="user" and (.message.content|type=="string")) |
+# All genuinely-typed user messages. promptSource=="typed" excludes slash-command
+# envelopes and hook-injected text, but the field exists only on typed entries,
+# so decide per session (not per entry) whether it's available; fall back to the
+# string-content heuristic on older sessions that never set it.
+jq -sr '(any(.[]; .promptSource != null)) as $new |
+  .[] | select(.type=="user") |
+  select(if $new then .promptSource=="typed"
+         else (.message.content|type=="string") end) |
   .message.content' "$SESSION"
 
 # All assistant text responses (excludes thinking and tool calls). One response
@@ -300,4 +348,5 @@ jq -s '
 These shapes are observed, not documented, and vary by Claude Code `version`. If a
 recipe is empty, dump the type histogram and a sample line of the relevant `type`
 to re-derive the current field names, then adapt the jq. For authoritative
-behaviour, the `claude-code-guide` subagent can inspect the running install.
+behaviour, consult the official docs (https://code.claude.com/docs/en/sessions,
+https://code.claude.com/docs/en/hooks).

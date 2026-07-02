@@ -51,6 +51,8 @@ Per-event fields:
 ```bash
 DLG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/claude-dialogue"
 DLG="$DLG_DIR/<session-id>.jsonl"
+# From inside a session, the agent's own log is:
+DLG="$DLG_DIR/$CLAUDE_CODE_SESSION_ID.jsonl"
 
 # Q&A transcript (main-thread dialogue). Stop-blocking hooks (e.g. /goal) make
 # Stop fire more than once per prompt, so keep only the last reply per prompt_id.
