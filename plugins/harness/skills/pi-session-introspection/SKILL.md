@@ -22,6 +22,18 @@ Use this skill for the pieces the docs do not optimize for: quickly finding loca
 session files, avoiding common jq mistakes, and inspecting this repo's subagent
 session manifests.
 
+## Prefer the stable dialogue log for dialogue
+
+Pi runs with this repo's `dialogue-capture` extension enabled also write a
+stable, schema-v1 JSONL dialogue log (prompts, final replies, file touches,
+session end — tool noise and mid-turn preamble excluded) to
+`${XDG_STATE_HOME:-$HOME/.local/state}/pi-dialogue/<session-id>.jsonl`. The
+schema and jq cookbook live in the harness plugin README (`../../README.md`);
+the Pi-specific event mapping and divergences are in
+`pi/extensions/dialogue-capture/README.md`. Prefer that log for user↔assistant
+Q&A extraction; use raw session parsing below for everything else (tool audits,
+costs, branches, manifests).
+
 ## Variables
 
 | Variable               | Value                                                               | Notes                                  |

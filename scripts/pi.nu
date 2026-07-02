@@ -92,6 +92,7 @@ def --wrapped pi [
 	--debug-interactive-shell: string         # [EXT] Run interactive_shell spawn/send/tail/kill directly (optional command)
 	--debug-web-access: string                # [EXT] Run web access debug command: search <query> or fetch <url>
 	--debug-pi-internals                      # [EXT] Print Pi internals discovery report and exit
+	--debug-dialogue-capture                  # [EXT] Print dialogue-capture log path and captured events, then exit
 	...args: string
 ] {
 	mut pi_args = []
@@ -144,6 +145,7 @@ def --wrapped pi [
 	if $debug_interactive_shell != null { $pi_args = ($pi_args | append ["--debug-interactive-shell" $debug_interactive_shell]) }
 	if $debug_web_access != null { $pi_args = ($pi_args | append ["--debug-web-access" $debug_web_access]) }
 	if $debug_pi_internals { $pi_args = ($pi_args | append "--debug-pi-internals") }
+	if $debug_dialogue_capture { $pi_args = ($pi_args | append "--debug-dialogue-capture") }
 
 	$pi_args = ($pi_args | append $args)
 	let final_pi_args = $pi_args

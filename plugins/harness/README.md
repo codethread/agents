@@ -16,6 +16,8 @@ Session and harness affordances for Claude Code and Pi: session introspection sk
 
 Claude Code's on-disk session transcripts are officially internal and can change on any release. These hooks capture the parts we care about through the supported hook interface at the moment they happen, into a JSONL log whose schema **we** own. Downstream tooling (devflow Q&A extraction, jq scripts) should consume this log, not the raw transcripts.
 
+Pi sessions get the same treatment from this repo's `pi/extensions/dialogue-capture` extension, which writes the same schema to the sibling `pi-dialogue/` directory (Pi-specific mapping and divergences in that extension's README). The schema tables and queries below are the shared reference for both.
+
 `hooks/capture.sh` listens to four events and appends one JSON object per line to:
 
 ```text
@@ -26,16 +28,16 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/claude-dialogue/<session_id>.jsonl
 
 Every record shares an envelope. `agent_id` is the subagent discriminator: `null` on the main thread, set when the event fired inside a subagent. `agent_type` is the current agent's name — set for subagents **and** for top-level `claude --agent <name>` sessions — so don't use it to detect subagent traffic.
 
-| Field        | Value                                                             |
-| ------------ | ----------------------------------------------------------------- |
-| `v`          | Schema version, `1`. Changes are additive only                    |
-| `event`      | `prompt` \| `reply` \| `file` \| `session_end`                    |
-| `ts`         | Capture time, ISO 8601 UTC                                        |
-| `session_id` | Claude Code session id (also the filename)                        |
-| `prompt_id`  | UUID of the user prompt being processed (null before v2.1.196)    |
-| `cwd`        | Working directory when the event fired                            |
-| `agent_id`   | Subagent id, or `null` outside subagents                          |
-| `agent_type` | Agent name (e.g. `Explore`), also set on top-level `--agent` runs |
+| Field        | Value                                                                                                                                     |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `v`          | Schema version, `1`. Changes are additive only                                                                                            |
+| `event`      | `prompt` \| `reply` \| `file` \| `session_end`                                                                                            |
+| `ts`         | Capture time, ISO 8601 UTC                                                                                                                |
+| `session_id` | Claude Code session id (also the filename)                                                                                                |
+| `prompt_id`  | UUID of the prompt being (or last) processed — `session_end` carries the final prompt's id; null before any prompt (or Claude < v2.1.196) |
+| `cwd`        | Working directory when the event fired                                                                                                    |
+| `agent_id`   | Subagent id, or `null` outside subagents                                                                                                  |
+| `agent_type` | Agent name (e.g. `Explore`), also set on top-level `--agent` runs                                                                         |
 
 Per-event fields:
 

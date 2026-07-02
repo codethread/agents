@@ -53,6 +53,12 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 | [`project-structure`](./messaging/project-structure/README.md) | Send a bounded project tree as model-visible custom message context.                                   |
 | [`project-rules`](./messaging/project-rules/README.md)         | Send path-scoped `.claude/rules` and `.agents/rules` as visible model context when files trigger them. |
 
+## Session observability
+
+| Extension                                          | Summary                                                                                                                      |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| [`dialogue-capture`](./dialogue-capture/README.md) | Append schema-v1 dialogue records (prompts, final replies, file touches) to `~/.local/state/pi-dialogue/<session-id>.jsonl`. |
+
 ## Session UI utilities
 
 | Extension                                                 | Summary                                                                                                      |
