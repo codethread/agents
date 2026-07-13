@@ -8,6 +8,10 @@
 # on UserPromptSubmit, stdout is injected into the model's context.
 set -u
 
+# The window-title worker spawns a throwaway child `claude`; don't log its
+# synthetic dialogue.
+[ -n "${HARNESS_WINDOW_TITLE_CHILD:-}" ] && exit 0
+
 dir="${XDG_STATE_HOME:-$HOME/.local/state}/claude-dialogue"
 mkdir -p "$dir" 2>/dev/null || exit 0
 

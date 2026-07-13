@@ -11,6 +11,15 @@
 						"args": []
 					}
 				]
+			},
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/hooks/window-title.sh",
+						"args": []
+					}
+				]
 			}
 		],
 		"Stop": [
