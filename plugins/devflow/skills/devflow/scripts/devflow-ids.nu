@@ -28,7 +28,7 @@ export def "devflow-ids next" [
   name: string # Short document/family name, e.g. Dwr.
   devflow_dir: path = "devflow" # Planning workspace root to scan.
 ] {
-  let normalized = ($prefix | str upcase)
+  let normalized = ($prefix | str uppercase)
   if not ($normalized in $known_prefixes) {
     error make { msg: $"unknown devflow document prefix: ($prefix)" }
   }

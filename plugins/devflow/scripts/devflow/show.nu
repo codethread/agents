@@ -59,7 +59,7 @@ def resolve-task-index [input: string] {
 }
 
 def effective-direction [requested: string, padding: int] {
-  let normalized = ($requested | str upcase)
+  let normalized = ($requested | str uppercase)
   if $normalized in ["LR" "TB"] {
     return $normalized
   }

@@ -38,12 +38,10 @@
 			"./pi/extensions/cli"
 		],
 		"prompts": [
-			"./plugins/devflow/commands",
 			"./plugins/coding/commands",
 			"./plugins/harness/commands"
 		],
 		"skills": [
-			"./plugins/devflow/skills",
 			"./plugins/writing/skills",
 			"./plugins/coding/skills",
 			"./plugins/harness/skills"
