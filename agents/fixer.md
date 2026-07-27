@@ -43,7 +43,7 @@ tools: read, bash, edit, write
 # model:
 #   - id: deepseek/deepseek-v4-pro:max
 #     when: "!$IS_WORK"
-#   - openai/gpt-5.5:low
+#   - openai-codex/gpt-5.6-terra:medium
 model: openai-codex/gpt-5.3-codex-spark:low
 ---
 

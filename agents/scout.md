@@ -36,7 +36,7 @@ tools: read, bash
 model:
   - id: deepseek/deepseek-v4-flash:high
     when: "!$IS_WORK"
-  - openai-codex/gpt-5.4-mini:low
+  - openai-codex/gpt-5.6-luna:low
 ---
 
 You are a recon agent. Investigate a codebase and return a navigation map.
