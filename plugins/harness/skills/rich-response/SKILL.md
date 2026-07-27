@@ -14,11 +14,11 @@ description: >
 
 ## Variables
 
-| Variable      | Value                        | Notes                                                                      |
-| ------------- | ---------------------------- | -------------------------------------------------------------------------- |
-| RENDER_CMD    | `<skill-dir>./render.sh`     | One-shot: substitute → validate → serve. Body on stdin, prints path.       |
-| TEMPLATE_PATH | `<skill-dir>./template.html` | Reference only — `RENDER_CMD` reads it. Read this to learn the primitives. |
-| OUTPUT_DIR    | `/tmp`                       | Where the rendered file lives                                              |
+| Variable      | Value                        | Notes                                                                                     |
+| ------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
+| RENDER_CMD    | `<skill-dir>./render.sh`     | One-shot: substitute → validate → serve locally and over LAN. Body on stdin, prints path. |
+| TEMPLATE_PATH | `<skill-dir>./template.html` | Reference only — `RENDER_CMD` reads it. Read this to learn the primitives.                |
+| OUTPUT_DIR    | `/tmp`                       | Where the rendered file lives                                                             |
 
 ## When to use
 
@@ -59,10 +59,11 @@ RENDER_CMD "<title>" < /tmp/rich-response-body.html
 
 - Always use the **quoted** heredoc delimiter `<<'HTML'` (single quotes around `HTML`) when creating the body file. Stops bash from expanding `$variables` or backticks inside the body.
 - Title is HTML-escaped automatically; body is injected as-is (write semantic HTML).
-- Output path is derived from the title (`/tmp/rich-<slug>.html`). Reusing the same title updates the same rendered file and localhost URL. To override, pass it as the second arg: `RENDER_CMD "<title>" /tmp/custom.html < /tmp/rich-response-body.html`.
+- Output path is derived from the title (`/tmp/rich-<slug>.html`). Reusing the same title updates the same rendered file and URLs. To override, pass it as the second arg: `RENDER_CMD "<title>" /tmp/custom.html < /tmp/rich-response-body.html`.
 - `RENDER_CMD` runs validate.sh, then serve.sh, then prints the chosen output path on stdout. Validate/serve output goes to stderr.
+- The server listens on all interfaces by default. Its output includes both `serving locally: http://localhost:…` and `serving on LAN: http://<LAN-IP>:…`.
 
-After it returns: one-line chat reply pointing at the rendered file. No long recap — the doc IS the answer.
+After it returns, always reply with both clickable URLs: label the localhost URL for this computer and the LAN URL for other devices on the same network. Never omit either address, even if one was opened automatically. Keep the reply short and do not add a long recap — the doc IS the answer.
 
 ## Knowledge
 
@@ -93,7 +94,7 @@ Utility classes added by the template:
 | Class                  | Purpose                                                                |
 | ---------------------- | ---------------------------------------------------------------------- |
 | `.callout`             | Info box (blue). Add `warn`, `error`, or `success`.                    |
-| `.callout-title`       | Bold first line inside a callout.                                      |
+| `.callout-title`       | Bold callout lead-in; it adds a gap before following inline text.      |
 | `.grid-2`              | Two-column responsive grid; collapses on narrow.                       |
 | `.diff` on `<pre>`     | Use `<span class="add">…</span>` / `<span class="del">…</span>` lines  |
 | `.no-wrap` on `<pre>`  | Preserve horizontal scrolling for tree-like layouts or aligned output. |
@@ -124,7 +125,7 @@ CSS-only (no JS), up to 5 panels per group. Each group needs a unique `name` on 
 
 ### Syntax highlighting
 
-Opt-in. Add `class="language-xxx"` on the `<code>` element inside a `<pre>`. The template lazy-loads highlight.js only when at least one such block exists; token colors are inline CSS variables mapped from the active Rose Pine Dawn/Moon Pi theme. Common values: `language-bash`, `language-js`, `language-ts`, `language-python`, `language-html`, `language-css`, `language-json`, `language-sql`, `language-yaml`, `language-rust`, `language-go`.
+Opt-in. Add `class="language-xxx"` on the `<code>` element inside a `<pre>`. The template lazy-loads highlight.js only when at least one such block exists; token colors are inline CSS variables mapped from the active Rose Pine Dawn/Moon Pi theme. Common values: `language-bash`, `language-js`, `language-ts`, `language-python`, `language-html`, `language-css`, `language-json`, `language-sql`, `language-yaml`, `language-rust`, `language-go`, `language-clojure` (also `language-clj` and `language-edn`).
 
 ```html
 <pre><code class="language-js">
@@ -167,5 +168,5 @@ Prefer authored colors only when they carry meaning. If you hard-code Rose Pine 
 ## Validation
 
 - [ ] `RENDER_CMD` exited 0 and printed the output path on stdout.
-- [ ] `serving http://localhost:…` line appeared on stderr.
-- [ ] Chat response is short (≤5 lines) and references the rendered file.
+- [ ] Both `serving locally: http://localhost:…` and `serving on LAN: http://<LAN-IP>:…` appeared on stderr.
+- [ ] Chat response is short (≤5 lines) and includes both clickable URLs.

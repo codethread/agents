@@ -12,7 +12,7 @@
 
 ## Why a localhost server (not `file://`)
 
-Mermaid v10+ internally lazy-loads each diagram type as a separate ES module. Under `file://`, every file has a unique security origin and those cross-origin module fetches are blocked — Mermaid errors out and the diagram never renders. `RENDER_CMD` launches a short-lived (300s default) Python `http.server` bound to `127.0.0.1`, opens the page over `http://`, and self-terminates. The generated HTML file remains on disk after the server stops. The server uses a deterministic port for each output path, so rerendering the same title updates the same localhost URL while the server is alive; updates do not reopen the browser tab. Same fix applies to any future library that needs a real origin.
+Mermaid v10+ internally lazy-loads each diagram type as a separate ES module. Under `file://`, every file has a unique security origin and those cross-origin module fetches are blocked — Mermaid errors out and the diagram never renders. `RENDER_CMD` launches a short-lived (3600s default) Python `http.server` bound to all interfaces, opens the localhost URL, prints both the local and LAN URLs, and self-terminates. The generated HTML file remains on disk after the server stops. The server uses a deterministic port for each output path, so rerendering the same title updates the same URLs while the server is alive; updates do not reopen the browser tab. Same fix applies to any future library that needs a real origin.
 
 ## Outline (table of contents)
 

@@ -81,7 +81,7 @@
 			body {
 				margin: 0 auto;
 				padding: 2.5rem 1.25rem 6rem;
-				max-width: 78ch;
+				max-width: 97ch;
 				background: var(--bg);
 				color: var(--fg);
 				font-family:
@@ -268,6 +268,9 @@
 			.callout-title {
 				font-weight: 600;
 				margin-bottom: 0.3em;
+			}
+			.callout-title:not(:last-child) {
+				margin-right: 0.35em;
 			}
 
 			pre.diff code .add,
@@ -882,9 +885,25 @@
 				const blocks = document.querySelectorAll('pre code[class*="language-"]');
 				if (!blocks.length) return;
 				const base = "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build";
+				const highlight = () => blocks.forEach((el) => window.hljs.highlightElement(el));
+				const needsClojure = [...blocks].some((el) =>
+					["language-clojure", "language-clj", "language-edn"].some((name) =>
+						el.classList.contains(name),
+					),
+				);
 				const s = document.createElement("script");
 				s.src = base + "/highlight.min.js";
-				s.onload = () => blocks.forEach((el) => window.hljs.highlightElement(el));
+				s.onload = () => {
+					if (!needsClojure) return highlight();
+					const language = document.createElement("script");
+					language.src = base + "/languages/clojure.min.js";
+					language.onload = highlight;
+					language.onerror = () => {
+						console.error("[hljs] failed to load Clojure language from CDN");
+						highlight();
+					};
+					document.head.appendChild(language);
+				};
 				s.onerror = () => console.error("[hljs] failed to load script from CDN");
 				document.head.appendChild(s);
 			})();
