@@ -1,5 +1,6 @@
 ---
 name: fixer
+hidden: true
 description: >
   Validation-oriented agent that repairs failures and completes tightly scoped mechanical outcomes.
 

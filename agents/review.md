@@ -5,6 +5,7 @@ description: >
   Provide a clear brief of what changed, why, and any relevant commits or files.
   Returns prioritized findings only; does not modify files.
 meta: replacement for codex review
+hidden: true
 tools: read, grep, find, ls
 model: openai-codex/gpt-5.6-terra:medium
 ---

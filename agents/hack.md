@@ -1,5 +1,6 @@
 ---
 name: hack
+hidden: true
 description: >
   Terminal-first investigation and automation agent for command-heavy tasks.
 
