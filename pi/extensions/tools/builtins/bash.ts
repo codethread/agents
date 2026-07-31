@@ -13,6 +13,16 @@ function formatDuration(ms: number) {
 	return `${Math.round(ms / 1000)}s`;
 }
 
+function estimateTokens(text: string) {
+	// Bash output is usually plain text; four characters per token is a useful
+	// rough estimate without tying the extension to a model-specific tokenizer.
+	return Math.ceil(text.length / 4);
+}
+
+function formatTokenCount(tokens: number) {
+	return tokens > 1000 ? `${Math.round(tokens / 1000)}K` : `${tokens}`;
+}
+
 function splitAtOperators(command: string) {
 	const parts: Array<{ operator?: "&&" | "||"; text: string }> = [];
 	let inSingleQuote = false;
@@ -195,13 +205,23 @@ export default function (pi: ExtensionAPI) {
 			};
 		},
 
-		renderResult(_result, { isPartial }, theme, context) {
+		renderResult(result, { isPartial }, theme, context) {
 			if (isPartial) return new Text(theme.fg("warning", "Running..."), 0, 0);
 
 			const duration = durationByToolCall.get(context.toolCallId);
 			if (duration === undefined) return new Container();
 
-			return new Text(theme.fg("dim", `Completed in ${formatDuration(duration)}`), 0, 0);
+			const output =
+				result.content
+					?.filter((item) => item.type === "text")
+					.map((item) => item.text)
+					.join("\n") ?? "";
+			const tokens = formatTokenCount(estimateTokens(output));
+			return new Text(
+				theme.fg("dim", `Completed in ${formatDuration(duration)} [${tokens} tokens]`),
+				0,
+				0,
+			);
 		},
 	});
 }
