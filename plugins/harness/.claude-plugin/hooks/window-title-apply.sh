@@ -29,7 +29,7 @@ Prefer concrete nouns over generic verbs. Do not call tools.'
 # Ask a small model for a semantic label; fall back to the prompt's own words.
 raw=""
 if command -v claude >/dev/null 2>&1; then
-	run=(claude -p --model claude-haiku-4-5-20251001 --append-system-prompt "$sys" \
+	run=(claude -p --model haiku --no-session-persistence --append-system-prompt "$sys" \
 		"Create a very short window title (1-4 words) for this request. Output only the title:
 
 <request>
