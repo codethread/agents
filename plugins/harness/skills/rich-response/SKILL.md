@@ -14,11 +14,11 @@ description: >
 
 ## Variables
 
-| Variable      | Value                        | Notes                                                                                     |
-| ------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| RENDER_CMD    | `<skill-dir>./render.sh`     | One-shot: substitute → validate → serve locally and over LAN. Body on stdin, prints path. |
-| TEMPLATE_PATH | `<skill-dir>./template.html` | Reference only — `RENDER_CMD` reads it. Read this to learn the primitives.                |
-| OUTPUT_DIR    | `/tmp`                       | Where the rendered file lives                                                             |
+| Variable      | Value                        | Notes                                                                                       |
+| ------------- | ---------------------------- | ------------------------------------------------------------------------------------------- |
+| RENDER_CMD    | `<skill-dir>./render.sh`     | One-shot: substitute → validate → publish locally and over LAN. Body on stdin, prints path. |
+| TEMPLATE_PATH | `<skill-dir>./template.html` | Reference only — `RENDER_CMD` reads it. Read this to learn the primitives.                  |
+| OUTPUT_DIR    | `/tmp`                       | Where the rendered file lives                                                               |
 
 ## When to use
 
@@ -60,8 +60,9 @@ RENDER_CMD "<title>" < /tmp/rich-response-body.html
 - Always use the **quoted** heredoc delimiter `<<'HTML'` (single quotes around `HTML`) when creating the body file. Stops bash from expanding `$variables` or backticks inside the body.
 - Title is HTML-escaped automatically; body is injected as-is (write semantic HTML).
 - Output path is derived from the title (`/tmp/rich-<slug>.html`). Reusing the same title updates the same rendered file and URLs. To override, pass it as the second arg: `RENDER_CMD "<title>" /tmp/custom.html < /tmp/rich-response-body.html`.
-- `RENDER_CMD` runs validate.sh, then serve.sh, then prints the chosen output path on stdout. Validate/serve output goes to stderr.
-- The server listens on all interfaces by default. Its output includes both `serving locally: http://localhost:…` and `serving on LAN: http://<LAN-IP>:…`.
+- `RENDER_CMD` runs `validate.sh`, then publishes the document through `serve.sh`, then prints the chosen output path on stdout. Validation/publication output goes to stderr.
+- Publication uses an idempotent detached document server on fixed port `8765`. The first render starts it; later renders reuse it. Reusing the same title atomically updates the document at the same URLs.
+- The publishing API accepts writes from loopback only. Published documents are readable on all interfaces. Output includes both `serving locally: http://localhost:8765/documents/…` and `serving on LAN: http://<LAN-IP>:8765/documents/…`.
 
 After it returns, always reply with both clickable URLs: label the localhost URL for this computer and the LAN URL for other devices on the same network. Never omit either address, even if one was opened automatically. Keep the reply short and do not add a long recap — the doc IS the answer.
 
@@ -168,5 +169,5 @@ Prefer authored colors only when they carry meaning. If you hard-code Rose Pine 
 ## Validation
 
 - [ ] `RENDER_CMD` exited 0 and printed the output path on stdout.
-- [ ] Both `serving locally: http://localhost:…` and `serving on LAN: http://<LAN-IP>:…` appeared on stderr.
+- [ ] Both `serving locally: http://localhost:8765/documents/…` and `serving on LAN: http://<LAN-IP>:8765/documents/…` appeared on stderr.
 - [ ] Chat response is short (≤5 lines) and includes both clickable URLs.

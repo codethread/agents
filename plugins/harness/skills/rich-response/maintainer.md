@@ -10,9 +10,13 @@
 - Graphviz (`@viz-js/viz`) is loaded only if the page contains a `<pre class="graphviz">` block; after render, default black/white output and opposite Rose Pine hard-coded colors are normalized to the active page palette for readable initial light/dark renders.
 - Two placeholders to fill: `{{TITLE}}` (appears twice — `<title>` and `<h1>`) and `{{BODY}}`.
 
-## Why a localhost server (not `file://`)
+## Why an HTTP server (not `file://`)
 
-Mermaid v10+ internally lazy-loads each diagram type as a separate ES module. Under `file://`, every file has a unique security origin and those cross-origin module fetches are blocked — Mermaid errors out and the diagram never renders. `RENDER_CMD` launches a short-lived (3600s default) Python `http.server` bound to all interfaces, opens the localhost URL, prints both the local and LAN URLs, and self-terminates. The generated HTML file remains on disk after the server stops. The server uses a deterministic port for each output path, so rerendering the same title updates the same URLs while the server is alive; updates do not reopen the browser tab. Same fix applies to any future library that needs a real origin.
+Mermaid v10+ internally lazy-loads each diagram type as a separate ES module. Under `file://`, every file has a unique security origin and those cross-origin module fetches are blocked — Mermaid errors out and the diagram never renders. `RENDER_CMD` publishes completed HTML through a persistent Python document service on port `8765`, opens the localhost URL, and prints both local and LAN URLs. The service is detached into a new process session so command runners may clean up their own process group without terminating it.
+
+`POST /api/documents/<id>` accepts requests from `127.0.0.1` only and atomically replaces the corresponding document. `GET /documents/<id>` is available on all interfaces; there is no directory listing or arbitrary filesystem access. `GET /api/health` identifies the service so the idempotent launcher can distinguish an existing rich-response service from an unrelated process occupying port `8765`. Rerendering the same title updates the same URLs.
+
+Runtime state lives under `/tmp/rich-response-server`: published documents in `documents/`, the current PID in `server.pid`, and detached-process output in `server.log`. Stop the service with `kill "$(cat /tmp/rich-response-server/server.pid)"`; the next render starts it again.
 
 ## Outline (table of contents)
 

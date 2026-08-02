@@ -9,7 +9,7 @@
 #   HTML
 #
 # If output-path is omitted, slugified from title into /tmp/rich-<slug>.html.
-# TTL env var (default 3600s) controls how long the local/LAN server stays up.
+# The rendered document is published to the persistent local/LAN document server.
 
 set -euo pipefail
 
@@ -48,6 +48,6 @@ with open(output_path, "w") as f: f.write(t)
 ' "$template" "$title" "$output"
 
 "$script_dir/validate.sh" "$output" >&2
-"$script_dir/serve.sh" "$output" "${TTL:-3600}" >&2
+"$script_dir/serve.sh" "$output" >&2
 
 echo "$output"
