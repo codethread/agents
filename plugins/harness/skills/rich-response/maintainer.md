@@ -20,4 +20,4 @@ Runtime state lives under `/tmp/rich-response-server`: published documents in `d
 
 ## Outline (table of contents)
 
-Auto-generated from `<h2>` and `<h3>` elements when the doc has 3+ headings. Sticky in the right gutter on screens wider than 1280px; hidden below that. Each heading gets an auto-slugged `id` so deep-links work. Nothing for the agent to do — just use `<h2>` and `<h3>` for sections; the template handles the rest.
+Auto-generated from `<h2>` and `<h3>` elements when the doc has 3+ headings. Sticky in the right gutter on screens wider than 1520px; hidden below that. Its `left` offset is half the body's `max-width` (`48.5ch`) plus a gutter, so `.outline` must keep the body font size — the 0.85em type sits on its children, otherwise `ch` shrinks and the nav lands on top of the content. Each heading gets an auto-slugged `id` so deep-links work. Nothing for the agent to do — just use `<h2>` and `<h3>` for sections; the template handles the rest.

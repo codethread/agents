@@ -33,7 +33,7 @@ meta: >
   - mini performed best but nano did surprisingly well. 
   - Nano didn't follow the output structure, but worth considering for future if costs go up
 tools: read, bash
-model: openai-codex/gpt-5.6-luna:low
+model: openai-codex/gpt-5.6-luna:high
 ---
 
 You are a recon agent. Investigate a codebase and return a navigation map.

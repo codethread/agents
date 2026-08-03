@@ -418,16 +418,16 @@
 			}
 
 			/* Outline — auto-generated, fixed right gutter on wide screens.
-     Uses rem (font-size-independent) for the offset calc; `ch` inside .outline
-     would resolve against its smaller 0.85em font and undershoot. */
+     The offset is half the body's max-width, so `ch` here must resolve against the
+     same font metrics as the body: .outline itself stays at the inherited font size
+     and the smaller 0.85em type lives on its children. */
 			.outline {
 				position: fixed;
 				top: 3rem;
-				left: calc(50% + 22rem + 1.5rem);
+				left: calc(50% + 48.5ch + 1.5rem);
 				width: 14rem;
 				max-height: calc(100vh - 5rem);
 				overflow-y: auto;
-				font-size: 0.85em;
 				line-height: 1.4;
 				padding-left: 1rem;
 				border-left: 1px solid var(--border);
@@ -436,8 +436,11 @@
 				color: var(--muted);
 				text-transform: uppercase;
 				letter-spacing: 0.05em;
-				font-size: 0.78em;
+				font-size: 0.66em;
 				margin-bottom: 0.6em;
+			}
+			.outline > ul {
+				font-size: 0.85em;
 			}
 			.outline ul {
 				list-style: none;
@@ -469,8 +472,10 @@
 			.outline ul.sub a {
 				font-size: 0.95em;
 			}
-			/* Need viewport > 2*(body half + gap + outline + edge): ~22rem + 1.5rem + 14rem + 1rem = 38.5rem per side. */
-			@media (max-width: 1280px) {
+			/* Need viewport > 2*(body half + gap + outline + edge): 48.5ch (~27rem) + 1.5rem + 14rem + 1rem
+     per side. `ch` in a media query resolves against the default font, not the body's,
+     so this threshold is a px approximation of that. */
+			@media (max-width: 1520px) {
 				.outline {
 					display: none;
 				}
