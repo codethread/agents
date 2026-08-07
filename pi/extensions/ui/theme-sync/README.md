@@ -5,10 +5,10 @@
 ## Behavior
 
 - reads `$XDG_STATE_HOME/color-theme` (or `~/.local/state/color-theme`)
-- selects `rose-pine` as the base Pi theme on startup
-- applies `rose-pine-dawn` when the sentinel says `light`
-- applies `rose-pine-moon` when the sentinel says `dark`
-- keeps the active runtime theme name as `rose-pine`
+- selects the stable `rose-pine` setting on startup
+- applies the Dawn palette when the sentinel says `light`
+- applies the Moon palette when the sentinel says `dark`
+- swaps palettes in memory, so `settings.json` remains `"theme": "rose-pine"`
 - watches the sentinel directory and reapplies the matching palette on change
 
 If the sentinel is missing or invalid, the extension skips sync and leaves the current theme alone.

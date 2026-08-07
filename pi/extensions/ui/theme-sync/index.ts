@@ -46,10 +46,18 @@ export default function themeSyncExtension(pi: ExtensionAPI) {
 		}
 		if (mode === lastAppliedMode) return;
 
-		const themeName = getThemeNameForMode(mode);
-		const result = ctx.ui.setTheme(themeName);
+		const paletteName = getThemeNameForMode(mode);
+		const palette = ctx.ui.getTheme(paletteName);
+		if (!palette) {
+			log(ctx, `failed to load ${paletteName}`, "warning");
+			return;
+		}
+
+		// Passing the loaded theme instance changes only this session's palette.
+		// Passing its name would persist the Dawn/Moon variant in settings.
+		const result = ctx.ui.setTheme(palette);
 		if (!result.success) {
-			log(ctx, `failed to apply ${themeName}: ${result.error ?? "unknown error"}`, "warning");
+			log(ctx, `failed to apply ${paletteName}: ${result.error ?? "unknown error"}`, "warning");
 			return;
 		}
 
