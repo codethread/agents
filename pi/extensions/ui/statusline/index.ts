@@ -72,6 +72,24 @@ export function isLongCacheRetentionEnabled(env: NodeJS.ProcessEnv = process.env
 }
 
 const CACHE_MISS_DISPLAY_MS = 60_000;
+const COMPACTION_COUNT_ENTRY_TYPE = "statusline-compaction-count";
+
+type CompactionCountEntry = {
+	type: "custom";
+	customType: string;
+	data?: { count?: unknown };
+};
+
+export function getCompactionCount(ctx: ExtensionContext): number {
+	const entries = ctx.sessionManager.getBranch() as CompactionCountEntry[];
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index];
+		if (entry.type !== "custom" || entry.customType !== COMPACTION_COUNT_ENTRY_TYPE) continue;
+		const count = entry.data?.count;
+		if (typeof count === "number" && Number.isSafeInteger(count) && count >= 0) return count;
+	}
+	return 0;
+}
 
 function formatCacheTime(timestamp: string | number | Date): string {
 	return new Date(timestamp).toLocaleTimeString("en-GB", {
@@ -211,6 +229,7 @@ export function renderStatuslineItems({
 		contextTokens,
 		contextWindow,
 		contextPercent: contextUsage?.percent,
+		compactionCount: getCompactionCount(ctx),
 	});
 	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
 	const dimForegroundPrefix = getThemeForegroundPrefix(theme, "dim");
@@ -298,6 +317,7 @@ export function renderStatuslineLines({
 		contextTokens,
 		contextWindow,
 		contextPercent: contextUsage?.percent,
+		compactionCount: getCompactionCount(ctx),
 	});
 	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
 	const dimForegroundPrefix = getThemeForegroundPrefix(theme, "dim");
@@ -396,4 +416,8 @@ export default function (pi: ExtensionAPI) {
 			on(event: "session_switch", handler: (_event: unknown, ctx: ExtensionContext) => void): void;
 		}
 	).on("session_switch", (_event, ctx) => installFooter(ctx));
+
+	pi.on("session_compact", async (_event, ctx) => {
+		pi.appendEntry(COMPACTION_COUNT_ENTRY_TYPE, { count: getCompactionCount(ctx) + 1 });
+	});
 }

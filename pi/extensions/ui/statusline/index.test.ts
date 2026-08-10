@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { formatSessionLabel, isLongCacheRetentionEnabled, renderStatuslineItems } from "./index.js";
+import statuslineExtension, {
+	formatSessionLabel,
+	getCompactionCount,
+	isLongCacheRetentionEnabled,
+	renderStatuslineItems,
+} from "./index.js";
 
 const ORIGINAL_CACHE_RETENTION = process.env.PI_CACHE_RETENTION;
 
@@ -79,6 +84,53 @@ describe("renderStatuslineItems", () => {
 				process.env.PI_CACHE_RETENTION = previous;
 			}
 		}
+	});
+
+	it("renders the persisted compaction count in context usage", () => {
+		const footerData = {
+			getGitBranch: () => null,
+			getExtensionStatuses: () => new Map(),
+			getAvailableProviderCount: () => 1,
+		};
+		const ctx = {
+			cwd: "/repo",
+			model: { id: "gpt-test", reasoning: false, contextWindow: 10000 },
+			modelRegistry: { isUsingOAuth: () => false },
+			getContextUsage: () => ({ tokens: 2500, percent: 25, contextWindow: 10000 }),
+			sessionManager: {
+				getSessionName: () => undefined,
+				getSessionId: () => undefined,
+				getBranch: () => [
+					{ type: "custom", customType: "statusline-compaction-count", data: { count: 2 } },
+				],
+			},
+		} as any;
+		const pi = { getThinkingLevel: () => "off" } as any;
+		const theme = { fg: (_color: string, text: string) => text };
+
+		expect(getCompactionCount(ctx)).toBe(2);
+		expect(renderStatuslineItems({ ctx, pi, footerData, theme })[1]).toBe("ctx (2) 2.5k 25.0%/10k");
+	});
+
+	it("persists the next count after successful compaction", async () => {
+		const handlers = new Map<string, (event: unknown, ctx: unknown) => Promise<void>>();
+		const appendEntry = vi.fn();
+		statuslineExtension({
+			on: (event: string, handler: (event: unknown, ctx: unknown) => Promise<void>) =>
+				handlers.set(event, handler),
+			appendEntry,
+		} as any);
+		const ctx = {
+			sessionManager: {
+				getBranch: () => [
+					{ type: "custom", customType: "statusline-compaction-count", data: { count: 1 } },
+				],
+			},
+		} as any;
+
+		await handlers.get("session_compact")?.({}, ctx);
+
+		expect(appendEntry).toHaveBeenCalledWith("statusline-compaction-count", { count: 2 });
 	});
 
 	it("shows a recent cache miss after a prior cache hit", () => {

@@ -7,6 +7,7 @@ export interface ContextUsageDisplayOptions {
 	contextWindow?: number;
 	contextPercent?: number | null;
 	autoCompactEnabled?: boolean;
+	compactionCount?: number;
 }
 
 export interface ModelDisplayOptions {
@@ -31,19 +32,24 @@ export function formatCost(cost: number, usingSubscription = false, digits = 3):
 
 export function formatContextDisplay(options: ContextUsageDisplayOptions): string {
 	const autoSuffix = options.autoCompactEnabled ? " (auto)" : "";
+	const compactionSuffix =
+		Number.isInteger(options.compactionCount) && (options.compactionCount ?? 0) > 0
+			? ` (${options.compactionCount})`
+			: "";
 	const contextWindow = options.contextWindow ?? 0;
 	const contextTokens = options.contextTokens ?? null;
 	const contextPercent = options.contextPercent ?? null;
 
 	if (contextWindow > 0) {
 		if (contextTokens !== null && contextPercent !== null) {
-			return `ctx ${formatTokens(contextTokens)} ${contextPercent.toFixed(1)}%/${formatTokens(contextWindow)}${autoSuffix}`;
+			return `ctx${compactionSuffix} ${formatTokens(contextTokens)} ${contextPercent.toFixed(1)}%/${formatTokens(contextWindow)}${autoSuffix}`;
 		}
-		return `ctx ? ?/${formatTokens(contextWindow)}${autoSuffix}`;
+		return `ctx${compactionSuffix} ? ?/${formatTokens(contextWindow)}${autoSuffix}`;
 	}
 
-	if (contextTokens !== null) return `ctx ${formatTokens(contextTokens)}${autoSuffix}`;
-	return "ctx n/a";
+	if (contextTokens !== null)
+		return `ctx${compactionSuffix} ${formatTokens(contextTokens)}${autoSuffix}`;
+	return `ctx${compactionSuffix} n/a`;
 }
 
 export function formatModelDisplay(options: ModelDisplayOptions): string {
