@@ -8,23 +8,25 @@ import { matchesKey } from "@earendil-works/pi-tui";
 type EditorCommand = {
 	command: string;
 	source: "vscode-remote" | "ssh" | "VISUAL" | "EDITOR" | "default";
+	usesTerminal: boolean;
 };
 
-function hasEnv(name: string): boolean {
-	return (process.env[name]?.trim() ?? "") !== "";
-}
+export function getEditorCommand(env: NodeJS.ProcessEnv = process.env): EditorCommand {
+	const usesTerminal =
+		(env.SSH_CONNECTION?.trim() ?? "") !== "" ||
+		(env.SSH_CLIENT?.trim() ?? "") !== "" ||
+		(env.SSH_TTY?.trim() ?? "") !== "";
+	const visual = env.VISUAL?.trim();
+	if (visual) return { command: visual, source: "VISUAL", usesTerminal };
+	const editor = env.EDITOR?.trim();
+	if (editor) return { command: editor, source: "EDITOR", usesTerminal };
 
-function getEditorCommand(): EditorCommand {
-	if (hasEnv("VSCODE_IPC_HOOK_CLI")) return { command: "code --wait", source: "vscode-remote" };
-	if (hasEnv("SSH_CONNECTION") || hasEnv("SSH_CLIENT") || hasEnv("SSH_TTY")) {
-		return { command: "nvim", source: "ssh" };
+	if ((env.VSCODE_IPC_HOOK_CLI?.trim() ?? "") !== "") {
+		return { command: "code --wait", source: "vscode-remote", usesTerminal: false };
 	}
+	if (usesTerminal) return { command: "nvim", source: "ssh", usesTerminal: true };
 
-	const visual = process.env.VISUAL?.trim();
-	if (visual) return { command: visual, source: "VISUAL" };
-	const editor = process.env.EDITOR?.trim();
-	if (editor) return { command: editor, source: "EDITOR" };
-	return { command: "zed --wait", source: "default" };
+	return { command: "nvim", source: "default", usesTerminal: false };
 }
 
 function getErrorMessage(error: unknown): string {
@@ -40,9 +42,9 @@ async function createEditorFile(initialText: string): Promise<{ dir: string; fil
 
 function openEditor(editor: EditorCommand, file: string): ChildProcess {
 	return spawn(editor.command, [file], {
-		detached: process.platform !== "win32",
+		detached: !editor.usesTerminal && process.platform !== "win32",
 		shell: true,
-		stdio: "ignore",
+		stdio: editor.usesTerminal ? "inherit" : "ignore",
 	});
 }
 
@@ -86,20 +88,27 @@ class NonblockingEditor extends CustomEditor {
 			this.openFile = fileInfo.file;
 			this.textWhenOpened = initialText;
 
+			if (editor.usesTerminal) this.tui.stop();
 			const child = openEditor(editor, fileInfo.file);
 			child.unref();
-			this.notify(`Opened ${editor.source} non-blocking editor`, "info");
+			this.notify(
+				editor.usesTerminal
+					? `Opened ${editor.source} editor; Pi resumes when it closes`
+					: `Opened ${editor.source} non-blocking editor`,
+				"info",
+			);
 
 			child.on("error", (error) => {
-				void this.finishExternalEdit({ error });
+				void this.finishExternalEdit({ error, usesTerminal: editor.usesTerminal });
 			});
 			child.on("exit", (status, signal) => {
-				void this.finishExternalEdit({ status, signal });
+				void this.finishExternalEdit({ status, signal, usesTerminal: editor.usesTerminal });
 			});
 		} catch (error) {
 			this.openFile = undefined;
 			this.openDir = undefined;
 			this.textWhenOpened = undefined;
+			if (editor.usesTerminal) this.tui.start();
 			if (dir) await fs.rm(dir, { recursive: true, force: true });
 			this.notify(`Failed to open external editor: ${getErrorMessage(error)}`, "error");
 		}
@@ -109,7 +118,10 @@ class NonblockingEditor extends CustomEditor {
 		status?: number | null;
 		signal?: NodeJS.Signals | null;
 		error?: Error;
+		usesTerminal: boolean;
 	}): Promise<void> {
+		if (!this.openFile && !this.openDir) return;
+
 		const file = this.openFile;
 		const dir = this.openDir;
 		const textWhenOpened = this.textWhenOpened;
@@ -148,6 +160,10 @@ class NonblockingEditor extends CustomEditor {
 			this.notify(`Failed to apply external editor changes: ${getErrorMessage(error)}`, "error");
 		} finally {
 			if (dir) await fs.rm(dir, { recursive: true, force: true });
+			if (result.usesTerminal) {
+				this.tui.start();
+				this.tui.requestRender(true);
+			}
 		}
 	}
 }
