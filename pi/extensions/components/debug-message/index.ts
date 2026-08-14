@@ -36,8 +36,12 @@ function getSubheadingText({
 	return parts.join(" • ");
 }
 
-function getFooterText(): string {
-	return "Ctrl+G open in editor • Ctrl+Enter send to agent • Enter/Esc close";
+function getFooterText(scrollOffset: number, visibleLines: number, totalLines: number): string {
+	const scrollStatus =
+		totalLines > visibleLines
+			? `↑↓/PgUp/PgDn scroll • ${scrollOffset + 1}-${Math.min(scrollOffset + visibleLines, totalLines)}/${totalLines} • `
+			: "";
+	return `${scrollStatus}Ctrl+G open in editor • Ctrl+Enter send to agent • Enter/Esc close`;
 }
 
 function showExternalEditorCancelPrompt(
@@ -90,21 +94,48 @@ export async function showDebugMessage(
 	const mdTheme = getMarkdownTheme();
 
 	for (;;) {
-		const action = await ctx.ui.custom<DebugMessageAction | undefined>((_tui, theme, _kb, done) => {
-			const container = new Container();
-
-			container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
-			container.addChild(new Text(theme.fg("accent", theme.bold(props.headingText)), 1, 0));
-			if (subheadingText) {
-				container.addChild(new Text(theme.fg("dim", subheadingText), 1, 0));
-			}
-			container.addChild(new Markdown(props.markdownBody, 1, 1, mdTheme));
-			container.addChild(new Text(theme.fg("dim", getFooterText()), 1, 0));
-			container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
+		const action = await ctx.ui.custom<DebugMessageAction | undefined>((tui, theme, _kb, done) => {
+			let scrollOffset = 0;
+			let pageSize = 1;
 
 			return {
-				render: (width: number) => container.render(width),
-				invalidate: () => container.invalidate(),
+				render: (width: number) => {
+					const header = new Container();
+					header.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
+					header.addChild(new Text(theme.fg("accent", theme.bold(props.headingText)), 1, 0));
+					if (subheadingText) {
+						header.addChild(new Text(theme.fg("dim", subheadingText), 1, 0));
+					}
+
+					const headerLines = header.render(width);
+					const bodyLines = new Markdown(props.markdownBody, 1, 1, mdTheme).render(width);
+					const renderFooter = () => {
+						const footer = new Container();
+						footer.addChild(
+							new Text(
+								theme.fg("dim", getFooterText(scrollOffset, pageSize, bodyLines.length)),
+								1,
+								0,
+							),
+						);
+						footer.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
+						return footer.render(width);
+					};
+
+					pageSize = Math.max(1, tui.terminal.rows - headerLines.length - 2);
+					let footerLines = renderFooter();
+					pageSize = Math.max(1, tui.terminal.rows - headerLines.length - footerLines.length);
+					const maxOffset = Math.max(0, bodyLines.length - pageSize);
+					scrollOffset = Math.min(scrollOffset, maxOffset);
+					footerLines = renderFooter();
+
+					return [
+						...headerLines,
+						...bodyLines.slice(scrollOffset, scrollOffset + pageSize),
+						...footerLines,
+					];
+				},
+				invalidate: () => {},
 				handleInput: (data: string) => {
 					if (matchesKey(data, "ctrl+g")) {
 						done("openInEditor");
@@ -116,7 +147,17 @@ export async function showDebugMessage(
 					}
 					if (matchesKey(data, "enter") || matchesKey(data, "escape")) {
 						done("close");
+						return;
 					}
+
+					const previousOffset = scrollOffset;
+					if (matchesKey(data, "up")) scrollOffset = Math.max(0, scrollOffset - 1);
+					else if (matchesKey(data, "down")) scrollOffset += 1;
+					else if (matchesKey(data, "pageUp")) scrollOffset = Math.max(0, scrollOffset - pageSize);
+					else if (matchesKey(data, "pageDown")) scrollOffset += pageSize;
+					else if (matchesKey(data, "home")) scrollOffset = 0;
+					else if (matchesKey(data, "end")) scrollOffset = Number.MAX_SAFE_INTEGER;
+					if (scrollOffset !== previousOffset) tui.requestRender();
 				},
 			};
 		});

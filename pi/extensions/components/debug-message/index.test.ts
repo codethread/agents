@@ -70,6 +70,33 @@ describe("showDebugMessage", () => {
 		expect(notify).not.toHaveBeenCalled();
 	});
 
+	it("scrolls long markdown within the terminal viewport", async () => {
+		const rendered: string[][] = [];
+		const requestRender = vi.fn();
+		const custom = vi.fn(async (factory: any) => {
+			let result: unknown;
+			const tui = { terminal: { rows: 8 }, requestRender };
+			const component = await factory(tui, theme, {} as any, (value: unknown) => {
+				result = value;
+			});
+			rendered.push(component.render(80));
+			component.handleInput("down");
+			rendered.push(component.render(80));
+			component.handleInput("escape");
+			return result;
+		});
+
+		await showDebugMessage({ hasUI: true, ui: { custom, notify: vi.fn() } } as any, {
+			headingText: "Debug Prompt",
+			markdownBody: Array.from({ length: 10 }, (_, index) => `line ${index + 1}`).join("\n\n"),
+			sendMarkdownToAgent: vi.fn(),
+		});
+
+		expect(rendered[0]?.join("\n")).toContain("1-2/21");
+		expect(rendered[1]?.join("\n")).toContain("2-3/21");
+		expect(requestRender).toHaveBeenCalledOnce();
+	});
+
 	it("sends the markdown body to the agent on ctrl+enter", async () => {
 		const custom = createCustomUi("ctrl+enter");
 		const notify = vi.fn();
