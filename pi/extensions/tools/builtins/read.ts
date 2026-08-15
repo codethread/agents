@@ -17,7 +17,6 @@ export default function (pi: ExtensionAPI) {
 		...builtinRead,
 		name: "read",
 		promptSnippet: "Read file contents",
-		promptGuidelines: ["Use read to examine files instead of cat or sed."],
 
 		renderCall(args, theme) {
 			const path = (args.path as string | undefined) ?? "(unknown)";

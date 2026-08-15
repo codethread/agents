@@ -86,6 +86,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		...builtinEdit,
 		name: "edit",
+		promptSnippet: "Edit a file using exact text replacements",
 		renderShell: "default",
 
 		renderCall(args, theme, context) {

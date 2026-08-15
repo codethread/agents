@@ -2,6 +2,8 @@
 
 > Small plugin that replaces Pi built-in tool presentation without changing tool behavior.
 
+Each replacement also supplies the concise tool description shown in the generated system prompt. Operational guidance is included only when it adds behavior beyond the tool schema.
+
 ## `read`
 
 Compact file read display. File contents are hidden in the TUI (only the path is shown). Errors display simplified messages.
