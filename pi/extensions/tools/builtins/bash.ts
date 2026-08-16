@@ -157,6 +157,18 @@ export function formatBashCommandPreview(
 	];
 }
 
+export function formatBashOutput(output: string) {
+	return output.startsWith("{") ? JSON.stringify(JSON.parse(output), null, "\t") : output;
+}
+
+export function formatBashOutputPreview(output: string, width: number) {
+	const visualLines = new Text(output, 0, 0).render(width);
+	return {
+		lines: visualLines.slice(0, COMMAND_PREVIEW_LINES),
+		skippedLineCount: Math.max(0, visualLines.length - COMMAND_PREVIEW_LINES),
+	};
+}
+
 export default function (pi: ExtensionAPI) {
 	const builtinBash = createBashTool(process.cwd());
 
@@ -217,11 +229,37 @@ export default function (pi: ExtensionAPI) {
 					.map((item) => item.text)
 					.join("\n") ?? "";
 			const tokens = formatTokenCount(estimateTokens(output));
-			return new Text(
-				theme.fg("dim", `Completed in ${formatDuration(duration)} [${tokens} tokens]`),
-				0,
-				0,
+			const formattedOutput = formatBashOutput(output);
+			const completion = theme.fg(
+				"dim",
+				`Completed in ${formatDuration(duration)} [${tokens} tokens]`,
 			);
+			if (context.expanded) {
+				const rendered = formattedOutput
+					.split("\n")
+					.map((line) => theme.fg("toolOutput", line))
+					.join("\n");
+				return new Text(rendered ? `${rendered}\n${completion}` : completion, 0, 0);
+			}
+
+			return {
+				invalidate() {},
+				render(width: number) {
+					const preview = formatBashOutputPreview(formattedOutput, width);
+					const lines = preview.lines.map((line) => theme.fg("toolOutput", line));
+					if (preview.skippedLineCount > 0) {
+						lines.push(
+							truncateToWidth(
+								theme.fg("muted", `... ${preview.skippedLineCount} more lines (Ctrl+o to expand)`),
+								width,
+								theme.fg("muted", "..."),
+							),
+						);
+					}
+					lines.push(truncateToWidth(completion, width, theme.fg("muted", "...")));
+					return lines;
+				},
+			};
 		},
 	});
 }

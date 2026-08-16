@@ -1,7 +1,12 @@
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { describe, expect, it } from "vitest";
 
-import bashExtension, { formatBashCommandForDisplay, formatBashCommandPreview } from "./bash.js";
+import bashExtension, {
+	formatBashCommandForDisplay,
+	formatBashCommandPreview,
+	formatBashOutput,
+	formatBashOutputPreview,
+} from "./bash.js";
 
 describe("formatBashCommandForDisplay", () => {
 	it("line breaks chained commands on && and ||", () => {
@@ -53,6 +58,27 @@ describe("formatBashCommandPreview", () => {
 
 		expect(lines.length).toBeGreaterThan(1);
 		expect(lines.every((line) => visibleWidth(line) <= 20)).toBe(true);
+	});
+});
+
+describe("formatBashOutput", () => {
+	it("pretty prints output whose first character is an opening brace", () => {
+		expect(formatBashOutput('{"status":"ok","items":[1,2]}')).toBe(
+			'{\n\t"status": "ok",\n\t"items": [\n\t\t1,\n\t\t2\n\t]\n}',
+		);
+	});
+
+	it("preserves non-JSON output", () => {
+		expect(formatBashOutput("hello\nworld")).toBe("hello\nworld");
+	});
+
+	it("caps a long JSON value by rendered terminal lines", () => {
+		const output = formatBashOutput(`{"payload":"${"x".repeat(200)}"}`);
+		const preview = formatBashOutputPreview(output, 20);
+
+		expect(preview.lines).toHaveLength(5);
+		expect(preview.skippedLineCount).toBeGreaterThan(0);
+		expect(preview.lines.every((line) => visibleWidth(line) <= 20)).toBe(true);
 	});
 });
 
