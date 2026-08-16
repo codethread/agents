@@ -227,7 +227,7 @@ function mapToolName(tool: string, compatSettings: CompatSettings): string | nul
 	const entry = Object.entries(compatSettings.compat.tools).find(
 		([claudeName]) => claudeName.toLowerCase() === lower,
 	);
-	return entry ? entry[1] : null;
+	return entry ? entry[1] : normalized;
 }
 
 function normalizePathForDedup(input: string): string {

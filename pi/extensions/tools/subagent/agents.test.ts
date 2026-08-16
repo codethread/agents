@@ -613,7 +613,7 @@ describe("discoverAgents", () => {
 		writeAgent(userAgentsDir, "gamma.md", {
 			name: "gamma",
 			description: "User-only agent",
-			tools: "Glob, Custom-Tool, Subagent",
+			tools: "Glob, custom-tool, pi-internals, Subagent",
 		});
 		const projectAgentPath = writeAgent(projectAgentsDir, "shared.md", {
 			name: "shared",
@@ -648,7 +648,7 @@ describe("discoverAgents", () => {
 		expect(byName.get("gamma")).toMatchObject({
 			source: "user",
 			hidden: false,
-			tools: ["find", "subagent"],
+			tools: ["find", "custom-tool", "pi-internals", "subagent"],
 		});
 		expect(byName.get("shared")).toMatchObject({
 			source: "project",
