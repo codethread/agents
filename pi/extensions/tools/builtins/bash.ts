@@ -158,7 +158,15 @@ export function formatBashCommandPreview(
 }
 
 export function formatBashOutput(output: string) {
-	return output.startsWith("{") ? JSON.stringify(JSON.parse(output), null, "\t") : output;
+	if (!output.startsWith("{")) return output;
+
+	try {
+		return JSON.stringify(JSON.parse(output), null, "\t");
+	} catch {
+		// Shell output may be JSONL or begin with a non-JSON diagnostic. Pretty
+		// printing is optional; preserve output the JSON parser cannot consume whole.
+		return output;
+	}
 }
 
 export function formatBashOutputPreview(output: string, width: number) {

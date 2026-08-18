@@ -72,6 +72,12 @@ describe("formatBashOutput", () => {
 		expect(formatBashOutput("hello\nworld")).toBe("hello\nworld");
 	});
 
+	it("preserves newline-delimited JSON instead of throwing during rendering", () => {
+		const output = '{"id":"first"}\n{"id":"second"}';
+
+		expect(formatBashOutput(output)).toBe(output);
+	});
+
 	it("caps a long JSON value by rendered terminal lines", () => {
 		const output = formatBashOutput(`{"payload":"${"x".repeat(200)}"}`);
 		const preview = formatBashOutputPreview(output, 20);
