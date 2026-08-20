@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import statuslineExtension, {
 	formatSessionLabel,
 	getCompactionCount,
@@ -7,6 +7,7 @@ import statuslineExtension, {
 } from "./index.js";
 
 const ORIGINAL_CACHE_RETENTION = process.env.PI_CACHE_RETENTION;
+const ORIGINAL_AGENT_ID = process.env.MILLSTRAND_AGENT_ID;
 
 describe("formatSessionLabel", () => {
 	it("shows the session id next to the name", () => {
@@ -27,12 +28,21 @@ describe("formatSessionLabel", () => {
 });
 
 describe("renderStatuslineItems", () => {
+	beforeEach(() => {
+		delete process.env.MILLSTRAND_AGENT_ID;
+	});
+
 	afterEach(() => {
 		vi.useRealTimers();
 		if (ORIGINAL_CACHE_RETENTION === undefined) {
 			delete process.env.PI_CACHE_RETENTION;
 		} else {
 			process.env.PI_CACHE_RETENTION = ORIGINAL_CACHE_RETENTION;
+		}
+		if (ORIGINAL_AGENT_ID === undefined) {
+			delete process.env.MILLSTRAND_AGENT_ID;
+		} else {
+			process.env.MILLSTRAND_AGENT_ID = ORIGINAL_AGENT_ID;
 		}
 	});
 
@@ -64,9 +74,11 @@ describe("renderStatuslineItems", () => {
 
 		const previous = process.env.PI_CACHE_RETENTION;
 		delete process.env.PI_CACHE_RETENTION;
+		process.env.MILLSTRAND_AGENT_ID = "merry-swift-moose";
 		try {
 			expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })).toEqual([
 				"/repo (main) • work (abc)",
+				"agent merry-swift-moose",
 				"ctx 2.5k 25.0%/10k",
 				"$0.000",
 				"gpt-test • high",
@@ -74,7 +86,7 @@ describe("renderStatuslineItems", () => {
 			]);
 
 			process.env.PI_CACHE_RETENTION = "long";
-			expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[2]).toBe(
+			expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[3]).toBe(
 				"$0.000 • cache long",
 			);
 		} finally {

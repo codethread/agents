@@ -28,16 +28,26 @@ import {
 	type TaskRequest,
 } from "./types.js";
 
-export function getPiInvocation(args: string[]): { command: string; args: string[] } {
-	const currentScript = process.argv[1];
-	if (currentScript && fs.existsSync(currentScript)) {
-		return { command: process.execPath, args: [currentScript, ...args] };
+export function getPiInvocation(
+	args: string[],
+	runtime: { execPath: string; currentScript?: string; scriptExists(path: string): boolean } = {
+		execPath: process.execPath,
+		currentScript: process.argv[1],
+		scriptExists: fs.existsSync,
+	},
+): { command: string; args: string[] } {
+	const { currentScript, execPath, scriptExists } = runtime;
+	// Bun standalone executables expose their embedded entrypoint as argv[1]. It may
+	// pass existsSync(), but forwarding it makes Pi treat /$bunfs/root/pi as a prompt.
+	if (currentScript?.startsWith("/$bunfs/")) return { command: execPath, args };
+	if (currentScript && scriptExists(currentScript)) {
+		return { command: execPath, args: [currentScript, ...args] };
 	}
 
-	const execName = path.basename(process.execPath).toLowerCase();
+	const execName = path.basename(execPath).toLowerCase();
 	const isGenericRuntime = /^(node|bun)(\.exe)?$/.test(execName);
 	if (!isGenericRuntime) {
-		return { command: process.execPath, args };
+		return { command: execPath, args };
 	}
 
 	return { command: "pi", args };

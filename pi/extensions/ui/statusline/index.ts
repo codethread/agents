@@ -254,8 +254,10 @@ export function renderStatuslineItems({
 		includeProvider: footerData.getAvailableProviderCount() > 1,
 	});
 
+	const agentIdentity = getAgentIdentity();
 	const items = [
 		truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "...")),
+		...(agentIdentity ? [theme.fg("dim", `agent ${agentIdentity}`)] : []),
 		styledContextDisplay,
 		theme.fg("dim", costDisplay),
 		theme.fg("dim", modelDisplay),
@@ -368,7 +370,12 @@ export function renderStatuslineLines({
 		}
 	}
 
-	const lines = [truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "...")), statsLine];
+	const agentIdentity = getAgentIdentity();
+	const identityDisplay = agentIdentity ? ` • agent ${agentIdentity}` : "";
+	const lines = [
+		truncateToWidth(theme.fg("dim", `${pwd}${identityDisplay}`), width, theme.fg("dim", "...")),
+		statsLine,
+	];
 
 	const visibleExtensionStatuses = Array.from(extensionStatuses.entries()).filter(
 		([key]) => key !== "timeline-timestamps" && key !== "provider-override",
@@ -398,6 +405,11 @@ export function formatSessionLabel(
 	if (name) return name;
 	if (id) return `session ${id}`;
 	return null;
+}
+
+function getAgentIdentity(env: NodeJS.ProcessEnv = process.env): string | null {
+	const identity = sanitizeStatusText(env.MILLSTRAND_AGENT_ID ?? "");
+	return identity || null;
 }
 
 export default function (pi: ExtensionAPI) {

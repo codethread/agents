@@ -168,7 +168,7 @@ Hidden swarms (`hidden: true`) are omitted from that inventory but stay visible 
 
 ## `subagent` tool
 
-Spawns one `pi` subprocess with an isolated context window. Each tool call runs one delegated target. When a discovered swarm is provided, the extension dispatches one subprocess per swarm member concurrently in the same call, then aggregates member results. Pi may dispatch multiple independent `subagent` tool calls concurrently; this extension does not batch or schedule them internally. The parent sees only the child's final message, not the full transcript.
+Spawns one `pi` subprocess with an isolated context window, including from Bun standalone builds without forwarding Bun's virtual `/$bunfs/...` entrypoint as prompt text. Each tool call runs one delegated target. When a discovered swarm is provided, the extension dispatches one subprocess per swarm member concurrently in the same call, then aggregates member results. Pi may dispatch multiple independent `subagent` tool calls concurrently; this extension does not batch or schedule them internally. The parent sees only the child's final message, not the full transcript.
 
 ```json
 {

@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	buildSingleAgentArgs,
 	getInheritedResourceArgsFromArgv,
+	getPiInvocation,
 	runSingleAgent,
 } from "./runtime.js";
 
@@ -78,6 +79,20 @@ const request = {
 	task: "Map things",
 	cwd: process.cwd(),
 };
+
+describe("getPiInvocation", () => {
+	it("does not forward Bun's virtual entrypoint as a prompt", () => {
+		const args = ["--mode", "json", "Task: map things"];
+
+		expect(
+			getPiInvocation(args, {
+				execPath: "/nix/store/pi/libexec/pi/pi",
+				currentScript: "/$bunfs/root/pi",
+				scriptExists: () => true,
+			}),
+		).toEqual({ command: "/nix/store/pi/libexec/pi/pi", args });
+	});
+});
 
 describe("runSingleAgent model chain", () => {
 	it("succeeds transparently on the first candidate", async () => {
