@@ -11,22 +11,29 @@ type EditorCommand = {
 	usesTerminal: boolean;
 };
 
+function isNvimCommand(command: string): boolean {
+	const executable = command.trim().split(/\s+/, 1)[0];
+	return executable === "nvim" || executable.endsWith("/nvim");
+}
+
 export function getEditorCommand(env: NodeJS.ProcessEnv = process.env): EditorCommand {
-	const usesTerminal =
+	const ssh =
 		(env.SSH_CONNECTION?.trim() ?? "") !== "" ||
 		(env.SSH_CLIENT?.trim() ?? "") !== "" ||
 		(env.SSH_TTY?.trim() ?? "") !== "";
 	const visual = env.VISUAL?.trim();
-	if (visual) return { command: visual, source: "VISUAL", usesTerminal };
+	if (visual)
+		return { command: visual, source: "VISUAL", usesTerminal: ssh || isNvimCommand(visual) };
 	const editor = env.EDITOR?.trim();
-	if (editor) return { command: editor, source: "EDITOR", usesTerminal };
+	if (editor)
+		return { command: editor, source: "EDITOR", usesTerminal: ssh || isNvimCommand(editor) };
 
 	if ((env.VSCODE_IPC_HOOK_CLI?.trim() ?? "") !== "") {
 		return { command: "code --wait", source: "vscode-remote", usesTerminal: false };
 	}
-	if (usesTerminal) return { command: "nvim", source: "ssh", usesTerminal: true };
+	if (ssh) return { command: "nvim", source: "ssh", usesTerminal: true };
 
-	return { command: "nvim", source: "default", usesTerminal: false };
+	return { command: "nvim", source: "default", usesTerminal: true };
 }
 
 function getErrorMessage(error: unknown): string {
@@ -185,6 +192,7 @@ export default function nonblockingEditorExtension(pi: ExtensionAPI) {
 						binding: "ctrl+g",
 						editorCommand: editor.command,
 						editorSource: editor.source,
+						usesTerminal: editor.usesTerminal,
 					},
 					null,
 					2,

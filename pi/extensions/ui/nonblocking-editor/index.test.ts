@@ -19,4 +19,23 @@ describe("getEditorCommand", () => {
 			usesTerminal: false,
 		});
 	});
+
+	it.each([
+		["VISUAL", "nvim"],
+		["EDITOR", "nvim --clean"],
+	])("opens local nvim from $%s in the terminal", (variable, command) => {
+		expect(getEditorCommand({ [variable]: command })).toMatchObject({
+			command,
+			source: variable,
+			usesTerminal: true,
+		});
+	});
+
+	it("opens the local default nvim in the terminal", () => {
+		expect(getEditorCommand({})).toEqual({
+			command: "nvim",
+			source: "default",
+			usesTerminal: true,
+		});
+	});
 });
