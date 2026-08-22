@@ -61,13 +61,13 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 
 ## Session UI utilities
 
-| Extension                                                 | Summary                                                                                                      |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [`prompt-history`](./ui/prompt-history/README.md)         | Recall prior submitted prompts for the current repo or globally; `Up` stays on Pi's built-in editor history. |
-| [`nonblocking-editor`](./ui/nonblocking-editor/README.md) | Bind `Ctrl+G` in the main editor to a non-blocking `$VISUAL`/`$EDITOR` handoff.                              |
-| [`tldr`](./ui/tldr/README.md)                             | Generate a catch-up summary of the current session.                                                          |
-| [`last-message`](./ui/last-message/README.md)             | Open recent session messages in `$VISUAL`/`$EDITOR`.                                                         |
-| [`tmux-window-title`](./ui/tmux-window-title/README.md)   | Set the current tmux window title from the first user message.                                               |
+| Extension                                               | Summary                                                                                                      |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| [`prompt-history`](./ui/prompt-history/README.md)       | Recall prior submitted prompts for the current repo or globally; `Up` stays on Pi's built-in editor history. |
+| [`scrollback-editor`](./ui/scrollback-editor/README.md) | Edit condensed session scrollback and the current prompt in a dedicated `Ctrl+G` Neovim instance.            |
+| [`tldr`](./ui/tldr/README.md)                           | Generate a catch-up summary of the current session.                                                          |
+| [`last-message`](./ui/last-message/README.md)           | Open recent session messages in `$VISUAL`/`$EDITOR`.                                                         |
+| [`tmux-window-title`](./ui/tmux-window-title/README.md) | Set the current tmux window title from the first user message.                                               |
 
 ## Internal shared code
 
