@@ -74,7 +74,7 @@ After it returns, always reply with both clickable URLs: label the localhost URL
 
 - OS-respecting light/dark via `prefers-color-scheme` — Dawn colors from `pi/themes/rose-pine-dawn.json` in light mode and Moon colors from `pi/themes/rose-pine-moon.json` in dark mode.
 - All CSS inlined. No external stylesheet, no build step.
-- Vanilla JS for copy-to-clipboard on `<pre>` blocks (auto-attached on load).
+- Vanilla JS adds copy icons to `<pre>` blocks. Diagram icons copy the raw Mermaid or DOT source captured before SVG rendering.
 - Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block, and is initialized with page-aligned theme variables instead of Mermaid's stock light/dark palettes.
 - Graphviz (`@viz-js/viz`, Graphviz compiled to WebAssembly) is loaded from CDN **only if** the page contains a `<pre class="graphviz">` block. No local `dot` binary is required. After render, default black/white output and opposite Rose Pine hard-coded colors are normalized to the active page palette for readable initial light/dark renders.
 - Two placeholders to fill: `{{TITLE}}` (appears twice — `<title>` and `<h1>`) and `{{BODY}}`.

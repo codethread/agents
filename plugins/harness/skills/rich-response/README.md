@@ -4,8 +4,8 @@ Have an agent create its response in HTML rather than Markdown, allowing a riche
 
 Supports:
 
-- Mermaid with page-aligned light/dark theming
-- Graphviz with readable initial light/dark normalization
+- Mermaid with page-aligned light/dark theming and raw-source copying
+- Graphviz with readable initial light/dark normalization and raw-source copying
 - Basic styling, including callouts with spaced title lead-ins
 - Tabs
 - Code snippets and diffs
