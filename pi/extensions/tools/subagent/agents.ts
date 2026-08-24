@@ -128,10 +128,11 @@ const DEFAULT_COMPAT_SETTINGS: CompatSettings = {
 			Skill: null,
 		},
 		models: {
-			haiku: "anthropic/claude-haiku-4-5",
-			sonnet: "anthropic/claude-sonnet-4-6",
-			opus: "anthropic/claude-opus-4-8",
-			fable: "anthropic/claude-fable-5",
+			// haiku: "anthropic/claude-haiku-4-5",
+			haiku: "openai-codex/gpt-5.6-luna:high",
+			sonnet: "openai-codex/gpt-5.6-terra:medium",
+			opus: "openai-codex/gpt-5.6-sol:low",
+			fable: "openai-codex/gpt-5.6-sol:xhigh",
 		},
 		effort: {
 			low: "low",
