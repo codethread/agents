@@ -92,8 +92,8 @@ The subagent extension needs a stable way to find delegation targets, normalize 
 - **SPEC-003.D17 Decision:** `mcpServers` uses the Claude Code list-of-single-key-maps shape (a YAML list where each item maps one server name to its config), supporting remote (`type`/`url`/`headers`) and local stdio (`command`/`args`/`env`) transports.
   - **Rationale:** Authors can copy existing Claude subagent frontmatter verbatim. A plain object map is rejected with a message pointing to the list syntax.
 
-- **SPEC-003.D18 Decision:** MCP servers are connected when the agent is adopted (`--agent`) or spawned (delegated), not during discovery; their tools are registered namespaced as `mcp__<server>__<tool>` and added to the active tool set.
-  - **Rationale:** Discovery stays pure and network-free. Connection cost and credentials only matter for the session that actually uses the agent, and namespacing keeps server tools from colliding with built-ins or each other. Connection failures (for example a headless OAuth rejection) are non-fatal warnings so the agent can still run.
+- **SPEC-003.D18 Decision:** MCP definitions are registered with the installed `pi-mcp-adapter` when the agent is adopted (`--agent`) or spawned (delegated), not during discovery; the adapter's proxy-only `mcp` and `mcpScript` tools are added to the active tool set.
+  - **Rationale:** Discovery stays pure and network-free while the adapter owns lazy connections, credentials, approval, metadata caching, output guarding, and shutdown. Runtime registrations fail closed when the adapter is absent or a server name collides.
 
 - **SPEC-003.D19 Decision:** Agents and swarms share one effective delegation namespace, and cross-kind name collisions are hard errors.
   - **Rationale:** The parent agent calls a single `agent` field and should not have to reason about target kinds. Failing during discovery/session initialization avoids a runtime surprise where `review` sometimes means one agent and sometimes means a fan-out swarm.
@@ -191,9 +191,9 @@ The subagent runtime uses discovery results in four places:
 - **SPEC-003.B25:** when `--agent <name>` is set, the same discovery result resolves the selected single agent by name, derives inherited runtime settings from that `AgentConfig`, applies model/thinking/tools unless explicit CLI flags override those fields, and appends the agent's `systemPrompt` wrapped in `<system-reminder type="selected-agent-prompt">` to the parent system prompt.
 - **SPEC-003.B74:** `debug-agents` renders the effective agent and swarm lists plus source-specific user/project sections.
 - **SPEC-003.B75:** `subagent` execution resolves the requested name against the effective target catalog; single-agent targets use the current one-child path, while swarm targets fan out through runtime orchestration.
-- **SPEC-003.B26:** when a spawned or adopted agent declares `mcpServers`, the runtime connects each server, registers its tools under `mcp__<server>__<tool>`, and adds those names to the active tool set. `mcpServersError` is a hard failure on adoption; connection failures are non-fatal warnings. `--debug-mcp <agent>` and `/debug-mcp <agent>` run a headless smoke test that connects the servers and reports their tools or the connection/config error.
+- **SPEC-003.B26:** when a spawned or adopted agent declares `mcpServers`, the runtime registers each normalized definition through `pi-mcp-adapter`'s versioned event-bus API and adds `mcp` and `mcpScript` to the active tool set. `mcpServersError`, a missing adapter, or a duplicate registration is a hard failure. `--debug-mcp <agent>` and `/debug-mcp <agent>` validate parsing and adapter registration without connecting lazy servers.
 
-MCP connection and tool registration live in `pi/extensions/tools/subagent/mcp.ts` (pure parsing plus network client helpers) and `mcp-runtime.ts` (Pi-side tool registration). Discovery itself never opens a connection.
+MCP compatibility parsing lives in `pi/extensions/tools/subagent/mcp.ts`; `mcp-runtime.ts` owns only adapter registration and disposal. The adapter owns all transport and tool execution behavior. Discovery itself never opens a connection.
 
 This means discovery is the configuration boundary; runtime execution trusts the normalized `AgentConfig` or swarm target it receives.
 

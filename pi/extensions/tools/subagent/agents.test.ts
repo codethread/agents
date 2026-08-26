@@ -1497,10 +1497,13 @@ describe("discoverAgents mcpServers", () => {
 		const jira = findAgentByName(discovery.agents, "jira");
 		expect(jira?.mcpServersError).toBeUndefined();
 		expect(jira?.mcpServers).toEqual([
-			{ name: "atlassian", transport: "http", url: "https://mcp.atlassian.com/v1/mcp" },
+			{
+				name: "atlassian",
+				url: "https://mcp.atlassian.com/v1/mcp",
+				httpTransport: "streamable-http",
+			},
 			{
 				name: "context7",
-				transport: "stdio",
 				command: "npx",
 				args: ["-y", "@upstash/context7-mcp"],
 			},

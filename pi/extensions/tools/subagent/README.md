@@ -55,7 +55,7 @@ You are a specialist in [whatever]...
 | `disallowedTools` |          | Optional denylist using the same syntax and mapping as `tools`; removed from the final allowlist                                                                                                                                                                                                                                                                                   |
 | `model`           |          | Optional model policy. Omit to inherit the parent/default model. Use a non-empty string, `{ id, when? }`, or a non-empty ordered list of strings/objects. Claude aliases (`sonnet`, `haiku`, etc.) map through the compatibility settings; append `:low` etc. for thinking level                                                                                                   |
 | `effort`          |          | Optional Claude Code effort hint mapped to Pi thinking (`low`, `medium`, `high`, `xhigh`, `max` by default) and applied when the model does not already include a thinking suffix                                                                                                                                                                                                  |
-| `mcpServers`      |          | Optional Claude Code-style list of MCP servers. Their tools are connected and exposed under `mcp__<server>__<tool>` when the agent is spawned or adopted. See [MCP servers](#mcp-servers)                                                                                                                                                                                          |
+| `mcpServers`      |          | Optional Claude Code-style list registered with `pi-mcp-adapter`. The agent accesses them through `mcp` or `mcpScript`. See [MCP servers](#mcp-servers)                                                                                                                                                                                                                            |
 
 Canonical Pi tool names: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`, `subagent`. Claude Code compatibility settings are created automatically at `~/.pi/agent/extensions/pi-subagent/settings.json`; edit that file to change tool/model/effort mappings. A `null`-mapped Claude tool is ignored. Other names are treated as custom/extension tools, so use the extension's exact registered tool name (for example, `pi-internals`).
 
@@ -78,61 +78,37 @@ Supported `when` expressions are `$VAR`, `!$VAR`, `$VAR == "value"`, and `$VAR !
 
 ## MCP servers
 
-Agents may declare [MCP](https://modelcontextprotocol.io) servers in Claude Code-style frontmatter. `mcpServers` is a **YAML list of single-key maps**, where each key is the server name and its value is the server config:
-
-```markdown
----
-name: jira-mcp
-description: All things Jira
-tools: bash, read, write
-mcpServers:
-  - atlassian:
-      type: http
-      url: https://mcp.atlassian.com/v1/mcp
----
-
-You perform Jira operations using the Atlassian MCP tools.
-```
-
-Two transport shapes are supported:
-
-| Shape           | Keys                                                      | Notes                                                                |
-| --------------- | --------------------------------------------------------- | -------------------------------------------------------------------- |
-| Remote HTTP/SSE | `type` (`http`\|`sse`, default `http`), `url`, `headers?` | `streamable-http` is accepted as an alias for `http`                 |
-| Local stdio     | `command`, `args?`, `env?`                                | Spawns a child process; `env` merges over a safe default environment |
+Agents may declare MCP servers in Claude Code-style frontmatter. `mcpServers` is a **YAML list of single-key maps**:
 
 ```yaml
 mcpServers:
   - context7:
-      command: npx
+      command: bunx
       args:
         - "-y"
         - "@upstash/context7-mcp"
 ```
 
-Behavior:
+Remote HTTP/SSE definitions accept `type`, `url`, and optional string `headers`. Local stdio definitions accept `command`, optional string-array `args`, and optional string-map `env`. Malformed definitions are recorded during discovery and fail when that agent is selected.
 
-- When an agent is **spawned** (delegated via `subagent`) or **adopted** (`--agent <name>`), each configured server is connected and its tools are registered with the session, namespaced as `mcp__<server>__<tool>` to avoid collisions. The namespaced names are added to the agent's active tool set even when the agent frontmatter `tools` field declares a restrictive allowlist. Explicit CLI tool overrides (`--tools` / `--no-tools`) remain authoritative and skip MCP setup.
-- A **malformed** `mcpServers` block (not a list, multiple keys per entry, unknown keys, unsupported `type`, missing `url`/`command`, mixed remote/stdio fields, duplicate names, non-string `args`/`headers`) is recorded as a per-agent error during discovery. Discovery is not aborted, but adopting that agent (or `/debug-mcp`) reports the error clearly instead of silently ignoring it.
-- A server that **fails to connect** at adoption time (for example a remote server returning an auth error in headless mode) is surfaced as a non-fatal warning, both to the host (UI notification / stderr) and to the adopted agent's own conversation via an `<system-reminder type="mcp-status">` block so it can report the failure instead of fabricating data. The agent still runs with whatever connected.
+MCP transport and tool execution are provided by [`pi-mcp-adapter`](https://github.com/nicobailon/pi-mcp-adapter), which must be installed separately. On agent startup this extension parses the frontmatter and registers each definition through the adapter's versioned runtime-registration event. The adapter then owns lazy connection, authentication, approval, metadata caching, output guarding, and cleanup.
 
-> **Trust note.** A local stdio server (`command`/`args`/`env`) is launched as a child process **at session start** whenever its agent is adopted or delegated to — before any model turn. This is a stronger trust boundary than prompt-only or built-in-tool agents, which only run code when the model decides to call a tool. Discovery loads agents from the nearest `.pi/agents` of the current working tree, so only adopt/delegate to agents from `mcpServers` definitions you trust, the same way you would trust any executable in the repo. Remote (`http`/`sse`) servers do not spawn local processes.
+Runtime-registered servers are proxy-only. Agents that declare `mcpServers` automatically receive the adapter's `mcp` and `mcpScript` tools in addition to their configured tool allowlist. Agent prompts should discover and invoke server tools through `mcp`; use `mcpScript` for multi-call loops, filtering, or chaining. They should not refer to direct `mcp__<server>__<tool>` names.
 
-### Debug / smoke test
+Explicit CLI tool overrides (`--tools` / `--no-tools`) remain authoritative and skip MCP registration. Duplicate names against the adapter's effective config fail closed. Registrations are session-scoped and disposed during shutdown; they are never written to MCP config files.
 
-Connect an agent's MCP servers headlessly and print the tools (or the connection error) without starting a conversation:
+> **Trust note.** A local stdio server can execute the declared command when first used. Only adopt or delegate to agents whose MCP definitions you trust.
 
-```sh
-pi --debug-mcp jira-mcp        # prints the report and exits
+### Debug registration
+
+Verify that an agent's frontmatter parses and that the installed adapter accepts each runtime registration, without connecting the lazy servers:
+
+```text
+pi --debug-mcp nerd
+/debug-mcp nerd
 ```
 
-```
-/debug-mcp jira-mcp            # in-session; renders a hidden debug panel
-```
-
-For the bundled `jira-mcp` agent the Atlassian server requires OAuth, so a headless run returns a clear `invalid_token` / "Missing or invalid access token" error. That is the expected acceptance signal — it confirms the config parsed, the transport connected, and the server rejected the unauthenticated request without requiring an interactive OAuth flow.
-
-Delegated `subagent` calls validate model policy only for the requested target. A hot-reloaded unrelated broken agent does not block a valid selected agent. When the target has declared candidates, the child `pi` process still runs with `--agent <name>` and also receives each selected candidate as explicit `--model`; candidate-local thinking is passed as `--thinking` only when the candidate includes a thinking suffix. Transient provider failures (timeouts/network interruptions, rate limits/429s, and 5xx/overloaded/unavailable responses) retry the same candidate up to three total attempts, then advance. Deterministic provider/model availability failures (auth/API key, unavailable/not found/gated models, quota/funds exhaustion) advance immediately. Context-window overflow is terminal and asks the caller to reduce scope; task, tool, validation, aborted, and ordinary non-provider failures do not advance the model chain. Success returns only the successful child output, without attempt chatter. Compact attempt metadata is kept for humans in the UI/session manifest: attempted model, per-candidate attempt number, success, exit code, short error summary, and retryable marker. Agents that omit `model` keep the inherited/default child invocation with no explicit model or thinking flags from this feature. Swarms validate each member independently: valid members run, invalid members return `<member status="error">` blocks, and the swarm still succeeds when at least one member returns output.
+The debug command deliberately tests the integration boundary rather than duplicating the adapter's connection and tool-list tests. Use `/mcp`, `mcp({ server: "<name>" })`, or `mcp({ connect: "<name>" })` for adapter status and live connection diagnostics.
 
 ---
 

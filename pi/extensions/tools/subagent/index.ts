@@ -35,10 +35,9 @@ import {
 	updateSwarmManifest,
 } from "./session.js";
 import { runSingleAgent } from "./runtime.js";
-import { wrapSystemReminder } from "../../shared/xml.js";
 import { showDebugMessage } from "../../components/debug-message/index.js";
-import { formatMcpSmokeReport, runMcpSmokeTest, type McpConnection } from "./mcp.js";
-import { closeMcpConnections, setupAgentMcpServers } from "./mcp-runtime.js";
+import { describeMcpServer } from "./mcp.js";
+import { disposeMcpRegistrations, setupAgentMcpServers } from "./mcp-runtime.js";
 import {
 	formatDebugSection,
 	formatDebugSwarmSection,
@@ -93,17 +92,6 @@ export function isLikelyFollowUpRequest(task: string, description: string): bool
 
 const OPERATING_RULES_HEADING = "\n\n## Operating rules\n\n";
 const SYSTEM_REMINDER_CLOSE = "\n</system-reminder>";
-
-export function formatMcpStatusPrompt(warnings: string[]): string {
-	if (warnings.length === 0) return "";
-	const body = [
-		"One or more of this agent's configured MCP servers failed to connect, so their tools are unavailable for this run:",
-		...warnings.map((warning) => `- ${warning}`),
-		"",
-		"Do not pretend to have data from those servers. Report the connection error and stop, or proceed only with the tools that are available.",
-	].join("\n");
-	return `\n\n${wrapSystemReminder("mcp-status", body)}`;
-}
 
 export function insertToolingPrompt(systemPrompt: string, promptAddon: string): string {
 	if (!promptAddon) return systemPrompt;
@@ -200,8 +188,7 @@ const DEBUG_MCP_FLAG = "debug-mcp";
 export default function (pi: ExtensionAPI) {
 	let selectedAgentName: string | undefined;
 	let agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
-	let activeMcpConnections: McpConnection[] = [];
-	let mcpSetupWarnings: string[] = [];
+	let activeMcpRegistrations: { dispose(): Promise<void> }[] = [];
 
 	const failAgentSelection = (
 		message: string,
@@ -257,14 +244,9 @@ export default function (pi: ExtensionAPI) {
 		);
 
 		const mcpSetup = agentFlagCliOverrides.hasToolsOverride
-			? { toolNames: [], connections: [], warnings: [] }
+			? { toolNames: [], registrations: [] }
 			: await setupAgentMcpServers(pi, selected.agent);
-		activeMcpConnections = mcpSetup.connections;
-		mcpSetupWarnings = mcpSetup.warnings;
-		for (const warning of mcpSetup.warnings) {
-			if (ctx.hasUI) ctx.ui.notify(warning, "warning");
-			process.stderr.write(`${warning}\n`);
-		}
+		activeMcpRegistrations = mcpSetup.registrations;
 
 		const inheritedActiveTools = getAgentActiveTools(inherited.tools, pi.getAllTools());
 		const baseActiveTools = inheritedActiveTools ?? pi.getActiveTools();
@@ -305,34 +287,39 @@ export default function (pi: ExtensionAPI) {
 
 	pi.registerFlag(DEBUG_MCP_FLAG, {
 		description:
-			"Connect a discovered agent's MCP servers headlessly, print the tool/connection report, and exit",
+			"Validate a discovered agent's MCP frontmatter and adapter runtime registration, print the report, and exit",
 		type: "string",
 	});
 
-	const runMcpSmokeReport = async (agentName: string, cwd: string): Promise<string> => {
+	const runMcpRegistrationReport = async (agentName: string, cwd: string): Promise<string> => {
 		const discovery = discoverAgents(cwd);
 		const agent = findAgentByName(discovery.agents, agentName);
 		if (!agent) {
 			return `Unknown agent "${agentName}". Available agents: ${getAvailableAgentsText(discovery.agents)}`;
 		}
 		if (agent.mcpServersError) return agent.mcpServersError;
-		const results = await runMcpSmokeTest(agent.mcpServers ?? []);
-		return formatMcpSmokeReport(agent.name, results);
+		const setup = await setupAgentMcpServers(pi, agent);
+		await disposeMcpRegistrations(setup.registrations);
+		const servers = agent.mcpServers ?? [];
+		if (servers.length === 0) return `Agent "${agent.name}" declares no MCP servers.`;
+		return [
+			`MCP adapter registration for agent "${agent.name}":`,
+			...servers.map((server) => `- ${server.name}: registered (${describeMcpServer(server)})`),
+		].join("\n");
 	};
 
 	pi.on("session_shutdown", async () => {
-		const connections = activeMcpConnections;
-		activeMcpConnections = [];
-		await closeMcpConnections(connections);
+		const registrations = activeMcpRegistrations;
+		activeMcpRegistrations = [];
+		await disposeMcpRegistrations(registrations);
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
 		agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
-		mcpSetupWarnings = [];
 		const debugMcpFlag = pi.getFlag(DEBUG_MCP_FLAG);
 		const debugMcpAgent = typeof debugMcpFlag === "string" ? debugMcpFlag.trim() : undefined;
 		if (debugMcpAgent) {
-			const report = await runMcpSmokeReport(debugMcpAgent, ctx.cwd);
+			const report = await runMcpRegistrationReport(debugMcpAgent, ctx.cwd);
 			process.stdout.write(`${report}\n`);
 			process.exit(0);
 		}
@@ -362,10 +349,9 @@ export default function (pi: ExtensionAPI) {
 		const discovery = selected?.discovery ?? discoverAgents(ctx.cwd);
 		const promptAddon = formatAgentsForPrompt(discovery.agents, discovery.swarms);
 		const selectedPromptAddon = formatSelectedAgentPrompt(selected?.agent);
-		const mcpStatusAddon = formatMcpStatusPrompt(mcpSetupWarnings);
-		if (!promptAddon && !selectedPromptAddon && !mcpStatusAddon) return;
+		if (!promptAddon && !selectedPromptAddon) return;
 		return {
-			systemPrompt: `${insertToolingPrompt(event.systemPrompt, promptAddon)}${selectedPromptAddon}${mcpStatusAddon}`,
+			systemPrompt: `${insertToolingPrompt(event.systemPrompt, promptAddon)}${selectedPromptAddon}`,
 		};
 	});
 
@@ -417,7 +403,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.registerCommand("debug-mcp", {
 		description:
-			"Connect a discovered agent's MCP servers and report tools or connection errors (usage: /debug-mcp <agent>)",
+			"Validate an agent's MCP frontmatter and adapter runtime registration (usage: /debug-mcp <agent>)",
 		handler: async (args, ctx) => {
 			const agentName = args.trim();
 			if (!agentName) {
@@ -434,8 +420,8 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			if (ctx.hasUI) ctx.ui.notify(`Connecting MCP servers for "${agentName}"...`, "info");
-			const report = await runMcpSmokeReport(agentName, ctx.cwd);
+			if (ctx.hasUI) ctx.ui.notify(`Registering MCP servers for "${agentName}"...`, "info");
+			const report = await runMcpRegistrationReport(agentName, ctx.cwd);
 
 			if (!ctx.hasUI) {
 				process.stdout.write(`${report}\n`);

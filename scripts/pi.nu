@@ -78,7 +78,7 @@ def --wrapped pi [
 	--long-cache                              # Set PI_CACHE_RETENTION=long for this invocation
 	# Extension flags — update when new extensions add CLI flags (see pi/extensions/README.md)
 	--agent: string                           # [EXT] Inherit discovered agent config by name (prompt/model/tools/mcpServers, unless overridden)
-	--debug-mcp: string                       # [EXT] Connect a discovered agent's MCP servers headlessly, print the report, and exit
+	--debug-mcp: string                       # [EXT] Validate agent MCP frontmatter and adapter runtime registration, print the report, and exit
 	--debug-prompt                            # [EXT] Print effective system prompt and exit (optional JSON override arg)
 	--debug-tldr                              # [EXT] Print current session TL;DR and exit
 	--debug-tldr-transcript                   # [EXT] Print transcript used by /tldr and exit
