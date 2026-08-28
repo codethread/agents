@@ -88,38 +88,56 @@ export async function createPrunedSessionFile(
 }
 
 const MODEL_CHOICES = [
-	"openai-codex/gpt-5.5",
-	"openai-codex/gpt-5.4",
-	"openai-codex/gpt-5.4-mini",
-	"anthropic/claude-haiku-4-5",
+	"openai-codex/gpt-5.6-tera",
+	"openai-codex/gpt-5.6-luna",
 	"anthropic/claude-sonnet-4-6",
-	"anthropic/claude-opus-4-6",
 	"anthropic/claude-opus-4-8",
 ] as const;
 
-function formatModelRef(model: Model<any>): string {
+type ModelReference = Pick<Model<any>, "provider" | "id">;
+
+function formatModelRef(model: ModelReference): string {
 	return `${model.provider}/${model.id}`;
+}
+
+export function orderModels<T extends ModelReference>(
+	availableModels: readonly T[],
+	currentModel: ModelReference | undefined,
+): T[] {
+	const orderedModels: T[] = [];
+	const seenRefs = new Set<string>();
+	const addModel = (model: T | undefined) => {
+		if (!model) return;
+		const modelRef = formatModelRef(model);
+		if (seenRefs.has(modelRef)) return;
+		seenRefs.add(modelRef);
+		orderedModels.push(model);
+	};
+
+	if (currentModel) {
+		addModel(
+			availableModels.find((model) => formatModelRef(model) === formatModelRef(currentModel)),
+		);
+	}
+	for (const preferredRef of MODEL_CHOICES) {
+		addModel(availableModels.find((model) => formatModelRef(model) === preferredRef));
+	}
+	for (const model of availableModels) addModel(model);
+
+	return orderedModels;
 }
 
 async function selectModelArgs(ctx: ExtensionCommandContext): Promise<string[] | undefined> {
 	const availableModels = await ctx.modelRegistry.getAvailable();
-	const availableRefs = new Set(availableModels.map(formatModelRef));
-	const currentModelRef = ctx.model ? formatModelRef(ctx.model) : undefined;
-	const selectableModelRefs = MODEL_CHOICES.filter((modelRef) => availableRefs.has(modelRef));
+	const orderedModels = orderModels(availableModels, ctx.model);
+	const orderedModelRefs = orderedModels.map(formatModelRef);
 
-	if (selectableModelRefs.length === 0) {
-		ctx.ui.notify("/fork-off could not find any authenticated preferred models", "error");
+	if (orderedModelRefs.length === 0) {
+		ctx.ui.notify("/fork-off could not find any authenticated models", "error");
 		return undefined;
 	}
 
-	const defaultChoice =
-		currentModelRef && selectableModelRefs.some((modelRef) => modelRef === currentModelRef)
-			? currentModelRef
-			: selectableModelRefs[0];
-	const orderedModelRefs = [
-		defaultChoice,
-		...selectableModelRefs.filter((modelRef) => modelRef !== defaultChoice),
-	];
+	const currentModelRef = ctx.model ? formatModelRef(ctx.model) : undefined;
 	const choices = orderedModelRefs.map((modelRef, index) => ({
 		value: modelRef,
 		label: `${modelRef}${modelRef === currentModelRef ? " (current)" : ""}${index === 0 ? " (default)" : ""}`,

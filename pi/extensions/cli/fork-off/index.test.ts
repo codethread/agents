@@ -2,11 +2,49 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createPrunedSessionFile, findLatestAssistantEntryId } from "./index.js";
+import { createPrunedSessionFile, findLatestAssistantEntryId, orderModels } from "./index.js";
 
 function makeTempDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
+
+describe("fork-off model ordering", () => {
+	it("puts the current model first, then preferred models, then remaining models", () => {
+		const availableModels = [
+			{ provider: "custom", id: "custom-model" },
+			{ provider: "anthropic", id: "claude-sonnet-4-6" },
+			{ provider: "openai-codex", id: "gpt-5.4" },
+			{ provider: "other", id: "other-model" },
+			{ provider: "openai-codex", id: "gpt-5.6-luna" },
+			{ provider: "openai-codex", id: "gpt-5.6-tera" },
+		] as const;
+
+		const orderedModels = orderModels(availableModels, {
+			provider: "openai-codex",
+			id: "gpt-5.4",
+		});
+
+		expect(orderedModels.map((model) => `${model.provider}/${model.id}`)).toEqual([
+			"openai-codex/gpt-5.4",
+			"openai-codex/gpt-5.6-tera",
+			"openai-codex/gpt-5.6-luna",
+			"anthropic/claude-sonnet-4-6",
+			"custom/custom-model",
+			"other/other-model",
+		]);
+	});
+
+	it("does not duplicate the current model when it is preferred", () => {
+		const availableModels = [
+			{ provider: "anthropic", id: "claude-haiku-4-5" },
+			{ provider: "openai", id: "gpt-5.4-nano" },
+		] as const;
+
+		const orderedModels = orderModels(availableModels, availableModels[0]);
+
+		expect(orderedModels).toEqual(availableModels);
+	});
+});
 
 describe("fork-off session pruning", () => {
 	it("finds the latest assistant entry in the active branch", () => {
