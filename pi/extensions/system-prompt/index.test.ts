@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
 	const buildPrompt = vi.fn(() => "<owned prompt />");
+	const loadClaudeLocalContextFiles = vi.fn(async () => []);
 	const renderDynamicPrompt = vi.fn(async () => "<dynamic />");
 	const showDebugMessage = vi.fn(async () => {});
 
 	return {
 		buildPrompt,
+		loadClaudeLocalContextFiles,
 		renderDynamicPrompt,
 		showDebugMessage,
 	};
@@ -20,6 +22,7 @@ vi.mock("./prompt-builder.js", () => ({
 	DEFAULT_IDENTITY:
 		"You are an expert coding assistant operating inside pi, a coding agent harness.",
 	buildSystemPrompt: mocks.buildPrompt,
+	loadClaudeLocalContextFiles: mocks.loadClaudeLocalContextFiles,
 }));
 
 vi.mock("./templates.js", () => ({
@@ -32,6 +35,7 @@ import systemPromptExtension from "./index.js";
 beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.buildPrompt.mockReturnValue("<owned prompt />");
+	mocks.loadClaudeLocalContextFiles.mockResolvedValue([]);
 	mocks.renderDynamicPrompt.mockResolvedValue("<dynamic />");
 });
 

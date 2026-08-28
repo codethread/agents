@@ -90,6 +90,8 @@ describe("system-prompt harness integration", () => {
 
 		writeText(path.join(agentDir, "agent.njk"), "Use GitHub globally.");
 		writeText(path.join(cwd, ".pi", "agent.njk"), "Use issue labels in this repo.");
+		writeText(path.join(cwd, "AGENTS.md"), "Use pnpm.\n");
+		writeText(path.join(cwd, "CLAUDE.local.md"), "Keep local instructions last.\n");
 		writeText(path.join(cwd, "README.md"), "# Demo repo\n");
 		writeText(path.join(cwd, "src", "index.ts"), "export const demo = true;\n");
 
@@ -109,6 +111,10 @@ describe("system-prompt harness integration", () => {
 			'<system-reminder type="project-rules">\nUse issue labels in this repo.\n</system-reminder>',
 		);
 		expect(systemPrompt).not.toContain('<system-reminder type="project-structure">');
+		expect(systemPrompt).toContain("Keep local instructions last.");
+		expect(systemPrompt.indexOf("Use pnpm.")).toBeLessThan(
+			systemPrompt.indexOf("Keep local instructions last."),
+		);
 
 		const [projectStructureMessage] = getMessagesWithPrefix(
 			session,

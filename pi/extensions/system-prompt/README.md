@@ -10,7 +10,7 @@ This directory is intentionally flat:
 
 ## Behavior
 
-The extension replaces Pi's generated prompt during `before_agent_start` using structured `systemPromptOptions` for identity, tool metadata, skills, context files, append text, date, and cwd.
+The extension replaces Pi's generated prompt during `before_agent_start` using structured `systemPromptOptions` for identity, tool metadata, skills, context files, append text, date, and cwd. It also loads `CLAUDE.local.md` from the cwd and each ancestor, ordered from the filesystem root toward the cwd, and appends those files after Pi's discovered `AGENTS.md`/`CLAUDE.md` context files.
 
 It also renders Nunjucks rule templates into the owned prompt:
 

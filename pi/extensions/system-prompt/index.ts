@@ -5,7 +5,11 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { showDebugMessage } from "../components/debug-message/index.js";
 import { discoverProjectRules, getUnconditionalRules } from "../shared/project-rules.js";
-import { DEFAULT_IDENTITY, buildSystemPrompt } from "./prompt-builder.js";
+import {
+	DEFAULT_IDENTITY,
+	buildSystemPrompt,
+	loadClaudeLocalContextFiles,
+} from "./prompt-builder.js";
 import { parseDebugPromptOverrides, renderDynamicPrompt, type TemplateVars } from "./templates.js";
 
 const DEBUG_PROMPT_FLAG = "debug-prompt";
@@ -173,7 +177,10 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			},
 			printPromptOnNextTurn ? debugPromptOverrides : null,
 		);
-		const projectRules = await discoverProjectRules(options.cwd, pi.exec, ctx.signal);
+		const [projectRules, claudeLocalContextFiles] = await Promise.all([
+			discoverProjectRules(options.cwd, pi.exec, ctx.signal),
+			loadClaudeLocalContextFiles(options.cwd),
+		]);
 		for (const warning of projectRules.warnings) {
 			notify(ctx, `[project-rules] ${warning}`, "warning");
 		}
@@ -191,7 +198,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 					options.promptGuidelines,
 					toolPromptMetadata,
 				),
-				contextFiles: options.contextFiles ?? [],
+				contextFiles: [...(options.contextFiles ?? []), ...claudeLocalContextFiles],
 				skills: options.skills ?? [],
 				appendSystemPrompt: options.appendSystemPrompt,
 				dynamicPrompt,

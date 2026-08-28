@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import type { BuildSystemPromptOptions } from "@earendil-works/pi-coding-agent";
 import type { ProjectRule } from "../shared/project-rules.js";
 import { renderProjectRulesReminder } from "../shared/project-rules.js";
@@ -110,6 +112,25 @@ export function renderGuidelines(
 	const claimed = toolSpecificGuidelines(toolGuidelines);
 	const generalGuidelines = promptGuidelines.filter((guideline) => !claimed.has(guideline.trim()));
 	return bullet(unique([...generalGuidelines, ...DEFAULT_GUIDELINES]));
+}
+
+export async function loadClaudeLocalContextFiles(cwd: string): Promise<PromptContextFile[]> {
+	const files: PromptContextFile[] = [];
+	let directory = path.resolve(cwd);
+	const root = path.parse(directory).root;
+
+	while (true) {
+		const filePath = path.join(directory, "CLAUDE.local.md");
+		try {
+			files.unshift({ path: filePath, content: await readFile(filePath, "utf8") });
+		} catch (error) {
+			if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+		}
+		if (directory === root) break;
+		directory = path.dirname(directory);
+	}
+
+	return files;
 }
 
 export function renderContextFiles(

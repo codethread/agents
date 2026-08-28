@@ -1,67 +1,36 @@
 ---
 name: git-commit
-description: Create git commit(s) with a well-crafted conventional commit message
+description: Create well-scoped Git commits with repository-appropriate messages
 argument-hint: [optional context about changes]
 ---
 
-# Create Git Commit
+# Git Commit
 
-Create a git commit following your standard git commit workflow. The user has completed work and is ready to commit their changes.
+Create commit(s) for the current task. Treat `$ARGUMENTS` as additional context.
 
-## User Context About Changes
+## Procedure
 
-$ARGUMENTS
+1. Read the repository instructions, working-tree status and diff, staged diff, and recent commit messages.
+2. Identify the changes that belong to the current task. If ownership is unclear, ask before including them.
+3. Split independent changes into coherent commits; use one commit when the changes form a single unit.
+4. Stage only the intended files and review the staged diff before each commit.
+5. Follow the repository's commit convention. Otherwise, use a concise Conventional Commit subject in imperative mood that describes the change's purpose.
+6. Commit using a heredoc so multiline messages are preserved exactly:
 
-## Current Repository State
-
-- **Current git status**: !`git status`
-- **Current git diff** (staged and unstaged changes): !`git diff HEAD`
-- **Current branch**: !`git branch --show-current`
-- **Recent commits** (for style reference): !`git log --oneline -10`
-
-## Your Task
-
-Based on the above changes and user context, create atomic commits following these guidelines:
-
-- **IMPORTANT**: Any repo specific instructions around git commits supersede these instructions
-
-### Commit Message Guidelines
-
-1. **Format**: Use conventional commits (feat:, fix:, docs:, refactor:, chore:, test:, style:)
-2. **First line**: 50 characters or less, imperative mood
-3. **Focus**: Explain "why" rather than "what" (code shows the what)
-4. **Style**: Match the style of recent commits in this repository
-
-### Atomic level
-
-- Favour separate commits, but single commit is fine if specified
-
-### Quality Checks
-
-- Exclude temporary files (.env, \*.log, .DS_Store, build artifacts, etc.)
-- Ensure message accurately reflects the changes
-- Verify all relevant changes are included
-
-### Execution Steps
-
-1. Add relevant files with `git add` (exclude temp files)
-2. Create commit with message using HEREDOC format:
    ```bash
    git commit -m "$(cat <<'EOF'
-   Your commit message here
+   <commit message>
    EOF
    )"
    ```
-3. Run `git status` after to verify success
 
-### Pre-commit Hook Handling
+   Fix any hook failure rather than bypassing it.
 
-- If hooks modify files and it's safe to amend (check authorship with `git log -1 --format='%an %ae'` and verify not pushed), amend the commit
-- Otherwise create a new commit
+7. Verify the resulting commit and report any changes left uncommitted.
 
-## Current context
+## Constraints
 
-- If this is running within an existing session, focus on the work we have done only.
-- If running in a new session, commit everything to get a clean worktree
-- If in doubt, just ask
-- Never run `--no-verify` to skip checks. Fix them.
+- Repository-specific instructions and the user's requested scope take precedence.
+- Never include unrelated changes, secrets, temporary files, logs, or generated artifacts unless they are intentionally part of the task.
+- Never use `--no-verify`.
+- Never amend a commit that existed before this task unless explicitly asked.
