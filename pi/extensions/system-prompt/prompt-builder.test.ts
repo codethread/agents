@@ -175,8 +175,6 @@ describe("buildSystemPrompt", () => {
 
 			## Additional system instructions
 
-			Apply this explicit system-prompt addition after the owned prompt sections.
-
 			Extra owner-provided instruction."
 		`);
 	});

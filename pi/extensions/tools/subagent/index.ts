@@ -103,6 +103,10 @@ export function insertToolingPrompt(systemPrompt: string, promptAddon: string): 
 	return `${systemPrompt.slice(0, harnessEndIndex)}\n\n${promptAddon}${systemPrompt.slice(harnessEndIndex)}`;
 }
 
+export function isSubagentToolEnabled(activeTools: readonly string[]): boolean {
+	return activeTools.includes("subagent");
+}
+
 export function findSwarmMemberResumeState(
 	members: readonly { name: string; sessionId?: string; sessionFile?: string }[] | undefined,
 	memberName: string,
@@ -347,7 +351,9 @@ export default function (pi: ExtensionAPI) {
 	pi.on("before_agent_start", (event, ctx) => {
 		const selected = requireSelectedAgent(ctx);
 		const discovery = selected?.discovery ?? discoverAgents(ctx.cwd);
-		const promptAddon = formatAgentsForPrompt(discovery.agents, discovery.swarms);
+		const promptAddon = isSubagentToolEnabled(pi.getActiveTools())
+			? formatAgentsForPrompt(discovery.agents, discovery.swarms)
+			: "";
 		const selectedPromptAddon = formatSelectedAgentPrompt(selected?.agent);
 		if (!promptAddon && !selectedPromptAddon) return;
 		return {

@@ -192,10 +192,6 @@ export function buildSystemPrompt(
 				),
 			),
 		),
-		renderSection(
-			"Additional system instructions",
-			"Apply this explicit system-prompt addition after the owned prompt sections.",
-			input.appendSystemPrompt,
-		),
+		renderSection("Additional system instructions", "", input.appendSystemPrompt),
 	]);
 }

@@ -10,6 +10,7 @@ import {
 	getStartupModelPolicyErrors,
 	hasAllSwarmMembersFailed,
 	isLikelyFollowUpRequest,
+	isSubagentToolEnabled,
 } from "./index.js";
 import { getAvailableAgentsText, getAvailableSwarmsText } from "./render.js";
 
@@ -35,6 +36,13 @@ function makeSwarm(name: string, source: SwarmConfig["source"]): SwarmConfig {
 		filePath: `/tmp/${name}/swarm.json`,
 	};
 }
+
+describe("system prompt helpers", () => {
+	it("only advertises subagents when the subagent tool is active", () => {
+		expect(isSubagentToolEnabled(["read", "subagent"])).toBe(true);
+		expect(isSubagentToolEnabled(["read", "bash"])).toBe(false);
+	});
+});
 
 describe("swarm helper functions", () => {
 	it("detects follow-up-like task prompts", () => {
