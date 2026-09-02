@@ -11,6 +11,12 @@ export default tseslint.config(
 	...tseslint.configs.recommended,
 	prettierConfig,
 	{
+		files: ["**/*.{js,mjs,cjs}"],
+		languageOptions: {
+			globals: globals.node,
+		},
+	},
+	{
 		files: ["**/*.ts"],
 		languageOptions: {
 			ecmaVersion: "latest",

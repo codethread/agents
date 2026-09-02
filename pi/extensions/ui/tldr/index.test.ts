@@ -1,15 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type * as PiAi from "@earendil-works/pi-ai";
-
-vi.mock("@earendil-works/pi-ai", async (importOriginal) => {
-	const actual = await importOriginal<typeof PiAi>();
-	return {
-		...actual,
-		complete: vi.fn(),
-	};
-});
-
-import { complete } from "@earendil-works/pi-ai";
 import { calls, createTestSession, says, type TestSession, when } from "@gaodes/pi-test-harness";
 import tldrExtension from "./index.js";
 const TLDR_MODEL = {
@@ -19,6 +8,7 @@ const TLDR_MODEL = {
 } as const;
 
 let t: TestSession | undefined;
+const completeSpy = vi.fn();
 
 afterEach(() => {
 	t?.dispose();
@@ -50,6 +40,7 @@ async function createTldrSession(options?: {
 	modelRegistry.getApiKeyAndHeaders = vi
 		.fn()
 		.mockResolvedValue(options?.authResult ?? { ok: true, apiKey: "test-key" });
+	modelRegistry.complete = completeSpy;
 
 	return t;
 }
@@ -60,7 +51,7 @@ function getNotifyMessages(session: TestSession): string[] {
 
 describe("tldr extension harness integration", () => {
 	it("summarizes the current session via /tldr without adding the summary back into agent context", async () => {
-		const completeSpy = vi.mocked(complete).mockResolvedValue({
+		completeSpy.mockResolvedValue({
 			role: "assistant",
 			content: [
 				{
@@ -126,7 +117,7 @@ describe("tldr extension harness integration", () => {
 	});
 
 	it("warns and skips when no preferred summary model is available", async () => {
-		const completeSpy = vi.mocked(complete).mockResolvedValue({
+		completeSpy.mockResolvedValue({
 			role: "assistant",
 			content: [{ type: "text", text: "unused" }],
 			stopReason: "stop",

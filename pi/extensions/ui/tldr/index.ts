@@ -1,4 +1,4 @@
-import { complete, type Model } from "@earendil-works/pi-ai";
+import type { Model } from "@earendil-works/pi-ai";
 import { type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { showDebugMessage } from "../../components/debug-message/index.js";
 import {
@@ -64,7 +64,7 @@ async function summarizeTranscript(
 		return undefined;
 	}
 
-	const response = await complete(
+	const response = await ctx.modelRegistry.complete(
 		model,
 		{
 			messages: [

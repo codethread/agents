@@ -81,6 +81,19 @@ const request = {
 };
 
 describe("getPiInvocation", () => {
+	it("uses the pi shim when running inside the pies daemon", () => {
+		const args = ["--mode", "json", "-p", "Task: map things"];
+
+		expect(
+			getPiInvocation(args, {
+				execPath: "/usr/bin/node",
+				currentScript: "pies",
+				scriptExists: () => true,
+				piesDaemon: true,
+			}),
+		).toEqual({ command: "pi", args });
+	});
+
 	it("does not forward Bun's virtual entrypoint as a prompt", () => {
 		const args = ["--mode", "json", "Task: map things"];
 

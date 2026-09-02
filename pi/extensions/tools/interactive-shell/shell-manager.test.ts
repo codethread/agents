@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { InteractiveShellManager, type CommandRunner } from "./shell-manager.js";
 
 class FakeRunner implements CommandRunner {
+	private readonly deferFirstSend: boolean;
 	readonly calls: Array<{ args: string[]; stdin?: string }> = [];
 	readonly livePanes = new Set<string>();
 	private nextPane = 1;
@@ -13,7 +14,9 @@ class FakeRunner implements CommandRunner {
 	});
 	readonly sendOrder: string[] = [];
 
-	constructor(private readonly deferFirstSend = false) {}
+	constructor(deferFirstSend = false) {
+		this.deferFirstSend = deferFirstSend;
+	}
 
 	async run(
 		args: string[],

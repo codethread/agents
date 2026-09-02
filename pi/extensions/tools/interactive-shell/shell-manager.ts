@@ -52,13 +52,16 @@ export class TmuxCommandRunner implements CommandRunner {
 }
 
 export class InteractiveShellManager {
+	private readonly runner: CommandRunner;
 	private readonly shells = new Map<string, ShellRecord>();
 	private latestId: string | undefined;
 	private spawnQueue: Promise<void> = Promise.resolve();
 	private sendQueue: Promise<void> = Promise.resolve();
 	private nextSession = 1;
 
-	constructor(private readonly runner: CommandRunner) {}
+	constructor(runner: CommandRunner) {
+		this.runner = runner;
+	}
 
 	async spawn(cwd: string, name: string | undefined, signal?: AbortSignal): Promise<ShellRecord> {
 		const previousSpawn = this.spawnQueue;

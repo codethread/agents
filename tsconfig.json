@@ -8,6 +8,8 @@
 		"strict": true,
 		"noEmit": true,
 		"isolatedModules": true,
+		"allowImportingTsExtensions": true,
+		"erasableSyntaxOnly": true,
 		"verbatimModuleSyntax": true,
 		"allowSyntheticDefaultImports": true,
 		"resolveJsonModule": true,
@@ -15,5 +17,5 @@
 		"forceConsistentCasingInFileNames": true,
 		"types": ["node"]
 	},
-	"include": ["pi/extensions/**/*.ts", ".pi/extensions/**/*.ts"]
+	"include": ["pi/extensions/**/*.ts", ".pi/extensions/**/*.ts", "pies/**/*.ts"]
 }
