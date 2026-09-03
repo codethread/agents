@@ -100,7 +100,7 @@ function groupToolGuidelines(
 
 export default function systemPromptExtension(pi: ExtensionAPI) {
 	let printPromptOnNextTurn = false;
-	let debugPromptOverrides: TemplateVars | null = null;
+	let dynamicPrompt: string | null = null;
 	let lastMaterializedPrompt: string | null = null;
 	const toolPromptMetadata = new Map<string, ToolPromptMetadata>();
 	const registerTool = pi.registerTool.bind(pi);
@@ -146,37 +146,40 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	pi.on("session_start", (_event, ctx) => {
+	pi.on("session_start", async (_event, ctx) => {
 		printPromptOnNextTurn = false;
-		debugPromptOverrides = null;
+		dynamicPrompt = null;
 		lastMaterializedPrompt = null;
 
 		const wantsPromptDebug = pi.getFlag(DEBUG_PROMPT_FLAG) === true;
-		if (!wantsPromptDebug) return;
-
-		const parsedOverrides = parseDebugPromptOverrides(process.argv.slice(2));
-		if (parsedOverrides.error) {
-			notify(ctx, parsedOverrides.error, "error");
-			process.stderr.write(`${parsedOverrides.error}\n`);
-			process.exit(1);
+		let templateOverrides: TemplateVars | null = null;
+		if (wantsPromptDebug) {
+			const parsedOverrides = parseDebugPromptOverrides(process.argv.slice(2));
+			if (parsedOverrides.error) {
+				notify(ctx, parsedOverrides.error, "error");
+				process.stderr.write(`${parsedOverrides.error}\n`);
+				process.exit(1);
+			}
+			templateOverrides = parsedOverrides.overrides;
 		}
-		debugPromptOverrides = parsedOverrides.overrides;
 
+		dynamicPrompt = await renderDynamicPrompt(
+			{
+				cwd: ctx.cwd,
+				hasUI: ctx.hasUI,
+				model: ctx.model,
+				tools: pi.getActiveTools(),
+			},
+			templateOverrides,
+		);
+
+		if (!wantsPromptDebug) return;
 		printPromptOnNextTurn = true;
 		notify(ctx, "Debug prompt mode: send a message to materialize the prompt.", "info");
 	});
 
 	pi.on("before_agent_start", async (event: BeforeAgentStartEvent, ctx) => {
 		const options = getOwnedSystemPromptOptions(event);
-		const dynamicPrompt = await renderDynamicPrompt(
-			{
-				cwd: options.cwd,
-				hasUI: ctx.hasUI,
-				model: ctx.model,
-				tools: options.selectedTools,
-			},
-			printPromptOnNextTurn ? debugPromptOverrides : null,
-		);
 		const [projectRules, claudeLocalContextFiles] = await Promise.all([
 			discoverProjectRules(options.cwd, pi.exec, ctx.signal),
 			loadClaudeLocalContextFiles(options.cwd),
@@ -212,7 +215,6 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		if (prompt) lastMaterializedPrompt = prompt;
 		if (!printPromptOnNextTurn) return;
 		printPromptOnNextTurn = false;
-		debugPromptOverrides = null;
 		process.stdout.write(`${prompt}\n`);
 		process.exit(0);
 	});

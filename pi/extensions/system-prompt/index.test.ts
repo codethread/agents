@@ -82,7 +82,7 @@ describe("system-prompt extension", () => {
 		expect(counts.has("input")).toBe(false);
 	});
 
-	it("arms --debug-prompt without sending a synthetic ping", () => {
+	it("arms --debug-prompt without sending a synthetic ping", async () => {
 		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
 		const sendUserMessage = vi.fn();
 		const notify = vi.fn();
@@ -100,7 +100,10 @@ describe("system-prompt extension", () => {
 			exec: vi.fn(),
 		} as any);
 
-		handlers.get("session_start")?.({}, { cwd: "/repo", hasUI: true, ui: { notify } });
+		await handlers.get("session_start")?.(
+			{},
+			{ cwd: "/repo", hasUI: true, model: null, ui: { notify } },
+		);
 
 		expect(sendUserMessage).not.toHaveBeenCalled();
 		expect(notify).toHaveBeenCalledWith(
@@ -126,6 +129,15 @@ describe("system-prompt extension", () => {
 			exec: vi.fn(),
 		} as any);
 
+		await handlers.get("session_start")?.(
+			{},
+			{
+				cwd: "/repo",
+				hasUI: true,
+				model: { provider: "openai", id: "gpt-5" },
+			},
+		);
+
 		const result = await handlers.get("before_agent_start")?.(
 			{
 				systemPrompt: "Base prompt",
@@ -146,7 +158,7 @@ describe("system-prompt extension", () => {
 			},
 		);
 
-		expect(getActiveTools).not.toHaveBeenCalled();
+		expect(getActiveTools).toHaveBeenCalledTimes(1);
 		expect(mocks.buildPrompt).toHaveBeenCalledWith(
 			expect.objectContaining({
 				cwd: "/repo",
@@ -160,17 +172,53 @@ describe("system-prompt extension", () => {
 			}),
 		);
 		expect(mocks.renderDynamicPrompt).toHaveBeenCalledWith(
-			expect.objectContaining({
+			{
 				cwd: "/repo",
 				hasUI: true,
 				model: { provider: "openai", id: "gpt-5" },
-				tools: ["bash", "edit"],
-			}),
+				tools: ["write"],
+			},
 			null,
 		);
+		expect(mocks.renderDynamicPrompt).toHaveBeenCalledTimes(1);
 		expect(result).toEqual({
 			systemPrompt: "<owned prompt />",
 		});
+	});
+
+	it("renders templates once per session start and again after reload", async () => {
+		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
+		systemPromptExtension({
+			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
+				handlers.set(eventName, handler);
+			},
+			registerFlag: vi.fn(),
+			registerCommand: vi.fn(),
+			registerTool: vi.fn(),
+			getFlag: vi.fn(() => false),
+			getActiveTools: vi.fn(() => ["read"]),
+			sendUserMessage: vi.fn(),
+			exec: vi.fn(),
+		} as any);
+
+		const ctx = { cwd: "/repo", hasUI: false, model: null };
+		const event = {
+			systemPrompt: "Base prompt",
+			systemPromptOptions: {
+				cwd: "/repo",
+				selectedTools: ["read"],
+				toolSnippets: { read: "Read files" },
+				promptGuidelines: [],
+			},
+		};
+
+		await handlers.get("session_start")?.({ reason: "startup" }, ctx);
+		await handlers.get("before_agent_start")?.(event, ctx);
+		await handlers.get("before_agent_start")?.(event, ctx);
+		expect(mocks.renderDynamicPrompt).toHaveBeenCalledTimes(1);
+
+		await handlers.get("session_start")?.({ reason: "reload" }, ctx);
+		expect(mocks.renderDynamicPrompt).toHaveBeenCalledTimes(2);
 	});
 
 	it("warns when /debug-prompt is used before the first materialized turn", async () => {

@@ -17,6 +17,8 @@ It also renders Nunjucks rule templates into the owned prompt:
 1. global template: `<PI_CODING_AGENT_DIR>/agent.njk`
 2. nearest project template: `.pi/agent.njk` walking upward from cwd
 
+Templates are discovered, read, and rendered once at session startup, alongside Pi's other prompt resources. `/reload` starts the lifecycle again, so template edits take effect after a reload or a new session rather than on the next turn.
+
 If both exist, both are rendered as separate XML blocks: global inside `<system-reminder type="rules">`, project inside `<system-reminder type="project-rules">`.
 
 The owned prompt also includes a stable `<system-reminder type="project-rules">` instruction explaining that project-rule reminders may be injected automatically when matching files are mentioned or read. Agents are told to apply those reminders silently, not acknowledge or summarize them, and continue the assigned task.
@@ -27,7 +29,7 @@ Templates receive:
 
 - `provider`, `model`, `cwd`, `hasUI`
 - `isMainAgent` / `isSubagent`, derived from `PI_SUBAGENT=1`
-- `tools` — Pi's selected tool names for the turn
+- `tools` — Pi's active tool names at session startup
 - all environment variables
 
 Custom helpers:

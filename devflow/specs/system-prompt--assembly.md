@@ -30,11 +30,11 @@ Document how this package contributes model-facing prompt context: Pi core disco
 - **SPEC-006.D1 Decision:** `system-prompt` owns only stable prompt-layer behavior: full system-prompt replacement and dynamic rule templates.
   - **Rationale:** These are operating instructions that should live in the effective system prompt. Volatile context such as the project tree is better sent as custom message context so it can refresh without changing the system prompt.
 
-- **SPEC-006.D2 Decision:** Dynamic template rendering runs before owned prompt building.
-  - **Rationale:** The owned builder receives rendered global/project rules as one input, so it controls final ordering and formatting.
+- **SPEC-006.D2 Decision:** Dynamic templates are discovered, read, and rendered once at session startup and again on `/reload`, before owned prompt building.
+  - **Rationale:** This matches the lifecycle of Pi's other prompt resources, avoids per-turn filesystem work, and gives template edits an explicit reload boundary.
 
-- **SPEC-006.D3 Decision:** The extension prefers `before_agent_start.event.systemPromptOptions.selectedTools` over rediscovering active tools.
-  - **Rationale:** Pi core already resolved the selected tool set for the prompt being built. Reusing it keeps owned tool metadata and template variables aligned with the actual request.
+- **SPEC-006.D3 Decision:** Template rendering uses Pi's active tools at session startup.
+  - **Rationale:** Template output remains stable for the session and refreshes with the rest of the prompt resources on `/reload`.
 
 - **SPEC-006.D4 Decision:** The owned builder consumes Pi's structured `systemPromptOptions` instead of parsing `event.systemPrompt`.
   - **Rationale:** Pi already exposes selected tools, tool snippets, prompt guidelines, context files, skills, cwd, and append text. Structured inputs keep ownership explicit and deterministic.
@@ -77,7 +77,7 @@ Tool rendering uses `systemPromptOptions.selectedTools` and `systemPromptOptions
 
 ### SPEC-006.P9 3.3 Dynamic Template Phase
 
-Before owned prompt building, `system-prompt` renders:
+At session startup and again on `/reload`, `system-prompt` renders:
 
 - **SPEC-006.B11:** global template: `<PI_CODING_AGENT_DIR>/agent.njk`
 - **SPEC-006.B12:** nearest project template: `.pi/agent.njk` walking upward from cwd
@@ -85,7 +85,7 @@ Before owned prompt building, `system-prompt` renders:
 Template variables include:
 
 - **SPEC-006.B13:** provider/model/cwd/UI state
-- **SPEC-006.B14:** selected tools, preferring `event.systemPromptOptions.selectedTools`
+- **SPEC-006.B14:** active tools at session startup
 - **SPEC-006.B15:** environment variables
 - **SPEC-006.B27:** `isMainAgent` / `isSubagent`, derived from `PI_SUBAGENT=1`
 - **SPEC-006.B16:** optional JSON overrides for a `--debug-prompt` materialization turn
@@ -119,7 +119,7 @@ Tool metadata registered through `promptSnippet` / `promptGuidelines` is surface
 ## SPEC-006.P12 4. Invariants
 
 - **SPEC-006.B17:** Replace `event.systemPrompt` only from structured `systemPromptOptions`; do not parse Pi's generated prompt text.
-- **SPEC-006.B18:** Prefer structured `systemPromptOptions` over duplicate runtime discovery when available.
+- **SPEC-006.B18:** Prefer structured `systemPromptOptions` for per-turn owned prompt inputs; use session-start state for cached template rendering.
 - **SPEC-006.B19:** Wrap each prompt contribution in one clear XML root.
 - **SPEC-006.B20:** Keep volatile context out of the system prompt when a custom message is sufficient.
 - **SPEC-006.B21:** Return early/no-op for empty contributions.
