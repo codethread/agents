@@ -110,6 +110,14 @@ The daemon holds an in-memory lease for every active session ID. A second invoca
 
 Leases coordinate only one daemon. A standalone real Pi or another Pies daemon using a different socket can still open the same session file.
 
+## Stopping a headless invocation
+
+Send `SIGINT`, `SIGTERM`, or `SIGHUP` to the thin client PID to cancel that invocation. The client stays connected until the daemon has finished request cleanup and released its session lease, then exits with code 130, 143, or 129 respectively. Repeated signals keep waiting for the same cancellation; they do not detach the client early. Cancellation received during runtime initialization is retained and prevents prompt submission once initialization settles.
+
+No daemon-specific stop command is needed for an individual agent. A disconnected or forcibly killed client also triggers cancellation, but its disappearance cannot confirm backend cleanup. `SIGKILL`, daemon failure, and a lost connection therefore provide no settlement acknowledgement. Cooperative cancellation can wait on extensions or tools that do not finish promptly.
+
+A supervisor that sends `SIGTERM` and then force-kills after a fixed grace period can therefore observe either outcome. Exit codes 130, 143, and 129 mean the daemon acknowledged the request finishing and released its lease; a kill-signal exit such as 137 means only the client died, and the backend request may still be running. Distinguish the two on that exit code rather than on the supervisor's own timeout.
+
 ## Pi settings and extensions
 
 Pies uses Pi's `SettingsManager` and resource loader for global settings, trusted project settings, packages, extensions, prompts, skills, themes, context files, models, and provider credentials.

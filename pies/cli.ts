@@ -224,11 +224,12 @@ function isStreamResponse(message: unknown, id: string): message is StreamRespon
 }
 
 async function run(socketPath: string, args: string[]): Promise<number> {
+	const stdin = await readStdin();
 	const socket = await connectOrStart(socketPath);
 	const id = randomUUID();
 	const decoder = new LineDecoder();
 	let completed = false;
-	let interrupted = false;
+	let signalExitCode: number | undefined;
 	const result = new Promise<number>((resolveResult, reject) => {
 		socket.on("data", (chunk: Buffer) => {
 			try {
@@ -255,16 +256,21 @@ async function run(socketPath: string, args: string[]): Promise<number> {
 			if (!completed) reject(new Error("pies daemon disconnected before returning a result"));
 		});
 	});
-	const onInterrupt = (): void => {
-		if (interrupted) {
-			socket.destroy();
-			process.exitCode = 130;
-			return;
-		}
-		interrupted = true;
-		writeFrame(socket, { protocol: PROTOCOL_VERSION, type: "cancel", id });
-	};
-	process.on("SIGINT", onInterrupt);
+	const handlers = (
+		[
+			["SIGINT", 130],
+			["SIGTERM", 143],
+			["SIGHUP", 129],
+		] as const
+	).map(([signal, exitCode]) => {
+		const handler = (): void => {
+			if (completed || signalExitCode !== undefined) return;
+			signalExitCode = exitCode;
+			writeFrame(socket, { protocol: PROTOCOL_VERSION, type: "cancel", id });
+		};
+		process.on(signal, handler);
+		return { signal, handler };
+	});
 	try {
 		writeFrame(socket, {
 			protocol: PROTOCOL_VERSION,
@@ -273,11 +279,12 @@ async function run(socketPath: string, args: string[]): Promise<number> {
 			cwd: process.cwd(),
 			env: environmentSnapshot(),
 			args,
-			stdin: await readStdin(),
+			stdin,
 		});
-		return await result;
+		const exitCode = await result;
+		return signalExitCode ?? exitCode;
 	} finally {
-		process.off("SIGINT", onInterrupt);
+		for (const { signal, handler } of handlers) process.off(signal, handler);
 		socket.destroy();
 	}
 }

@@ -28,6 +28,7 @@ import {
 	runInRequestContext,
 } from "./request-context.ts";
 import { runPiRequest } from "./runner.ts";
+import { RequestCancellation } from "./request-cancellation.ts";
 import { SessionLeaseRegistry } from "./session-leases.ts";
 
 process.title = "pies-daemon";
@@ -37,7 +38,7 @@ process.env.PIES_DAEMON = "1";
 installProcessRouting();
 
 type AbortHandler = () => void;
-type ActiveRequest = { abort: AbortHandler | undefined; done: Promise<unknown> };
+type ActiveRequest = { cancel: () => void; done: Promise<unknown> };
 type ResultMetadata = Record<string, unknown>;
 type DaemonStatus = {
 	pid: number;
@@ -143,8 +144,7 @@ function handleConnection(socket: Socket): void {
 		if (active.has(request.id))
 			return fail(request.id, new Error(`Duplicate request id: ${request.id}`));
 		ownedRequestId = request.id;
-		let abort: AbortHandler | undefined;
-		let requestedExitCode: number | undefined;
+		const cancellation = new RequestCancellation();
 		let resultMetadata: ResultMetadata | undefined;
 		const startedAt = Date.now();
 		const logPath = invocationLogPath(request.env, request.cwd);
@@ -153,9 +153,7 @@ function handleConnection(socket: Socket): void {
 				return send(socket, { type: stream, id: request.id, data });
 			},
 			setAbort(handler: AbortHandler | undefined): void {
-				abort = handler ? bindRequestContext(handler) : undefined;
-				const entry = active.get(request.id);
-				if (entry) entry.abort = abort;
+				cancellation.setAbort(handler ? bindRequestContext(handler) : undefined);
 			},
 			setResultMetadata(metadata: ResultMetadata): void {
 				resultMetadata = metadata;
@@ -164,11 +162,10 @@ function handleConnection(socket: Socket): void {
 				sessionLeases.claim(sessionId, request.id);
 			},
 			requestExit(code: number): void {
-				requestedExitCode ??= Number.isInteger(code) ? code : 0;
-				abort?.();
+				cancellation.request(Number.isInteger(code) ? code : 0);
 			},
-			exitRequested: (): boolean => requestedExitCode !== undefined,
-			exitCode: (): number => requestedExitCode ?? 0,
+			exitRequested: (): boolean => cancellation.requested,
+			exitCode: (): number => cancellation.exitCode,
 		};
 		const context = {
 			cwd: request.cwd,
@@ -233,14 +230,14 @@ function handleConnection(socket: Socket): void {
 				socket.end();
 			}
 		});
-		active.set(request.id, { abort, done });
+		active.set(request.id, { cancel: () => cancellation.request(130), done });
 	};
 	socket.on("data", (chunk: Buffer) => {
 		try {
 			for (const raw of decoder.push(chunk)) {
 				const request = parseClientMessage(raw);
 				if (request.type === "run") startRun(request);
-				else if (request.type === "cancel") active.get(request.id)?.abort?.();
+				else if (request.type === "cancel") active.get(request.id)?.cancel();
 				else if (request.type === "status") {
 					send(socket, { type: "status", id: request.id, status: statusPayload() });
 					completed = true;
@@ -258,7 +255,7 @@ function handleConnection(socket: Socket): void {
 	});
 	socket.on("error", () => {});
 	socket.on("close", () => {
-		if (!completed && ownedRequestId) active.get(ownedRequestId)?.abort?.();
+		if (!completed && ownedRequestId) active.get(ownedRequestId)?.cancel();
 	});
 }
 
@@ -266,7 +263,7 @@ const server = createServer(handleConnection);
 async function shutdown(): Promise<void> {
 	if (shuttingDown) return;
 	shuttingDown = true;
-	for (const request of active.values()) request.abort?.();
+	for (const request of active.values()) request.cancel();
 	await Promise.allSettled([...active.values()].map((request) => request.done));
 	await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
 	try {

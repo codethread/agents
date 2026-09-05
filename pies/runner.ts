@@ -532,10 +532,14 @@ export async function runPiRequest(request: RunRequest, io: RequestIo): Promise<
 		if (io.exitRequested()) return io.exitCode();
 
 		const input = await prepareInitialInput(parsed, invocationCwd, request.stdin);
+		if (io.exitRequested()) return io.exitCode();
 		if (input.initialMessage) {
 			await runtime.session.prompt(input.initialMessage, { images: input.initialImages });
 		}
-		for (const message of input.messages) await runtime.session.prompt(message);
+		for (const message of input.messages) {
+			if (io.exitRequested()) return io.exitCode();
+			await runtime.session.prompt(message);
+		}
 		if (io.exitRequested()) return io.exitCode();
 
 		if (mode === "text") {
