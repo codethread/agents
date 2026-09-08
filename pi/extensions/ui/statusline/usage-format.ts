@@ -12,6 +12,8 @@ export interface ContextUsageDisplayOptions {
 
 export interface ModelDisplayOptions {
 	provider?: string;
+	providerMarker?: string;
+	providerPosition?: "before" | "after";
 	model?: string;
 	thinkingLevel?: string;
 	reasoning?: boolean;
@@ -63,7 +65,10 @@ export function formatModelDisplay(options: ModelDisplayOptions): string {
 	}
 
 	if (options.includeProvider && options.provider) {
-		result = `(${options.provider}) ${result}`;
+		const marker = options.providerMarker ? ` ${options.providerMarker}` : "";
+		const provider = `(${options.provider}${marker})`;
+		result =
+			options.providerPosition === "after" ? `${result} ${provider}` : `${provider} ${result}`;
 	}
 
 	return result;

@@ -15,7 +15,14 @@ function buildCanvasItems(width: number, deps: WidgetDeps, theme: any): string[]
 	const ctx = deps.getCtxRef();
 	const footerData = deps.getFooterData();
 	if (!ctx || !footerData || width <= 0) return [];
-	return renderStatuslineItems({ ctx, pi: deps.pi, footerData, theme, width });
+	return renderStatuslineItems({
+		ctx,
+		pi: deps.pi,
+		footerData,
+		theme,
+		width,
+		debug: deps.pi.getFlag("debug-statusline") === true,
+	});
 }
 
 function buildCanvasLines(

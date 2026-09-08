@@ -2,12 +2,30 @@
 
 > Persistent status bar — transparent to the user.
 
-Renders a footer at the bottom of the TUI showing:
+Renders a responsive footer at the bottom of the TUI.
 
-- Context token usage (color-coded: >70% ⚠️, >90% 🔴), with a compaction count after the first successful compaction (for example, `ctx (2) 14k 12.0%/128k`)
-- Cumulative session cost, with `[HH:mm]` for the latest cache-hit turn and `cache long` when `PI_CACHE_RETENTION=long` is enabled
-- Temporary cache-miss warning inside the cache timestamp (`[HH:mm !miss previous-hit -> miss-time ~tokens ~$cost]`) for one minute after an assistant turn reports `cacheRead === 0` following prior cache reuse. Token and cost figures are estimates based on the previous cache hit and current miss usage.
-- Working directory, git branch, session name, session ID, and the current agent identity when `MILLSTRAND_AGENT_ID` is set
-- Active model and provider
+At widths of 100 columns or more, core details use two balanced rows:
 
-The compaction count is stored as a custom session entry, so it survives reloads and later resumes. It is scoped to the active session branch and counts successful manual and automatic compactions only.
+```text
+~/project (main)        agent-name        model • high (provider sub L)
+14k/128k [14:32] $0.000                              session-id
+```
+
+Narrow views use four compact rows. The model moves above the stats row, and the session stays bottom-right whenever it fits beside the stats:
+
+```text
+~/project (main)
+agent-name
+model • high (provider sub L)
+14k/128k [14:32] $0.000                         session-id
+```
+
+The stats row shows current/max context tokens, the latest cache-hit timestamp when available, and cumulative session cost. Context usage is warning-colored above 70% and error-colored above 90%.
+
+Inside the provider parentheses, `sub` indicates subscription authentication and `L` indicates `PI_CACHE_RETENTION=long`.
+
+Working directory, git branch, session name/ID, agent identity (`MILLSTRAND_AGENT_ID`), active model, and provider are shown according to available width.
+
+## Debug
+
+Run Pi with `--debug-statusline` to append the selected layout, available width, and row count to the footer.

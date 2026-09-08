@@ -95,6 +95,7 @@ function createRendererFromResolved(resolved: ResolvedRenderer, size: number): R
 }
 
 const DEBUG_EMOTE_FLAG = "debug-emote";
+const DEBUG_STATUSLINE_FLAG = "debug-statusline";
 const EMOTE_FLAG = "emote";
 
 export default function (pi: ExtensionAPI) {
@@ -103,6 +104,12 @@ export default function (pi: ExtensionAPI) {
 
 	pi.registerFlag(DEBUG_EMOTE_FLAG, {
 		description: "Write pi-emote debug logs to pi/extensions/ui/emote/debug.log",
+		type: "boolean",
+		default: false,
+	});
+
+	pi.registerFlag(DEBUG_STATUSLINE_FLAG, {
+		description: "Show statusline layout diagnostics in the statusline",
 		type: "boolean",
 		default: false,
 	});

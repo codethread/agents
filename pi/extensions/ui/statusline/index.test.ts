@@ -1,10 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import statuslineExtension, {
-	formatSessionLabel,
-	getCompactionCount,
-	isLongCacheRetentionEnabled,
-	renderStatuslineItems,
-} from "./index.js";
+import { formatSessionLabel, isLongCacheRetentionEnabled, renderStatuslineItems } from "./index.js";
 
 const ORIGINAL_CACHE_RETENTION = process.env.PI_CACHE_RETENTION;
 const ORIGINAL_AGENT_ID = process.env.MILLSTRAND_AGENT_ID;
@@ -56,12 +51,17 @@ describe("renderStatuslineItems", () => {
 		const footerData = {
 			getGitBranch: () => "main",
 			getExtensionStatuses: () => new Map([["worker", "busy\nnow"]]),
-			getAvailableProviderCount: () => 1,
+			getAvailableProviderCount: () => 2,
 		};
 		const ctx = {
 			cwd: "/repo",
-			model: { id: "gpt-test", reasoning: true, contextWindow: 10000 },
-			modelRegistry: { isUsingOAuth: () => false },
+			model: {
+				provider: "openai-codex",
+				id: "gpt-test",
+				reasoning: true,
+				contextWindow: 10000,
+			},
+			modelRegistry: { isUsingOAuth: () => true },
 			getContextUsage: () => ({ tokens: 2500, percent: 25, contextWindow: 10000 }),
 			sessionManager: {
 				getSessionName: () => "work",
@@ -70,24 +70,37 @@ describe("renderStatuslineItems", () => {
 			},
 		} as any;
 		const pi = { getThinkingLevel: () => "high" } as any;
-		const theme = { fg: (_color: string, text: string) => text };
+		const theme = { fg: vi.fn((_color: string, text: string) => text) };
 
 		const previous = process.env.PI_CACHE_RETENTION;
 		delete process.env.PI_CACHE_RETENTION;
 		process.env.MILLSTRAND_AGENT_ID = "merry-swift-moose";
 		try {
-			expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })).toEqual([
-				"/repo (main) • work (abc)",
-				"agent merry-swift-moose",
-				"ctx 2.5k 25.0%/10k",
-				"$0.000",
-				"gpt-test • high",
-				"busy now",
+			const thinItems = renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 });
+			expect(thinItems.slice(0, 3)).toEqual([
+				"/repo (main)",
+				"merry-swift-moose",
+				"gpt-test • high (openai-codex sub)",
 			]);
+			expect(thinItems[3]).toContain("2.5k/10k $0.000");
+			expect(thinItems[3]).toContain("work (abc)");
+			expect(thinItems[3]).toHaveLength(80);
+			expect(thinItems[4]).toBe("busy now");
+			expect(theme.fg).toHaveBeenCalledWith("accent", "merry-swift-moose");
+
+			const wideItems = renderStatuslineItems({ ctx, pi, footerData, theme, width: 120 });
+			expect(wideItems).toHaveLength(3);
+			expect(wideItems[0]).toContain("/repo (main)");
+			expect(wideItems[0]).toContain("merry-swift-moose");
+			expect(wideItems[0]).toContain("gpt-test • high (openai-codex sub)");
+			expect(wideItems[0]).toHaveLength(120);
+			expect(wideItems[1]).toContain("2.5k/10k $0.000");
+			expect(wideItems[1]).toContain("work (abc)");
+			expect(wideItems[1]).toHaveLength(120);
 
 			process.env.PI_CACHE_RETENTION = "long";
-			expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[3]).toBe(
-				"$0.000 • cache long",
+			expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[2]).toBe(
+				"gpt-test • high (openai-codex sub L)",
 			);
 		} finally {
 			if (previous === undefined) {
@@ -98,70 +111,11 @@ describe("renderStatuslineItems", () => {
 		}
 	});
 
-	it("renders the persisted compaction count in context usage", () => {
-		const footerData = {
-			getGitBranch: () => null,
-			getExtensionStatuses: () => new Map(),
-			getAvailableProviderCount: () => 1,
-		};
-		const ctx = {
-			cwd: "/repo",
-			model: { id: "gpt-test", reasoning: false, contextWindow: 10000 },
-			modelRegistry: { isUsingOAuth: () => false },
-			getContextUsage: () => ({ tokens: 2500, percent: 25, contextWindow: 10000 }),
-			sessionManager: {
-				getSessionName: () => undefined,
-				getSessionId: () => undefined,
-				getBranch: () => [
-					{ type: "custom", customType: "statusline-compaction-count", data: { count: 2 } },
-				],
-			},
-		} as any;
-		const pi = { getThinkingLevel: () => "off" } as any;
-		const theme = { fg: (_color: string, text: string) => text };
-
-		expect(getCompactionCount(ctx)).toBe(2);
-		expect(renderStatuslineItems({ ctx, pi, footerData, theme })[1]).toBe("ctx (2) 2.5k 25.0%/10k");
-	});
-
-	it("persists the next count after successful compaction", async () => {
-		const handlers = new Map<string, (event: unknown, ctx: unknown) => Promise<void>>();
-		const appendEntry = vi.fn();
-		statuslineExtension({
-			on: (event: string, handler: (event: unknown, ctx: unknown) => Promise<void>) =>
-				handlers.set(event, handler),
-			appendEntry,
-		} as any);
-		const ctx = {
-			sessionManager: {
-				getBranch: () => [
-					{ type: "custom", customType: "statusline-compaction-count", data: { count: 1 } },
-				],
-			},
-		} as any;
-
-		await handlers.get("session_compact")?.({}, ctx);
-
-		expect(appendEntry).toHaveBeenCalledWith("statusline-compaction-count", { count: 2 });
-	});
-
-	it("shows a recent cache miss after a prior cache hit", () => {
-		vi.useFakeTimers();
+	it("shows only the latest cache-hit timestamp", () => {
 		process.env.PI_CACHE_RETENTION = "short";
-		vi.setSystemTime(new Date("2026-06-25T12:35:30Z"));
 		const missTimestamp = "2026-06-25T12:35:00Z";
 		const hitTimestamp = "2026-06-25T12:34:00Z";
 		const latestHitTimestamp = "2026-06-25T12:35:20Z";
-		const expectedHitTime = new Date(hitTimestamp).toLocaleTimeString("en-GB", {
-			hour: "2-digit",
-			minute: "2-digit",
-			hour12: false,
-		});
-		const expectedMissTime = new Date(missTimestamp).toLocaleTimeString("en-GB", {
-			hour: "2-digit",
-			minute: "2-digit",
-			hour12: false,
-		});
 		const expectedLatestHitTime = new Date(latestHitTimestamp).toLocaleTimeString("en-GB", {
 			hour: "2-digit",
 			minute: "2-digit",
@@ -217,14 +171,12 @@ describe("renderStatuslineItems", () => {
 		const theme = { fg: (_color: string, text: string) => text };
 
 		expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[2]).toBe(
-			`$0.060 [${expectedLatestHitTime} !miss ${expectedHitTime} -> ${expectedMissTime} ~1.0k tok ~$0.009] (sub)`,
+			`2.5k/10k [${expectedLatestHitTime}] $0.060`,
 		);
 	});
 
-	it("stops showing a cache miss after one minute on the next render", () => {
-		vi.useFakeTimers();
+	it("keeps the latest cache-hit timestamp after a miss", () => {
 		process.env.PI_CACHE_RETENTION = "short";
-		vi.setSystemTime(new Date("2026-06-25T12:36:01Z"));
 		const hitTimestamp = "2026-06-25T12:34:00Z";
 		const expectedHitTime = new Date(hitTimestamp).toLocaleTimeString("en-GB", {
 			hour: "2-digit",
@@ -262,7 +214,7 @@ describe("renderStatuslineItems", () => {
 		const theme = { fg: (_color: string, text: string) => text };
 
 		expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[2]).toBe(
-			`$0.030 [${expectedHitTime}]`,
+			`2.5k/10k [${expectedHitTime}] $0.030`,
 		);
 	});
 });

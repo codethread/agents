@@ -88,6 +88,7 @@ def --wrapped pi [
 	--debug-scrollback-editor                 # [EXT] Print scrollback editor configuration and exit
 	--debug-tmux-title                        # [EXT] Print tmux window-title generation details
 	--debug-emote                             # [EXT] Write emote widget debug logs
+	--debug-statusline                        # [EXT] Show statusline layout diagnostics
 	--emote: string                           # [EXT] Select emote widget pack, e.g. red
 	--debug-interactive-shell: string         # [EXT] Run interactive_shell spawn/send/tail/kill directly (optional command)
 	--debug-web-access: string                # [EXT] Run web access debug command: search <query> or fetch <url>
@@ -141,6 +142,7 @@ def --wrapped pi [
 	if $debug_scrollback_editor { $pi_args = ($pi_args | append "--debug-scrollback-editor") }
 	if $debug_tmux_title { $pi_args = ($pi_args | append "--debug-tmux-title") }
 	if $debug_emote { $pi_args = ($pi_args | append "--debug-emote") }
+	if $debug_statusline { $pi_args = ($pi_args | append "--debug-statusline") }
 	if $emote != null { $pi_args = ($pi_args | append ["--emote" $emote]) }
 	if $debug_interactive_shell != null { $pi_args = ($pi_args | append ["--debug-interactive-shell" $debug_interactive_shell]) }
 	if $debug_web_access != null { $pi_args = ($pi_args | append ["--debug-web-access" $debug_web_access]) }

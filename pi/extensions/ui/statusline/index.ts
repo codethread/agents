@@ -1,12 +1,7 @@
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import {
-	formatContextDisplay,
-	formatCost,
-	formatModelDisplay,
-	formatTokens,
-} from "./usage-format.js";
+import { formatCost, formatModelDisplay, formatTokens } from "./usage-format.js";
 
 function sanitizeStatusText(text: string): string {
 	return text
@@ -65,30 +60,13 @@ export interface FooterRenderDeps {
 	width: number;
 }
 
-export type StatuslineItemRenderDeps = Omit<FooterRenderDeps, "width"> & { width?: number };
+export type StatuslineItemRenderDeps = Omit<FooterRenderDeps, "width"> & {
+	width?: number;
+	debug?: boolean;
+};
 
 export function isLongCacheRetentionEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
 	return env.PI_CACHE_RETENTION === "long";
-}
-
-const CACHE_MISS_DISPLAY_MS = 60_000;
-const COMPACTION_COUNT_ENTRY_TYPE = "statusline-compaction-count";
-
-type CompactionCountEntry = {
-	type: "custom";
-	customType: string;
-	data?: { count?: unknown };
-};
-
-export function getCompactionCount(ctx: ExtensionContext): number {
-	const entries = ctx.sessionManager.getBranch() as CompactionCountEntry[];
-	for (let index = entries.length - 1; index >= 0; index--) {
-		const entry = entries[index];
-		if (entry.type !== "custom" || entry.customType !== COMPACTION_COUNT_ENTRY_TYPE) continue;
-		const count = entry.data?.count;
-		if (typeof count === "number" && Number.isSafeInteger(count) && count >= 0) return count;
-	}
-	return 0;
 }
 
 function formatCacheTime(timestamp: string | number | Date): string {
@@ -99,94 +77,54 @@ function formatCacheTime(timestamp: string | number | Date): string {
 	});
 }
 
-function getThemeForegroundPrefix(
-	theme: { fg(color: string, text: string): string },
-	color: string,
-): string {
-	const resetForeground = "\x1b[39m";
-	const styledEmpty = theme.fg(color, "");
-	return styledEmpty.endsWith(resetForeground)
-		? styledEmpty.slice(0, -resetForeground.length)
-		: styledEmpty;
-}
-
-function formatCacheMissEstimate(previousHit: AssistantMessage, miss: AssistantMessage): string {
-	const missedTokens = previousHit.usage.cacheRead;
-	const parts = [`~${formatTokens(missedTokens)} tok`];
-
-	const uncachedInputRate = miss.usage.input > 0 ? miss.usage.cost.input / miss.usage.input : null;
-	const cachedInputRate =
-		previousHit.usage.cacheRead > 0
-			? previousHit.usage.cost.cacheRead / previousHit.usage.cacheRead
-			: null;
-	if (uncachedInputRate !== null && cachedInputRate !== null) {
-		const extraCost = missedTokens * Math.max(0, uncachedInputRate - cachedInputRate);
-		parts.push(`~${formatCost(extraCost, false, 3)}`);
-	}
-
-	return parts.join(" ");
-}
-
 function getCacheStatusDisplay(
 	entries: ReturnType<ExtensionContext["sessionManager"]["getBranch"]>,
-	warn: (text: string) => string,
-	now = Date.now(),
 ): string | null {
-	let latestHitTimestamp: string | number | Date | null = null;
-	let latestHitMessage: AssistantMessage | null = null;
-	let latestMissTimestamp: string | number | Date | null = null;
-	let latestMissMessage: AssistantMessage | null = null;
-	let hitBeforeLatestMissTimestamp: string | number | Date | null = null;
-	let hitBeforeLatestMissMessage: AssistantMessage | null = null;
-
-	for (const entry of entries) {
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index];
 		if (entry.type !== "message" || entry.message.role !== "assistant") continue;
 		const assistant = entry.message as AssistantMessage;
-		if (assistant.usage.cacheRead > 0) {
-			latestHitTimestamp = entry.timestamp;
-			latestHitMessage = assistant;
-			continue;
-		}
-		if (latestHitTimestamp && latestHitMessage && assistant.usage.cacheRead === 0) {
-			hitBeforeLatestMissTimestamp = latestHitTimestamp;
-			hitBeforeLatestMissMessage = latestHitMessage;
-			latestMissTimestamp = entry.timestamp;
-			latestMissMessage = assistant;
-		}
+		if (assistant.usage.cacheRead > 0) return `[${formatCacheTime(entry.timestamp)}]`;
 	}
-
-	if (!latestHitTimestamp) return null;
-	const parts = [formatCacheTime(latestHitTimestamp)];
-	if (
-		latestMissTimestamp &&
-		hitBeforeLatestMissTimestamp &&
-		hitBeforeLatestMissMessage &&
-		latestMissMessage
-	) {
-		const missTime = new Date(latestMissTimestamp).getTime();
-		if (now - missTime <= CACHE_MISS_DISPLAY_MS) {
-			parts.push(
-				warn(
-					`!miss ${formatCacheTime(hitBeforeLatestMissTimestamp)} -> ${formatCacheTime(latestMissTimestamp)} ${formatCacheMissEstimate(hitBeforeLatestMissMessage, latestMissMessage)}`,
-				),
-			);
-		}
-	}
-	return `[${parts.join(" ")}]`;
+	return null;
 }
 
-function formatCostLine(
-	costDisplay: string,
-	usingSubscription: boolean,
-	cacheStatusDisplay: string | null,
-): string {
-	const costWithCacheStatus = [costDisplay, cacheStatusDisplay].filter(Boolean).join(" ");
-	return [
-		`${costWithCacheStatus}${usingSubscription ? " (sub)" : ""}`,
-		isLongCacheRetentionEnabled() ? "cache long" : null,
-	]
-		.filter((part): part is string => Boolean(part))
-		.join(" • ");
+function formatCostLine(costDisplay: string, cacheStatusDisplay: string | null): string {
+	return [cacheStatusDisplay, costDisplay].filter(Boolean).join(" ");
+}
+
+function formatStatuslineContext(contextTokens: number | null, contextWindow: number): string {
+	const current = contextTokens === null ? "?" : formatTokens(contextTokens);
+	const maximum = contextWindow > 0 ? formatTokens(contextWindow) : "?";
+	return `${current}/${maximum}`;
+}
+
+function formatProviderMarker(usingSubscription: boolean): string | undefined {
+	const markers = [usingSubscription ? "sub" : null, isLongCacheRetentionEnabled() ? "L" : null];
+	return markers.filter(Boolean).join(" ") || undefined;
+}
+
+const WIDE_LAYOUT_MIN_WIDTH = 100;
+
+function renderBalancedRow(items: string[], width: number, ellipsis: string): string {
+	if (!Number.isFinite(width)) return items.join("   ");
+	const totalItemWidth = items.reduce((sum, item) => sum + visibleWidth(item), 0);
+	const gapCount = items.length - 1;
+	if (gapCount <= 0 || totalItemWidth + gapCount > width) {
+		return truncateToWidth(items.join(" "), width, ellipsis);
+	}
+
+	const availableGapWidth = width - totalItemWidth;
+	const baseGap = Math.floor(availableGapWidth / gapCount);
+	let remainder = availableGapWidth - baseGap * gapCount;
+	return items
+		.map((item, index) => {
+			if (index === items.length - 1) return item;
+			const gapWidth = baseGap + (remainder > 0 ? 1 : 0);
+			remainder--;
+			return `${item}${" ".repeat(gapWidth)}`;
+		})
+		.join("");
 }
 
 export function renderStatuslineItems({
@@ -195,6 +133,7 @@ export function renderStatuslineItems({
 	footerData,
 	theme,
 	width = Number.POSITIVE_INFINITY,
+	debug = false,
 }: StatuslineItemRenderDeps): string[] {
 	const extensionStatuses = footerData.getExtensionStatuses();
 	let pwd = shortenHome(ctx.cwd);
@@ -208,7 +147,6 @@ export function renderStatuslineItems({
 			? (ctx.sessionManager as { getSessionId: () => string | undefined }).getSessionId()
 			: undefined,
 	);
-	if (sessionLabel) pwd = `${pwd} • ${sessionLabel}`;
 
 	const branchEntries = ctx.sessionManager.getBranch();
 	let totalCost = 0;
@@ -225,19 +163,10 @@ export function renderStatuslineItems({
 	const contextPercentValue = contextUsage?.percent ?? 0;
 	const usingSubscription = ctx.model ? ctx.modelRegistry.isUsingOAuth(ctx.model) : false;
 
-	const contextDisplay = formatContextDisplay({
-		contextTokens,
-		contextWindow,
-		contextPercent: contextUsage?.percent,
-		compactionCount: getCompactionCount(ctx),
-	});
+	const contextDisplay = formatStatuslineContext(contextTokens, contextWindow);
 	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
-	const dimForegroundPrefix = getThemeForegroundPrefix(theme, "dim");
-	const cacheStatusDisplay = getCacheStatusDisplay(
-		branchEntries,
-		(text) => `${theme.fg("warning", text)}${dimForegroundPrefix}`,
-	);
-	const costDisplay = `${formatCostLine(formatCost(totalCost, false, 3), usingSubscription, cacheStatusDisplay)}${overrideDisplay}`;
+	const cacheStatusDisplay = getCacheStatusDisplay(branchEntries);
+	const costDisplay = `${formatCostLine(formatCost(totalCost, false, 3), cacheStatusDisplay)}${overrideDisplay}`;
 
 	let styledContextDisplay = theme.fg("dim", contextDisplay);
 	if (contextPercentValue > 90) {
@@ -246,22 +175,51 @@ export function renderStatuslineItems({
 		styledContextDisplay = theme.fg("warning", contextDisplay);
 	}
 
+	const providerMarker = formatProviderMarker(usingSubscription);
 	const modelDisplay = formatModelDisplay({
-		provider: footerData.getAvailableProviderCount() > 1 ? ctx.model?.provider : undefined,
+		provider: ctx.model?.provider,
+		providerMarker,
+		providerPosition: "after",
 		model: ctx.model?.id,
 		thinkingLevel: pi.getThinkingLevel(),
 		reasoning: ctx.model?.reasoning,
-		includeProvider: footerData.getAvailableProviderCount() > 1,
+		includeProvider: footerData.getAvailableProviderCount() > 1 || providerMarker !== undefined,
 	});
 
+	const ellipsis = theme.fg("dim", "...");
 	const agentIdentity = getAgentIdentity();
-	const items = [
-		truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "...")),
-		...(agentIdentity ? [theme.fg("dim", `agent ${agentIdentity}`)] : []),
-		styledContextDisplay,
-		theme.fg("dim", costDisplay),
-		theme.fg("dim", modelDisplay),
-	];
+	const pathItem = theme.fg("dim", pwd);
+	const agentItem = agentIdentity ? theme.fg("accent", agentIdentity) : null;
+	const costItem = theme.fg("dim", costDisplay);
+	const modelItem = theme.fg("dim", modelDisplay);
+	const topItems = [pathItem, agentItem, modelItem].filter((item): item is string => Boolean(item));
+	const minimumTopWidth =
+		topItems.reduce((sum, item) => sum + visibleWidth(item), 0) + topItems.length - 1;
+	const useWideLayout = width >= WIDE_LAYOUT_MIN_WIDTH && minimumTopWidth <= width;
+	let items: string[];
+	if (useWideLayout) {
+		const bottomItems = [`${styledContextDisplay} ${costItem}`];
+		const sessionItem = sessionLabel && theme.fg("dim", sessionLabel);
+		if (sessionItem && visibleWidth(bottomItems[0]) + 1 + visibleWidth(sessionItem) <= width) {
+			bottomItems.push(sessionItem);
+		}
+		items = [
+			renderBalancedRow(topItems, width, ellipsis),
+			renderBalancedRow(bottomItems, width, ellipsis),
+		];
+	} else {
+		const bottomItems = [`${styledContextDisplay} ${costItem}`];
+		const sessionItem = sessionLabel && theme.fg("dim", sessionLabel);
+		if (sessionItem && visibleWidth(bottomItems[0]) + 1 + visibleWidth(sessionItem) <= width) {
+			bottomItems.push(sessionItem);
+		}
+		items = [
+			truncateToWidth(pathItem, width, ellipsis),
+			...(agentItem ? [truncateToWidth(agentItem, width, ellipsis)] : []),
+			truncateToWidth(modelItem, width, ellipsis),
+			renderBalancedRow(bottomItems, width, ellipsis),
+		];
+	}
 
 	const visibleExtensionStatuses = Array.from(extensionStatuses.entries()).filter(
 		([key]) => key !== "timeline-timestamps" && key !== "provider-override",
@@ -274,6 +232,15 @@ export function renderStatuslineItems({
 
 	if (extensionStatuses.has("timeline-timestamps")) {
 		items.push(...renderTimelineTimestampItems(ctx, theme, width));
+	}
+
+	if (debug) {
+		items.push(
+			theme.fg(
+				"muted",
+				`statusline ${useWideLayout ? "wide" : "thin"} width=${width} rows=${items.length}`,
+			),
+		);
 	}
 
 	return items;
@@ -298,7 +265,6 @@ export function renderStatuslineLines({
 			? (ctx.sessionManager as { getSessionId: () => string | undefined }).getSessionId()
 			: undefined,
 	);
-	if (sessionLabel) pwd = `${pwd} • ${sessionLabel}`;
 
 	const branchEntries = ctx.sessionManager.getBranch();
 	let totalCost = 0;
@@ -315,19 +281,10 @@ export function renderStatuslineLines({
 	const contextPercentValue = contextUsage?.percent ?? 0;
 	const usingSubscription = ctx.model ? ctx.modelRegistry.isUsingOAuth(ctx.model) : false;
 
-	const contextDisplay = formatContextDisplay({
-		contextTokens,
-		contextWindow,
-		contextPercent: contextUsage?.percent,
-		compactionCount: getCompactionCount(ctx),
-	});
+	const contextDisplay = formatStatuslineContext(contextTokens, contextWindow);
 	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
-	const dimForegroundPrefix = getThemeForegroundPrefix(theme, "dim");
-	const cacheStatusDisplay = getCacheStatusDisplay(
-		branchEntries,
-		(text) => `${theme.fg("warning", text)}${dimForegroundPrefix}`,
-	);
-	const costDisplay = `${formatCostLine(formatCost(totalCost, false, 3), usingSubscription, cacheStatusDisplay)}${overrideDisplay}`;
+	const cacheStatusDisplay = getCacheStatusDisplay(branchEntries);
+	const costDisplay = `${formatCostLine(formatCost(totalCost, false, 3), cacheStatusDisplay)}${overrideDisplay}`;
 
 	let styledContextDisplay = theme.fg("dim", contextDisplay);
 	if (contextPercentValue > 90) {
@@ -344,37 +301,30 @@ export function renderStatuslineLines({
 		leftSideWidth = visibleWidth(leftSide);
 	}
 
-	const rightSide = formatModelDisplay({
-		provider: footerData.getAvailableProviderCount() > 1 ? ctx.model?.provider : undefined,
+	const providerMarker = formatProviderMarker(usingSubscription);
+	const modelDisplay = formatModelDisplay({
+		provider: ctx.model?.provider,
+		providerMarker,
+		providerPosition: "after",
 		model: ctx.model?.id,
 		thinkingLevel: pi.getThinkingLevel(),
 		reasoning: ctx.model?.reasoning,
-		includeProvider: footerData.getAvailableProviderCount() > 1,
+		includeProvider: footerData.getAvailableProviderCount() > 1 || providerMarker !== undefined,
 	});
 
-	const minPadding = 2;
-	const rightSideWidth = visibleWidth(rightSide);
-	const totalNeeded = leftSideWidth + minPadding + rightSideWidth;
-	let statsLine: string;
-	if (totalNeeded <= width) {
-		const padding = " ".repeat(width - leftSideWidth - rightSideWidth);
-		statsLine = leftSide + padding + theme.fg("dim", rightSide);
-	} else {
-		const availableForRight = width - leftSideWidth - minPadding;
-		if (availableForRight > 0) {
-			const truncatedRight = truncateToWidth(theme.fg("dim", rightSide), availableForRight, "");
-			const padding = " ".repeat(Math.max(0, width - leftSideWidth - visibleWidth(truncatedRight)));
-			statsLine = leftSide + padding + truncatedRight;
-		} else {
-			statsLine = leftSide;
-		}
-	}
-
 	const agentIdentity = getAgentIdentity();
-	const identityDisplay = agentIdentity ? ` • agent ${agentIdentity}` : "";
+	const topItems = [
+		theme.fg("dim", pwd),
+		agentIdentity ? theme.fg("accent", agentIdentity) : null,
+		theme.fg("dim", modelDisplay),
+	].filter((item): item is string => Boolean(item));
+	const bottomItems = [
+		leftSide,
+		width >= WIDE_LAYOUT_MIN_WIDTH && sessionLabel ? theme.fg("dim", sessionLabel) : null,
+	].filter((item): item is string => Boolean(item));
 	const lines = [
-		truncateToWidth(theme.fg("dim", `${pwd}${identityDisplay}`), width, theme.fg("dim", "...")),
-		statsLine,
+		renderBalancedRow(topItems, width, theme.fg("dim", "...")),
+		renderBalancedRow(bottomItems, width, theme.fg("dim", "...")),
 	];
 
 	const visibleExtensionStatuses = Array.from(extensionStatuses.entries()).filter(
@@ -428,8 +378,4 @@ export default function (pi: ExtensionAPI) {
 			on(event: "session_switch", handler: (_event: unknown, ctx: ExtensionContext) => void): void;
 		}
 	).on("session_switch", (_event, ctx) => installFooter(ctx));
-
-	pi.on("session_compact", async (_event, ctx) => {
-		pi.appendEntry(COMPACTION_COUNT_ENTRY_TYPE, { count: getCompactionCount(ctx) + 1 });
-	});
 }
