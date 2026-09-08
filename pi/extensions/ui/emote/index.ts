@@ -13,7 +13,6 @@ import { TmuxKittyUnicodeRenderer } from "./render_tmux_kitty_unicode.js";
 import { Animator } from "./animator.js";
 import { createWidgetFactory, type EmoteWidgetPlacement } from "./widget.js";
 import { resolveRenderer } from "./terminal.js";
-import { buildEmoteGenPrompt } from "./emote-gen-prompt.js";
 
 function toolNameToState(toolName: string): EmoteState {
 	switch (toolName) {
@@ -117,20 +116,6 @@ export default function (pi: ExtensionAPI) {
 	pi.registerFlag(EMOTE_FLAG, {
 		description: "Select the emote pack to use, e.g. --emote red",
 		type: "string",
-	});
-
-	pi.registerCommand("emote-gen-prompt", {
-		description: "Generate temporary image prompts for a Pi emote set",
-		handler: async (args, ctx) => {
-			const prompt = buildEmoteGenPrompt(args);
-			if (!ctx.isIdle()) {
-				pi.sendUserMessage(prompt, { deliverAs: "followUp" });
-				if (ctx.hasUI) ctx.ui.notify("Queued emote prompt generation as follow-up", "info");
-				return;
-			}
-
-			await pi.sendUserMessage(prompt);
-		},
 	});
 
 	let cwd = process.cwd();

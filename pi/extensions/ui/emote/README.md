@@ -34,7 +34,7 @@ Config defaults live in [`config.json`](./config.json). Override globally or per
 - `~/.pi/agent/extensions/pi-emote/config.json`
 - `.pi/extensions/pi-emote/config.json`
 
-Text beside the avatar is laid out as flex items. Each item starts on its own line; when the avatar has fewer rows than items, bottom items move upward and share a line with whitespace between them. If a shared line is too narrow, items are truncated with `textEllipsis` (default `$`; set it to `...`, a Nerd Font glyph, etc.).
+Text beside the avatar uses the responsive [`statusline`](../statusline/README.md) rows. Additional extension statuses are laid out as flex items; when the avatar has fewer rows than items, bottom items move upward and share a line with whitespace between them. If a shared line is too narrow, items are truncated with `textEllipsis` (default `$`; set it to `...`, a Nerd Font glyph, etc.).
 
 ## Debug
 
@@ -74,18 +74,6 @@ Toggles a session-local emote visibility override.
 - `status`: show the current mode and effective renderer state
 
 This override is not persisted; restarting or reloading the session returns to normal auto-detection.
-
-## `/emote-gen-prompt <guidance>`
-
-Sends the current model a prompt-template task for generating temporary image-generation prompt files matching the bundled emote style. The guidance changes the character design while preserving the 128x128 retro handheld pixel-art constraints.
-
-Example:
-
-```text
-/emote-gen-prompt a pikachu-like creature with large expressive eyes and green skin
-```
-
-The model is instructed to write markdown prompts under `tmp/emote-gen/default/` for every bundled frame and list the created prompt files. It does not generate images directly.
 
 ## License
 
