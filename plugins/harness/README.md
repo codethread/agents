@@ -5,7 +5,6 @@ Session and harness affordances for Claude Code, Pi, and Codex: session introspe
 ## Contents
 
 - `commands/bench.md` — benchmark a task across models, prompts, or both
-- `commands/rename.md` — `/rename <text>` to force the window title (see below)
 - `skills/claude-session-introspection/` — Claude Code `.jsonl` session forensics
 - `skills/codex-session-introspection/` — Codex dialogue/session forensics
 - `skills/pi-session-introspection/` — Pi session forensics
@@ -124,9 +123,5 @@ so later prompts (and resume/reload) no-op. It captures the current tmux window 
 The sentinel is claimed synchronously and the model call is detached, so prompt submission is never delayed. The worker sets `HARNESS_WINDOW_TITLE_CHILD=1` on the child; `window-title.sh` and `capture.sh` both short-circuit on that flag, so the throwaway child session neither recurses nor pollutes the dialogue log.
 
 `kebab_case` / `apply_title` are shared by both scripts via `hooks/window-title-lib.sh`.
-
-### `/rename <text>`
-
-`commands/rename.md` registers a `/rename` command so the CLI recognizes it and the prompt reaches the hook as typed. `window-title.sh` intercepts it before the sentinel logic: it kebab-cases the argument, caps it at 30 characters (trimming back to a word boundary), applies it to the captured window, and **blocks the prompt** (exit 2 — the confirmation shows as the block reason; nothing reaches the model). It always takes precedence — overriding the auto title even mid-session — and claims the sentinel so async generation can't later clobber it. `/rename` with no argument is blocked with a usage message.
 
 **Debug:** launch Claude with `HARNESS_WINDOW_TITLE_DEBUG=1` to append derivation details to `…/claude-window-title/debug.log`.

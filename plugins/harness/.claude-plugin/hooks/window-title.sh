@@ -2,10 +2,8 @@
 # Set the tmux window title (and terminal title) from the first user message,
 # mirroring pi/extensions/ui/tmux-window-title for Claude Code.
 #
-# `/rename <text>` always wins: it sets the title immediately (kebab-cased, <=30
-# chars), overriding the auto title even mid-session, and is blocked from the
-# model. Otherwise, on the first prompt only, the title is derived asynchronously
-# by window-title-apply.sh; a per-session sentinel keeps later prompts and
+# On the first prompt only, the title is derived asynchronously by
+# window-title-apply.sh; a per-session sentinel keeps later prompts and
 # resume/reload quiet. The tmux window is captured now so a later window switch
 # can't retarget the rename.
 #
@@ -36,26 +34,6 @@ current_window_id() {
 	[ -n "${TMUX:-}" ] || return 0
 	tmux display-message -p -F '#{window_id}' ${TMUX_PANE:+-t "$TMUX_PANE"} 2>/dev/null || true
 }
-
-# `/rename <text>` overrides the title now and every time, bypassing the sentinel,
-# then blocks the prompt (exit 2, stderr shown to the user) so nothing is sent to
-# the model.
-case "$prompt" in
-	/rename | /rename\ *)
-		arg="${prompt#/rename}"
-		arg="${arg#"${arg%%[![:space:]]*}"}"
-		title=$(kebab_case "$arg" 0 30)
-		if [ -z "$title" ]; then
-			printf 'window-title: usage: /rename <text>\n' >&2
-			exit 2
-		fi
-		apply_title "$(current_window_id)" "$title"
-		# Claim the sentinel so async auto-generation can't later override this.
-		: > "$sentinel" 2>/dev/null || true
-		printf 'window-title: renamed to %s\n' "$title" >&2
-		exit 2
-		;;
-esac
 
 # First prompt only: claim the sentinel, capture the window, derive asynchronously.
 if ! (set -o noclobber; : > "$sentinel") 2>/dev/null; then
