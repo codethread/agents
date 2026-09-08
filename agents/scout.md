@@ -11,6 +11,7 @@ description: >
   - NOT: "tell me how auth is used in hooks" (too broad for a single recon pass)
   - After scout returns, re-read the important files yourself — read whole files unless scout flags them as large
   - When scout includes a line number for an identifier, the file is large — use a range read instead of reading the whole file
+  - Relatively small LLM, ask it for maps to study, not opinions on structure
 
   Example inputs:
   - "Map the agent discovery pipeline — where markdown files are found, parsed, and merged."
