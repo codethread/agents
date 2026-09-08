@@ -23,6 +23,12 @@ function formatTokenCount(tokens: number) {
 	return tokens > 1000 ? `${Math.round(tokens / 1000)}K` : `${tokens}`;
 }
 
+export function getTokenUsageColor(tokens: number): "success" | "warning" | "error" {
+	if (tokens < 500) return "success";
+	if (tokens < 1000) return "warning";
+	return "error";
+}
+
 function splitAtOperators(command: string) {
 	const parts: Array<{ operator?: "&&" | "||"; text: string }> = [];
 	let inSingleQuote = false;
@@ -236,12 +242,14 @@ export default function (pi: ExtensionAPI) {
 					?.filter((item) => item.type === "text")
 					.map((item) => item.text)
 					.join("\n") ?? "";
-			const tokens = formatTokenCount(estimateTokens(output));
+			const tokenCount = estimateTokens(output);
+			const tokens = formatTokenCount(tokenCount);
 			const formattedOutput = formatBashOutput(output);
-			const completion = theme.fg(
-				"dim",
-				`Completed in ${formatDuration(duration)} [${tokens} tokens]`,
-			);
+			const completion = [
+				theme.fg("dim", `Completed in ${formatDuration(duration)} [`),
+				theme.fg(getTokenUsageColor(tokenCount), `${tokens} tokens`),
+				theme.fg("dim", "]"),
+			].join("");
 			if (context.expanded) {
 				const rendered = formattedOutput
 					.split("\n")

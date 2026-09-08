@@ -6,6 +6,7 @@ import bashExtension, {
 	formatBashCommandPreview,
 	formatBashOutput,
 	formatBashOutputPreview,
+	getTokenUsageColor,
 } from "./bash.js";
 
 describe("formatBashCommandForDisplay", () => {
@@ -85,6 +86,15 @@ describe("formatBashOutput", () => {
 		expect(preview.lines).toHaveLength(5);
 		expect(preview.skippedLineCount).toBeGreaterThan(0);
 		expect(preview.lines.every((line) => visibleWidth(line) <= 20)).toBe(true);
+	});
+});
+
+describe("getTokenUsageColor", () => {
+	it("uses success below 500, warning below 1000, and error otherwise", () => {
+		expect(getTokenUsageColor(499)).toBe("success");
+		expect(getTokenUsageColor(500)).toBe("warning");
+		expect(getTokenUsageColor(999)).toBe("warning");
+		expect(getTokenUsageColor(1000)).toBe("error");
 	});
 });
 
