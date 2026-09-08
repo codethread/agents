@@ -6,7 +6,7 @@ argument-hint: [optional context about changes]
 
 # Git Commit
 
-Create commit(s) for the current task. Treat `$ARGUMENTS` as additional context.
+Create commit(s) for the current task.
 
 ## Procedure
 
