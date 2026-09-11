@@ -53,6 +53,7 @@ import {
 	createDetails,
 	createEmptyUsage,
 	createPendingResult,
+	DEFAULT_SUBAGENT_TIMEOUT_SECONDS,
 	type ResolveModelInfo,
 	type SingleResult,
 	type TaskRequest,
@@ -70,6 +71,12 @@ const SubagentParams = Type.Object({
 		Type.String({
 			description:
 				"Exact resume ID from a previous Subagent resume ID line or <subagent-resume-id> tag (single-agent UUID or friendly swarm ID). Use this for follow-ups that depend on prior findings.",
+		}),
+	),
+	timeout: Type.Optional(
+		Type.Integer({
+			minimum: 1,
+			description: `Maximum runtime in seconds. Defaults to ${DEFAULT_SUBAGENT_TIMEOUT_SECONDS} seconds (4.5 minutes).`,
 		}),
 	),
 });
@@ -454,6 +461,7 @@ export default function (pi: ExtensionAPI) {
 			"Provide agent, description, task, and cwd.",
 			"When asking a follow-up of the same delegated target, first wait for the prior tool result, then pass resume with the exact ID from its <subagent-resume-id> tag; otherwise a fresh isolated session starts.",
 			"A terse description field is required for the delegated task.",
+			`Calls time out after ${DEFAULT_SUBAGENT_TIMEOUT_SECONDS} seconds (4.5 minutes) unless timeout is explicitly overridden.`,
 			"Extension, user, and project agents are discovered automatically.",
 		].join(" "),
 		promptSnippet:
@@ -463,6 +471,7 @@ export default function (pi: ExtensionAPI) {
 			"Each subagent tool call runs one task for one agent. Use multiple independent tool calls when work can run concurrently.",
 			"Swarm calls dispatch all swarm members concurrently in one tool call, each with its own isolated execution.",
 			"Always provide a terse description (3-8 words) for the delegated task.",
+			`Keep the default ${DEFAULT_SUBAGENT_TIMEOUT_SECONDS}-second timeout unless the task clearly needs a different limit; set timeout explicitly to override it.`,
 			"If a previous subagent result included <subagent-resume-id> and the next task depends on that same context, set resume to that exact ID.",
 			"Never use placeholder or empty resume values. If you do not have the actual ID yet, call the first subagent and wait for its result before making the follow-up call.",
 			"Do not dispatch a resume follow-up concurrently with the original call; the ID only exists after the first tool result returns.",

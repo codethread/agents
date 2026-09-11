@@ -18,6 +18,7 @@ import {
 	updateManifest,
 } from "./session.js";
 import {
+	DEFAULT_SUBAGENT_TIMEOUT_SECONDS,
 	RUNNING_EXIT_CODE,
 	createEmptyUsage,
 	createUnknownAgentResult,
@@ -285,8 +286,11 @@ export async function runSingleAgent(
 	const candidates = validModelCandidates?.length ? validModelCandidates : [undefined];
 	const inheritedResourceArgs = getInheritedResourceArgsFromArgv(process.argv.slice(2));
 	const startTime = Date.now();
+	const timeoutSeconds = request.timeout ?? DEFAULT_SUBAGENT_TIMEOUT_SECONDS;
+	const deadline = startTime + timeoutSeconds * 1000;
 	const attempts: AttemptMetadata[] = [];
 	let wasAborted = false;
+	let wasTimedOut = false;
 	let terminalContextOverflow = false;
 	let currentResult: SingleResult | undefined;
 	let finalSubagentSession = subagentSession;
@@ -351,6 +355,8 @@ export async function runSingleAgent(
 					},
 				});
 				let buffer = "";
+				let settled = false;
+				let forceKillTimer: NodeJS.Timeout | undefined;
 
 				const processLine = (line: string) => {
 					if (!line.trim()) return;
@@ -428,32 +434,58 @@ export async function runSingleAgent(
 					result.stderr += data.toString();
 				});
 
+				const terminate = () => {
+					proc.kill("SIGTERM");
+					forceKillTimer = setTimeout(() => {
+						if (proc.exitCode === null) proc.kill("SIGKILL");
+					}, 5000);
+					forceKillTimer.unref();
+				};
+				const abort = () => {
+					wasAborted = true;
+					terminate();
+				};
+				const executionTimer = setTimeout(
+					() => {
+						wasTimedOut = true;
+						terminate();
+					},
+					Math.max(0, deadline - Date.now()),
+				);
+				const settle = (code: number) => {
+					if (settled) return;
+					settled = true;
+					clearTimeout(executionTimer);
+					if (forceKillTimer) clearTimeout(forceKillTimer);
+					signal?.removeEventListener("abort", abort);
+					resolve(code);
+				};
+
 				proc.on("close", (code) => {
 					if (buffer.trim()) processLine(buffer);
-					resolve(code ?? 0);
+					settle(code ?? (wasAborted || wasTimedOut ? 1 : 0));
 				});
 
 				proc.on("error", () => {
-					resolve(1);
+					settle(1);
 				});
 
-				if (signal) {
-					const killProc = () => {
-						wasAborted = true;
-						proc.kill("SIGTERM");
-						setTimeout(() => {
-							if (!proc.killed) proc.kill("SIGKILL");
-						}, 5000);
-					};
-					if (signal.aborted) killProc();
-					else signal.addEventListener("abort", killProc, { once: true });
-				}
+				if (signal?.aborted) abort();
+				else signal?.addEventListener("abort", abort, { once: true });
 			});
 
 			currentResult.exitCode = exitCode;
 			if (wasAborted) throw new Error("Subagent was aborted");
+			if (wasTimedOut) {
+				const timeoutMessage = `Subagent timed out after ${timeoutSeconds} ${timeoutSeconds === 1 ? "second" : "seconds"}.`;
+				currentResult.exitCode = 1;
+				currentResult.errorMessage = timeoutMessage;
+				currentResult.stderr = [currentResult.stderr.trim(), timeoutMessage]
+					.filter(Boolean)
+					.join("\n");
+			}
 
-			const kind = classifyModelChainResult(currentResult);
+			const kind = wasTimedOut ? "other" : classifyModelChainResult(currentResult);
 			const attemptMetadata: AttemptMetadata | undefined = shouldTrackAttempts
 				? {
 						attemptedModel: selectedCandidate?.id ?? "inherited model",
@@ -484,6 +516,7 @@ export async function runSingleAgent(
 			break;
 		}
 		if (!currentResult) continue;
+		if (wasTimedOut) break;
 		const kind = classifyModelChainResult(currentResult);
 		if (kind === "success" || kind === "other" || terminalContextOverflow) break;
 	}

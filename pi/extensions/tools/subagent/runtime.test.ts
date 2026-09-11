@@ -22,6 +22,7 @@ const originalHome = process.env.HOME;
 const originalUserProfile = process.env.USERPROFILE;
 
 afterEach(() => {
+	vi.useRealTimers();
 	spawnMock.mockReset();
 	if (originalHome === undefined) delete process.env.HOME;
 	else process.env.HOME = originalHome;
@@ -57,6 +58,27 @@ function mockSpawnResult(result: { code: number; stderr?: string; stdoutLines?: 
 		});
 		return proc;
 	});
+}
+
+function mockHangingSpawn() {
+	const proc = new EventEmitter() as EventEmitter & {
+		stdout: PassThrough;
+		stderr: PassThrough;
+		kill: ReturnType<typeof vi.fn>;
+		exitCode: number | null;
+	};
+	proc.stdout = new PassThrough();
+	proc.stderr = new PassThrough();
+	proc.exitCode = null;
+	proc.kill = vi.fn(() => {
+		queueMicrotask(() => {
+			proc.exitCode = 1;
+			proc.emit("close", null);
+		});
+		return true;
+	});
+	spawnMock.mockReturnValueOnce(proc);
+	return proc;
 }
 
 function testAgent(modelCandidates?: { id: string }[]) {
@@ -104,6 +126,34 @@ describe("getPiInvocation", () => {
 				scriptExists: () => true,
 			}),
 		).toEqual({ command: "/nix/store/pi/libexec/pi/pi", args });
+	});
+});
+
+describe("runSingleAgent timeout", () => {
+	it.each([
+		["the default", undefined, 270],
+		["an explicit override", 12, 12],
+	])("enforces %s across the whole call", async (_label, timeout, expectedSeconds) => {
+		vi.useFakeTimers();
+		const proc = mockHangingSpawn();
+		const resultPromise = runSingleAgent(
+			[testAgent()],
+			{ ...request, timeout },
+			undefined,
+			undefined,
+		);
+
+		await vi.advanceTimersByTimeAsync(expectedSeconds * 1000 - 1);
+		expect(proc.kill).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
+
+		const result = await resultPromise;
+		expect(proc.kill).toHaveBeenCalledWith("SIGTERM");
+		const timeoutMessage = `Subagent timed out after ${expectedSeconds} seconds.`;
+		expect(result.exitCode).toBe(1);
+		expect(result.errorMessage).toBe(timeoutMessage);
+		expect(result.stderr).toBe(timeoutMessage);
+		expect(spawnMock).toHaveBeenCalledTimes(1);
 	});
 });
 

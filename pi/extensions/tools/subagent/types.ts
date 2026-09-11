@@ -3,6 +3,7 @@ import type { AgentConfig } from "./agents.js";
 
 export const COLLAPSED_ITEM_COUNT = 3;
 export const RUNNING_EXIT_CODE = -1;
+export const DEFAULT_SUBAGENT_TIMEOUT_SECONDS = 270;
 
 export type AgentSource = AgentConfig["source"] | "unknown";
 
@@ -12,6 +13,7 @@ export type TaskRequest = {
 	description: string;
 	cwd: string;
 	resume?: string;
+	timeout?: number;
 };
 
 export interface UsageStats {

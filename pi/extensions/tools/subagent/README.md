@@ -152,11 +152,14 @@ Spawns one `pi` subprocess with an isolated context window, including from Bun s
 	"description": "map auth flow",
 	"task": "...",
 	"cwd": "/path",
-	"resume": "optional-id-from-previous-result"
+	"resume": "optional-id-from-previous-result",
+	"timeout": 270
 }
 ```
 
-All four fields (`agent`, `description`, `task`, `cwd`) are required. `resume` is optional.
+All four fields (`agent`, `description`, `task`, `cwd`) are required. `resume` and `timeout` are optional. `timeout` is an integer number of seconds and defaults to 270 seconds (4.5 minutes). It limits the complete delegated call, including model-chain retries. For swarms, the same limit applies independently to every concurrently running member. Override it explicitly only when the task needs a different runtime budget.
+
+When the limit expires, the child process is terminated and the tool returns a visible timeout error instead of trying another model candidate.
 
 - For a follow-up of a single-agent target, provide the exact session UUID in `<subagent-resume-id>`.
 - For a follow-up swarm, provide the prior friendly swarm resume ID (for example `swarm-review-...`).

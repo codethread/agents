@@ -1,7 +1,7 @@
 ---
 name: scout
 description: >
-  Fast codebase recon for mapping relevant files, code paths, and architecture before deeper work.
+  Fast codebase readonly recon for mapping relevant files, code paths, and architecture before deeper work.
 
   Use one scout per focused concept or domain. Avoid overloading a single scout with cross-cutting concerns.
   The goal is to build a navigation map so you can selectively re-read only the important files yourself.
@@ -12,6 +12,7 @@ description: >
   - After scout returns, re-read the important files yourself — read whole files unless scout flags them as large
   - When scout includes a line number for an identifier, the file is large — use a range read instead of reading the whole file
   - Relatively small LLM, ask it for maps to study, not opinions on structure
+  - Very cheap LLM, favour multiple concurrent scouts for related tasks and aggregate results, over one large prompt to single scout
 
   Example inputs:
   - "Map the agent discovery pipeline — where markdown files are found, parsed, and merged."
