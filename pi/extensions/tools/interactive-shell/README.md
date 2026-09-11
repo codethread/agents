@@ -7,10 +7,19 @@ Provides the `interactive_shell` tool for persistent PTYs: TUIs, REPLs, dev serv
 ## Tool actions
 
 ```json
-{ "action": "spawn", "name": "dev server" }
+{
+	"action": "spawn",
+	"name": "dev server",
+	"shell": "bash",
+	"persist": true
+}
 ```
 
-Starts a new empty shell in a detached tmux session using the shell already provided by the environment. `name` is optional, must be 80 characters or fewer, and is shown in `/shells` and `list`. Returns a `shellId`/pane id, the friendly name, the tmux session name, and the `$SHELL` value.
+Starts a new empty shell in a detached tmux session. `shell` accepts `user`, `bash`, or `zsh` and defaults to `user`, which uses `$SHELL` with the user's normal configuration. The focused `bash` and `zsh` choices start without user configuration (`bash --noprofile --norc` and `zsh -f`).
+
+`persist` defaults to `false`. Agent-scoped shells are stopped when the agent settles (after retries and queued follow-ups finish), with session shutdown as a final cleanup. Set `persist: true` to keep a shell running across agent runs and after Pi exits. Persistent tmux sessions outlive Pi's in-memory registry, so after Pi exits or reloads they must be managed with tmux directly.
+
+`name` is optional, must be 80 characters or fewer, and is shown in `/shells` and `list`. Spawn returns the `shellId`/pane id, friendly name, tmux session name, selected shell, and persistence state.
 
 ```json
 { "action": "send", "shellId": "%12", "text": "npm run dev", "submit": true }
@@ -28,7 +37,7 @@ Captures recent output. `lines` defaults to 100.
 { "action": "list" }
 ```
 
-Lists live shells created by this tool with their ids and shell info.
+Lists live shells created by this extension instance with their ids, shell choice, and persistence state.
 
 ```json
 { "action": "kill", "shellId": "%12" }

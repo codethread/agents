@@ -53,6 +53,19 @@ const InteractiveShellParams = Type.Object({
 			maxLength: 80,
 		}),
 	),
+	shell: Type.Optional(
+		Type.Union([Type.Literal("user"), Type.Literal("bash"), Type.Literal("zsh")], {
+			description:
+				"Shell for spawn. Defaults to user ($SHELL); bash and zsh start without user configuration.",
+			default: "user",
+		}),
+	),
+	persist: Type.Optional(
+		Type.Boolean({
+			description: "Keep the shell running after the agent settles. Defaults to false.",
+			default: false,
+		}),
+	),
 });
 
 type InteractiveShellParams = Static<typeof InteractiveShellParams>;
@@ -80,7 +93,8 @@ function fail(message: string, details: InteractiveShellDetails) {
 }
 
 function formatShell(record: ShellRecord): string {
-	return `${record.id} — ${record.name} — ${record.shell}`;
+	const persistence = record.persist ? "persistent" : "agent-scoped";
+	return `${record.id} — ${record.name} — ${record.shell} — ${persistence}`;
 }
 
 function getTextContent(result: { content?: Array<{ type: string; text?: string }> }): string {
@@ -228,7 +242,7 @@ async function runDebugInteractiveShell(
 	cwd: string,
 	signal: AbortSignal | undefined,
 ): Promise<void> {
-	const shell = await manager.spawn(cwd, "debug", signal);
+	const shell = await manager.spawn({ cwd, name: "debug", signal });
 	if (command.trim()) {
 		await manager.send({ shellId: shell.id, text: command, submit: true, signal });
 		await sleep(500);
@@ -278,6 +292,14 @@ export default function interactiveShell(pi: ExtensionAPI) {
 		}
 	});
 
+	pi.on("agent_settled", async () => {
+		await manager.killNonPersistent();
+	});
+
+	pi.on("session_shutdown", async () => {
+		await manager.killNonPersistent();
+	});
+
 	pi.registerTool({
 		name: "interactive_shell",
 		label: "Interactive Shell",
@@ -287,6 +309,8 @@ export default function interactiveShell(pi: ExtensionAPI) {
 		promptGuidelines: [
 			"Use interactive_shell for TUIs, REPLs, dev servers, and commands that need later input or output inspection.",
 			"Use interactive_shell action=spawn with a short friendly name to create a shell first, then action=send to type commands into it.",
+			"Spawn defaults to the user's configured shell. Choose bash or zsh for a clean shell without user configuration.",
+			"Spawned shells are stopped when the agent settles unless persist is true.",
 			"interactive_shell serializes send calls; when submit is true, text and Enter are sent as one ordered operation.",
 			"Never call interactive_shell send, tail, or kill in the same tool-call batch as spawn; wait for the spawn result and shell id first.",
 			"When creating multiple shells, spawn them one at a time; each shell is created in its own tmux session.",
@@ -298,7 +322,13 @@ export default function interactiveShell(pi: ExtensionAPI) {
 			try {
 				switch (params.action) {
 					case "spawn": {
-						const shell = await manager.spawn(params.cwd ?? ctx.cwd, params.name, signal);
+						const shell = await manager.spawn({
+							cwd: params.cwd ?? ctx.cwd,
+							name: params.name,
+							shell: params.shell,
+							persist: params.persist,
+							signal,
+						});
 						return ok(`Spawned ${formatShell(shell)}`, { action: params.action, shell });
 					}
 					case "send": {

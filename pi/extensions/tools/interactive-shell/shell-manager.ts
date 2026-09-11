@@ -1,5 +1,7 @@
 import { execFile } from "node:child_process";
 
+export type ShellChoice = "user" | "bash" | "zsh";
+
 export interface ShellRecord {
 	id: string;
 	paneId: string;
@@ -8,7 +10,17 @@ export interface ShellRecord {
 	cwd: string;
 	startedAt: string;
 	shell: string;
+	shellChoice: ShellChoice;
+	persist: boolean;
 	shellEnv?: string;
+}
+
+export interface SpawnOptions {
+	cwd: string;
+	name?: string;
+	shell?: ShellChoice;
+	persist?: boolean;
+	signal?: AbortSignal;
 }
 
 interface RunOptions {
@@ -53,17 +65,19 @@ export class TmuxCommandRunner implements CommandRunner {
 
 export class InteractiveShellManager {
 	private readonly runner: CommandRunner;
+	private readonly userShell: string | undefined;
 	private readonly shells = new Map<string, ShellRecord>();
 	private latestId: string | undefined;
 	private spawnQueue: Promise<void> = Promise.resolve();
 	private sendQueue: Promise<void> = Promise.resolve();
 	private nextSession = 1;
 
-	constructor(runner: CommandRunner) {
+	constructor(runner: CommandRunner, userShell = process.env.SHELL) {
 		this.runner = runner;
+		this.userShell = userShell;
 	}
 
-	async spawn(cwd: string, name: string | undefined, signal?: AbortSignal): Promise<ShellRecord> {
+	async spawn(options: SpawnOptions): Promise<ShellRecord> {
 		const previousSpawn = this.spawnQueue;
 		let releaseSpawn!: () => void;
 		this.spawnQueue = new Promise((resolve) => {
@@ -72,29 +86,38 @@ export class InteractiveShellManager {
 
 		await previousSpawn;
 		try {
-			await this.list(signal);
-			const displayName = this.normalizeName(name);
+			await this.list(options.signal);
+			const displayName = this.normalizeName(options.name);
 			const sessionName = this.buildSessionName(displayName);
-			const result = await this.runner.run(this.buildNewSessionArgs(sessionName, cwd), {
-				cwd,
-				signal,
-			});
+			const shellChoice = options.shell ?? "user";
+			const shellEnv = this.userShell;
+			const shell = shellChoice === "user" ? shellEnv : shellChoice;
+			if (!shell) throw new Error("SHELL is not set; choose bash or zsh explicitly");
+
+			const result = await this.runner.run(
+				this.buildNewSessionArgs(sessionName, options.cwd, shellChoice, shell),
+				{
+					cwd: options.cwd,
+					signal: options.signal,
+				},
+			);
 			const paneId = result.stdout.trim().split(/\s+/)[0];
 			if (!paneId) throw new Error("interactive shell did not return a pane id");
-			if (!(await this.isPaneLive(paneId, signal))) {
+			if (!(await this.isPaneLive(paneId, options.signal))) {
 				throw new Error("interactive shell pane was not live after spawn");
 			}
-			await this.prepareNewPane(paneId, signal);
+			await this.prepareNewPane(paneId, options.signal);
 
-			const shellEnv = process.env.SHELL;
 			const record: ShellRecord = {
 				id: paneId,
 				paneId,
 				sessionName,
 				name: displayName,
-				cwd,
+				cwd: options.cwd,
 				startedAt: new Date().toISOString(),
-				shell: shellEnv ?? "default",
+				shell,
+				shellChoice,
+				persist: options.persist ?? false,
 				shellEnv,
 			};
 			this.shells.set(record.id, record);
@@ -171,6 +194,32 @@ export class InteractiveShellManager {
 		return target;
 	}
 
+	async killNonPersistent(): Promise<ShellRecord[]> {
+		const killed: ShellRecord[] = [];
+		const errors: unknown[] = [];
+
+		for (const record of [...this.shells.values()]) {
+			if (record.persist) continue;
+			if (!(await this.isPaneLive(record.paneId, undefined))) {
+				this.shells.delete(record.id);
+				continue;
+			}
+			try {
+				await this.runner.run(["kill-session", "-t", record.sessionName]);
+				this.shells.delete(record.id);
+				killed.push(record);
+			} catch (error) {
+				errors.push(error);
+			}
+		}
+		this.refreshLatestId();
+
+		if (errors.length > 0) {
+			throw new AggregateError(errors, "failed to stop non-persistent interactive shells");
+		}
+		return killed;
+	}
+
 	private async sendText(
 		paneId: string,
 		text: string,
@@ -193,8 +242,17 @@ export class InteractiveShellManager {
 		await this.runner.run(["clear-history", "-t", paneId], { signal });
 	}
 
-	private buildNewSessionArgs(sessionName: string, cwd: string): string[] {
-		return ["new-session", "-d", "-s", sessionName, "-c", cwd, "-P", "-F", "#{pane_id}"];
+	private buildNewSessionArgs(
+		sessionName: string,
+		cwd: string,
+		shellChoice: ShellChoice,
+		shell: string,
+	): string[] {
+		const args = ["new-session", "-d", "-s", sessionName, "-c", cwd, "-P", "-F", "#{pane_id}"];
+		if (shellChoice === "user") args.push(shell);
+		if (shellChoice === "bash") args.push("bash --noprofile --norc");
+		if (shellChoice === "zsh") args.push("zsh -f");
+		return args;
 	}
 
 	private buildSessionName(displayName: string): string {

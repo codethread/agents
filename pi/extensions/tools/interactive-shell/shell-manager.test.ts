@@ -67,10 +67,10 @@ function callArgs(runner: FakeRunner): string[][] {
 describe("InteractiveShellManager", () => {
 	it("spawns each shell in a new detached tmux session", async () => {
 		const runner = new FakeRunner();
-		const manager = new InteractiveShellManager(runner);
+		const manager = new InteractiveShellManager(runner, "/bin/fish");
 
-		const first = await manager.spawn("/repo", undefined);
-		const second = await manager.spawn("/repo", undefined);
+		const first = await manager.spawn({ cwd: "/repo" });
+		const second = await manager.spawn({ cwd: "/repo" });
 
 		expect(first.id).toBe("%1");
 		expect(second.id).toBe("%2");
@@ -89,6 +89,7 @@ describe("InteractiveShellManager", () => {
 			"-P",
 			"-F",
 			"#{pane_id}",
+			"/bin/fish",
 		]);
 		expect(
 			callArgs(runner)
@@ -104,32 +105,65 @@ describe("InteractiveShellManager", () => {
 			"-P",
 			"-F",
 			"#{pane_id}",
+			"/bin/fish",
 		]);
 	});
 
 	it("uses friendly names in records and tmux session names", async () => {
 		const runner = new FakeRunner();
-		const manager = new InteractiveShellManager(runner);
+		const manager = new InteractiveShellManager(runner, "/bin/fish");
 
-		const shell = await manager.spawn("/repo", "Dev server");
+		const shell = await manager.spawn({ cwd: "/repo", name: "Dev server" });
 
 		expect(shell.name).toBe("Dev server");
 		expect(shell.sessionName).toMatch(/^pi-interactive-shell-.*-dev-server$/);
 	});
 
+	it.each([
+		{ choice: undefined, shell: "/bin/fish", command: "/bin/fish" },
+		{ choice: "bash" as const, shell: "bash", command: "bash --noprofile --norc" },
+		{ choice: "zsh" as const, shell: "zsh", command: "zsh -f" },
+	])("starts the selected $shell shell", async ({ choice, shell, command }) => {
+		const runner = new FakeRunner();
+		const manager = new InteractiveShellManager(runner, "/bin/fish");
+
+		const record = await manager.spawn({ cwd: "/repo", shell: choice });
+		const newSession = callArgs(runner).find((args) => args[0] === "new-session");
+
+		expect(record.shell).toBe(shell);
+		expect(record.shellChoice).toBe(choice ?? "user");
+		expect(newSession?.at(-1)).toBe(command);
+	});
+
+	it("stops agent-scoped shells while leaving persistent shells running", async () => {
+		const runner = new FakeRunner();
+		const manager = new InteractiveShellManager(runner, "/bin/fish");
+		const ephemeral = await manager.spawn({ cwd: "/repo" });
+		const persistent = await manager.spawn({ cwd: "/repo", persist: true });
+		runner.calls.length = 0;
+
+		const killed = await manager.killNonPersistent();
+
+		expect(killed).toEqual([ephemeral]);
+		expect(callArgs(runner).filter((args) => args[0] === "kill-session")).toEqual([
+			["kill-session", "-t", ephemeral.sessionName],
+		]);
+		expect(persistent.persist).toBe(true);
+	});
+
 	it("rejects friendly names longer than 80 characters", async () => {
 		const runner = new FakeRunner();
-		const manager = new InteractiveShellManager(runner);
+		const manager = new InteractiveShellManager(runner, "/bin/fish");
 
-		await expect(manager.spawn("/repo", "x".repeat(81))).rejects.toThrow(
+		await expect(manager.spawn({ cwd: "/repo", name: "x".repeat(81) })).rejects.toThrow(
 			"interactive shell name must be 80 characters or fewer",
 		);
 	});
 
 	it("serializes concurrent sends so text and submit stay paired", async () => {
 		const runner = new FakeRunner(true);
-		const manager = new InteractiveShellManager(runner);
-		const shell = await manager.spawn("/repo", undefined);
+		const manager = new InteractiveShellManager(runner, "/bin/fish");
+		const shell = await manager.spawn({ cwd: "/repo" });
 		runner.calls.length = 0;
 
 		const first = manager.send({ shellId: shell.id, text: "one", submit: true });
@@ -143,8 +177,8 @@ describe("InteractiveShellManager", () => {
 
 	it("uses a paste buffer for multiline text", async () => {
 		const runner = new FakeRunner();
-		const manager = new InteractiveShellManager(runner);
-		const shell = await manager.spawn("/repo", undefined);
+		const manager = new InteractiveShellManager(runner, "/bin/fish");
+		const shell = await manager.spawn({ cwd: "/repo" });
 		runner.calls.length = 0;
 
 		await manager.send({ shellId: shell.id, text: "line1\nline2", submit: true });
