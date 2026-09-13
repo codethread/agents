@@ -1,5 +1,7 @@
 # AGENTS.md
 
+Never stop the mill; only the user may stop it.
+
 - Install deps: `pnpm install`
 - Format: automatic via `pnpm check` after all work completed
 - Lint: `pnpm lint` (eslint)
