@@ -4,9 +4,21 @@ import type {
 	ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { showDebugMessage } from "../components/debug-message/index.js";
+import { setActiveMillstrandIdentity } from "../shared/millstrand-identity.js";
 import { discoverProjectRules, getUnconditionalRules } from "../shared/project-rules.js";
 import {
-	DEFAULT_IDENTITY,
+	DEBUG_MILLSTRAND_IDENTITY_FLAG,
+	formatNativeIdentityState,
+	getNativeIdentityInputs,
+	isLegacyManagedPiEnvironment,
+	MILLSTRAND_IDENTITY_FLAG,
+	MILLSTRAND_WORKSPACE_FLAG,
+	nativeIdentityModel,
+	resolveNativeIdentity,
+	type NativeIdentityState,
+} from "./native-identity.js";
+import {
+	DEFAULT_PERSONA,
 	buildSystemPrompt,
 	loadClaudeLocalContextFiles,
 } from "./prompt-builder.js";
@@ -102,6 +114,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 	let printPromptOnNextTurn = false;
 	let dynamicPrompt: string | null = null;
 	let lastMaterializedPrompt: string | null = null;
+	let nativeIdentityState: NativeIdentityState = { status: "pending" };
 	const toolPromptMetadata = new Map<string, ToolPromptMetadata>();
 	const registerTool = pi.registerTool.bind(pi);
 	pi.registerTool = ((definition: ToolDefinition) => {
@@ -114,6 +127,19 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 	pi.registerFlag(DEBUG_PROMPT_FLAG, {
 		description:
 			"Print the current effective system prompt and exit (optionally with a JSON override arg)",
+		type: "boolean",
+		default: false,
+	});
+	pi.registerFlag(MILLSTRAND_IDENTITY_FLAG, {
+		description: "Assert an existing Millstrand identity for this exact native Pi session",
+		type: "string",
+	});
+	pi.registerFlag(MILLSTRAND_WORKSPACE_FLAG, {
+		description: "Use an explicit Millstrand workspace for native Pi identity resolution",
+		type: "string",
+	});
+	pi.registerFlag(DEBUG_MILLSTRAND_IDENTITY_FLAG, {
+		description: "Resolve and print native Pi Millstrand identity state, then exit",
 		type: "boolean",
 		default: false,
 	});
@@ -146,12 +172,34 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		},
 	});
 
+	pi.registerCommand("debug-millstrand-identity", {
+		description: "Show native Pi Millstrand identity state",
+		handler: async (_args, ctx) => {
+			const report = formatNativeIdentityState(nativeIdentityState, ctx.cwd);
+			if (!ctx.hasUI) {
+				process.stdout.write(`${report}\n`);
+				return;
+			}
+			await showDebugMessage(ctx, {
+				headingText: "Millstrand Identity",
+				subheadingText: "native Pi session binding",
+				markdownBody: `\`\`\`json\n${report}\n\`\`\``,
+				sendMarkdownToAgent: async (markdownBody) => {
+					await pi.sendUserMessage(markdownBody);
+				},
+			});
+		},
+	});
+
 	pi.on("session_start", async (_event, ctx) => {
 		printPromptOnNextTurn = false;
 		dynamicPrompt = null;
 		lastMaterializedPrompt = null;
+		nativeIdentityState = { status: "pending" };
+		setActiveMillstrandIdentity(null);
 
 		const wantsPromptDebug = pi.getFlag(DEBUG_PROMPT_FLAG) === true;
+		const wantsIdentityDebug = pi.getFlag(DEBUG_MILLSTRAND_IDENTITY_FLAG) === true;
 		let templateOverrides: TemplateVars | null = null;
 		if (wantsPromptDebug) {
 			const parsedOverrides = parseDebugPromptOverrides(process.argv.slice(2));
@@ -163,7 +211,8 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			templateOverrides = parsedOverrides.overrides;
 		}
 
-		dynamicPrompt = await renderDynamicPrompt(
+		const nativeSessionId = ctx.sessionManager.getSessionId();
+		const dynamicPromptPromise = renderDynamicPrompt(
 			{
 				cwd: ctx.cwd,
 				hasUI: ctx.hasUI,
@@ -173,6 +222,38 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			templateOverrides,
 		);
 
+		if (isLegacyManagedPiEnvironment()) {
+			nativeIdentityState = {
+				status: "suppressed",
+				reason: "legacy managed run uses its existing prompt transport",
+				nativeSessionId,
+			};
+		} else {
+			try {
+				const inputs = getNativeIdentityInputs(pi);
+				const resolved = await resolveNativeIdentity(pi.exec, {
+					cwd: ctx.cwd,
+					nativeSessionId,
+					model: nativeIdentityModel(ctx),
+					thinkingLevel: ctx.thinkingLevel,
+					signal: ctx.signal,
+					...inputs,
+				});
+				nativeIdentityState = { status: "bound", ...resolved };
+				setActiveMillstrandIdentity(resolved);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				nativeIdentityState = { status: "error", error: message, nativeSessionId };
+				notify(ctx, `[millstrand-identity] ${message}`, "error");
+				process.stderr.write(`[millstrand-identity] ${message}\n`);
+			}
+		}
+
+		dynamicPrompt = await dynamicPromptPromise;
+		if (wantsIdentityDebug) {
+			process.stdout.write(`${formatNativeIdentityState(nativeIdentityState, ctx.cwd)}\n`);
+			process.exit(nativeIdentityState.status === "error" ? 1 : 0);
+		}
 		if (!wantsPromptDebug) return;
 		printPromptOnNextTurn = true;
 		notify(ctx, "Debug prompt mode: send a message to materialize the prompt.", "info");
@@ -190,7 +271,9 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 
 		return {
 			systemPrompt: buildSystemPrompt({
-				identity: options.customPrompt?.trim() || DEFAULT_IDENTITY,
+				persona: options.customPrompt?.trim() || DEFAULT_PERSONA,
+				millstrandIdentityInstruction:
+					nativeIdentityState.status === "bound" ? nativeIdentityState.instruction : undefined,
 				cwd: options.cwd,
 				currentDate: new Date().toISOString().slice(0, 10),
 				selectedTools: options.selectedTools,

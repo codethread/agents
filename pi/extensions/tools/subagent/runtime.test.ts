@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { PassThrough } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { setActiveMillstrandIdentity } from "../../shared/millstrand-identity.js";
 import {
 	buildSingleAgentArgs,
 	getInheritedResourceArgsFromArgv,
@@ -23,6 +24,7 @@ const originalUserProfile = process.env.USERPROFILE;
 
 afterEach(() => {
 	vi.useRealTimers();
+	setActiveMillstrandIdentity(null);
 	spawnMock.mockReset();
 	if (originalHome === undefined) delete process.env.HOME;
 	else process.env.HOME = originalHome;
@@ -527,6 +529,44 @@ describe("runSingleAgent model chain", () => {
 });
 
 describe("child inherited resources", () => {
+	it("spawns with child-scoped Millstrand attribution instead of parent ownership", async () => {
+		setActiveMillstrandIdentity({
+			identity: "native-parent",
+			instruction: "parent instruction",
+			workspace: "/disposable/world",
+		});
+		const original = {
+			agent: process.env.MILLSTRAND_AGENT_ID,
+			run: process.env.MILLSTRAND_RUN_ID,
+			bootstrap: process.env.MILLSTRAND_BOOTSTRAP_V1,
+		};
+		process.env.MILLSTRAND_AGENT_ID = "managed-parent";
+		process.env.MILLSTRAND_RUN_ID = "managed-run";
+		process.env.MILLSTRAND_BOOTSTRAP_V1 = "managed-bootstrap";
+		mockSpawnResult({ code: 0 });
+		try {
+			await runSingleAgent([testAgent()], request, undefined, undefined);
+			const options = spawnMock.mock.calls[0]?.[2] as { env: NodeJS.ProcessEnv };
+			expect(options.env).toMatchObject({
+				PI_SUBAGENT: "1",
+				MILLSTRAND_PI_PARENT_IDENTITY: "native-parent",
+				MILLSTRAND_PI_WORKSPACE: "/disposable/world",
+			});
+			expect(options.env.MILLSTRAND_AGENT_ID).toBeUndefined();
+			expect(options.env.MILLSTRAND_RUN_ID).toBeUndefined();
+			expect(options.env.MILLSTRAND_BOOTSTRAP_V1).toBeUndefined();
+		} finally {
+			for (const [key, value] of Object.entries({
+				MILLSTRAND_AGENT_ID: original.agent,
+				MILLSTRAND_RUN_ID: original.run,
+				MILLSTRAND_BOOTSTRAP_V1: original.bootstrap,
+			})) {
+				if (value === undefined) delete process.env[key];
+				else process.env[key] = value;
+			}
+		}
+	});
+
 	it("forwards extension and skill flags to child runs", () => {
 		expect(
 			getInheritedResourceArgsFromArgv([

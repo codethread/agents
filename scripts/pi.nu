@@ -80,6 +80,9 @@ def --wrapped pi [
 	--agent: string                           # [EXT] Inherit discovered agent config by name (prompt/model/tools/mcpServers, unless overridden)
 	--debug-mcp: string                       # [EXT] Validate agent MCP frontmatter and adapter runtime registration, print the report, and exit
 	--debug-prompt                            # [EXT] Print effective system prompt and exit (optional JSON override arg)
+	--millstrand-identity: string             # [EXT] Assert an existing identity for this exact native Pi session
+	--millstrand-workspace: path              # [EXT] Select an explicit Millstrand workspace for native identity
+	--debug-millstrand-identity               # [EXT] Resolve and print native Pi identity state, then exit
 	--debug-tldr                              # [EXT] Print current session TL;DR and exit
 	--debug-tldr-transcript                   # [EXT] Print transcript used by /tldr and exit
 	--debug-last-message                      # [EXT] Print /last-message editor body and exit
@@ -134,6 +137,9 @@ def --wrapped pi [
 	if $agent != null { $pi_args = ($pi_args | append ["--agent" $agent]) }
 	if $debug_mcp != null { $pi_args = ($pi_args | append ["--debug-mcp" $debug_mcp]) }
 	if $debug_prompt { $pi_args = ($pi_args | append "--debug-prompt") }
+	if $millstrand_identity != null { $pi_args = ($pi_args | append ["--millstrand-identity" $millstrand_identity]) }
+	if $millstrand_workspace != null { $pi_args = ($pi_args | append ["--millstrand-workspace" $millstrand_workspace]) }
+	if $debug_millstrand_identity { $pi_args = ($pi_args | append "--debug-millstrand-identity") }
 	if $debug_tldr { $pi_args = ($pi_args | append "--debug-tldr") }
 	if $debug_tldr_transcript { $pi_args = ($pi_args | append "--debug-tldr-transcript") }
 	if $debug_last_message { $pi_args = ($pi_args | append "--debug-last-message") }

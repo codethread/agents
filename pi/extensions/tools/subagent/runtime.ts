@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Message } from "@earendil-works/pi-ai";
 import { isContextOverflow } from "@earendil-works/pi-ai";
+import { buildMillstrandChildEnvironment } from "../../shared/millstrand-identity.js";
 import {
 	getAgentRuntimeSettings,
 	getFirstValidAgentModelCandidate,
@@ -349,10 +350,7 @@ export async function runSingleAgent(
 					cwd: runCwd,
 					shell: false,
 					stdio: ["ignore", "pipe", "pipe"],
-					env: {
-						...process.env,
-						PI_SUBAGENT: "1",
-					},
+					env: buildMillstrandChildEnvironment(process.env),
 				});
 				let buffer = "";
 				let settled = false;
