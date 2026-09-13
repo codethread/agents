@@ -8,6 +8,12 @@ When the `subagent` tool is active, discovered agents and swarms are injected in
 
 Agents are discovered from `agents/` directories, while swarms are discovered from `swarms/` directories; these are separate discovery roots in the same working tree. When a custom user agents directory is supplied programmatically, the default user swarms directory is resolved as its sibling `swarms/` directory so isolated test or embedded catalogs do not accidentally load the real user swarm catalog.
 
+### Native child identity
+
+A Pi subagent is a separate native session and resolves its own Millstrand identity from its actual child session ID. Child spawn removes inherited `MILLSTRAND_AGENT_ID`, `MILLSTRAND_RUN_ID`, `MILLSTRAND_WORKSPACE`, `MILLSTRAND_BOOTSTRAP_*`, reservation, and identity-transport state. It preserves resources, `--agent`, model selection, and native resume arguments.
+
+When a parent identity is known, the spawn passes it only as private `MILLSTRAND_PI_PARENT_IDENTITY` attribution; the identity extension translates that to `strand identity startup --parent-identity`. The parent's cwd-resolved absolute workspace is passed separately as `MILLSTRAND_PI_WORKSPACE`, so delegation to another cwd cannot reinterpret a relative route. The parent context reaches this extension over Pi's shared `pi.events` bus and is checked against the active native session ID before spawning; it does not rely on cross-extension module caching. Neither value grants the child parent ownership, and both are replaced for a grandchild after the child resolves its own identity.
+
 ---
 
 ## Agent discovery

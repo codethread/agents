@@ -36,6 +36,11 @@ import {
 } from "./session.js";
 import { runSingleAgent } from "./runtime.js";
 import { showDebugMessage } from "../../components/debug-message/index.js";
+import {
+	MILLSTRAND_IDENTITY_CONTEXT_EVENT,
+	parseMillstrandIdentityContext,
+	type ActiveMillstrandIdentity,
+} from "../../shared/millstrand-identity.js";
 import { describeMcpServer } from "./mcp.js";
 import { disposeMcpRegistrations, setupAgentMcpServers } from "./mcp-runtime.js";
 import {
@@ -198,8 +203,27 @@ export function hasAllSwarmMembersFailed(results: SingleResult[]): boolean {
 const DEBUG_MCP_FLAG = "debug-mcp";
 export default function (pi: ExtensionAPI) {
 	let selectedAgentName: string | undefined;
+	let millstrandIdentityContext: ActiveMillstrandIdentity | null = null;
 	let agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
 	let activeMcpRegistrations: { dispose(): Promise<void> }[] = [];
+
+	pi.events.on(MILLSTRAND_IDENTITY_CONTEXT_EVENT, (value) => {
+		millstrandIdentityContext = parseMillstrandIdentityContext(value);
+	});
+
+	const currentMillstrandIdentity = (
+		ctx: Pick<ExtensionContext, "sessionManager">,
+	): ActiveMillstrandIdentity | null => {
+		if (
+			millstrandIdentityContext &&
+			millstrandIdentityContext.nativeSessionId !== ctx.sessionManager.getSessionId()
+		) {
+			throw new Error(
+				`Millstrand identity context belongs to native session ${millstrandIdentityContext.nativeSessionId}, not ${ctx.sessionManager.getSessionId()}.`,
+			);
+		}
+		return millstrandIdentityContext;
+	};
 
 	const failAgentSelection = (
 		message: string,
@@ -326,6 +350,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
+		currentMillstrandIdentity(ctx);
 		agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
 		const debugMcpFlag = pi.getFlag(DEBUG_MCP_FLAG);
 		const debugMcpAgent = typeof debugMcpFlag === "string" ? debugMcpFlag.trim() : undefined;
@@ -480,6 +505,7 @@ export default function (pi: ExtensionAPI) {
 		parameters: SubagentParams,
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
+			const millstrandIdentity = currentMillstrandIdentity(ctx);
 			const discovery = discoverAgents(params.cwd);
 			const agents = discovery.agents;
 			const parentSessionFile = ctx.sessionManager.getSessionFile();
@@ -678,6 +704,7 @@ export default function (pi: ExtensionAPI) {
 									resolveModelInfo,
 									parentSessionInfo,
 									ctx.modelRegistry,
+									millstrandIdentity,
 								),
 					),
 				);
@@ -817,6 +844,7 @@ export default function (pi: ExtensionAPI) {
 				resolveModelInfo,
 				parentSessionInfo,
 				ctx.modelRegistry,
+				millstrandIdentity,
 			);
 			const results = [result];
 			toolCompletedAt = Date.now();

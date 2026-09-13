@@ -14,7 +14,8 @@ export type PromptSkill = Pick<
 export type PromptContextFile = NonNullable<BuildSystemPromptOptions["contextFiles"]>[number];
 
 export type PromptInput = {
-	identity: string;
+	persona: string;
+	millstrandIdentityInstruction?: string;
 	cwd: string;
 	currentDate: string;
 	selectedTools: string[];
@@ -32,7 +33,7 @@ export type PromptBuilderDependencies = {
 	wrapReminder: (type: string, content: string) => string;
 };
 
-export const DEFAULT_IDENTITY =
+export const DEFAULT_PERSONA =
 	"You are an expert coding assistant operating inside pi, a coding agent harness.";
 
 const DEFAULT_GUIDELINES = [
@@ -190,7 +191,14 @@ export function buildSystemPrompt(
 	);
 
 	return joinSections([
-		input.identity,
+		input.persona,
+		renderSection(
+			"Millstrand identity",
+			"",
+			input.millstrandIdentityInstruction
+				? wrapReminder("millstrand-identity", input.millstrandIdentityInstruction)
+				: null,
+		),
 		renderSection("Operating harness", "", harness),
 		renderSection(
 			"Operating rules",
