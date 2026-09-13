@@ -224,6 +224,9 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 				tools: pi.getActiveTools(),
 			},
 			templateOverrides,
+		).then(
+			(value) => ({ status: "fulfilled" as const, value }),
+			(reason: unknown) => ({ status: "rejected" as const, reason }),
 		);
 
 		if (isLegacyManagedPiEnvironment()) {
@@ -254,7 +257,9 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			}
 		}
 
-		dynamicPrompt = await dynamicPromptPromise;
+		const dynamicPromptResult = await dynamicPromptPromise;
+		if (dynamicPromptResult.status === "rejected") throw dynamicPromptResult.reason;
+		dynamicPrompt = dynamicPromptResult.value;
 		if (wantsIdentityDebug) {
 			process.stdout.write(`${formatNativeIdentityState(nativeIdentityState, ctx.cwd)}\n`);
 			process.exit(nativeIdentityState.status === "error" ? 1 : 0);

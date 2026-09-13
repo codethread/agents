@@ -24,7 +24,7 @@ It also renders Nunjucks rule templates into the owned prompt:
 1. global template: `<PI_CODING_AGENT_DIR>/agent.njk`
 2. nearest project template: `.pi/agent.njk` walking upward from cwd
 
-Templates are discovered, read, and rendered once at session startup, alongside Pi's other prompt resources. `/reload` starts the lifecycle again, so template edits take effect after a reload or a new session rather than on the next turn. Identity resolution also replays on reload; Millhouse recovers the same binding instead of relying on an injection sentinel.
+Templates are discovered, read, and rendered once at session startup, alongside Pi's other prompt resources. Rendering runs concurrently with identity startup, but template rejection is handled immediately and surfaced through the session lifecycle rather than escaping as an unhandled process rejection. `/reload` starts the lifecycle again, so template edits take effect after a reload or a new session rather than on the next turn. Identity resolution also replays on reload; Millhouse recovers the same binding instead of relying on an injection sentinel.
 
 If both exist, both are rendered as separate XML blocks: global inside `<system-reminder type="rules">`, project inside `<system-reminder type="project-rules">`.
 
