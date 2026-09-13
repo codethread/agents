@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import {
 	MILLSTRAND_PARENT_IDENTITY_ENV,
@@ -118,8 +119,9 @@ export async function resolveNativeIdentity(
 	exec: Exec,
 	options: ResolveOptions,
 ): Promise<NativeIdentityResult> {
+	const workspace = options.workspace ? resolve(options.cwd, options.workspace) : undefined;
 	const args = ["--cwd", options.cwd];
-	if (options.workspace) args.push("--workspace", options.workspace);
+	if (workspace) args.push("--workspace", workspace);
 	args.push("identity", "startup");
 	if (options.identity) args.push("--identity", options.identity);
 	if (options.parentIdentity) args.push("--parent-identity", options.parentIdentity);
@@ -142,7 +144,7 @@ export async function resolveNativeIdentity(
 		result: response.result,
 		instruction: response.instruction,
 		nativeSessionId: options.nativeSessionId,
-		...(options.workspace ? { workspace: options.workspace } : {}),
+		...(workspace ? { workspace } : {}),
 	};
 }
 

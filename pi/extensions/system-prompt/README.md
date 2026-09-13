@@ -59,7 +59,7 @@ Prefer precise file-edit tools over shell redirection.
 ## Identity routing and failure
 
 - Normal unmanaged startup needs no Millstrand identity, run, or reservation environment variables. Strand discovers a workspace from `--cwd`.
-- `--millstrand-workspace <dir>` selects an explicit workspace. Child Pi processes receive that routing value through private child metadata, not through inherited managed ownership.
+- `--millstrand-workspace <dir>` selects an explicit workspace. A relative value is resolved once against the parent session cwd, then the resulting absolute route is used for parent startup and passed unchanged to child and grandchild sessions through private child metadata. It is not reinterpreted against a delegated child's cwd or inherited as managed ownership.
 - `--millstrand-identity <name>` asserts an existing identity already bound to this exact Pi session. It cannot invent, attach, or move a friendly name; Millhouse rejects unknown or conflicting values before writing.
 - A process with `MILLSTRAND_RUN_ID` is treated as a legacy managed launch. Native resolution is suppressed so its existing append-system-prompt transport remains authoritative until the managed native-v1 cutover.
 - Strand, workspace, Weaver, conflict, and response-schema failures are reported visibly. Pi remains usable but unbound, and no identity block is rendered. The extension never guesses a name, retries, creates a workspace, or starts infrastructure.

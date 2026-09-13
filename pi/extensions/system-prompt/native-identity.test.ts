@@ -6,7 +6,7 @@ import {
 } from "./native-identity.js";
 
 describe("resolveNativeIdentity", () => {
-	it("binds the actual Pi session through Strand with explicit routing and attribution", async () => {
+	it("binds the actual Pi session with a cwd-scoped absolute workspace route", async () => {
 		const exec = vi.fn(async () => ({
 			stdout: JSON.stringify({
 				operation: "identity startup",
@@ -24,7 +24,7 @@ describe("resolveNativeIdentity", () => {
 		const result = await resolveNativeIdentity(exec as any, {
 			cwd: "/repo/worktree",
 			nativeSessionId: "pi-session-1",
-			workspace: "/world/.millstrand",
+			workspace: "./world/.millstrand",
 			identity: "warm-silver-lemur",
 			parentIdentity: "calm-green-otter",
 			model: "gpt-5",
@@ -37,7 +37,7 @@ describe("resolveNativeIdentity", () => {
 				"--cwd",
 				"/repo/worktree",
 				"--workspace",
-				"/world/.millstrand",
+				"/repo/worktree/world/.millstrand",
 				"identity",
 				"startup",
 				"--identity",
@@ -58,7 +58,7 @@ describe("resolveNativeIdentity", () => {
 			strandId: "abc12",
 			result: "minted",
 			nativeSessionId: "pi-session-1",
-			workspace: "/world/.millstrand",
+			workspace: "/repo/worktree/world/.millstrand",
 		});
 	});
 
