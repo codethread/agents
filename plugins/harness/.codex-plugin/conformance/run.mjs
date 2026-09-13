@@ -15,7 +15,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const conformanceRoot = dirname(fileURLToPath(import.meta.url));
+const runnerPath = fileURLToPath(import.meta.url);
+const conformanceRoot = dirname(runnerPath);
 const pluginRoot = resolve(conformanceRoot, "../..");
 const payloadRoot = join(conformanceRoot, "payloads");
 const referenceHook = join(conformanceRoot, "reference-hook.sh");
@@ -39,12 +40,19 @@ const outputSchemas = {
 	),
 };
 const temporaryDirectories = [];
+const activeChildren = new Set();
 let environmentRoot;
 
 function temporaryDirectory(prefix) {
 	const directory = mkdtempSync(join(tmpdir(), prefix));
 	temporaryDirectories.push(directory);
 	return directory;
+}
+
+function trackChild(child) {
+	activeChildren.add(child);
+	child.once("close", () => activeChildren.delete(child));
+	return child;
 }
 
 function terminateProcessTree(child) {
@@ -56,14 +64,37 @@ function terminateProcessTree(child) {
 	}
 }
 
-function run(command, args, { input = "", env = process.env, timeout = 10_000 } = {}) {
+function cleanup() {
+	for (const child of activeChildren) terminateProcessTree(child);
+	activeChildren.clear();
+	while (temporaryDirectories.length > 0) {
+		rmSync(temporaryDirectories.pop(), { recursive: true, force: true });
+	}
+}
+
+for (const signal of ["SIGINT", "SIGTERM"]) {
+	const handler = () => {
+		process.off(signal, handler);
+		try {
+			cleanup();
+		} finally {
+			process.kill(process.pid, signal);
+		}
+	};
+	process.on(signal, handler);
+}
+
+function run(command, args, { input = "", env = process.env, timeout = 10_000, onSpawn } = {}) {
 	return new Promise((resolvePromise, reject) => {
-		const child = spawn(command, args, {
-			detached: process.platform !== "win32",
-			env,
-			cwd: env.HOME,
-			stdio: ["pipe", "pipe", "pipe"],
-		});
+		const child = trackChild(
+			spawn(command, args, {
+				detached: process.platform !== "win32",
+				env,
+				cwd: env.HOME,
+				stdio: ["pipe", "pipe", "pipe"],
+			}),
+		);
+		onSpawn?.(child);
 		let stdout = "";
 		let stderr = "";
 		let terminalError;
@@ -343,16 +374,18 @@ function createCodexWorld({ enabled = true, hooksEnabled = true } = {}) {
 
 async function listHooks(world, cwd = world.cwd) {
 	return new Promise((resolvePromise, reject) => {
-		const child = spawn("codex", ["app-server", "--stdio"], {
-			detached: process.platform !== "win32",
-			env: fixtureEnvironment({
-				CODEX_HOME: world.codexHome,
-				HOME: world.home,
-				CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG: "1",
+		const child = trackChild(
+			spawn("codex", ["app-server", "--stdio"], {
+				detached: process.platform !== "win32",
+				env: fixtureEnvironment({
+					CODEX_HOME: world.codexHome,
+					HOME: world.home,
+					CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG: "1",
+				}),
+				cwd: world.cwd,
+				stdio: ["pipe", "pipe", "pipe"],
 			}),
-			cwd: world.cwd,
-			stdio: ["pipe", "pipe", "pipe"],
-		});
+		);
 		let stdout = "";
 		let stderr = "";
 		let response;
@@ -545,12 +578,32 @@ async function checkCliDiscovery() {
 	assert.equal(linkedEntry.cwd, "/workspace/project-linked-worktree");
 }
 
+async function holdInterruptProbe() {
+	const directory = temporaryDirectory("codex-hook-interrupt-");
+	writeFileSync(join(directory, "artifact"), "must be removed\n");
+	const payloadText = readFileSync(join(payloadRoot, "session-start-startup.json"), "utf8");
+	await run("bash", [referenceHook], {
+		input: payloadText,
+		timeout: 120_000,
+		env: fixtureEnvironment({
+			STRAND_BIN: fakeStrand,
+			FAKE_STRAND_MODE: "hang",
+			TMPDIR: directory,
+		}),
+		onSpawn(child) {
+			process.stdout.write(`${JSON.stringify({ childPid: child.pid, directory })}\n`);
+		},
+	});
+}
+
 try {
-	await checkPayloadReplay();
-	await checkCliDiscovery();
-	console.log(`Codex hook conformance passed (${expectedCodexVersion}; CLI-only, no model).`);
-} finally {
-	for (const directory of temporaryDirectories.reverse()) {
-		rmSync(directory, { recursive: true, force: true });
+	if (process.argv[2] === "--interrupt-probe") {
+		await holdInterruptProbe();
+	} else {
+		await checkPayloadReplay();
+		await checkCliDiscovery();
+		console.log(`Codex hook conformance passed (${expectedCodexVersion}; CLI-only, no model).`);
 	}
+} finally {
+	cleanup();
 }
