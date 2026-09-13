@@ -35,7 +35,7 @@ meta: >
   together so discovery stays high-signal and shell execution stays contained.
 tools: bash, read, edit, write
 model:
-  - id: deepseek/deepseek-v4-pro:high
+  - id: deepseek/deepseek-v4-flash:max
     when: "!$IS_WORK"
   - openai-codex/gpt-5.6-terra:medium
 ---
