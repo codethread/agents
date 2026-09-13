@@ -1,20 +1,34 @@
+export const MILLSTRAND_IDENTITY_CONTEXT_EVENT = "codethread:millstrand-identity-context:v1";
 export const MILLSTRAND_PARENT_IDENTITY_ENV = "MILLSTRAND_PI_PARENT_IDENTITY";
 export const MILLSTRAND_WORKSPACE_ENV = "MILLSTRAND_PI_WORKSPACE";
 
 export type ActiveMillstrandIdentity = {
 	identity: string;
 	instruction: string;
+	nativeSessionId: string;
 	workspace?: string;
 };
 
-let activeIdentity: ActiveMillstrandIdentity | null = null;
-
-export function setActiveMillstrandIdentity(identity: ActiveMillstrandIdentity | null): void {
-	activeIdentity = identity;
+function requiredString(value: unknown, field: string): string {
+	if (typeof value !== "string" || !value.trim()) {
+		throw new Error(`Millstrand identity context ${field} must be a non-empty string.`);
+	}
+	return value.trim();
 }
 
-export function getActiveMillstrandIdentity(): ActiveMillstrandIdentity | null {
-	return activeIdentity;
+export function parseMillstrandIdentityContext(value: unknown): ActiveMillstrandIdentity | null {
+	if (value === null) return null;
+	if (typeof value !== "object" || Array.isArray(value)) {
+		throw new Error("Millstrand identity context must be an object or null.");
+	}
+	const context = value as Record<string, unknown>;
+	const workspace = context.workspace;
+	return {
+		identity: requiredString(context.identity, "identity"),
+		instruction: requiredString(context.instruction, "instruction"),
+		nativeSessionId: requiredString(context.nativeSessionId, "nativeSessionId"),
+		...(workspace === undefined ? {} : { workspace: requiredString(workspace, "workspace") }),
+	};
 }
 
 function isBootstrapOwnershipKey(name: string): boolean {
@@ -35,12 +49,12 @@ function isBootstrapOwnershipKey(name: string): boolean {
  * Build the environment for a native Pi child session.
  *
  * Parent ownership and managed bootstrap state are never inherited by the child.
- * The parent's resolved identity is carried only as provenance input for the
- * child's own `identity startup` call.
+ * The explicitly supplied current identity is carried only as provenance input
+ * for the child's own `identity startup` call.
  */
 export function buildMillstrandChildEnvironment(
 	env: NodeJS.ProcessEnv,
-	currentIdentity: ActiveMillstrandIdentity | null = activeIdentity,
+	currentIdentity: ActiveMillstrandIdentity | null,
 ): NodeJS.ProcessEnv {
 	const childEnv = { ...env };
 	const legacyManagedParent = env.MILLSTRAND_RUN_ID?.trim()

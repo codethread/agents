@@ -4,7 +4,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { PassThrough } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { setActiveMillstrandIdentity } from "../../shared/millstrand-identity.js";
 import {
 	buildSingleAgentArgs,
 	getInheritedResourceArgsFromArgv,
@@ -24,7 +23,6 @@ const originalUserProfile = process.env.USERPROFILE;
 
 afterEach(() => {
 	vi.useRealTimers();
-	setActiveMillstrandIdentity(null);
 	spawnMock.mockReset();
 	if (originalHome === undefined) delete process.env.HOME;
 	else process.env.HOME = originalHome;
@@ -530,11 +528,12 @@ describe("runSingleAgent model chain", () => {
 
 describe("child inherited resources", () => {
 	it("spawns with child-scoped Millstrand attribution instead of parent ownership", async () => {
-		setActiveMillstrandIdentity({
+		const millstrandIdentity = {
 			identity: "native-parent",
 			instruction: "parent instruction",
+			nativeSessionId: "native-parent-session",
 			workspace: "/disposable/world",
-		});
+		};
 		const original = {
 			agent: process.env.MILLSTRAND_AGENT_ID,
 			run: process.env.MILLSTRAND_RUN_ID,
@@ -545,7 +544,16 @@ describe("child inherited resources", () => {
 		process.env.MILLSTRAND_BOOTSTRAP_V1 = "managed-bootstrap";
 		mockSpawnResult({ code: 0 });
 		try {
-			await runSingleAgent([testAgent()], request, undefined, undefined);
+			await runSingleAgent(
+				[testAgent()],
+				request,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				millstrandIdentity,
+			);
 			const options = spawnMock.mock.calls[0]?.[2] as { env: NodeJS.ProcessEnv };
 			expect(options.env).toMatchObject({
 				PI_SUBAGENT: "1",

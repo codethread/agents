@@ -15,6 +15,8 @@ The extension replaces Pi's generated prompt during `before_agent_start` using s
 
 On every `session_start`, the extension passes Pi's actual `ctx.sessionManager.getSessionId()` and `ctx.cwd` to `strand identity startup pi`. This covers startup, reload, resume, new-session, and fork lifecycles: the same native ID recovers its identity, while a new/forked ID gets its own binding. The canonical instruction returned by Millhouse is rendered once as `<system-reminder type="millstrand-identity">` in the owned prompt on every turn. It is separate from both the renderer persona and user append text.
 
+The resolved session context is published over Pi's shared `pi.events` bus for other extensions. This is deliberately not module state: Pi loads each extension through an isolated jiti instance with `moduleCache: false`. Each lifecycle first publishes an unbound reset, then the newly resolved identity and explicit workspace; shutdown publishes another reset.
+
 The native contract requires Millhouse identity implementation `9939588e925c5a3c73608feb8182c4f52d586f64` (the implementation released by Millhouse merge `b1955a96ad91bf2909a407859fca1565ec4b9fdb`) or newer. The supported host package is `@earendil-works/pi-coding-agent` 0.84.4.
 
 It also renders Nunjucks rule templates into the owned prompt:

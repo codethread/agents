@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { buildMillstrandChildEnvironment } from "./millstrand-identity.js";
+import {
+	buildMillstrandChildEnvironment,
+	parseMillstrandIdentityContext,
+} from "./millstrand-identity.js";
+
+describe("parseMillstrandIdentityContext", () => {
+	it("accepts reset and validates session-scoped identity messages", () => {
+		expect(parseMillstrandIdentityContext(null)).toBeNull();
+		expect(
+			parseMillstrandIdentityContext({
+				identity: "native-parent",
+				instruction: "parent instruction",
+				nativeSessionId: "parent-session",
+				workspace: "/native/world",
+			}),
+		).toEqual({
+			identity: "native-parent",
+			instruction: "parent instruction",
+			nativeSessionId: "parent-session",
+			workspace: "/native/world",
+		});
+		expect(() => parseMillstrandIdentityContext({ identity: "invented-without-session" })).toThrow(
+			"instruction must be a non-empty string",
+		);
+	});
+});
 
 describe("buildMillstrandChildEnvironment", () => {
 	it("scrubs inherited ownership/bootstrap state and passes separate parent attribution", () => {
@@ -17,6 +42,7 @@ describe("buildMillstrandChildEnvironment", () => {
 			{
 				identity: "native-parent",
 				instruction: "parent instruction",
+				nativeSessionId: "native-parent-session",
 				workspace: "/native/world",
 			},
 		);
@@ -41,11 +67,14 @@ describe("buildMillstrandChildEnvironment", () => {
 	});
 
 	it("attributes a child to a known legacy managed parent without giving it parent ownership", () => {
-		const child = buildMillstrandChildEnvironment({
-			MILLSTRAND_AGENT_ID: "legacy-parent",
-			MILLSTRAND_RUN_ID: "legacy-run",
-			MILLSTRAND_WORKSPACE: "/legacy/world",
-		});
+		const child = buildMillstrandChildEnvironment(
+			{
+				MILLSTRAND_AGENT_ID: "legacy-parent",
+				MILLSTRAND_RUN_ID: "legacy-run",
+				MILLSTRAND_WORKSPACE: "/legacy/world",
+			},
+			null,
+		);
 
 		expect(child.MILLSTRAND_PI_PARENT_IDENTITY).toBe("legacy-parent");
 		expect(child.MILLSTRAND_PI_WORKSPACE).toBe("/legacy/world");
@@ -55,9 +84,12 @@ describe("buildMillstrandChildEnvironment", () => {
 	});
 
 	it("does not turn a bare ambient identity into parent provenance", () => {
-		const child = buildMillstrandChildEnvironment({
-			MILLSTRAND_AGENT_ID: "ambient-not-managed",
-		});
+		const child = buildMillstrandChildEnvironment(
+			{
+				MILLSTRAND_AGENT_ID: "ambient-not-managed",
+			},
+			null,
+		);
 
 		expect(child.MILLSTRAND_PI_PARENT_IDENTITY).toBeUndefined();
 		expect(child.MILLSTRAND_AGENT_ID).toBeUndefined();

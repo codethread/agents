@@ -4,7 +4,7 @@ import type {
 	ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { showDebugMessage } from "../components/debug-message/index.js";
-import { setActiveMillstrandIdentity } from "../shared/millstrand-identity.js";
+import { MILLSTRAND_IDENTITY_CONTEXT_EVENT } from "../shared/millstrand-identity.js";
 import { discoverProjectRules, getUnconditionalRules } from "../shared/project-rules.js";
 import {
 	DEBUG_MILLSTRAND_IDENTITY_FLAG,
@@ -191,12 +191,16 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		},
 	});
 
+	pi.on("session_shutdown", () => {
+		pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, null);
+	});
+
 	pi.on("session_start", async (_event, ctx) => {
 		printPromptOnNextTurn = false;
 		dynamicPrompt = null;
 		lastMaterializedPrompt = null;
 		nativeIdentityState = { status: "pending" };
-		setActiveMillstrandIdentity(null);
+		pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, null);
 
 		const wantsPromptDebug = pi.getFlag(DEBUG_PROMPT_FLAG) === true;
 		const wantsIdentityDebug = pi.getFlag(DEBUG_MILLSTRAND_IDENTITY_FLAG) === true;
@@ -240,10 +244,11 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 					...inputs,
 				});
 				nativeIdentityState = { status: "bound", ...resolved };
-				setActiveMillstrandIdentity(resolved);
+				pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, resolved);
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				nativeIdentityState = { status: "error", error: message, nativeSessionId };
+				pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, null);
 				notify(ctx, `[millstrand-identity] ${message}`, "error");
 				process.stderr.write(`[millstrand-identity] ${message}\n`);
 			}

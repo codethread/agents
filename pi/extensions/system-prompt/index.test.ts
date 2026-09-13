@@ -79,6 +79,7 @@ describe("system-prompt extension", () => {
 		const exec = vi.fn();
 
 		systemPromptExtension({
+			events: { emit: vi.fn(), on: vi.fn() },
 			on,
 			registerFlag,
 			registerCommand,
@@ -117,6 +118,7 @@ describe("system-prompt extension", () => {
 		const notify = vi.fn();
 
 		systemPromptExtension({
+			events: { emit: vi.fn(), on: vi.fn() },
 			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
 				handlers.set(eventName, handler);
 			},
@@ -152,6 +154,7 @@ describe("system-prompt extension", () => {
 		const getActiveTools = vi.fn(() => ["write"]);
 
 		systemPromptExtension({
+			events: { emit: vi.fn(), on: vi.fn() },
 			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
 				handlers.set(eventName, handler);
 			},
@@ -226,6 +229,7 @@ describe("system-prompt extension", () => {
 	it("renders templates once per session start and again after reload", async () => {
 		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
 		systemPromptExtension({
+			events: { emit: vi.fn(), on: vi.fn() },
 			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
 				handlers.set(eventName, handler);
 			},
@@ -268,6 +272,7 @@ describe("system-prompt extension", () => {
 		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
 		let sessionId = "session-parent";
 		systemPromptExtension({
+			events: { emit: vi.fn(), on: vi.fn() },
 			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
 				handlers.set(eventName, handler);
 			},
@@ -309,6 +314,7 @@ describe("system-prompt extension", () => {
 		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
 		let sessionId = "parent";
 		systemPromptExtension({
+			events: { emit: vi.fn(), on: vi.fn() },
 			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
 				handlers.set(eventName, handler);
 			},
@@ -357,6 +363,7 @@ describe("system-prompt extension", () => {
 		mocks.isLegacyManagedPiEnvironment.mockReturnValue(true);
 		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
 		systemPromptExtension({
+			events: { emit: vi.fn(), on: vi.fn() },
 			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
 				handlers.set(eventName, handler);
 			},
@@ -405,6 +412,7 @@ describe("system-prompt extension", () => {
 		const notify = vi.fn();
 		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
 		systemPromptExtension({
+			events: { emit: vi.fn(), on: vi.fn() },
 			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
 				handlers.set(eventName, handler);
 			},
@@ -438,6 +446,7 @@ describe("system-prompt extension", () => {
 		const notify = vi.fn();
 
 		systemPromptExtension({
+			events: { emit: vi.fn(), on: vi.fn() },
 			on: vi.fn(),
 			registerFlag: vi.fn(),
 			registerCommand,
@@ -464,6 +473,7 @@ describe("system-prompt extension", () => {
 		const sendUserMessage = vi.fn();
 
 		systemPromptExtension({
+			events: { emit: vi.fn(), on: vi.fn() },
 			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
 				handlers.set(eventName, handler);
 			},
