@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createServer } from "node:http";
 import {
 	cpSync,
 	existsSync,
@@ -73,6 +74,13 @@ function processExists(pid) {
 	}
 }
 
+async function waitForProcessExit(pid, timeout = 2_000) {
+	const deadline = Date.now() + timeout;
+	while (processExists(pid) && Date.now() < deadline) {
+		await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
+	}
+}
+
 function terminateProcessTree(child) {
 	if (child.pid === undefined) return;
 	try {
@@ -102,13 +110,17 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 	process.on(signal, handler);
 }
 
-function run(command, args, { input = "", env = process.env, timeout = 10_000, onSpawn } = {}) {
+function run(
+	command,
+	args,
+	{ input = "", env = process.env, timeout = 10_000, onSpawn, cwd = env.HOME } = {},
+) {
 	return new Promise((resolvePromise, reject) => {
 		const child = trackChild(
 			spawn(command, args, {
 				detached: process.platform !== "win32",
 				env,
-				cwd: env.HOME,
+				cwd,
 				stdio: ["pipe", "pipe", "pipe"],
 			}),
 		);
@@ -269,7 +281,7 @@ async function checkHostKillRecovery(payloadText) {
 		FAKE_STRAND_LOG: logPath,
 	});
 	const child = trackChild(
-		spawn("bash", [identityHook], {
+		spawn("bash", [identityHook, "--configured-source"], {
 			detached: true,
 			env: {
 				...environment,
@@ -291,9 +303,10 @@ async function checkHostKillRecovery(payloadText) {
 	);
 	process.kill(-child.pid, "SIGKILL");
 	assert.deepEqual(await closed, { code: null, closeSignal: "SIGKILL" });
+	await waitForProcessExit(fakePid);
 	assert.equal(processExists(fakePid), false, "host SIGKILL must terminate the Strand child");
 
-	const recovered = await run("bash", [identityHook], {
+	const recovered = await run("bash", [identityHook, "--configured-source"], {
 		input: payloadText,
 		env: environment,
 	});
@@ -346,7 +359,7 @@ async function checkPayloadReplay() {
 						MILLSTRAND_RESERVATION_ID: "inherited-reservation",
 					}
 				: {};
-		const result = await run("bash", [identityHook], {
+		const result = await run("bash", [identityHook, "--configured-source"], {
 			input: payloadText,
 			env: fixtureEnvironment({
 				MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
@@ -403,7 +416,7 @@ async function checkPayloadReplay() {
 	const explicitDirectory = temporaryDirectory("codex-hook-explicit-workspace-");
 	const explicitLog = join(explicitDirectory, "fake-strand.jsonl");
 	const explicitWorkspace = "/configured workspace/.millstrand";
-	const explicit = await run("bash", [identityHook], {
+	const explicit = await run("bash", [identityHook, "--configured-source"], {
 		input: payloadText,
 		env: fixtureEnvironment({
 			MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
@@ -424,7 +437,7 @@ async function checkPayloadReplay() {
 
 	const legacyDirectory = temporaryDirectory("codex-hook-legacy-");
 	const legacyLog = join(legacyDirectory, "fake-strand.jsonl");
-	const legacy = await run("bash", [identityHook], {
+	const legacy = await run("bash", [identityHook, "--configured-source"], {
 		input: payloadText,
 		env: fixtureEnvironment({
 			MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
@@ -450,7 +463,7 @@ async function checkPayloadReplay() {
 		FAKE_STRAND_LOG: duplicateLog,
 		TMPDIR: duplicateDirectory,
 	});
-	const firstInjector = run("bash", [identityHook], {
+	const firstInjector = run("bash", [identityHook, "--configured-source"], {
 		input: payloadText,
 		env: {
 			...duplicateEnvironment,
@@ -460,7 +473,7 @@ async function checkPayloadReplay() {
 		},
 	});
 	await waitForFile(duplicateReady);
-	const secondInjector = await run("bash", [identityHook], {
+	const secondInjector = await run("bash", [identityHook, "--configured-source"], {
 		input: payloadText,
 		env: duplicateEnvironment,
 	});
@@ -480,37 +493,6 @@ async function checkPayloadReplay() {
 		"SessionStart",
 	);
 
-	const staggeredDirectory = temporaryDirectory("codex-hook-staggered-duplicate-");
-	const staggeredLog = join(staggeredDirectory, "fake-strand.jsonl");
-	const canonicalEnvironment = fixtureEnvironment({
-		MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
-		FAKE_STRAND_LOG: staggeredLog,
-		TMPDIR: staggeredDirectory,
-	});
-	const canonicalInjector = await run("bash", [identityHook], {
-		input: payloadText,
-		env: canonicalEnvironment,
-	});
-	assertHookOutput(
-		parseSingleJsonLine(canonicalInjector.stdout, "canonical injector response"),
-		"SessionStart",
-	);
-	const nonPackagedEnvironment = { ...canonicalEnvironment };
-	delete nonPackagedEnvironment.PLUGIN_ROOT;
-	const staggeredDuplicate = await run("bash", [identityHook], {
-		input: payloadText,
-		env: nonPackagedEnvironment,
-	});
-	assert.match(
-		parseSingleJsonLine(staggeredDuplicate.stdout, "staggered duplicate response").systemMessage,
-		/Duplicate or non-packaged Millstrand identity injector configuration/,
-	);
-	assert.equal(
-		parseJsonLines(readFileSync(staggeredLog, "utf8"), "staggered fake calls").length,
-		1,
-		"a staggered non-plugin registration must not reach Strand after the canonical handler exits",
-	);
-
 	for (const mode of [
 		"failure",
 		"no-workspace",
@@ -523,7 +505,7 @@ async function checkPayloadReplay() {
 		"multiple-responses",
 	]) {
 		const failureDirectory = temporaryDirectory("codex-hook-failure-");
-		const result = await run("bash", [identityHook], {
+		const result = await run("bash", [identityHook, "--configured-source"], {
 			input: payloadText,
 			env: fixtureEnvironment({
 				MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
@@ -547,7 +529,7 @@ async function checkPayloadReplay() {
 		assert.match(output.systemMessage, /unbound|required context was not injected/);
 	}
 
-	const missingStrand = await run("bash", [identityHook], {
+	const missingStrand = await run("bash", [identityHook, "--configured-source"], {
 		input: payloadText,
 		env: fixtureEnvironment({ MILLSTRAND_CODEX_STRAND_BIN: "/missing/strand" }),
 	});
@@ -556,7 +538,7 @@ async function checkPayloadReplay() {
 		/cannot execute Strand/,
 	);
 
-	const malformed = await run("bash", [identityHook], {
+	const malformed = await run("bash", [identityHook, "--configured-source"], {
 		input: '{"hook_event_name":"SessionStart","session_id":""}',
 		env: fixtureEnvironment({ MILLSTRAND_CODEX_STRAND_BIN: fakeStrand }),
 	});
@@ -569,7 +551,7 @@ async function checkPayloadReplay() {
 
 	const timeoutDirectory = temporaryDirectory("codex-hook-timeout-");
 	await assert.rejects(
-		run("bash", [identityHook], {
+		run("bash", [identityHook, "--configured-source"], {
 			input: payloadText,
 			timeout: 250,
 			env: fixtureEnvironment({
@@ -717,6 +699,186 @@ function onlyEntry(response) {
 	return response.data[0];
 }
 
+async function startFixtureProvider() {
+	const requests = [];
+	const server = createServer((request, response) => {
+		let body = "";
+		request.setEncoding("utf8");
+		request.on("data", (chunk) => {
+			body += chunk;
+			if (body.length > 1_000_000) request.destroy();
+		});
+		request.on("end", () => {
+			requests.push(JSON.parse(body));
+			const output = {
+				id: "msg_fixture",
+				type: "message",
+				role: "assistant",
+				content: [{ type: "output_text", text: "ok" }],
+			};
+			const events = [
+				{ type: "response.created", response: { id: "resp_fixture" } },
+				{ type: "response.output_item.done", output_index: 0, item: output },
+				{
+					type: "response.completed",
+					response: {
+						id: "resp_fixture",
+						status: "completed",
+						output: [output],
+						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+					},
+				},
+			];
+			const eventStream = events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("");
+			response.writeHead(200, {
+				"Content-Type": "text/event-stream",
+				"Content-Length": Buffer.byteLength(eventStream),
+			});
+			response.end(eventStream);
+		});
+	});
+	await new Promise((resolvePromise, reject) => {
+		server.once("error", reject);
+		server.listen(0, "127.0.0.1", resolvePromise);
+	});
+	return {
+		port: server.address().port,
+		requests,
+		close: () => new Promise((resolvePromise) => server.close(resolvePromise)),
+	};
+}
+
+function writeHostConfig(world, providerPort, pluginIds) {
+	writeFileSync(
+		join(world.codexHome, "config.toml"),
+		`model = "gpt-5.4"\nmodel_provider = "fixture"\n\n[model_providers.fixture]\nname = "fixture"\nbase_url = "http://127.0.0.1:${providerPort}/v1"\nwire_api = "responses"\nrequires_openai_auth = false\n\n[features]\nplugins = true\nremote_plugin = false\nhooks = true\n\n${pluginIds.map((id) => `[plugins."harness@${id}"]\nenabled = true\n`).join("\n")}`,
+	);
+}
+
+function identityMessages(requests) {
+	return requests.flatMap((request) =>
+		(request.input ?? []).filter(
+			(item) =>
+				item.role === "developer" && JSON.stringify(item).includes("Your Millstrand identity is"),
+		),
+	);
+}
+
+async function checkActualHostDuplicateSources() {
+	const provider = await startFixtureProvider();
+	try {
+		for (const scenario of ["single", "two-packages", "inherited-user"]) {
+			const world = createCodexWorld();
+			const pluginIds = ["agents"];
+			if (scenario === "two-packages") {
+				const duplicatePlugin = join(world.codexHome, "plugins/cache/duplicate/harness/local");
+				mkdirSync(dirname(duplicatePlugin), { recursive: true });
+				cpSync(pluginRoot, duplicatePlugin, { recursive: true });
+				const duplicateHooksPath = join(duplicatePlugin, ".codex-plugin/hooks/hooks.json");
+				const duplicateHooks = JSON.parse(readFileSync(duplicateHooksPath, "utf8"));
+				for (const group of duplicateHooks.hooks.SessionStart) {
+					for (const hook of group.hooks) {
+						if (hook.command.includes("identity.sh")) hook.command = `sleep 1; ${hook.command}`;
+					}
+				}
+				writeFileSync(duplicateHooksPath, `${JSON.stringify(duplicateHooks, null, "\t")}\n`);
+				pluginIds.push("duplicate");
+			}
+			if (scenario === "inherited-user") {
+				const command = `sleep 1; bash "${join(
+					world.installedPlugin,
+					".codex-plugin/hooks/identity.sh",
+				)}"`;
+				writeFileSync(
+					join(world.codexHome, "hooks.json"),
+					`${JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: "command", command }] }] } }, null, "\t")}\n`,
+				);
+			}
+			writeHostConfig(world, provider.port, pluginIds);
+			const installedIdentity = join(world.installedPlugin, ".codex-plugin/hooks/identity.sh");
+
+			const listed = onlyEntry(await listHooks(world));
+			const configuredIdentityHooks = listed.hooks.filter(
+				(hook) =>
+					hook.eventName === "sessionStart" &&
+					hook.command.includes("/.codex-plugin/hooks/identity.sh"),
+			);
+			assert.equal(configuredIdentityHooks.length, scenario === "single" ? 1 : 2);
+			if (scenario === "two-packages") {
+				assert.deepEqual(configuredIdentityHooks.map((hook) => hook.pluginId).sort(), [
+					"harness@agents",
+					"harness@duplicate",
+				]);
+			}
+			if (scenario === "inherited-user") {
+				assert.deepEqual(configuredIdentityHooks.map((hook) => hook.source).sort(), [
+					"plugin",
+					"user",
+				]);
+			}
+
+			const logPath = join(world.codexHome, `${scenario}-strand.jsonl`);
+			const requestOffset = provider.requests.length;
+			const environment = fixtureEnvironment({
+				CODEX_HOME: world.codexHome,
+				HOME: world.home,
+				CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG: "1",
+				MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
+				FAKE_STRAND_LOG: logPath,
+				...(scenario === "inherited-user" ? { PLUGIN_ROOT: world.installedPlugin } : {}),
+			});
+			if (scenario !== "single") {
+				const diagnostic = await run("bash", [installedIdentity], {
+					input: JSON.stringify({
+						session_id: `${scenario}-diagnostic`,
+						cwd: world.cwd,
+						hook_event_name: "SessionStart",
+						source: "startup",
+						model: "gpt-5.4",
+					}),
+					env: environment,
+					cwd: world.cwd,
+				});
+				assert.match(
+					parseSingleJsonLine(diagnostic.stdout, `${scenario} duplicate diagnostic`).systemMessage,
+					/Duplicate Millstrand identity injector configuration detected \(2 configured sources\)/,
+				);
+			}
+			const result = await run(
+				"codex",
+				[
+					"exec",
+					"--skip-git-repo-check",
+					"--dangerously-bypass-hook-trust",
+					"--ephemeral",
+					"--json",
+					"Reply ok.",
+				],
+				{ env: environment, cwd: world.cwd, timeout: 45_000 },
+			);
+			assert.equal(result.code, 0, `${scenario}: ${result.stderr}`);
+			const calls = existsSync(logPath)
+				? parseJsonLines(readFileSync(logPath, "utf8"), `${scenario} Strand calls`)
+				: [];
+			const modelRequests = provider.requests.slice(requestOffset);
+			assert.equal(modelRequests.length, 1, `${scenario} must issue one model request`);
+			if (scenario === "single") {
+				assert.equal(calls.length, 1, `${result.stdout}\n${result.stderr}`);
+				assert.equal(identityMessages(modelRequests).length, 1);
+			} else {
+				assert.equal(calls.length, 0, `${scenario} must stop before Strand`);
+				assert.equal(
+					identityMessages(modelRequests).length,
+					0,
+					`${scenario} must not inject duplicate identity context`,
+				);
+			}
+		}
+	} finally {
+		await provider.close();
+	}
+}
+
 async function checkCliDiscovery() {
 	const version = await run("codex", ["--version"], { env: fixtureEnvironment() });
 	assert.equal(version.code, 0, version.stderr);
@@ -828,7 +990,7 @@ async function holdInterruptProbe() {
 	const directory = temporaryDirectory("codex-hook-interrupt-");
 	writeFileSync(join(directory, "artifact"), "must be removed\n");
 	const payloadText = readFileSync(join(payloadRoot, "session-start-startup.json"), "utf8");
-	await run("bash", [identityHook], {
+	await run("bash", [identityHook, "--configured-source"], {
 		input: payloadText,
 		timeout: 120_000,
 		env: fixtureEnvironment({
@@ -848,7 +1010,10 @@ try {
 	} else {
 		await checkPayloadReplay();
 		await checkCliDiscovery();
-		console.log(`Codex hook conformance passed (${expectedCodexVersion}; CLI-only, no model).`);
+		await checkActualHostDuplicateSources();
+		console.log(
+			`Codex hook conformance passed (${expectedCodexVersion}; CLI-only, local provider).`,
+		);
 	}
 } finally {
 	cleanup();

@@ -25,16 +25,9 @@ script_dir=$(cd -P "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd) || {
 	exit 0
 }
 script_path="$script_dir/identity.sh"
-script_plugin_root=$(cd -P "$script_dir/../.." 2>/dev/null && pwd) || {
-	warning "Millstrand identity startup cannot resolve its packaged plugin root; this session is unbound."
-	exit 0
-}
-configured_plugin_root=
-if [[ -n ${PLUGIN_ROOT:-} ]]; then
-	configured_plugin_root=$(cd -P "$PLUGIN_ROOT" 2>/dev/null && pwd) || true
-fi
-if [[ -z "$configured_plugin_root" || "$configured_plugin_root" != "$script_plugin_root" ]]; then
-	warning "Duplicate or non-packaged Millstrand identity injector configuration detected; identity was not bound or injected."
+source_probe="$script_dir/identity-sources.sh"
+if [[ ! -x "$source_probe" ]]; then
+	warning "Millstrand identity startup cannot inspect configured injector sources; this session is unbound."
 	exit 0
 fi
 
@@ -95,6 +88,33 @@ cwd=$(jq -er '.cwd' <<<"$payload")
 model=$(jq -er '.model' <<<"$payload")
 source=$(jq -er '.source // "child"' <<<"$payload")
 agent_id=$(jq -er '.agent_id // "root"' <<<"$payload")
+
+if [[ ${1:-} != --configured-source && ${1:-} != --locked ]]; then
+	source_result=$(bash "$source_probe" "$event_name" "$cwd" 2>&1)
+	source_status=$?
+	if ((source_status != 0)); then
+		source_diagnostic=$(LC_ALL=C printf '%s' "$source_result" | head -c 160 | tr '\n\r\t' '   ')
+		warning "Millstrand identity startup could not inspect Codex hook configuration: $source_diagnostic. This session is unbound."
+		exit 0
+	fi
+	if ! jq -e '
+		(type == "object") and
+		(keys == ["configured"]) and
+		((.configured | type) == "number") and
+		(.configured == (.configured | floor)) and
+		(.configured >= 0)
+	' >/dev/null 2>&1 <<<"$source_result"; then
+		warning "Millstrand identity startup received an invalid configured-source result; this session is unbound."
+		exit 0
+	fi
+	configured_sources=$(jq -er '.configured' <<<"$source_result")
+	if ((configured_sources != 1)); then
+		warning "Duplicate Millstrand identity injector configuration detected ($configured_sources configured sources); identity was not bound or injected."
+		exit 0
+	fi
+	printf '%s' "$payload" | bash "$script_path" --configured-source
+	exit 0
+fi
 
 # This is a host/user routing setting, not launcher identity transport. An
 # unmanaged MILLSTRAND_WORKSPACE remains accepted for the established client

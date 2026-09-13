@@ -2,8 +2,9 @@
 set -euo pipefail
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)
-plugin_root="$repo_root/plugins/harness"
-identity_hook="$plugin_root/.codex-plugin/hooks/identity.sh"
+source_plugin_root="$repo_root/plugins/harness"
+plugin_root=
+identity_hook=
 identity_sha="b1955a96ad91bf2909a407859fca1565ec4b9fdb"
 identity_url="https://github.com/codethread/millhouse.spool.git"
 
@@ -32,7 +33,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-for command in git jq mill strand; do
+for command in codex git jq mill strand; do
 	command -v "$command" >/dev/null 2>&1 || {
 		echo "live identity acceptance requires $command" >&2
 		exit 1
@@ -47,6 +48,21 @@ export XDG_STATE_HOME="$state_root"
 export XDG_CACHE_HOME="$tmp_root/cache"
 export XDG_RUNTIME_DIR="$tmp_root/runtime"
 export GITLIBS="$tmp_root/gitlibs"
+export CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG=1
+plugin_root="$CODEX_HOME/plugins/cache/agents/harness/local"
+mkdir -p "$(dirname "$plugin_root")"
+cp -R "$source_plugin_root" "$plugin_root"
+identity_hook="$plugin_root/.codex-plugin/hooks/identity.sh"
+cat >"$CODEX_HOME/config.toml" <<'EOF'
+[features]
+plugins = true
+remote_plugin = false
+hooks = true
+
+[plugins."harness@agents"]
+enabled = true
+EOF
+
 git init --quiet "$project"
 git -C "$project" config user.name "Codex Identity Acceptance"
 git -C "$project" config user.email "codex-identity@example.invalid"
@@ -160,6 +176,14 @@ recovered_identity=$(identity_from_output <<<"$recovered_output")
 	echo "native binding recovery returned a different identity" >&2
 	exit 1
 }
+for reconstruction_source in clear compact; do
+	reconstructed_output=$(invoke_explicit "$(session_payload "live-parent" "$reconstruction_source")")
+	reconstructed_identity=$(identity_from_output <<<"$reconstructed_output")
+	[[ "$reconstructed_identity" == "$parent_identity" ]] || {
+		echo "$reconstruction_source reconstruction returned a different identity" >&2
+		exit 1
+	}
+done
 
 discovered_output=$(invoke_discovered "$(session_payload "live-discovery" "startup" "$project/nested/cwd")")
 discovered_identity=$(identity_from_output <<<"$discovered_output")
