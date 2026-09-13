@@ -2,13 +2,13 @@
 
 This suite pins the packaged Codex identity adapter to **Codex CLI 0.154.0** and the Millhouse native startup API landed in `b1955a96ad91bf2909a407859fca1565ec4b9fdb`. All paths (home, config, state, cache, temp, cwd) are disposable; only `PATH` is inherited. Credentials, identity/run/bootstrap state, shell startup scripts, and ambient settings are excluded unless a case deliberately adds a hostile value.
 
-It does not use a shared Millstrand workspace or any desktop application. Run it from the repository root:
+It does not use a shared Millstrand workspace or any desktop application. Run the bounded default suite from the repository root:
 
 ```text
 pnpm test:codex-hooks
 ```
 
-The command requires Node.js, Bash, `jq`, and exactly `codex-cli 0.154.0` on `PATH`. Updating that pin requires reviewing the selected release's generated hook schemas and re-running every fixture.
+The command requires Node.js, Bash, `jq`, either `lockf` or `flock`, and exactly `codex-cli 0.154.0` on `PATH`. Updating that pin requires reviewing the selected release's generated hook schemas and re-running every fixture. A separate live acceptance command is documented below.
 
 ## Pinned Codex contract
 
@@ -52,16 +52,28 @@ The adapter accepts only the exact CLI response keys `operation`, `identity`, `s
 
 A root with `MILLSTRAND_AGENT_ID` or `MILLSTRAND_RUN_ID` in its environment stays on the legacy managed transport: no startup call, mint, or native injection occurs. Native-v1 managed attachment is a later explicit integration. Child events do not adopt inherited parent hints; those variables are removed before Strand execution. The child independently resolves the parent session, then starts its composite native key with `--parent-identity` so Millhouse records idempotent parentage.
 
-Each startup, resume, clear, and compact event re-runs identity resolution. There is no permanent once-per-session sentinel. A transient per-event lock emits a visible duplicate-injector warning when the same adapter is invoked concurrently; idempotent binding alone would not prevent duplicate context.
+Each startup, resume, clear, and compact event re-runs identity resolution. There is no permanent once-per-session sentinel. A transient per-event `lockf`/`flock` OS lock emits a visible warning when the same packaged adapter is invoked concurrently and is released by the kernel even after `SIGKILL`. The hook also requires Codex's `PLUGIN_ROOT` to identify this package, so a second direct/non-packaged registration is rejected even when it runs later rather than overlapping. Idempotent binding alone would not prevent duplicate context.
 
 ## What the suite proves
 
 `run.mjs` performs two bounded layers:
 
-1. It replays every payload through the packaged production `identity.sh` using `fake-strand.sh`, a CLI-shaped deterministic test double. This covers startup/resume/clear/compact, child composite keys and parentage, inherited-hint removal, explicit and cwd-discovered workspace routing, legacy managed skip, exact canonical response parsing, context bounds, malformed/empty/multiple/flooding/nonzero/no-workspace/conflict failures, missing Strand, invalid payloads, bounded response-file cleanup, removable forced-timeout artifacts, and direct SIGINT/SIGTERM cleanup.
+1. It replays every payload through the packaged production `identity.sh` using `fake-strand.sh`, a CLI-shaped deterministic test double. This covers startup/resume/clear/compact, child composite keys and parentage, inherited-hint removal, explicit and cwd-discovered workspace routing, legacy managed skip, exact canonical response parsing, context bounds, malformed/empty/multiple/flooding/nonzero/no-workspace/conflict failures, missing Strand, invalid payloads, bounded response-file cleanup, removable forced-timeout artifacts, concurrent and staggered duplicate registration, and healthy replay after host `SIGKILL` abandons the lock file.
 2. It starts Codex app-server 0.154.0 in disposable configurations and calls `hooks/list`. This proves the manifest's explicit `.codex-plugin/hooks/hooks.json` path, the separate observational capture and identity handlers, `SessionStart` plus `SubagentStart` identity registration, handler time/context limits, untrusted and trusted states, feature/plugin disablement, missing-hook warnings, duplicate injector visibility, and cwd routing.
 
 The fake does not prove Millhouse internals; the landed identity spool owns mint/recover/attach atomicity and its CLI schema. These fixtures prove that the adapter calls that schema without launcher ownership hints and forwards only canonical context.
+
+## Live disposable acceptance
+
+Run the production hook against real Strand and the live Millhouse startup API pinned at `b1955a96ad91bf2909a407859fca1565ec4b9fdb`:
+
+```text
+pnpm test:codex-hooks:live
+```
+
+This CLI-only script starts its own foreground Mill under isolated state, initializes a short-lived Git project and `.millstrand` workspace, activates the pinned identity spool, and starts/stops only that disposable Weaver. It never addresses or changes the user's global Mill or a shared workspace. It verifies fresh identity minting, native binding recovery, cwd workspace discovery, child parentage (including the stored `parent-of` edge), and bounded conflict/unavailable responses through production `identity.sh`. All temporary homes, caches, Gitlibs, state, sockets, and graph data are removed on exit.
+
+The command requires Bash, Git, `jq`, `mill`, and `strand`, plus network or cached Git access to the pinned Millhouse and Millstrand commits.
 
 ## Desktop intent and validation limit
 

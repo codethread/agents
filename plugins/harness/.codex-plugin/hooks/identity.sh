@@ -20,6 +20,24 @@ warning() {
 	jq -cn --arg message "$message" '{continue: true, systemMessage: $message}'
 }
 
+script_dir=$(cd -P "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd) || {
+	warning "Millstrand identity startup cannot resolve its packaged hook path; this session is unbound."
+	exit 0
+}
+script_path="$script_dir/identity.sh"
+script_plugin_root=$(cd -P "$script_dir/../.." 2>/dev/null && pwd) || {
+	warning "Millstrand identity startup cannot resolve its packaged plugin root; this session is unbound."
+	exit 0
+}
+configured_plugin_root=
+if [[ -n ${PLUGIN_ROOT:-} ]]; then
+	configured_plugin_root=$(cd -P "$PLUGIN_ROOT" 2>/dev/null && pwd) || true
+fi
+if [[ -z "$configured_plugin_root" || "$configured_plugin_root" != "$script_plugin_root" ]]; then
+	warning "Duplicate or non-packaged Millstrand identity injector configuration detected; identity was not bound or injected."
+	exit 0
+fi
+
 payload=$(cat) || {
 	warning "Millstrand identity startup could not read the Codex hook payload; this session is unbound."
 	exit 0
@@ -90,18 +108,36 @@ lock_key=$(jq -nr \
 	--arg source "$source" \
 	--arg agent "$agent_id" \
 	'[$event, $session, $source, $agent] | @base64 | gsub("="; "") | gsub("\\+"; "-") | gsub("/"; "_")')
-lock_dir="$lock_root/$lock_key.lock"
+lock_file="$lock_root/$lock_key.lock"
 if ! mkdir -p "$lock_root" 2>/dev/null; then
 	warning "Millstrand identity startup could not establish duplicate-injector protection; this session is unbound."
 	exit 0
 fi
-if ! mkdir "$lock_dir" 2>/dev/null; then
-	warning "Duplicate Millstrand identity injector detected for this Codex event; duplicate context was not injected."
+
+if [[ ${1:-} != --locked ]]; then
+	lock_status=0
+	if command -v lockf >/dev/null 2>&1; then
+		printf '%s' "$payload" | lockf -k -s -t 0 "$lock_file" \
+			bash "$script_path" --locked || lock_status=$?
+	elif command -v flock >/dev/null 2>&1; then
+		printf '%s' "$payload" | flock -n "$lock_file" \
+			bash "$script_path" --locked || lock_status=$?
+	else
+		warning "Millstrand identity startup requires lockf or flock for crash-safe duplicate protection; this session is unbound."
+		exit 0
+	fi
+	if ((lock_status == 0)); then
+		exit 0
+	fi
+	if ((lock_status == 75 || lock_status == 1)); then
+		warning "Duplicate Millstrand identity injector detected for this Codex event; duplicate context was not injected."
+	else
+		warning "Millstrand identity lock execution failed (exit $lock_status); this session is unbound."
+	fi
 	exit 0
 fi
 
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/codex-millstrand-identity.XXXXXX") || {
-	rmdir "$lock_dir" 2>/dev/null || true
 	warning "Millstrand identity startup could not allocate bounded response storage; this session is unbound."
 	exit 0
 }
@@ -113,7 +149,6 @@ cleanup() {
 		wait "$strand_pid" 2>/dev/null || true
 	fi
 	rm -rf "$work_dir"
-	rmdir "$lock_dir" 2>/dev/null || true
 }
 trap cleanup EXIT
 trap 'exit 130' INT

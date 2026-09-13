@@ -232,7 +232,9 @@ function fixtureEnvironment(extra = {}) {
 		XDG_CONFIG_HOME: join(environmentRoot, "config"),
 		XDG_STATE_HOME: join(environmentRoot, "state"),
 		XDG_CACHE_HOME: join(environmentRoot, "cache"),
+		XDG_RUNTIME_DIR: join(environmentRoot, "runtime"),
 		TMPDIR: join(environmentRoot, "tmp"),
+		PLUGIN_ROOT: pluginRoot,
 		...extra,
 	};
 	for (const name of [
@@ -241,6 +243,7 @@ function fixtureEnvironment(extra = {}) {
 		"XDG_CONFIG_HOME",
 		"XDG_STATE_HOME",
 		"XDG_CACHE_HOME",
+		"XDG_RUNTIME_DIR",
 		"TMPDIR",
 	]) {
 		mkdirSync(env[name], { recursive: true });
@@ -248,28 +251,33 @@ function fixtureEnvironment(extra = {}) {
 	return env;
 }
 
-async function checkHookSignalCleanup(payloadText, signal) {
-	const directory = temporaryDirectory(`codex-hook-${signal.toLowerCase()}-direct-`);
+async function checkHostKillRecovery(payloadText) {
+	const directory = temporaryDirectory("codex-hook-sigkill-recovery-");
 	const stateDirectory = join(directory, "state");
 	const gate = join(directory, "gate");
 	const ready = join(directory, "ready");
 	const fakePidFile = join(directory, "fake.pid");
+	const logPath = join(directory, "fake-strand.jsonl");
 	mkdirSync(stateDirectory);
 	const fifo = await run("mkfifo", [gate], { env: fixtureEnvironment() });
 	assert.equal(fifo.code, 0, fifo.stderr);
 
+	const environment = fixtureEnvironment({
+		XDG_STATE_HOME: stateDirectory,
+		TMPDIR: directory,
+		MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
+		FAKE_STRAND_LOG: logPath,
+	});
 	const child = trackChild(
 		spawn("bash", [identityHook], {
 			detached: true,
-			env: fixtureEnvironment({
-				XDG_STATE_HOME: stateDirectory,
-				TMPDIR: directory,
-				MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
+			env: {
+				...environment,
 				FAKE_STRAND_MODE: "hold",
 				FAKE_STRAND_GATE: gate,
 				FAKE_STRAND_READY: ready,
 				FAKE_STRAND_PID_FILE: fakePidFile,
-			}),
+			},
 			stdio: ["pipe", "pipe", "pipe"],
 		}),
 	);
@@ -281,21 +289,23 @@ async function checkHookSignalCleanup(payloadText, signal) {
 	const closed = new Promise((resolvePromise) =>
 		child.once("close", (code, closeSignal) => resolvePromise({ code, closeSignal })),
 	);
-	child.kill(signal);
-	assert.deepEqual(await closed, {
-		code: signal === "SIGINT" ? 130 : 143,
-		closeSignal: null,
+	process.kill(-child.pid, "SIGKILL");
+	assert.deepEqual(await closed, { code: null, closeSignal: "SIGKILL" });
+	assert.equal(processExists(fakePid), false, "host SIGKILL must terminate the Strand child");
+
+	const recovered = await run("bash", [identityHook], {
+		input: payloadText,
+		env: environment,
 	});
-	assert.equal(processExists(fakePid), false, `${signal} must terminate the Strand child`);
-	assert.deepEqual(
-		readdirSync(join(stateDirectory, "codex-millstrand-identity")),
-		[],
-		`${signal} must remove the event lock`,
+	assert.equal(recovered.code, 0, recovered.stderr);
+	assertHookOutput(
+		parseSingleJsonLine(recovered.stdout, "post-SIGKILL recovery response"),
+		"SessionStart",
 	);
-	assert.deepEqual(
-		readdirSync(directory).filter((name) => name.startsWith("codex-millstrand-identity.")),
-		[],
-		`${signal} must remove bounded response storage`,
+	assert.equal(
+		parseJsonLines(readFileSync(logPath, "utf8"), "post-SIGKILL fake calls").length,
+		2,
+		"a healthy replay must reach Strand after the abandoned OS lock is released",
 	);
 }
 
@@ -470,6 +480,37 @@ async function checkPayloadReplay() {
 		"SessionStart",
 	);
 
+	const staggeredDirectory = temporaryDirectory("codex-hook-staggered-duplicate-");
+	const staggeredLog = join(staggeredDirectory, "fake-strand.jsonl");
+	const canonicalEnvironment = fixtureEnvironment({
+		MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
+		FAKE_STRAND_LOG: staggeredLog,
+		TMPDIR: staggeredDirectory,
+	});
+	const canonicalInjector = await run("bash", [identityHook], {
+		input: payloadText,
+		env: canonicalEnvironment,
+	});
+	assertHookOutput(
+		parseSingleJsonLine(canonicalInjector.stdout, "canonical injector response"),
+		"SessionStart",
+	);
+	const nonPackagedEnvironment = { ...canonicalEnvironment };
+	delete nonPackagedEnvironment.PLUGIN_ROOT;
+	const staggeredDuplicate = await run("bash", [identityHook], {
+		input: payloadText,
+		env: nonPackagedEnvironment,
+	});
+	assert.match(
+		parseSingleJsonLine(staggeredDuplicate.stdout, "staggered duplicate response").systemMessage,
+		/Duplicate or non-packaged Millstrand identity injector configuration/,
+	);
+	assert.equal(
+		parseJsonLines(readFileSync(staggeredLog, "utf8"), "staggered fake calls").length,
+		1,
+		"a staggered non-plugin registration must not reach Strand after the canonical handler exits",
+	);
+
 	for (const mode of [
 		"failure",
 		"no-workspace",
@@ -524,10 +565,7 @@ async function checkPayloadReplay() {
 		/invalid SessionStart payload/,
 	);
 
-	if (process.platform !== "win32") {
-		await checkHookSignalCleanup(payloadText, "SIGINT");
-		await checkHookSignalCleanup(payloadText, "SIGTERM");
-	}
+	if (process.platform !== "win32") await checkHostKillRecovery(payloadText);
 
 	const timeoutDirectory = temporaryDirectory("codex-hook-timeout-");
 	await assert.rejects(
