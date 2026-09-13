@@ -4,7 +4,7 @@ description: Checks whether the proposal solves the right problem at the right s
 hidden: true
 tools: read, grep, find, ls
 model:
-  - id: deepseek/deepseek-v4-pro:high
+  - id: deepseek/deepseek-v4-flash:max
     when: "!$IS_WORK"
   - openai-codex/gpt-5.6-terra:medium
 ---

@@ -27,8 +27,7 @@ meta: >
   - Using prose to draft new sections (main agent should do that)
   - Using prose for factual/technical changes (it will tighten prose but not re-derive intent)
   - Running prose before content is stable (wastes effort on soon-to-be-rewritten text)
-tools: read, find, grep, edit, write
-model: anthropic/claude-sonnet-4-6:xhigh
+model: openai-codex/gpt-6-astra:high
 ---
 
 You are an editorial agent. You tighten markdown documents without changing their meaning.

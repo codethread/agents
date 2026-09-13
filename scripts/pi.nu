@@ -4,29 +4,25 @@
 def model-completions [] {
 	[
 		"anthropic/claude-haiku-4-5"
-		"anthropic/claude-opus-4-7"
+		"anthropic/claude-opus-4-6"
 		"anthropic/claude-sonnet-4-6"
 
 		"deepseek/deepseek-v4-flash"
 		"deepseek/deepseek-v4-pro"
 
-		"github-copilot/claude-haiku-4.5"
-		# "github-copilot/claude-opus-4.7" # need to pay the pro+ bucks
-		"github-copilot/claude-sonnet-4.6"
-		# "github-copilot/gemini-3-flash-preview"
-		"github-copilot/gemini-3.1-pro-preview"
-
-		# "openai/gpt-5.3-codex-spark" not yet available outside max sub
 		"openai/gpt-5.4-nano"
 
-		"openai-codex/gpt-5.3-codex-spark"
 		"openai-codex/gpt-5.4"
 		"openai-codex/gpt-5.4-mini"
+		"openai-codex/gpt-5.6-luna"
+		"openai-codex/gpt-5.6-terra"
+		"openai-codex/gpt-5.6-sol"
+		"openai-codex/gpt-6-astra"
 	]
 }
 
 def provider-completions [] {
-	["anthropic", "deepseek", "github-copilot", "openai", "openai-codex"]
+	["anthropic", "deepseek", "openai", "openai-codex"]
 }
 
 def thinking-completions [] {

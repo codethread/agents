@@ -17,7 +17,7 @@ mcpServers:
         - "-y"
         - "@upstash/context7-mcp"
 model:
-  - id: deepseek/deepseek-v4-flash:high
+  - id: deepseek/deepseek-v4-flash:max
     when: "!$IS_WORK"
   - openai-codex/gpt-5.6-luna:low
 ---

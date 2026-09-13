@@ -42,7 +42,7 @@ meta: >
   - Using fixer for broad refactors or architecture exploration (use scout + main)
 tools: read, bash, edit, write
 # model:
-#   - id: deepseek/deepseek-v4-pro:max
+#   - id: deepseek/deepseek-v4-flash:max
 #     when: "!$IS_WORK"
 #   - openai-codex/gpt-5.6-terra:medium
 model: openai-codex/gpt-5.3-codex-spark:low
