@@ -10,6 +10,7 @@ identity_url="https://github.com/codethread/millhouse.spool.git"
 tmp_root=$(mktemp -d /tmp/cia.XXXXXX)
 state_root=$(mktemp -d /tmp/cis.XXXXXX)
 project="$tmp_root/project"
+linked_project="$tmp_root/linked-project"
 workspace="$project/.millstrand"
 mill_pid=
 mill_drain_pid=
@@ -47,6 +48,13 @@ export XDG_CACHE_HOME="$tmp_root/cache"
 export XDG_RUNTIME_DIR="$tmp_root/runtime"
 export GITLIBS="$tmp_root/gitlibs"
 git init --quiet "$project"
+git -C "$project" config user.name "Codex Identity Acceptance"
+git -C "$project" config user.email "codex-identity@example.invalid"
+printf '%s\n' '.millstrand/' >"$project/.gitignore"
+git -C "$project" add .gitignore
+git -C "$project" commit --quiet -m fixture
+git -C "$project" worktree add --quiet -b live-linked "$linked_project"
+mkdir -p "$project/nested/cwd" "$linked_project/nested/cwd"
 
 cat >"$workspace/deps.edn" <<EOF
 {:deps
@@ -103,7 +111,8 @@ weaver_started=1
 session_payload() {
 	local session_id=$1
 	local source=$2
-	jq -cn --arg session "$session_id" --arg cwd "$project" --arg source "$source" \
+	local payload_cwd=${3:-$project}
+	jq -cn --arg session "$session_id" --arg cwd "$payload_cwd" --arg source "$source" \
 		'{session_id: $session, cwd: $cwd, hook_event_name: "SessionStart", source: $source, model: "live-fixture"}'
 }
 
@@ -152,8 +161,10 @@ recovered_identity=$(identity_from_output <<<"$recovered_output")
 	exit 1
 }
 
-discovered_output=$(invoke_discovered "$(session_payload "live-discovery" "startup")")
+discovered_output=$(invoke_discovered "$(session_payload "live-discovery" "startup" "$project/nested/cwd")")
 discovered_identity=$(identity_from_output <<<"$discovered_output")
+linked_output=$(invoke_discovered "$(session_payload "live-linked-discovery" "startup" "$linked_project/nested/cwd")")
+linked_identity=$(identity_from_output <<<"$linked_output")
 
 child_payload=$(subagent_payload "live-parent" "live-child")
 child_output=$(invoke_explicit "$child_payload")
@@ -223,5 +234,6 @@ jq -e '
 printf '%s\n' \
 	"Codex identity live acceptance passed (production identity.sh; Millhouse $identity_sha)." \
 	"  identity=$parent_identity recovered=$recovered_identity" \
-	"  discovered=$discovered_identity child=$child_identity parent-edge=verified" \
+	"  discovered-subdir=$discovered_identity linked-worktree=$linked_identity" \
+	"  child=$child_identity parent-edge=verified" \
 	"  negatives=native-binding-conflict,unavailable-runtime"

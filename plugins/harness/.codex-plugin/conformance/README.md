@@ -71,7 +71,7 @@ Run the production hook against real Strand and the live Millhouse startup API p
 pnpm test:codex-hooks:live
 ```
 
-This CLI-only script starts its own foreground Mill under isolated state, initializes a short-lived Git project and `.millstrand` workspace, activates the pinned identity spool, and starts/stops only that disposable Weaver. It never addresses or changes the user's global Mill or a shared workspace. It verifies fresh identity minting, native binding recovery, cwd workspace discovery, child parentage (including the stored `parent-of` edge), and bounded conflict/unavailable responses through production `identity.sh`. All temporary homes, caches, Gitlibs, state, sockets, and graph data are removed on exit.
+This CLI-only script starts its own foreground Mill under isolated state, initializes a short-lived Git project and `.millstrand` workspace, activates the pinned identity spool, and starts/stops only that disposable Weaver. It never addresses or changes the user's global Mill or a shared workspace. It verifies fresh identity minting, native binding recovery, cwd discovery from a nested directory and linked worktree, child parentage (including the stored `parent-of` edge), and bounded conflict/unavailable responses through production `identity.sh`. All temporary homes, caches, Gitlibs, state, sockets, and graph data are removed on exit.
 
 The command requires Bash, Git, `jq`, `mill`, and `strand`, plus network or cached Git access to the pinned Millhouse and Millstrand commits.
 
