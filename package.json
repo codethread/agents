@@ -28,6 +28,7 @@
 		"lint:fix": "eslint . --fix",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
+		"test:codex-hooks": "node ./plugins/harness/.codex-plugin/conformance/run.mjs",
 		"pies": "node --experimental-strip-types ./pies/cli.ts",
 		"pies:daemon": "node --experimental-strip-types ./pies/daemon.ts",
 		"link:pi": "mkdir -p \"$HOME/.local/bin\" && ln -sfn \"$PWD/pies/pi-shim.ts\" \"$HOME/.local/bin/pi\" && ln -sfn \"$PWD/pies/cli.ts\" \"$HOME/.local/bin/pies\"",

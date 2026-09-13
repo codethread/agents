@@ -12,7 +12,16 @@ Session and harness affordances for Claude Code, Pi, and Codex: session introspe
 - `skills/tmux/` — durable terminal sessions for long-lived commands
 - `hooks/` — Claude Code dialogue-capture and window-title hooks (below)
 - `.codex-plugin/hooks/` — Codex CLI dialogue-capture hooks (below)
+- `.codex-plugin/conformance/` — Codex 0.154.0 startup-hook payload, output, and disposable CLI discovery fixtures
 - `hooks-reference.md` — vendored copy of the official Claude Code hooks reference
+
+## Codex startup-hook contract
+
+The Codex compatibility manifest explicitly points at `.codex-plugin/hooks/hooks.json`; that path overrides the default `hooks/hooks.json` and is verified through `hooks/list` in a disposable Codex configuration. Run the version-pinned fixture suite with `pnpm test:codex-hooks`. It covers sanitized SessionStart `startup`, `resume`, `clear`, and `compact` payloads, a SubagentStart payload, developer-context JSON output, trust/disabled/missing/duplicate discovery, cwd routing, context bounds, and bounded failures using a fake Strand command. The fake Strand command does not finalize the identity API's command name, arguments, or response schema.
+
+This contract targets **Codex CLI 0.154.0**. `SessionStart` provides `session_id`, `cwd`, and `source`; `SubagentStart` provides the parent `session_id`, `cwd`, `turn_id`, `agent_id`, and `agent_type`. The adapter response uses `hookSpecificOutput.additionalContext`, which Codex treats as extra **developer context**, not a replacement system prompt. See `.codex-plugin/conformance/README.md` for the exact fixture and handoff contract.
+
+This repository's validation is deliberately **CLI-only**. OpenAI's official [hooks](https://developers.openai.com/codex/hooks/) and [plugin packaging](https://developers.openai.com/plugins/build/plugins/) documentation establishes lifecycle hooks and plugin enablement for supported local clients, including Codex CLI and Codex in the ChatGPT desktop app; the hook script must exist locally, remains subject to trust, and is not deployed merely by installing a plugin on the web. No desktop app, plugin, or conversation was exercised here; desktop runtime behavior is not certified or used as a gate. The no-model fixtures prove discovery and command response shape; later CLI-only integration with a real model must prove host delivery into model-visible developer context.
 
 ## Dialogue capture hooks
 
