@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createServer } from "node:http";
 import {
 	cpSync,
 	existsSync,
@@ -19,7 +20,7 @@ const runnerPath = fileURLToPath(import.meta.url);
 const conformanceRoot = dirname(runnerPath);
 const pluginRoot = resolve(conformanceRoot, "../..");
 const payloadRoot = join(conformanceRoot, "payloads");
-const referenceHook = join(conformanceRoot, "reference-hook.sh");
+const identityHook = join(pluginRoot, ".codex-plugin/hooks/identity.sh");
 const fakeStrand = join(conformanceRoot, "fake-strand.sh");
 const expectedCodexVersion = "codex-cli 0.154.0";
 const schemaRoot = join(conformanceRoot, "schemas");
@@ -49,10 +50,35 @@ function temporaryDirectory(prefix) {
 	return directory;
 }
 
+async function waitForFile(path, timeout = 2_000) {
+	const deadline = Date.now() + timeout;
+	while (!existsSync(path)) {
+		assert.ok(Date.now() < deadline, `timed out waiting for ${path}`);
+		await new Promise((resolvePromise) => setImmediate(resolvePromise));
+	}
+}
+
 function trackChild(child) {
 	activeChildren.add(child);
 	child.once("close", () => activeChildren.delete(child));
 	return child;
+}
+
+function processExists(pid) {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		if (error.code === "ESRCH") return false;
+		throw error;
+	}
+}
+
+async function waitForProcessExit(pid, timeout = 2_000) {
+	const deadline = Date.now() + timeout;
+	while (processExists(pid) && Date.now() < deadline) {
+		await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
+	}
 }
 
 function terminateProcessTree(child) {
@@ -84,13 +110,17 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 	process.on(signal, handler);
 }
 
-function run(command, args, { input = "", env = process.env, timeout = 10_000, onSpawn } = {}) {
+function run(
+	command,
+	args,
+	{ input = "", env = process.env, timeout = 10_000, onSpawn, cwd = env.HOME } = {},
+) {
 	return new Promise((resolvePromise, reject) => {
 		const child = trackChild(
 			spawn(command, args, {
 				detached: process.platform !== "win32",
 				env,
-				cwd: env.HOME,
+				cwd,
 				stdio: ["pipe", "pipe", "pipe"],
 			}),
 		);
@@ -134,10 +164,24 @@ function run(command, args, { input = "", env = process.env, timeout = 10_000, o
 	});
 }
 
+function parseJsonLines(text, label) {
+	return text
+		.trim()
+		.split("\n")
+		.filter(Boolean)
+		.map((line) => {
+			try {
+				return JSON.parse(line);
+			} catch (error) {
+				throw new Error(`${label} contains invalid JSON: ${error.message}`);
+			}
+		});
+}
+
 function parseSingleJsonLine(text, label) {
-	const lines = text.trim().split("\n");
+	const lines = parseJsonLines(text, label);
 	assert.equal(lines.length, 1, `${label} must emit exactly one JSON line`);
-	return JSON.parse(lines[0]);
+	return lines[0];
 }
 
 function assertMatchesSchema(value, schema, rootSchema, label) {
@@ -200,23 +244,82 @@ function fixtureEnvironment(extra = {}) {
 		XDG_CONFIG_HOME: join(environmentRoot, "config"),
 		XDG_STATE_HOME: join(environmentRoot, "state"),
 		XDG_CACHE_HOME: join(environmentRoot, "cache"),
+		XDG_RUNTIME_DIR: join(environmentRoot, "runtime"),
 		TMPDIR: join(environmentRoot, "tmp"),
+		PLUGIN_ROOT: pluginRoot,
 		...extra,
 	};
-	for (const name of Object.keys(env)) {
-		if (name.startsWith("MILLSTRAND_")) delete env[name];
-	}
 	for (const name of [
 		"HOME",
 		"CODEX_HOME",
 		"XDG_CONFIG_HOME",
 		"XDG_STATE_HOME",
 		"XDG_CACHE_HOME",
+		"XDG_RUNTIME_DIR",
 		"TMPDIR",
 	]) {
 		mkdirSync(env[name], { recursive: true });
 	}
 	return env;
+}
+
+async function checkHostKillRecovery(payloadText) {
+	const directory = temporaryDirectory("codex-hook-sigkill-recovery-");
+	const stateDirectory = join(directory, "state");
+	const gate = join(directory, "gate");
+	const ready = join(directory, "ready");
+	const fakePidFile = join(directory, "fake.pid");
+	const logPath = join(directory, "fake-strand.jsonl");
+	mkdirSync(stateDirectory);
+	const fifo = await run("mkfifo", [gate], { env: fixtureEnvironment() });
+	assert.equal(fifo.code, 0, fifo.stderr);
+
+	const environment = fixtureEnvironment({
+		XDG_STATE_HOME: stateDirectory,
+		TMPDIR: directory,
+		MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
+		FAKE_STRAND_LOG: logPath,
+	});
+	const child = trackChild(
+		spawn("bash", [identityHook, "--configured-source"], {
+			detached: true,
+			env: {
+				...environment,
+				FAKE_STRAND_MODE: "hold",
+				FAKE_STRAND_GATE: gate,
+				FAKE_STRAND_READY: ready,
+				FAKE_STRAND_PID_FILE: fakePidFile,
+			},
+			stdio: ["pipe", "pipe", "pipe"],
+		}),
+	);
+	child.stdin.end(payloadText);
+	await waitForFile(ready);
+	await waitForFile(fakePidFile);
+	const fakePid = Number.parseInt(readFileSync(fakePidFile, "utf8"), 10);
+	assert.equal(processExists(fakePid), true);
+	const closed = new Promise((resolvePromise) =>
+		child.once("close", (code, closeSignal) => resolvePromise({ code, closeSignal })),
+	);
+	process.kill(-child.pid, "SIGKILL");
+	assert.deepEqual(await closed, { code: null, closeSignal: "SIGKILL" });
+	await waitForProcessExit(fakePid);
+	assert.equal(processExists(fakePid), false, "host SIGKILL must terminate the Strand child");
+
+	const recovered = await run("bash", [identityHook, "--configured-source"], {
+		input: payloadText,
+		env: environment,
+	});
+	assert.equal(recovered.code, 0, recovered.stderr);
+	assertHookOutput(
+		parseSingleJsonLine(recovered.stdout, "post-SIGKILL recovery response"),
+		"SessionStart",
+	);
+	assert.equal(
+		parseJsonLines(readFileSync(logPath, "utf8"), "post-SIGKILL fake calls").length,
+		2,
+		"a healthy replay must reach Strand after the abandoned OS lock is released",
+	);
 }
 
 async function checkPayloadReplay() {
@@ -236,7 +339,9 @@ async function checkPayloadReplay() {
 		assert.equal(typeof payload.session_id, "string");
 		assert.equal(typeof payload.cwd, "string");
 		if (source === null) {
+			assert.equal(typeof payload.turn_id, "string");
 			assert.equal(typeof payload.agent_id, "string");
+			assert.equal(typeof payload.agent_type, "string");
 			assert.equal("source" in payload, false);
 		} else {
 			assert.equal(payload.source, source);
@@ -245,18 +350,23 @@ async function checkPayloadReplay() {
 
 		const logDirectory = temporaryDirectory("codex-hook-replay-");
 		const logPath = join(logDirectory, "fake-strand.jsonl");
-		const result = await run("bash", [referenceHook], {
+		const inheritedChildHints =
+			eventName === "SubagentStart"
+				? {
+						MILLSTRAND_AGENT_ID: "inherited-parent-must-not-be-used",
+						MILLSTRAND_RUN_ID: "inherited-run",
+						MILLSTRAND_BOOTSTRAP_V1: "inherited-bootstrap",
+						MILLSTRAND_RESERVATION_ID: "inherited-reservation",
+					}
+				: {};
+		const result = await run("bash", [identityHook, "--configured-source"], {
 			input: payloadText,
 			env: fixtureEnvironment({
-				STRAND_BIN: fakeStrand,
+				MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
 				FAKE_STRAND_LOG: logPath,
+				FAKE_STRAND_RESULT: source === "resume" ? "recovered" : "minted",
 				TMPDIR: logDirectory,
-				// Exercise removal even when the suite's caller is unmanaged.
-				MILLSTRAND_AGENT_ID: "inherited-parent-must-not-be-used",
-				MILLSTRAND_RUN_ID: "inherited-run",
-				MILLSTRAND_BOOTSTRAP_V1: "inherited-bootstrap",
-				MILLSTRAND_RESERVATION_ID: "",
-				MILLSTRAND_WORKSPACE: "/must-not-access-shared-world",
+				...inheritedChildHints,
 			}),
 		});
 		assert.equal(result.code, 0, result.stderr);
@@ -266,33 +376,127 @@ async function checkPayloadReplay() {
 		assert.deepEqual(
 			readdirSync(logDirectory),
 			["fake-strand.jsonl"],
-			"hook must clean capture files",
+			"hook must clean bounded response files",
 		);
 
-		const fakeCall = parseSingleJsonLine(readFileSync(logPath, "utf8"), `${fileName} fake call`);
-		assert.equal(fakeCall.request.session_id, payload.session_id);
-		assert.equal(fakeCall.request.cwd, payload.cwd);
-		assert.equal(fakeCall.request.source, source);
-		assert.equal(fakeCall.request.agent_id, payload.agent_id ?? null);
-		assert.equal(fakeCall.managed_environment_present, false);
-		assert.equal(fakeCall.managed_state, "none");
-		assert.equal(
-			output.hookSpecificOutput.additionalContext,
-			fakeCall.returned_context,
-			"context must come verbatim from Strand, not a fallback identity",
-		);
-
-		if (source === "startup") {
-			assert.match(payload.cwd, /linked-worktree/);
-			assert.match(
-				output.hookSpecificOutput.additionalContext,
-				/\/workspace\/project\/\.millstrand/,
-			);
+		const fakeCalls = parseJsonLines(readFileSync(logPath, "utf8"), `${fileName} fake calls`);
+		assert.equal(fakeCalls.length, eventName === "SubagentStart" ? 2 : 1);
+		for (const fakeCall of fakeCalls) {
+			assert.equal(fakeCall.cwd, payload.cwd);
+			assert.equal(fakeCall.timeout, "3s");
+			assert.equal(fakeCall.workspace, "");
+			assert.equal(fakeCall.model, payload.model);
+			assert.equal(fakeCall.managed_environment_present, false);
 		}
+
+		if (eventName === "SubagentStart") {
+			const [parentCall, childCall] = fakeCalls;
+			assert.equal(parentCall.native_session_id, payload.session_id);
+			assert.equal(parentCall.parent_identity, "");
+			assert.equal(
+				childCall.native_session_id,
+				`codex-child:v1:${Buffer.from(payload.session_id).toString("base64url")}:${Buffer.from(payload.agent_id).toString("base64url")}`,
+			);
+			assert.equal(childCall.parent_identity, "fixture-root-identity");
+			assert.match(output.hookSpecificOutput.additionalContext, /fixture-child-identity/);
+			assert.doesNotMatch(output.hookSpecificOutput.additionalContext, /fixture-root-identity/);
+		} else {
+			assert.equal(fakeCalls[0].native_session_id, payload.session_id);
+			assert.match(output.hookSpecificOutput.additionalContext, /fixture-root-identity/);
+		}
+
+		assert.match(
+			output.hookSpecificOutput.additionalContext,
+			/Run Strand from the Codex session working directory/,
+		);
+		if (source === "startup") assert.match(payload.cwd, /linked-worktree/);
 	}
+
+	const payloadText = readFileSync(join(payloadRoot, "session-start-startup.json"), "utf8");
+	const explicitDirectory = temporaryDirectory("codex-hook-explicit-workspace-");
+	const explicitLog = join(explicitDirectory, "fake-strand.jsonl");
+	const explicitWorkspace = "/configured workspace/.millstrand";
+	const explicit = await run("bash", [identityHook, "--configured-source"], {
+		input: payloadText,
+		env: fixtureEnvironment({
+			MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
+			MILLSTRAND_CODEX_WORKSPACE: explicitWorkspace,
+			FAKE_STRAND_LOG: explicitLog,
+			TMPDIR: explicitDirectory,
+		}),
+	});
+	assert.equal(explicit.code, 0, explicit.stderr);
+	const explicitOutput = parseSingleJsonLine(explicit.stdout, "explicit workspace response");
+	assertHookOutput(explicitOutput, "SessionStart");
+	assert.equal(
+		parseSingleJsonLine(readFileSync(explicitLog, "utf8"), "explicit call").workspace,
+		explicitWorkspace,
+	);
+	assert.match(explicitOutput.hookSpecificOutput.additionalContext, /configured workspace/);
+	assert.match(explicitOutput.hookSpecificOutput.additionalContext, /`--workspace`/);
+
+	const legacyDirectory = temporaryDirectory("codex-hook-legacy-");
+	const legacyLog = join(legacyDirectory, "fake-strand.jsonl");
+	const legacy = await run("bash", [identityHook, "--configured-source"], {
+		input: payloadText,
+		env: fixtureEnvironment({
+			MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
+			MILLSTRAND_AGENT_ID: "legacy-identity",
+			MILLSTRAND_RUN_ID: "legacy-run",
+			MILLSTRAND_WORKSPACE: "/legacy/.millstrand",
+			FAKE_STRAND_LOG: legacyLog,
+			TMPDIR: legacyDirectory,
+		}),
+	});
+	assert.equal(legacy.code, 0, legacy.stderr);
+	assert.equal(legacy.stdout, "", "legacy managed roots must not inject context");
+	assert.equal(existsSync(legacyLog), false, "legacy managed roots must not mint identity");
+
+	const duplicateDirectory = temporaryDirectory("codex-hook-duplicate-");
+	const duplicateGate = join(duplicateDirectory, "gate");
+	const duplicateReady = join(duplicateDirectory, "ready");
+	const duplicateLog = join(duplicateDirectory, "fake-strand.jsonl");
+	const fifo = await run("mkfifo", [duplicateGate], { env: fixtureEnvironment() });
+	assert.equal(fifo.code, 0, fifo.stderr);
+	const duplicateEnvironment = fixtureEnvironment({
+		MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
+		FAKE_STRAND_LOG: duplicateLog,
+		TMPDIR: duplicateDirectory,
+	});
+	const firstInjector = run("bash", [identityHook, "--configured-source"], {
+		input: payloadText,
+		env: {
+			...duplicateEnvironment,
+			FAKE_STRAND_MODE: "hold",
+			FAKE_STRAND_GATE: duplicateGate,
+			FAKE_STRAND_READY: duplicateReady,
+		},
+	});
+	await waitForFile(duplicateReady);
+	const secondInjector = await run("bash", [identityHook, "--configured-source"], {
+		input: payloadText,
+		env: duplicateEnvironment,
+	});
+	assert.match(
+		parseSingleJsonLine(secondInjector.stdout, "duplicate injector response").systemMessage,
+		/Duplicate Millstrand identity injector/,
+	);
+	assert.equal(
+		parseJsonLines(readFileSync(duplicateLog, "utf8"), "duplicate fake calls").length,
+		1,
+	);
+	writeFileSync(duplicateGate, "release\n");
+	const firstInjectorResult = await firstInjector;
+	assert.equal(firstInjectorResult.code, 0, firstInjectorResult.stderr);
+	assertHookOutput(
+		parseSingleJsonLine(firstInjectorResult.stdout, "first duplicate injector response"),
+		"SessionStart",
+	);
 
 	for (const mode of [
 		"failure",
+		"no-workspace",
+		"invalid-binding",
 		"flood",
 		"oversized",
 		"invalid-json",
@@ -300,20 +504,18 @@ async function checkPayloadReplay() {
 		"empty-context",
 		"multiple-responses",
 	]) {
-		const payloadText = readFileSync(join(payloadRoot, "session-start-startup.json"), "utf8");
 		const failureDirectory = temporaryDirectory("codex-hook-failure-");
-		const result = await run("bash", [referenceHook], {
+		const result = await run("bash", [identityHook, "--configured-source"], {
 			input: payloadText,
 			env: fixtureEnvironment({
-				STRAND_BIN: fakeStrand,
+				MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
 				FAKE_STRAND_MODE: mode,
-				CODEX_FIXTURE_CONTEXT_MAX_BYTES: "4096",
 				TMPDIR: failureDirectory,
 			}),
 		});
 		assert.equal(result.code, 0, result.stderr);
 		assert.equal(result.stderr, "");
-		assert.deepEqual(readdirSync(failureDirectory), [], `${mode} must clean capture files`);
+		assert.deepEqual(readdirSync(failureDirectory), [], `${mode} must clean response files`);
 		assert.ok(Buffer.byteLength(result.stdout) < 512, `${mode} output was not bounded`);
 		const output = parseSingleJsonLine(result.stdout, `${mode} response`);
 		assertMatchesSchema(
@@ -324,24 +526,36 @@ async function checkPayloadReplay() {
 		);
 		assert.deepEqual(Object.keys(output), ["continue", "systemMessage"]);
 		assert.equal(output.continue, true);
-		assert.match(
-			output.systemMessage,
-			mode === "failure" || mode === "flood"
-				? /unavailable/
-				: mode === "oversized"
-					? /exceeds/
-					: /invalid response/,
-		);
+		assert.match(output.systemMessage, /unbound|required context was not injected/);
 	}
 
+	const missingStrand = await run("bash", [identityHook, "--configured-source"], {
+		input: payloadText,
+		env: fixtureEnvironment({ MILLSTRAND_CODEX_STRAND_BIN: "/missing/strand" }),
+	});
+	assert.match(
+		parseSingleJsonLine(missingStrand.stdout, "missing Strand response").systemMessage,
+		/cannot execute Strand/,
+	);
+
+	const malformed = await run("bash", [identityHook, "--configured-source"], {
+		input: '{"hook_event_name":"SessionStart","session_id":""}',
+		env: fixtureEnvironment({ MILLSTRAND_CODEX_STRAND_BIN: fakeStrand }),
+	});
+	assert.match(
+		parseSingleJsonLine(malformed.stdout, "malformed payload response").systemMessage,
+		/invalid SessionStart payload/,
+	);
+
+	if (process.platform !== "win32") await checkHostKillRecovery(payloadText);
+
 	const timeoutDirectory = temporaryDirectory("codex-hook-timeout-");
-	const payloadText = readFileSync(join(payloadRoot, "session-start-startup.json"), "utf8");
 	await assert.rejects(
-		run("bash", [referenceHook], {
+		run("bash", [identityHook, "--configured-source"], {
 			input: payloadText,
 			timeout: 250,
 			env: fixtureEnvironment({
-				STRAND_BIN: fakeStrand,
+				MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
 				FAKE_STRAND_MODE: "hang",
 				TMPDIR: timeoutDirectory,
 			}),
@@ -372,19 +586,23 @@ function createCodexWorld({ enabled = true, hooksEnabled = true } = {}) {
 	return { codexHome, home, installedPlugin, cwd };
 }
 
-async function listHooks(world, cwd = world.cwd) {
+async function listHooks(world, cwd = world.cwd, configOverrides = []) {
 	return new Promise((resolvePromise, reject) => {
 		const child = trackChild(
-			spawn("codex", ["app-server", "--stdio"], {
-				detached: process.platform !== "win32",
-				env: fixtureEnvironment({
-					CODEX_HOME: world.codexHome,
-					HOME: world.home,
-					CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG: "1",
-				}),
-				cwd: world.cwd,
-				stdio: ["pipe", "pipe", "pipe"],
-			}),
+			spawn(
+				"codex",
+				[...configOverrides.flatMap((override) => ["-c", override]), "app-server", "--stdio"],
+				{
+					detached: process.platform !== "win32",
+					env: fixtureEnvironment({
+						CODEX_HOME: world.codexHome,
+						HOME: world.home,
+						CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG: "1",
+					}),
+					cwd: world.cwd,
+					stdio: ["pipe", "pipe", "pipe"],
+				},
+			),
 		);
 		let stdout = "";
 		let stderr = "";
@@ -485,6 +703,253 @@ function onlyEntry(response) {
 	return response.data[0];
 }
 
+async function startFixtureProvider() {
+	const requests = [];
+	const server = createServer((request, response) => {
+		let body = "";
+		request.setEncoding("utf8");
+		request.on("data", (chunk) => {
+			body += chunk;
+			if (body.length > 1_000_000) request.destroy();
+		});
+		request.on("end", () => {
+			requests.push(JSON.parse(body));
+			const output = {
+				id: "msg_fixture",
+				type: "message",
+				role: "assistant",
+				content: [{ type: "output_text", text: "ok" }],
+			};
+			const events = [
+				{ type: "response.created", response: { id: "resp_fixture" } },
+				{ type: "response.output_item.done", output_index: 0, item: output },
+				{
+					type: "response.completed",
+					response: {
+						id: "resp_fixture",
+						status: "completed",
+						output: [output],
+						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+					},
+				},
+			];
+			const eventStream = events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("");
+			response.writeHead(200, {
+				"Content-Type": "text/event-stream",
+				"Content-Length": Buffer.byteLength(eventStream),
+			});
+			response.end(eventStream);
+		});
+	});
+	await new Promise((resolvePromise, reject) => {
+		server.once("error", reject);
+		server.listen(0, "127.0.0.1", resolvePromise);
+	});
+	return {
+		port: server.address().port,
+		requests,
+		close: () => new Promise((resolvePromise) => server.close(resolvePromise)),
+	};
+}
+
+function writeHostConfig(world, providerPort, pluginIds, hooksEnabled = true) {
+	writeFileSync(
+		join(world.codexHome, "config.toml"),
+		`model = "gpt-5.4"\nmodel_provider = "fixture"\n\n[model_providers.fixture]\nname = "fixture"\nbase_url = "http://127.0.0.1:${providerPort}/v1"\nwire_api = "responses"\nrequires_openai_auth = false\n\n[features]\nplugins = true\nremote_plugin = false\nhooks = ${hooksEnabled}\n\n${pluginIds.map((id) => `[plugins."harness@${id}"]\nenabled = true\n`).join("\n")}`,
+	);
+}
+
+function identityMessages(requests) {
+	return requests.flatMap((request) =>
+		(request.input ?? []).filter(
+			(item) =>
+				item.role === "developer" && JSON.stringify(item).includes("Your Millstrand identity is"),
+		),
+	);
+}
+
+async function checkInvocationEnabledHooks() {
+	const provider = await startFixtureProvider();
+	try {
+		const world = createCodexWorld();
+		writeHostConfig(world, provider.port, ["agents"], false);
+		const effectiveEntry = onlyEntry(await listHooks(world, world.cwd, ["features.hooks=true"]));
+		assert.equal(
+			effectiveEntry.hooks.filter(
+				(hook) =>
+					hook.eventName === "sessionStart" &&
+					hook.command.includes("/.codex-plugin/hooks/identity.sh"),
+			).length,
+			1,
+		);
+
+		const logPath = join(world.codexHome, "invocation-enabled-strand.jsonl");
+		const environment = fixtureEnvironment({
+			CODEX_HOME: world.codexHome,
+			HOME: world.home,
+			CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG: "1",
+			MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
+			FAKE_STRAND_LOG: logPath,
+		});
+		const commonArgs = [
+			"--enable",
+			"hooks",
+			"exec",
+			"--skip-git-repo-check",
+			"--dangerously-bypass-hook-trust",
+			"--json",
+		];
+		const requestOffset = provider.requests.length;
+		const fresh = await run("codex", [...commonArgs, "Reply ok."], {
+			env: environment,
+			cwd: world.cwd,
+			timeout: 45_000,
+		});
+		assert.equal(fresh.code, 0, fresh.stderr);
+		const threadId = parseJsonLines(fresh.stdout, "invocation-enabled fresh events").find(
+			(event) => event.type === "thread.started",
+		)?.thread_id;
+		assert.equal(typeof threadId, "string", fresh.stdout);
+
+		const resumed = await run("codex", [...commonArgs, "resume", threadId, "Reply ok again."], {
+			env: environment,
+			cwd: world.cwd,
+			timeout: 45_000,
+		});
+		assert.equal(resumed.code, 0, resumed.stderr);
+		const calls = parseJsonLines(readFileSync(logPath, "utf8"), "invocation-enabled Strand calls");
+		assert.equal(calls.length, 2, `${fresh.stdout}\n${fresh.stderr}\n${resumed.stderr}`);
+		assert.deepEqual(
+			calls.map((call) => call.native_session_id),
+			[threadId, threadId],
+		);
+		const modelRequests = provider.requests.slice(requestOffset);
+		assert.equal(modelRequests.length, 2);
+		assert.deepEqual(
+			modelRequests.map((request) => identityMessages([request]).length),
+			[1, 2],
+			"resume must retain prior identity context and inject reconstructed context",
+		);
+	} finally {
+		await provider.close();
+	}
+}
+
+async function checkActualHostDuplicateSources() {
+	const provider = await startFixtureProvider();
+	try {
+		for (const scenario of ["single", "two-packages", "inherited-user"]) {
+			const world = createCodexWorld();
+			const pluginIds = ["agents"];
+			if (scenario === "two-packages") {
+				const duplicatePlugin = join(world.codexHome, "plugins/cache/duplicate/harness/local");
+				mkdirSync(dirname(duplicatePlugin), { recursive: true });
+				cpSync(pluginRoot, duplicatePlugin, { recursive: true });
+				const duplicateHooksPath = join(duplicatePlugin, ".codex-plugin/hooks/hooks.json");
+				const duplicateHooks = JSON.parse(readFileSync(duplicateHooksPath, "utf8"));
+				for (const group of duplicateHooks.hooks.SessionStart) {
+					for (const hook of group.hooks) {
+						if (hook.command.includes("identity.sh")) hook.command = `sleep 1; ${hook.command}`;
+					}
+				}
+				writeFileSync(duplicateHooksPath, `${JSON.stringify(duplicateHooks, null, "\t")}\n`);
+				pluginIds.push("duplicate");
+			}
+			if (scenario === "inherited-user") {
+				const command = `sleep 1; bash "${join(
+					world.installedPlugin,
+					".codex-plugin/hooks/identity.sh",
+				)}"`;
+				writeFileSync(
+					join(world.codexHome, "hooks.json"),
+					`${JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: "command", command }] }] } }, null, "\t")}\n`,
+				);
+			}
+			writeHostConfig(world, provider.port, pluginIds);
+			const installedIdentity = join(world.installedPlugin, ".codex-plugin/hooks/identity.sh");
+
+			const listed = onlyEntry(await listHooks(world));
+			const configuredIdentityHooks = listed.hooks.filter(
+				(hook) =>
+					hook.eventName === "sessionStart" &&
+					hook.command.includes("/.codex-plugin/hooks/identity.sh"),
+			);
+			assert.equal(configuredIdentityHooks.length, scenario === "single" ? 1 : 2);
+			if (scenario === "two-packages") {
+				assert.deepEqual(configuredIdentityHooks.map((hook) => hook.pluginId).sort(), [
+					"harness@agents",
+					"harness@duplicate",
+				]);
+			}
+			if (scenario === "inherited-user") {
+				assert.deepEqual(configuredIdentityHooks.map((hook) => hook.source).sort(), [
+					"plugin",
+					"user",
+				]);
+			}
+
+			const logPath = join(world.codexHome, `${scenario}-strand.jsonl`);
+			const requestOffset = provider.requests.length;
+			const environment = fixtureEnvironment({
+				CODEX_HOME: world.codexHome,
+				HOME: world.home,
+				CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG: "1",
+				MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
+				FAKE_STRAND_LOG: logPath,
+				...(scenario === "inherited-user" ? { PLUGIN_ROOT: world.installedPlugin } : {}),
+			});
+			if (scenario !== "single") {
+				const diagnostic = await run("bash", [installedIdentity], {
+					input: JSON.stringify({
+						session_id: `${scenario}-diagnostic`,
+						cwd: world.cwd,
+						hook_event_name: "SessionStart",
+						source: "startup",
+						model: "gpt-5.4",
+					}),
+					env: environment,
+					cwd: world.cwd,
+				});
+				assert.match(
+					parseSingleJsonLine(diagnostic.stdout, `${scenario} duplicate diagnostic`).systemMessage,
+					/Duplicate Millstrand identity injector configuration detected \(2 configured sources\)/,
+				);
+			}
+			const result = await run(
+				"codex",
+				[
+					"exec",
+					"--skip-git-repo-check",
+					"--dangerously-bypass-hook-trust",
+					"--ephemeral",
+					"--json",
+					"Reply ok.",
+				],
+				{ env: environment, cwd: world.cwd, timeout: 45_000 },
+			);
+			assert.equal(result.code, 0, `${scenario}: ${result.stderr}`);
+			const calls = existsSync(logPath)
+				? parseJsonLines(readFileSync(logPath, "utf8"), `${scenario} Strand calls`)
+				: [];
+			const modelRequests = provider.requests.slice(requestOffset);
+			assert.equal(modelRequests.length, 1, `${scenario} must issue one model request`);
+			if (scenario === "single") {
+				assert.equal(calls.length, 1, `${result.stdout}\n${result.stderr}`);
+				assert.equal(identityMessages(modelRequests).length, 1);
+			} else {
+				assert.equal(calls.length, 0, `${scenario} must stop before Strand`);
+				assert.equal(
+					identityMessages(modelRequests).length,
+					0,
+					`${scenario} must not inject duplicate identity context`,
+				);
+			}
+		}
+	} finally {
+		await provider.close();
+	}
+}
+
 async function checkCliDiscovery() {
 	const version = await run("codex", ["--version"], { env: fixtureEnvironment() });
 	assert.equal(version.code, 0, version.stderr);
@@ -498,14 +963,28 @@ async function checkCliDiscovery() {
 	assert.deepEqual(activeEntry.hooks.map((hook) => hook.eventName).sort(), [
 		"postToolUse",
 		"sessionStart",
+		"sessionStart",
 		"stop",
+		"subagentStart",
 		"userPromptSubmit",
 	]);
-	const sessionStart = activeEntry.hooks.find((hook) => hook.eventName === "sessionStart");
-	assert.equal(sessionStart.source, "plugin");
-	assert.equal(sessionStart.pluginId, "harness@agents");
-	assert.equal(sessionStart.trustStatus, "untrusted");
-	assert.match(sessionStart.sourcePath, /\.codex-plugin\/hooks\/hooks\.json$/);
+	const identityHooks = activeEntry.hooks.filter((hook) =>
+		hook.command.endsWith('/.codex-plugin/hooks/identity.sh"'),
+	);
+	assert.equal(identityHooks.length, 2);
+	assert.deepEqual(identityHooks.map((hook) => hook.eventName).sort(), [
+		"sessionStart",
+		"subagentStart",
+	]);
+	for (const hook of identityHooks) {
+		assert.equal(hook.source, "plugin");
+		assert.equal(hook.pluginId, "harness@agents");
+		assert.equal(hook.trustStatus, "untrusted");
+		assert.equal(hook.timeoutSec, 8);
+		assert.equal(hook.additionalContextLimit, 4096);
+		assert.match(hook.sourcePath, /\.codex-plugin\/hooks\/hooks\.json$/);
+	}
+	const sessionStart = identityHooks.find((hook) => hook.eventName === "sessionStart");
 
 	writeFileSync(
 		join(active.codexHome, "config.toml"),
@@ -534,7 +1013,7 @@ async function checkCliDiscovery() {
 	assert.match(missingEntry.warnings[0], /failed to read plugin hooks config .*missing\.json/);
 
 	const duplicate = createCodexWorld();
-	const command = `bash "${join(duplicate.installedPlugin, ".codex-plugin/hooks/capture.sh")}"`;
+	const command = `bash "${join(duplicate.installedPlugin, ".codex-plugin/hooks/identity.sh")}"`;
 	writeFileSync(
 		join(duplicate.codexHome, "hooks.json"),
 		`${JSON.stringify(
@@ -561,7 +1040,7 @@ async function checkCliDiscovery() {
 	const duplicateSessionHooks = duplicateEntry.hooks.filter(
 		(hook) =>
 			hook.eventName === "sessionStart" &&
-			hook.command.endsWith('/.codex-plugin/hooks/capture.sh"'),
+			hook.command.endsWith('/.codex-plugin/hooks/identity.sh"'),
 	);
 	assert.equal(
 		duplicateSessionHooks.length,
@@ -582,11 +1061,11 @@ async function holdInterruptProbe() {
 	const directory = temporaryDirectory("codex-hook-interrupt-");
 	writeFileSync(join(directory, "artifact"), "must be removed\n");
 	const payloadText = readFileSync(join(payloadRoot, "session-start-startup.json"), "utf8");
-	await run("bash", [referenceHook], {
+	await run("bash", [identityHook, "--configured-source"], {
 		input: payloadText,
 		timeout: 120_000,
 		env: fixtureEnvironment({
-			STRAND_BIN: fakeStrand,
+			MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
 			FAKE_STRAND_MODE: "hang",
 			TMPDIR: directory,
 		}),
@@ -602,7 +1081,11 @@ try {
 	} else {
 		await checkPayloadReplay();
 		await checkCliDiscovery();
-		console.log(`Codex hook conformance passed (${expectedCodexVersion}; CLI-only, no model).`);
+		await checkInvocationEnabledHooks();
+		await checkActualHostDuplicateSources();
+		console.log(
+			`Codex hook conformance passed (${expectedCodexVersion}; CLI-only, local provider).`,
+		);
 	}
 } finally {
 	cleanup();

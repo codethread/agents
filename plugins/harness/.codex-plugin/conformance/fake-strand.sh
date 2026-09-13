@@ -1,82 +1,152 @@
 #!/usr/bin/env bash
-# Test double for the future Strand startup API. Its stdin format is private to
-# this fixture and deliberately does not freeze a proposed production command.
+# Deterministic Strand CLI double for the production Codex identity hook.
 set -euo pipefail
 
-request=$(cat)
-jq -e '
-  (.harness == "codex") and
-  (.session_id | type == "string" and length > 0) and
-  (.cwd | type == "string" and length > 0) and
-  (.hook_event_name == "SessionStart" or .hook_event_name == "SubagentStart")
-' >/dev/null <<<"$request"
+workspace=
+cwd=
+timeout=
+while (($# > 0)); do
+	case "$1" in
+		--workspace)
+			workspace=$2
+			shift 2
+			;;
+		--cwd)
+			cwd=$2
+			shift 2
+			;;
+		--timeout)
+			timeout=$2
+			shift 2
+			;;
+		*) break ;;
+	esac
+done
+
+[[ -n "$cwd" && "$timeout" == "3s" ]]
+[[ "${1:-}" == "identity" && "${2:-}" == "startup" && "${3:-}" == "codex" ]]
+native_session_id=${4:?native session ID is required}
+shift 4
+model=
+parent_identity=
+while (($# > 0)); do
+	case "$1" in
+		--model)
+			model=$2
+			shift 2
+			;;
+		--parent-identity)
+			parent_identity=$2
+			shift 2
+			;;
+		*)
+			printf 'unexpected fake Strand argument: %s\n' "$1" >&2
+			exit 64
+			;;
+	esac
+done
+[[ -n "$model" ]]
 
 managed_environment_present=false
 while IFS= read -r name; do
-  if [[ "$name" == MILLSTRAND_* ]]; then
-    managed_environment_present=true
-  fi
+	if [[ "$name" == MILLSTRAND_AGENT_ID || "$name" == MILLSTRAND_RUN_ID || "$name" == MILLSTRAND_RESERVATION_ID || "$name" == MILLSTRAND_BOOTSTRAP_V1 ]]; then
+		managed_environment_present=true
+	fi
 done < <(compgen -e)
 
-case "${FAKE_STRAND_MODE:-success}" in
-  success)
-    cwd=$(jq -r '.cwd' <<<"$request")
-    if [[ "$cwd" == *"linked-worktree"* ]]; then
-      workspace="/workspace/project/.millstrand"
-    else
-      workspace="$cwd/.millstrand"
-    fi
-    context="Your Millstrand identity is fixture-only-identity. Use fixture-only-identity for identity-bearing operations; pass --by-identity fixture-only-identity explicitly. Workspace: $workspace"
-    if [[ -n "${FAKE_STRAND_LOG:-}" ]]; then
-      jq -cn \
-        --argjson request "$request" \
-        --argjson managed_environment_present "$managed_environment_present" \
-        --arg returned_context "$context" \
-        '{request: $request, managed_environment_present: $managed_environment_present, managed_state: "none", returned_context: $returned_context}' \
-        >>"$FAKE_STRAND_LOG"
-    fi
-    jq -cn \
-      --arg context "$context" \
-      --arg workspace "$workspace" \
-      '{additional_context: $context, workspace: $workspace, managed_state: "none"}'
-    ;;
-  oversized)
-    context="Your Millstrand identity is fixture-only-identity."
-    for _ in {1..256}; do
-      context+=" Required identity policy must remain complete."
-    done
-    jq -cn --arg context "$context" \
-      '{additional_context: $context, workspace: "/workspace/project/.millstrand", managed_state: "none"}'
-    ;;
-  failure)
-    for _ in {1..256}; do
-      printf 'fake Strand unavailable; diagnostic payload must be bounded. ' >&2
-    done
-    printf '\n' >&2
-    exit 70
-    ;;
-  flood)
-    while :; do
-      printf 'fake Strand output flood must be bounded. '
-    done
-    ;;
-  hang)
-    exec tail -f /dev/null
-    ;;
-  invalid-json)
-    printf '{not-json}\n'
-    ;;
-  missing-context)
-    printf '{"workspace":"/workspace/project/.millstrand"}\n'
-    ;;
-  empty-context)
-    printf '{"additional_context":""}\n'
-    ;;
-  multiple-responses)
-    printf '{"additional_context":"ambiguous fixture response"}\n%.0s' {1..2}
-    ;;
-  *)
-    printf 'unknown FAKE_STRAND_MODE\n' >&2
-    exit 64
-    ;;
+case "$native_session_id" in
+	codex-child:v1:*) identity=fixture-child-identity ;;
+	*) identity=fixture-root-identity ;;
+esac
+instruction="Your Millstrand identity is $identity. Use $identity for identity-bearing operations; pass \`--by-identity $identity\` explicitly. Do not invent another identity."
+result=${FAKE_STRAND_RESULT:-minted}
+resolved_workspace=$workspace
+if [[ -z "$resolved_workspace" ]]; then
+	if [[ "$cwd" == *"linked-worktree"* ]]; then
+		resolved_workspace=/workspace/project/.millstrand
+	else
+		resolved_workspace="$cwd/.millstrand"
+	fi
+fi
+
+if [[ -n "${FAKE_STRAND_LOG:-}" ]]; then
+	jq -cn \
+		--arg workspace "$workspace" \
+		--arg cwd "$cwd" \
+		--arg timeout "$timeout" \
+		--arg native_session_id "$native_session_id" \
+		--arg model "$model" \
+		--arg parent_identity "$parent_identity" \
+		--argjson managed_environment_present "$managed_environment_present" \
+		'{workspace: $workspace, cwd: $cwd, timeout: $timeout,
+		  native_session_id: $native_session_id, model: $model,
+		  parent_identity: $parent_identity,
+		  managed_environment_present: $managed_environment_present}' \
+		>>"$FAKE_STRAND_LOG"
+fi
+
+mode=${FAKE_STRAND_MODE:-success}
+if [[ -n "${FAKE_STRAND_PID_FILE:-}" ]]; then
+	printf '%s\n' "$$" >"$FAKE_STRAND_PID_FILE"
+fi
+if [[ "$mode" == "hold" ]]; then
+	: >"${FAKE_STRAND_READY:?hold mode requires FAKE_STRAND_READY}"
+	IFS= read -r _ <"${FAKE_STRAND_GATE:?hold mode requires FAKE_STRAND_GATE}"
+	mode=success
+fi
+
+case "$mode" in
+	success)
+		jq -cn \
+			--arg identity "$identity" \
+			--arg instruction "$instruction" \
+			--arg result "$result" \
+			'{operation: "identity startup", identity: $identity, "strand-id": "fixture-strand", result: $result, instruction: $instruction}'
+		;;
+	oversized)
+		instruction="Your Millstrand identity is $identity."
+		for _ in {1..256}; do
+			instruction+=" Required identity policy must remain complete."
+		done
+		jq -cn \
+			--arg identity "$identity" \
+			--arg instruction "$instruction" \
+			'{operation: "identity startup", identity: $identity, "strand-id": "fixture-strand", result: "minted", instruction: $instruction}'
+		;;
+	failure | no-workspace | invalid-binding)
+		case "$FAKE_STRAND_MODE" in
+			no-workspace) diagnostic="no Millstrand workspace found from cwd" ;;
+			invalid-binding) diagnostic="native session has conflicting identity bindings" ;;
+			*) diagnostic="fake Strand unavailable; diagnostic payload must be bounded" ;;
+		esac
+		for _ in {1..64}; do
+			printf '%s. ' "$diagnostic" >&2
+		done
+		printf '\n' >&2
+		exit 70
+		;;
+	flood)
+		while :; do
+			printf 'fake Strand output flood must be bounded. '
+		done
+		;;
+	hang)
+		exec tail -f /dev/null
+		;;
+	invalid-json)
+		printf '{not-json}\n'
+		;;
+	missing-context)
+		printf '{"operation":"identity startup","identity":"fixture-root-identity","strand-id":"fixture-strand","result":"minted"}\n'
+		;;
+	empty-context)
+		printf '{"operation":"identity startup","identity":"fixture-root-identity","strand-id":"fixture-strand","result":"minted","instruction":""}\n'
+		;;
+	multiple-responses)
+		printf '{"operation":"identity startup","identity":"fixture-root-identity","strand-id":"fixture-strand","result":"minted","instruction":"ambiguous"}\n%.0s' {1..2}
+		;;
+	*)
+		printf 'unknown FAKE_STRAND_MODE\n' >&2
+		exit 64
+		;;
 esac

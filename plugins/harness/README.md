@@ -1,6 +1,6 @@
 # Harness Plugin
 
-Session and harness affordances for Claude Code, Pi, and Codex: session introspection skills, benchmark orchestration, rich HTML responses, tmux workflows, and dialogue-capture hooks.
+Session and harness affordances for Claude Code, Pi, and Codex: session introspection skills, benchmark orchestration, rich HTML responses, tmux workflows, dialogue capture, and native Codex identity injection.
 
 ## Contents
 
@@ -11,23 +11,27 @@ Session and harness affordances for Claude Code, Pi, and Codex: session introspe
 - `skills/rich-response/` — render long-form responses as self-contained HTML
 - `skills/tmux/` — durable terminal sessions for long-lived commands
 - `hooks/` — Claude Code dialogue-capture and window-title hooks (below)
-- `.codex-plugin/hooks/` — Codex CLI dialogue-capture hooks (below)
-- `.codex-plugin/conformance/` — Codex 0.154.0 startup-hook payload, output, and disposable CLI discovery fixtures
+- `.codex-plugin/hooks/` — separate Codex dialogue-capture and native identity hooks (below)
+- `.codex-plugin/conformance/` — Codex 0.154.0 identity replay and disposable CLI discovery fixtures
 - `hooks-reference.md` — vendored copy of the official Claude Code hooks reference
 
-## Codex startup-hook contract
+## Codex startup identity
 
-The Codex compatibility manifest explicitly points at `.codex-plugin/hooks/hooks.json`; that path overrides the default `hooks/hooks.json` and is verified through `hooks/list` in a disposable Codex configuration. Run the version-pinned fixture suite with `pnpm test:codex-hooks`. It covers sanitized SessionStart `startup`, `resume`, `clear`, and `compact` payloads, a SubagentStart payload, developer-context JSON output, trust/disabled/missing/duplicate discovery, cwd routing, context bounds, and bounded failures using a fake Strand command. The fake Strand command does not finalize the identity API's command name, arguments, or response schema.
+The manifest points explicitly at `.codex-plugin/hooks/hooks.json`, keeping `capture.sh` observational and independently registering `identity.sh` for `SessionStart` and `SubagentStart`.
 
-This contract targets **Codex CLI 0.154.0**. `SessionStart` provides `session_id`, `cwd`, and `source`; `SubagentStart` provides the parent `session_id`, `cwd`, `turn_id`, `agent_id`, and `agent_type`. The adapter response uses `hookSpecificOutput.additionalContext`, which Codex treats as extra **developer context**, not a replacement system prompt. See `.codex-plugin/conformance/README.md` for the exact fixture and handoff contract.
+The identity adapter targets **Codex CLI 0.154.0** and Millhouse identity API commit `b1955a96ad91bf2909a407859fca1565ec4b9fdb`. It passes the strict payload cwd to Strand, optionally routes through `MILLSTRAND_CODEX_WORKSPACE`, and invokes `identity startup codex` with a three-second request deadline. Startup, resume, clear, and compact recover the root `session_id`. Children use the collision-safe parent-session/`agent_id` key and record parentage without trusting inherited parent identity or run variables.
 
-This repository's validation is deliberately **CLI-only**. OpenAI's official [hooks](https://developers.openai.com/codex/hooks/) and [plugin packaging](https://developers.openai.com/plugins/build/plugins/) documentation establishes lifecycle hooks and plugin enablement for supported local clients, including Codex CLI and Codex in the ChatGPT desktop app; the hook script must exist locally, remains subject to trust, and is not deployed merely by installing a plugin on the web. No desktop app, plugin, or conversation was exercised here; desktop runtime behavior is not certified or used as a gate. The no-model fixtures prove discovery and command response shape; later CLI-only integration with a real model must prove host delivery into model-visible developer context.
+Successful canonical Millhouse instructions are returned only through `hookSpecificOutput.additionalContext`, which Codex treats as extra **developer context**, not a replacement system prompt. Before Strand runs, the hook asks Codex `hooks/list` for the effective cwd configuration and requires exactly one enabled identity injector for that event. The query preserves the invoking host's effective hooks feature state—including process-local `--enable hooks`—and detects staggered package/package and plugin/user duplicates without trusting ambient `PLUGIN_ROOT`. A crash-safe OS lock separately covers overlapping execution. Required context is capped below the configured `additionalContextLimit`; oversized or invalid responses produce a visible unbound warning instead of a guessed identity. Existing managed roots carrying `MILLSTRAND_AGENT_ID` or `MILLSTRAND_RUN_ID` remain on the legacy no-injection path until a later explicit native-v1 integration. The hook never creates a workspace or operates Weaver.
+
+Run `pnpm test:codex-hooks` for sanitized production-hook replays and disposable `hooks/list` discovery/trust checks. Run `pnpm test:codex-hooks:live` for the production identity hook against real Strand and a pinned Millhouse API in an isolated foreground Mill/Weaver world. See `.codex-plugin/conformance/README.md` for the exact CLI, JSON, coexistence, child, failure, and validation contracts.
+
+Validation is deliberately **CLI-only**: no desktop app, installed plugin cache, existing conversation, or real provider was exercised; desktop execution is intended but not runtime-certified. Disposable Codex 0.154.0 processes send model-bound requests to a local SSE fixture, proving fresh and resumed identity injection when hooks are enabled only for the invocation, one identity message for an ordinary single package, and none for staggered duplicate sources. OpenAI's official [hooks](https://developers.openai.com/codex/hooks/) and [plugin packaging](https://developers.openai.com/plugins/build/plugins/) documentation covers supported local clients including Codex CLI and Codex in the ChatGPT desktop app; hook files must exist locally and remain subject to trust — web installation does not deploy them. The local fixture proves transport, not real-model inference or obedience.
 
 ## Dialogue capture hooks
 
 Claude Code's on-disk session transcripts are officially internal and can change on any release. These hooks capture the parts we care about through the supported hook interface at the moment they happen, into a JSONL log whose schema **we** own. Downstream tooling (devflow Q&A extraction, jq scripts) should consume this log, not the raw transcripts.
 
-Pi sessions get the same treatment from this repo's `pi/extensions/dialogue-capture` extension, which writes the same schema to the sibling `pi-dialogue/` directory (Pi-specific mapping and divergences in that extension's README). Codex sessions get the same forward-only treatment from this plugin's Codex hooks, which write to the sibling `codex-dialogue/` directory.
+Pi sessions get the same treatment from this repo's `pi/extensions/dialogue-capture` extension, which writes the same schema to the sibling `pi-dialogue/` directory (Pi-specific mapping and divergences in that extension's README). Codex sessions get the same forward-only treatment from `capture.sh`, which writes to the sibling `codex-dialogue/` directory. The separate Codex `identity.sh` hook does not write capture records.
 
 The schema tables and queries below are the shared reference for all harness dialogue logs.
 
