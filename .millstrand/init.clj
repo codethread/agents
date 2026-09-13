@@ -14,15 +14,11 @@
 ;; until all workspace-owned modules have reconciled.
 (codethread/register! runtime)
 
-;; Keep the workspace-level Workflow and Kanban CLI surfaces explicit consumer
-;; choices; no provider, alias, reviewer, or executor definitions are copied
-;; here.
+;; Keep the workspace-level Workflow providers an explicit consumer choice; no
+;; provider, alias, reviewer, or executor definitions are copied here.
 (runtime/module! runtime :millhouse/spools-workflow-providers
                  {:ns 'millhouse.spools.workflow.spool
                   :after [:millhouse/spools-workflow]
-                  :required? true})
-(runtime/module! runtime :millhouse/spools-kanban
-                 {:ns 'millhouse.spools.kanban
                   :required? true})
 
 ;; Keep the workspace-owned help election and module behavior unchanged.

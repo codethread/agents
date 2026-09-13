@@ -5,7 +5,7 @@
    :deps/root "spools/batteries"}
   millhouse.spools/workflow
   {:git/url "https://github.com/codethread/millhouse.spool.git"
-   :git/sha "f487eb42ea9523e8bd405e64a7c319013217d988"
+   :git/sha "3132c8f7f10455c893da28fef0e9ca0047560f82"
    :deps/root "spools/workflow"}
   millhouse.spools/identity
   {:git/url "https://github.com/codethread/millhouse.spool.git"
@@ -22,6 +22,6 @@
   ;; Shared bootstrap with deferred executor activation.
   codethread/config
   {:git/url "https://github.com/codethread/codethread.spool.git"
-   :git/sha "252eeaee216a5e4d4e82c6b2948dd9eba1dafc9d"
+   :git/sha "3dcf5f051842512d444b9d111d3998f4078081f6"
    :deps/root "spools/config"}
   }}
