@@ -8,6 +8,7 @@ This directory is intentionally flat:
 - `native-identity.ts` — Strand invocation, response parsing, and lifecycle status
 - `prompt-builder.ts` — pure system-prompt rendering helpers
 - `templates.ts` — `agent.njk` discovery/rendering plus `--debug-prompt` override parsing
+- `tool-report.ts` — `--debug-tools` selector parsing and report rendering
 
 ## Behavior
 
@@ -68,6 +69,7 @@ Prefer precise file-edit tools over shell redirection.
 
 - `--debug-prompt` — print the next materialized effective system prompt and exit; send a message manually (for example with `--print ping`); accepts optional JSON template-var overrides
 - `/debug-prompt` — show the last materialized effective system prompt in the UI; if no message has been sent yet, it warns the user to send one first
+- `--debug-tools [tool,...]` — print all registered tools, or selected tools, with active status, their approximate system-prompt contribution, and provider-neutral model definition; exits before a model request
 - `--debug-millstrand-identity` — resolve and print the native session binding/status as JSON, then exit before a model request
 - `/debug-millstrand-identity` — show the current binding/status in the standard hidden debug panel
 
@@ -75,6 +77,7 @@ Example:
 
 ```bash
 pi --debug-prompt --print ping '{"model":"claude-sonnet"}'
+pi --debug-tools bash,ls
 ```
 
 Related messaging behavior:

@@ -184,12 +184,13 @@ export function formatBashOutputPreview(output: string, width: number) {
 }
 
 export default function (pi: ExtensionAPI) {
-	const builtinBash = createBashTool(process.cwd());
+	const { promptSnippet: _promptSnippet, ...builtinBash } = createBashTool(
+		process.cwd(),
+	) as ReturnType<typeof createBashTool> & { promptSnippet?: string };
 
 	pi.registerTool({
 		...builtinBash,
 		name: "bash",
-		promptSnippet: "Execute bash commands (ls, grep, find, etc.)",
 
 		async execute(toolCallId, params, signal, onUpdate) {
 			const startedAt = Date.now();

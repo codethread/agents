@@ -480,24 +480,12 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "subagent",
 		label: "Subagent",
-		description: [
-			"Delegate one task to one discovered subagent, or one discovered swarm.",
-			"Pi may run independent subagent tool calls concurrently; do not make a resume-dependent follow-up until the prior result returns its Subagent resume ID.",
-			"Provide agent, description, task, and cwd.",
-			"When asking a follow-up of the same delegated target, first wait for the prior tool result, then pass resume with the exact ID from its <subagent-resume-id> tag; otherwise a fresh isolated session starts.",
-			"A terse description field is required for the delegated task.",
-			`Calls time out after ${DEFAULT_SUBAGENT_TIMEOUT_SECONDS} seconds (4.5 minutes) unless timeout is explicitly overridden.`,
-			"Extension, user, and project agents are discovered automatically.",
-		].join(" "),
-		promptSnippet:
-			"Delegate one task to one subagent or swarm. Independent subagent calls may run concurrently. For follow-ups, wait for the prior result, then pass resume from its <subagent-resume-id> tag.",
+		description:
+			"Delegate one task to a discovered subagent or swarm in an isolated Pi process. Extension, user, and project agents are discovered automatically; swarm targets run all configured members and aggregate their results.",
 		promptGuidelines: [
 			"Use subagent for focused delegation to specialists like scout, review, fixer, or hack.",
 			"Each subagent tool call runs one task for one agent. Use multiple independent tool calls when work can run concurrently.",
 			"Swarm calls dispatch all swarm members concurrently in one tool call, each with its own isolated execution.",
-			"Always provide a terse description (3-8 words) for the delegated task.",
-			`Keep the default ${DEFAULT_SUBAGENT_TIMEOUT_SECONDS}-second timeout unless the task clearly needs a different limit; set timeout explicitly to override it.`,
-			"If a previous subagent result included <subagent-resume-id> and the next task depends on that same context, set resume to that exact ID.",
 			"Never use placeholder or empty resume values. If you do not have the actual ID yet, call the first subagent and wait for its result before making the follow-up call.",
 			"Do not dispatch a resume follow-up concurrently with the original call; the ID only exists after the first tool result returns.",
 			"Do not omit resume for follow-up questions that ask the same subagent to remember earlier findings.",

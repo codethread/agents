@@ -34,10 +34,7 @@ export default function piInternalsExtension(pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "pi-internals",
 		label: "Pi Internals",
-		description:
-			"Print Pi runtime, source/documentation, settings, and enabled extension paths. Use if the user asks about Pi/pi, or building a Pi extension or Skill",
-		promptSnippet:
-			"Print Pi runtime/source/settings/enabled-extension paths when Pi internals are relevant.",
+		description: "Print Pi runtime, source/documentation, settings, and enabled extension paths.",
 		promptGuidelines: [
 			"Use pi-internals when the user asks about Pi itself, Pi runtime behavior, installed/enabled extensions, Pi SDK docs, themes, skills, prompt templates, TUI, or custom tools.",
 		],

@@ -2,7 +2,7 @@
 
 > Small plugin that replaces Pi built-in tool presentation without changing tool behavior.
 
-Each replacement also supplies the concise tool description shown in the generated system prompt. Operational guidance is included only when it adds behavior beyond the tool schema.
+Each replacement retains Pi's provider-facing tool description. Prompt guidelines are included only when they add behavior beyond the tool schema.
 
 ## `read`
 

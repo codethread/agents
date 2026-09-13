@@ -244,8 +244,8 @@ export default function webAccess(pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "web_search",
 		label: "Web Search",
-		description: "Search the web",
-		promptSnippet: "Search the web",
+		description:
+			"Search the web with Exa and return ranked results with titles, URLs, publication dates, and text snippets.",
 		promptGuidelines: [
 			"Use web_search for current web results when local files are insufficient.",
 			"Use fetch_content with result URLs when full page content is needed.",
@@ -277,8 +277,7 @@ export default function webAccess(pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "fetch_content",
 		label: "Fetch Content",
-		description: "Fetch a URL and return readable markdown/text",
-		promptSnippet: "Fetch readable content from a web URL",
+		description: "Fetch an HTTP(S) URL and return its readable content as Markdown or text.",
 		parameters: FetchContentParams,
 		async execute(_toolCallId, params, signal) {
 			try {

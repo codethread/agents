@@ -23,8 +23,10 @@ import {
 	loadClaudeLocalContextFiles,
 } from "./prompt-builder.js";
 import { parseDebugPromptOverrides, renderDynamicPrompt, type TemplateVars } from "./templates.js";
+import { formatDebugToolReport, parseDebugToolNames } from "./tool-report.js";
 
 const DEBUG_PROMPT_FLAG = "debug-prompt";
+const DEBUG_TOOLS_FLAG = "debug-tools";
 
 type ToolDefinition = Parameters<ExtensionAPI["registerTool"]>[0];
 type ToolPromptMetadata = {
@@ -130,6 +132,12 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		type: "boolean",
 		default: false,
 	});
+	pi.registerFlag(DEBUG_TOOLS_FLAG, {
+		description:
+			"Print registered tool prompt contributions and model-facing schemas, optionally filtered by a comma-separated list",
+		type: "boolean",
+		default: false,
+	});
 	pi.registerFlag(MILLSTRAND_IDENTITY_FLAG, {
 		description: "Assert an existing Millstrand identity for this exact native Pi session",
 		type: "string",
@@ -201,6 +209,26 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		lastMaterializedPrompt = null;
 		nativeIdentityState = { status: "pending" };
 		pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, null);
+
+		const wantsToolsDebug = pi.getFlag(DEBUG_TOOLS_FLAG) === true;
+		if (wantsToolsDebug) {
+			try {
+				const requestedTools = parseDebugToolNames(process.argv.slice(2));
+				process.stdout.write(
+					`${formatDebugToolReport({
+						tools: pi.getAllTools(),
+						activeTools: pi.getActiveTools(),
+						requestedTools,
+						model: ctx.model,
+					})}\n`,
+				);
+				process.exit(0);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				process.stderr.write(`${message}\n`);
+				process.exit(1);
+			}
+		}
 
 		const wantsPromptDebug = pi.getFlag(DEBUG_PROMPT_FLAG) === true;
 		const wantsIdentityDebug = pi.getFlag(DEBUG_MILLSTRAND_IDENTITY_FLAG) === true;

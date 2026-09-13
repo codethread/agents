@@ -16,7 +16,6 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		...builtinRead,
 		name: "read",
-		promptSnippet: "Read file contents",
 
 		renderCall(args, theme) {
 			const path = (args.path as string | undefined) ?? "(unknown)";

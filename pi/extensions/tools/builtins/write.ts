@@ -27,7 +27,6 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		...builtinWrite,
 		name: "write",
-		promptSnippet: "Write content to a file",
 		promptGuidelines: ["Use write only for new files or complete rewrites."],
 
 		async execute(toolCallId, params, signal, onUpdate) {

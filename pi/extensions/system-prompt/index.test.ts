@@ -90,9 +90,13 @@ describe("system-prompt extension", () => {
 			exec,
 		} as any);
 
-		expect(registerFlag).toHaveBeenCalledTimes(4);
+		expect(registerFlag).toHaveBeenCalledTimes(5);
 		expect(registerFlag).toHaveBeenCalledWith(
 			"debug-prompt",
+			expect.objectContaining({ type: "boolean", default: false }),
+		);
+		expect(registerFlag).toHaveBeenCalledWith(
+			"debug-tools",
 			expect.objectContaining({ type: "boolean", default: false }),
 		);
 		expect(registerCommand).toHaveBeenCalledWith(

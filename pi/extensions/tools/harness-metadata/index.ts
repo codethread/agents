@@ -47,8 +47,6 @@ export default function harnessMetadata(pi: ExtensionAPI) {
 		label: "Harness Metadata",
 		description:
 			"Return current Pi harness metadata including session id, model, thinking level, and context usage.",
-		promptSnippet:
-			"Read current harness metadata such as session id, model, thinking level, and context usage.",
 		promptGuidelines: [
 			"Use harness_metadata when you need the current Pi session id or live harness metadata.",
 		],
