@@ -586,19 +586,23 @@ function createCodexWorld({ enabled = true, hooksEnabled = true } = {}) {
 	return { codexHome, home, installedPlugin, cwd };
 }
 
-async function listHooks(world, cwd = world.cwd) {
+async function listHooks(world, cwd = world.cwd, configOverrides = []) {
 	return new Promise((resolvePromise, reject) => {
 		const child = trackChild(
-			spawn("codex", ["app-server", "--stdio"], {
-				detached: process.platform !== "win32",
-				env: fixtureEnvironment({
-					CODEX_HOME: world.codexHome,
-					HOME: world.home,
-					CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG: "1",
-				}),
-				cwd: world.cwd,
-				stdio: ["pipe", "pipe", "pipe"],
-			}),
+			spawn(
+				"codex",
+				[...configOverrides.flatMap((override) => ["-c", override]), "app-server", "--stdio"],
+				{
+					detached: process.platform !== "win32",
+					env: fixtureEnvironment({
+						CODEX_HOME: world.codexHome,
+						HOME: world.home,
+						CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG: "1",
+					}),
+					cwd: world.cwd,
+					stdio: ["pipe", "pipe", "pipe"],
+				},
+			),
 		);
 		let stdout = "";
 		let stderr = "";
@@ -748,10 +752,10 @@ async function startFixtureProvider() {
 	};
 }
 
-function writeHostConfig(world, providerPort, pluginIds) {
+function writeHostConfig(world, providerPort, pluginIds, hooksEnabled = true) {
 	writeFileSync(
 		join(world.codexHome, "config.toml"),
-		`model = "gpt-5.4"\nmodel_provider = "fixture"\n\n[model_providers.fixture]\nname = "fixture"\nbase_url = "http://127.0.0.1:${providerPort}/v1"\nwire_api = "responses"\nrequires_openai_auth = false\n\n[features]\nplugins = true\nremote_plugin = false\nhooks = true\n\n${pluginIds.map((id) => `[plugins."harness@${id}"]\nenabled = true\n`).join("\n")}`,
+		`model = "gpt-5.4"\nmodel_provider = "fixture"\n\n[model_providers.fixture]\nname = "fixture"\nbase_url = "http://127.0.0.1:${providerPort}/v1"\nwire_api = "responses"\nrequires_openai_auth = false\n\n[features]\nplugins = true\nremote_plugin = false\nhooks = ${hooksEnabled}\n\n${pluginIds.map((id) => `[plugins."harness@${id}"]\nenabled = true\n`).join("\n")}`,
 	);
 }
 
@@ -762,6 +766,73 @@ function identityMessages(requests) {
 				item.role === "developer" && JSON.stringify(item).includes("Your Millstrand identity is"),
 		),
 	);
+}
+
+async function checkInvocationEnabledHooks() {
+	const provider = await startFixtureProvider();
+	try {
+		const world = createCodexWorld();
+		writeHostConfig(world, provider.port, ["agents"], false);
+		const effectiveEntry = onlyEntry(await listHooks(world, world.cwd, ["features.hooks=true"]));
+		assert.equal(
+			effectiveEntry.hooks.filter(
+				(hook) =>
+					hook.eventName === "sessionStart" &&
+					hook.command.includes("/.codex-plugin/hooks/identity.sh"),
+			).length,
+			1,
+		);
+
+		const logPath = join(world.codexHome, "invocation-enabled-strand.jsonl");
+		const environment = fixtureEnvironment({
+			CODEX_HOME: world.codexHome,
+			HOME: world.home,
+			CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG: "1",
+			MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
+			FAKE_STRAND_LOG: logPath,
+		});
+		const commonArgs = [
+			"--enable",
+			"hooks",
+			"exec",
+			"--skip-git-repo-check",
+			"--dangerously-bypass-hook-trust",
+			"--json",
+		];
+		const requestOffset = provider.requests.length;
+		const fresh = await run("codex", [...commonArgs, "Reply ok."], {
+			env: environment,
+			cwd: world.cwd,
+			timeout: 45_000,
+		});
+		assert.equal(fresh.code, 0, fresh.stderr);
+		const threadId = parseJsonLines(fresh.stdout, "invocation-enabled fresh events").find(
+			(event) => event.type === "thread.started",
+		)?.thread_id;
+		assert.equal(typeof threadId, "string", fresh.stdout);
+
+		const resumed = await run("codex", [...commonArgs, "resume", threadId, "Reply ok again."], {
+			env: environment,
+			cwd: world.cwd,
+			timeout: 45_000,
+		});
+		assert.equal(resumed.code, 0, resumed.stderr);
+		const calls = parseJsonLines(readFileSync(logPath, "utf8"), "invocation-enabled Strand calls");
+		assert.equal(calls.length, 2, `${fresh.stdout}\n${fresh.stderr}\n${resumed.stderr}`);
+		assert.deepEqual(
+			calls.map((call) => call.native_session_id),
+			[threadId, threadId],
+		);
+		const modelRequests = provider.requests.slice(requestOffset);
+		assert.equal(modelRequests.length, 2);
+		assert.deepEqual(
+			modelRequests.map((request) => identityMessages([request]).length),
+			[1, 2],
+			"resume must retain prior identity context and inject reconstructed context",
+		);
+	} finally {
+		await provider.close();
+	}
 }
 
 async function checkActualHostDuplicateSources() {
@@ -1010,6 +1081,7 @@ try {
 	} else {
 		await checkPayloadReplay();
 		await checkCliDiscovery();
+		await checkInvocationEnabledHooks();
 		await checkActualHostDuplicateSources();
 		console.log(
 			`Codex hook conformance passed (${expectedCodexVersion}; CLI-only, local provider).`,

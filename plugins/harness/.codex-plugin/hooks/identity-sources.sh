@@ -80,7 +80,10 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 mkfifo "$request_fifo" "$response_fifo" || exit 1
-"$codex_bin" app-server --stdio <"$request_fifo" >"$response_fifo" 2>"$stderr_file" &
+# Reaching this handler proves the invoking host's effective hooks feature is
+# enabled. Replay that effective value because Codex CLI overrides such as
+# `--enable hooks` are process-local and are otherwise lost by this probe.
+"$codex_bin" -c features.hooks=true app-server --stdio <"$request_fifo" >"$response_fifo" 2>"$stderr_file" &
 app_pid=$!
 exec 8>"$request_fifo"
 exec 9<"$response_fifo"
