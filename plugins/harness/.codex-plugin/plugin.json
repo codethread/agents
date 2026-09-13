@@ -2,5 +2,6 @@
 	"name": "harness",
 	"version": "0.3.0",
 	"description": "Harness/session skills for Claude Code, Codex, Pi, tmux, and rich responses.",
-	"skills": "./skills"
+	"skills": "./skills",
+	"hooks": "./.codex-plugin/hooks/hooks.json"
 }
