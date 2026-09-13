@@ -39,3 +39,11 @@ Bad:
 - "Use state from the script/session that invoked you."
 
 If orchestration code performs work before sending a prompt, describe the result, not the orchestrator: say "selected task" rather than "task selected by scripts/foo.nu".
+
+<!-- mill:millstrand-prime -->
+
+## Millstrand / strand
+
+This repo uses Millstrand strands to track work. Start with `strand --help`. Run `mill prime millstrand` when building on this repo's `.millstrand/` config, or working with millstrand spools, weaver or REPL.
+
+<!-- /mill:millstrand-prime -->
