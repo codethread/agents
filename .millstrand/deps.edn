@@ -1,5 +1,5 @@
 {:deps
- {millstrand.spools/batteries
+ {io.millstrand/batteries
   {:git/url "https://github.com/codethread/millstrand.git"
    :git/sha "310368dff9174bd889ad21d4ed8196952684eaf9"
    :deps/root "spools/batteries"}
@@ -19,12 +19,9 @@
   {:git/url "https://github.com/codethread/harnesses.spool.git"
    :git/sha "9548390ce621461ba0a289859fe9b0af963f5805"
    :deps/root "."}
-  ;; Coordinator updates this pin after the shared config migration lands.
+  ;; Shared bootstrap with deferred executor activation.
   codethread/config
   {:git/url "https://github.com/codethread/codethread.spool.git"
-   :git/sha "cdded90bba0009377c2d9e58021735d5baa5cf88"
+   :git/sha "252eeaee216a5e4d4e82c6b2948dd9eba1dafc9d"
    :deps/root "spools/config"}
-  codethread/devflow
-  {:git/url "https://github.com/codethread/devflow.spool.git"
-   :git/sha "ceaa684499c6715ce0f10dba5806fd8ebef997da"
-   :deps/root "."}}}
+  }}

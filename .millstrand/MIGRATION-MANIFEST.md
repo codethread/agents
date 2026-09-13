@@ -33,7 +33,12 @@ before integration. Use them to detect drift before applying the files.
 | `.millstrand/me/help.clj`                           | `5ab059394c7eba645d9e1af618ded16883a3d75d06739a039866f69b961eb429` |
 | `.millstrand/config.local.json` (untracked overlay) | `466b54122ccafc31e092dde2c94313bd5ae7969eedfe181515f524e39da9e40b` |
 
-The canonical overlay is intentionally not copied into this commit. The
-published `codethread/config` SHA remains unresolved until the shared source
-worktree publishes its final commit; the current dependency pin is retained as
-the coordinator follow-up point.
+The canonical overlay is intentionally not copied into this commit. The shared
+config bootstrap is published at
+`252eeaee216a5e4d4e82c6b2948dd9eba1dafc9d` and is pinned by `.millstrand/deps.edn`.
+It provides ordered `register!` and
+`register-executor!` calls; this workspace registers the executor last, after
+its Workflow providers, Kanban, and help modules. Batteries is normalized under
+the `io.millstrand/batteries` dependency key. Devflow is intentionally omitted:
+Agents needs shared Harnesses assignment capability plus the Workflow and
+Kanban CLI surfaces, not Devflow workflows.
