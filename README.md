@@ -59,7 +59,7 @@ After linking, `pi --print` routes through Pies and ordinary interactive `pi` st
 | Agent    | Intended use                                             |
 | -------- | -------------------------------------------------------- |
 | `worker` | General implementation work with the full coding toolset |
-| `scout`  | Focused codebase and architecture reconnaissance         |
+| `scout`  | Narrow file/symbol lookups, not analysis or design       |
 | `fixer`  | Validation repair and scoped mechanical fixes            |
 | `hack`   | Terminal-heavy investigation and automation              |
 | `review` | Read-only correctness and regression review              |
@@ -68,7 +68,7 @@ After linking, `pi --print` routes through Pies and ordinary interactive `pi` st
 Use an agent directly or delegate to it from another Pi session:
 
 ```bash
-pi --agent scout --print "Map the authentication flow"
+pi --agent scout --print "Find token validation definitions and their direct callers"
 pi --agent review --print "Review the current changes"
 ```
 
