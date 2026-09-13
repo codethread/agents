@@ -49,7 +49,7 @@ const InteractiveShellParams = Type.Object({
 	name: Type.Optional(
 		Type.String({
 			description:
-				"Friendly name for spawn, shown in /shells and list. Must be 80 characters or fewer.",
+				"Unique friendly name for spawn, shown in /shells and list and used for the pi--<name> tmux session. Must be 80 characters or fewer.",
 			maxLength: 80,
 		}),
 	),
@@ -62,7 +62,7 @@ const InteractiveShellParams = Type.Object({
 	),
 	persist: Type.Optional(
 		Type.Boolean({
-			description: "Keep the shell running after the agent settles. Defaults to false.",
+			description: "Keep the shell running after the Pi session shuts down. Defaults to false.",
 			default: false,
 		}),
 	),
@@ -93,7 +93,7 @@ function fail(message: string, details: InteractiveShellDetails) {
 }
 
 function formatShell(record: ShellRecord): string {
-	const persistence = record.persist ? "persistent" : "agent-scoped";
+	const persistence = record.persist ? "persistent" : "session-scoped";
 	return `${record.id} — ${record.name} — ${record.shell} — ${persistence}`;
 }
 
@@ -292,10 +292,6 @@ export default function interactiveShell(pi: ExtensionAPI) {
 		}
 	});
 
-	pi.on("agent_settled", async () => {
-		await manager.killNonPersistent();
-	});
-
 	pi.on("session_shutdown", async () => {
 		await manager.killNonPersistent();
 	});
@@ -305,13 +301,9 @@ export default function interactiveShell(pi: ExtensionAPI) {
 		label: "Interactive Shell",
 		description:
 			"Spawn and control interactive shell tmux sessions. Supports creating a shell, sending input, tailing output, listing spawned shells, and killing a shell.",
-		promptSnippet: "Spawn and control interactive shell tmux sessions",
 		promptGuidelines: [
-			"Use interactive_shell for TUIs, REPLs, dev servers, and commands that need later input or output inspection.",
+			"Favour default `bash` tool, only use interactive_shell for genunine tty requirements (TUIs, REPLs) or when requiring a persisted terminal you can pass by reference to other agents.",
 			"Use interactive_shell action=spawn with a short friendly name to create a shell first, then action=send to type commands into it.",
-			"Spawn defaults to the user's configured shell. Choose bash or zsh for a clean shell without user configuration.",
-			"Spawned shells are stopped when the agent settles unless persist is true.",
-			"interactive_shell serializes send calls; when submit is true, text and Enter are sent as one ordered operation.",
 			"Never call interactive_shell send, tail, or kill in the same tool-call batch as spawn; wait for the spawn result and shell id first.",
 			"When creating multiple shells, spawn them one at a time; each shell is created in its own tmux session.",
 			"Use interactive_shell action=list to refresh shell ids before targeting older shells.",

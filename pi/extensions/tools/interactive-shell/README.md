@@ -17,9 +17,9 @@ Provides the `interactive_shell` tool for persistent PTYs: TUIs, REPLs, dev serv
 
 Starts a new empty shell in a detached tmux session. `shell` accepts `user`, `bash`, or `zsh` and defaults to `user`, which uses `$SHELL` with the user's normal configuration. The focused `bash` and `zsh` choices start without user configuration (`bash --noprofile --norc` and `zsh -f`).
 
-`persist` defaults to `false`. Agent-scoped shells are stopped when the agent settles (after retries and queued follow-ups finish), with session shutdown as a final cleanup. Set `persist: true` to keep a shell running across agent runs and after Pi exits. Persistent tmux sessions outlive Pi's in-memory registry, so after Pi exits or reloads they must be managed with tmux directly.
+`persist` defaults to `false`. Session-scoped shells survive between replies and are stopped on `session_shutdown`: when Pi exits, or when the session's extension runtime is replaced by a session switch or reload. Interrupting a response without exiting Pi does not stop them. Set `persist: true` to keep a shell running after shutdown. Persistent tmux sessions outlive Pi's in-memory registry, so after Pi exits or reloads they must be managed with tmux directly.
 
-`name` is optional, must be 80 characters or fewer, and is shown in `/shells` and `list`. Spawn returns the `shellId`/pane id, friendly name, tmux session name, selected shell, and persistence state.
+`name` is optional, must be 80 characters or fewer, and is shown in `/shells` and `list`. The tmux session is named `pi--<name>`, with the name normalized to a lowercase tmux-safe slug. Spawn fails if that tmux session is already active, so choose a unique name or stop the existing session first. Spawn returns the `shellId`/pane id, friendly name, tmux session name, selected shell, and persistence state.
 
 ```json
 { "action": "send", "shellId": "%12", "text": "npm run dev", "submit": true }

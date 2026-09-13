@@ -89,18 +89,30 @@ export class InteractiveShellManager {
 			await this.list(options.signal);
 			const displayName = this.normalizeName(options.name);
 			const sessionName = this.buildSessionName(displayName);
+			this.nextSession++;
+			if (await this.isSessionLive(sessionName, options.signal)) {
+				throw this.sessionAlreadyActiveError(displayName, sessionName);
+			}
 			const shellChoice = options.shell ?? "user";
 			const shellEnv = this.userShell;
 			const shell = shellChoice === "user" ? shellEnv : shellChoice;
 			if (!shell) throw new Error("SHELL is not set; choose bash or zsh explicitly");
 
-			const result = await this.runner.run(
-				this.buildNewSessionArgs(sessionName, options.cwd, shellChoice, shell),
-				{
-					cwd: options.cwd,
-					signal: options.signal,
-				},
-			);
+			let result: CommandResult;
+			try {
+				result = await this.runner.run(
+					this.buildNewSessionArgs(sessionName, options.cwd, shellChoice, shell),
+					{
+						cwd: options.cwd,
+						signal: options.signal,
+					},
+				);
+			} catch (error) {
+				if (await this.isSessionLive(sessionName, options.signal)) {
+					throw this.sessionAlreadyActiveError(displayName, sessionName);
+				}
+				throw error;
+			}
 			const paneId = result.stdout.trim().split(/\s+/)[0];
 			if (!paneId) throw new Error("interactive shell did not return a pane id");
 			if (!(await this.isPaneLive(paneId, options.signal))) {
@@ -256,8 +268,7 @@ export class InteractiveShellManager {
 	}
 
 	private buildSessionName(displayName: string): string {
-		const suffix = this.slugifyName(displayName);
-		return `pi-interactive-shell-${process.pid}-${Date.now()}-${this.nextSession++}-${suffix}`;
+		return `pi--${this.slugifyName(displayName)}`;
 	}
 
 	private normalizeName(name: string | undefined): string {
@@ -273,8 +284,7 @@ export class InteractiveShellManager {
 		const slug = name
 			.toLowerCase()
 			.replaceAll(/[^a-z0-9_-]+/g, "-")
-			.replaceAll(/^-|-$/g, "")
-			.slice(0, 32);
+			.replaceAll(/^-|-$/g, "");
 		return slug || "shell";
 	}
 
@@ -300,6 +310,24 @@ export class InteractiveShellManager {
 		} catch {
 			return false;
 		}
+	}
+
+	private async isSessionLive(
+		sessionName: string,
+		signal: AbortSignal | undefined,
+	): Promise<boolean> {
+		try {
+			await this.runner.run(["has-session", "-t", `=${sessionName}`], { signal });
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	private sessionAlreadyActiveError(displayName: string, sessionName: string): Error {
+		return new Error(
+			`interactive shell name "${displayName}" is already active as tmux session "${sessionName}"`,
+		);
 	}
 
 	private refreshLatestId(): void {
