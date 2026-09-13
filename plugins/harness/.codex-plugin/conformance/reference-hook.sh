@@ -67,7 +67,10 @@ if ((strand_output_bytes > context_max_bytes * 4)); then
 fi
 
 set +e
-context=$(jq -er '.additional_context | select(type == "string")' <"$stdout_file" 2>/dev/null)
+context=$(jq -ers '
+  select(length == 1) | .[0].additional_context |
+  select(type == "string" and test("\\S"))
+' <"$stdout_file" 2>/dev/null)
 parse_status=$?
 set -e
 if ((parse_status != 0)); then

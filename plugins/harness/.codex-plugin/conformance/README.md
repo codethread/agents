@@ -1,8 +1,8 @@
 # Codex startup-hook conformance fixtures
 
-This suite pins the startup-hook boundary used by the future Codex identity adapter. It targets **Codex CLI 0.154.0** and runs only against disposable `CODEX_HOME` and `HOME` directories. It does not call a model, a real Strand identity API, a shared Millstrand workspace, or any desktop application.
+This suite pins the startup-hook boundary used by the future Codex identity adapter. It targets **Codex CLI 0.154.0** and runs only against disposable home, config, state, cache, temp, and process-cwd directories. Only `PATH` is inherited; credentials, `MILLSTRAND_*` variables, shell startup scripts, and ambient fixture settings are excluded. It does not call a model, a real Strand identity API, a shared Millstrand workspace, or any desktop application.
 
-Run it from the repository root:
+Requires Node.js, Bash, `jq`, and the pinned Codex executable on `PATH`. Run it from the repository root:
 
 ```text
 pnpm test:codex-hooks
@@ -56,12 +56,12 @@ Codex spills model-visible hook output above an approximate 2,500-token default:
 
 `run.mjs` performs two bounded layers:
 
-1. It replays every payload through `reference-hook.sh`. `fake-strand.sh` records normalized event values and returns deterministic context. This checks startup/resume/clear/compact, the child discriminator, explicitly scrubbed identity/run/bootstrap/reservation environment variables, fixture-declared unmanaged state, linked-worktree cwd routing, event-specific JSON output, oversized context handling, bounded nonzero/malformed/flooding Strand responses, and forced-timeout cleanup.
+1. It replays every payload through `reference-hook.sh`. `fake-strand.sh` records normalized event values and returns deterministic, fixture-only identity text. This checks startup/resume/clear/compact, the child discriminator, fixture-runner scrubbing of seeded identity/run/bootstrap/reservation/workspace variables (including empty values), fixture-declared unmanaged state, linked-worktree cwd routing, verbatim context forwarding, event-specific JSON output, oversized context handling, bounded nonzero/malformed/empty/multiple/flooding Strand responses, capture-file cleanup, and forced-timeout cleanup. This proves an unmanaged test environment, not production-adapter scrubbing or real identity binding.
 2. It starts Codex app-server 0.154.0 in disposable configurations and calls `hooks/list`. This checks the plugin manifest's explicit `.codex-plugin/hooks/hooks.json` discovery, untrusted and trusted states, hooks-feature disablement, plugin disablement, a missing hook file warning, multiple matching registrations, and `additionalContextLimit` metadata.
 
 The fake's stdin format is private test scaffolding. It does **not** finalize the Millhouse/Strand identity command name, arguments, or response schema. The adapter may replace the reference command while continuing to consume these Codex payload and output fixtures.
 
-Codex runs matching hooks from all active sources, commonly concurrently. The suite treats two SessionStart hook commands targeting the same context injection point as a configuration error. Identity-binding idempotency cannot prevent duplicate context injection.
+Codex runs matching hooks from all active sources, commonly concurrently. The suite verifies that duplicate SessionStart registrations remain visible in discovery; it does not install an injector or implement duplicate rejection. The adapter must diagnose duplicate injectors as a configuration error. Identity-binding idempotency cannot prevent duplicate context injection.
 
 ## Desktop-intended contract and validation limit
 
@@ -69,7 +69,7 @@ OpenAI's official plugin packaging documentation says repo plugin enablement app
 
 Those documents establish the intended desktop packaging contract. **No live desktop application, plugin, or conversation was opened, closed, restarted, reloaded, or otherwise exercised for this suite.** Desktop execution is therefore not certified and is not a runtime gate.
 
-The no-model CLI fixture proves discovery metadata and validates command output, but it does not prove that a host delivered that output to a model. Later CLI-only adapter acceptance with a real model must demonstrate that the first request and a child request receive the developer context. That later evidence must not be inferred from fake Strand output or successful process exit.
+The no-model CLI fixture proves discovery metadata and validates reference-command output separately; the packaged production hook remains observational dialogue capture. It does not prove hook execution, host trust enforcement, spilling, or delivery to a model. Developer-role delivery and spill behavior are also grounded in the pinned source (`core/src/context/hook_additional_context.rs`, `hooks/src/events/session_start.rs`, and `hooks/src/output_spill.rs`, under `codex-rs/`). Later CLI-only adapter acceptance with a real model must demonstrate that startup/resume and child requests receive the developer context, alongside live routing and negative host cases. That later evidence must not be inferred from fake Strand output or successful process exit.
 
 Official references:
 

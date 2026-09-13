@@ -12,24 +12,11 @@ jq -e '
 ' >/dev/null <<<"$request"
 
 managed_environment_present=false
-for name in \
-  MILLSTRAND_AGENT_ID \
-  MILLSTRAND_RUN_ID \
-  MILLSTRAND_BOOTSTRAP \
-  MILLSTRAND_RESERVATION_ID
-do
-  if [[ -n "${!name-}" ]]; then
+while IFS= read -r name; do
+  if [[ "$name" == MILLSTRAND_* ]]; then
     managed_environment_present=true
   fi
-done
-
-if [[ -n "${FAKE_STRAND_LOG:-}" ]]; then
-  jq -cn \
-    --argjson request "$request" \
-    --argjson managed_environment_present "$managed_environment_present" \
-    '{request: $request, managed_environment_present: $managed_environment_present, managed_state: "none"}' \
-    >>"$FAKE_STRAND_LOG"
-fi
+done < <(compgen -e)
 
 case "${FAKE_STRAND_MODE:-success}" in
   success)
@@ -39,13 +26,22 @@ case "${FAKE_STRAND_MODE:-success}" in
     else
       workspace="$cwd/.millstrand"
     fi
+    context="Your Millstrand identity is fixture-only-identity. Use fixture-only-identity for identity-bearing operations; pass --by-identity fixture-only-identity explicitly. Workspace: $workspace"
+    if [[ -n "${FAKE_STRAND_LOG:-}" ]]; then
+      jq -cn \
+        --argjson request "$request" \
+        --argjson managed_environment_present "$managed_environment_present" \
+        --arg returned_context "$context" \
+        '{request: $request, managed_environment_present: $managed_environment_present, managed_state: "none", returned_context: $returned_context}' \
+        >>"$FAKE_STRAND_LOG"
+    fi
     jq -cn \
-      --arg context "Your Millstrand identity is clear-young-yak. Use clear-young-yak for identity-bearing operations; pass --by-identity clear-young-yak explicitly. Workspace: $workspace" \
+      --arg context "$context" \
       --arg workspace "$workspace" \
       '{additional_context: $context, workspace: $workspace, managed_state: "none"}'
     ;;
   oversized)
-    context="Your Millstrand identity is clear-young-yak."
+    context="Your Millstrand identity is fixture-only-identity."
     for _ in {1..256}; do
       context+=" Required identity policy must remain complete."
     done
@@ -72,6 +68,12 @@ case "${FAKE_STRAND_MODE:-success}" in
     ;;
   missing-context)
     printf '{"workspace":"/workspace/project/.millstrand"}\n'
+    ;;
+  empty-context)
+    printf '{"additional_context":""}\n'
+    ;;
+  multiple-responses)
+    printf '{"additional_context":"ambiguous fixture response"}\n%.0s' {1..2}
     ;;
   *)
     printf 'unknown FAKE_STRAND_MODE\n' >&2
