@@ -1,0 +1,30 @@
+{:deps
+ {millstrand.spools/batteries
+  {:git/url "https://github.com/codethread/millstrand.git"
+   :git/sha "310368dff9174bd889ad21d4ed8196952684eaf9"
+   :deps/root "spools/batteries"}
+  millhouse.spools/workflow
+  {:git/url "https://github.com/codethread/millhouse.spool.git"
+   :git/sha "f487eb42ea9523e8bd405e64a7c319013217d988"
+   :deps/root "spools/workflow"}
+  millhouse.spools/identity
+  {:git/url "https://github.com/codethread/millhouse.spool.git"
+   :git/sha "f487eb42ea9523e8bd405e64a7c319013217d988"
+   :deps/root "spools/identity"}
+  millhouse.spools/kanban
+  {:git/url "https://github.com/codethread/millhouse.spool.git"
+   :git/sha "f487eb42ea9523e8bd405e64a7c319013217d988"
+   :deps/root "spools/kanban"}
+  ct.spools/harnesses
+  {:git/url "https://github.com/codethread/harnesses.spool.git"
+   :git/sha "9548390ce621461ba0a289859fe9b0af963f5805"
+   :deps/root "."}
+  ;; Coordinator updates this pin after the shared config migration lands.
+  codethread/config
+  {:git/url "https://github.com/codethread/codethread.spool.git"
+   :git/sha "cdded90bba0009377c2d9e58021735d5baa5cf88"
+   :deps/root "spools/config"}
+  codethread/devflow
+  {:git/url "https://github.com/codethread/devflow.spool.git"
+   :git/sha "ceaa684499c6715ce0f10dba5806fd8ebef997da"
+   :deps/root "."}}}
