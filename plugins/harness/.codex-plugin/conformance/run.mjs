@@ -795,15 +795,17 @@ function writeConfig(codexHome, enabled, hooksEnabled = true) {
 	);
 }
 
-function createCodexWorld({ enabled = true, hooksEnabled = true } = {}) {
-	const codexHome = temporaryDirectory("codex-hook-world-");
-	const home = join(codexHome, "home");
+function createCodexWorld({ enabled = true, hooksEnabled = true, defaultCodexHome = false } = {}) {
+	const root = temporaryDirectory("codex-hook-world-");
+	const home = join(root, "home");
+	const codexHome = defaultCodexHome ? join(home, ".codex") : root;
 	const installedPlugin = join(codexHome, "plugins/cache/agents/harness/local");
+	mkdirSync(codexHome, { recursive: true });
 	mkdirSync(home, { recursive: true });
 	mkdirSync(dirname(installedPlugin), { recursive: true });
 	cpSync(pluginRoot, installedPlugin, { recursive: true });
 	writeConfig(codexHome, enabled, hooksEnabled);
-	const cwd = join(codexHome, "project");
+	const cwd = join(root, "project");
 	mkdirSync(cwd);
 	return { codexHome, home, installedPlugin, cwd };
 }
@@ -1298,7 +1300,7 @@ function snapshotFilesystemTree(root) {
 	return entries;
 }
 
-async function runPreflight(world, extraArgv = []) {
+async function runPreflight(world, extraArgv = [], { omitCodexHome = false } = {}) {
 	const executable = realpathSync(
 		(await run("which", ["codex"], { env: fixtureEnvironment() })).stdout.trim(),
 	);
@@ -1309,6 +1311,7 @@ async function runPreflight(world, extraArgv = []) {
 		HOME: world.home,
 		CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG: "1",
 	});
+	if (omitCodexHome) delete env.CODEX_HOME;
 	const request = {
 		schema: "millstrand.agent-guidance-preflight/v1",
 		harness: "codex",
@@ -1340,6 +1343,15 @@ async function runPreflight(world, extraArgv = []) {
 }
 
 async function checkManagedGuidancePreflight() {
+	const defaultHome = createCodexWorld({ defaultCodexHome: true });
+	writeFileSync(
+		join(defaultHome.codexHome, "config.toml"),
+		`developer_instructions = "competing instructions"\n${readFileSync(join(defaultHome.codexHome, "config.toml"), "utf8")}`,
+	);
+	const defaultHomeResult = await runPreflight(defaultHome, [], { omitCodexHome: true });
+	assert.equal(defaultHomeResult.code, "unverifiable-profile", JSON.stringify(defaultHomeResult));
+	assert.match(defaultHomeResult.diagnostic, /competing Codex instruction configuration/);
+
 	const untrusted = createCodexWorld();
 	const untrustedResult = await runPreflight(untrusted);
 	assert.equal(untrustedResult.code, "untrusted-hook", JSON.stringify(untrustedResult));

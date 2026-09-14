@@ -257,7 +257,7 @@ describe("system-prompt extension", () => {
 		});
 	});
 
-	it("hands one managed native contribution to the owned prompt before acknowledging", async () => {
+	it("refetches and acknowledges managed guidance across startup, resume, and reload", async () => {
 		const selection = {
 			kind: "native-v1" as const,
 			metadata: { "run-id": "run-1" },
@@ -292,36 +292,41 @@ describe("system-prompt extension", () => {
 			sessionManager: { getSessionId: () => "session-1" },
 		};
 
-		await handlers.get("session_start")?.({ reason: "startup" }, ctx);
-		const result = await handlers.get("before_agent_start")?.(
-			{
-				systemPrompt: "base",
-				systemPromptOptions: {
-					cwd: "/repo",
-					selectedTools: [],
-					toolSnippets: {},
-					promptGuidelines: [],
-				},
+		const event = {
+			systemPrompt: "base",
+			systemPromptOptions: {
+				cwd: "/repo",
+				selectedTools: [],
+				toolSnippets: {},
+				promptGuidelines: [],
 			},
-			ctx,
-		);
+		};
+		const results = [];
+		for (const reason of ["startup", "resume", "reload"]) {
+			await handlers.get("session_start")?.({ reason }, ctx);
+			results.push(await handlers.get("before_agent_start")?.(event, ctx));
+		}
 
 		expect(mocks.resolveNativeIdentity).not.toHaveBeenCalled();
+		expect(mocks.fetchManagedGuidance).toHaveBeenCalledTimes(3);
+		expect(mocks.renderManagedGuidance).toHaveBeenCalledTimes(3);
 		expect(mocks.renderManagedGuidance).toHaveBeenCalledWith(bundle);
+		expect(mocks.buildPrompt).toHaveBeenCalledTimes(3);
 		expect(mocks.buildPrompt).toHaveBeenCalledWith(
 			expect.objectContaining({
 				managedGuidance: "<managed />",
 				millstrandIdentityInstruction: undefined,
 			}),
 		);
-		expect(mocks.acknowledgeManagedGuidance).toHaveBeenCalledWith(
-			selection,
-			"session-1",
-			undefined,
-			process.env,
-			undefined,
-		);
-		expect(result).toEqual({ systemPrompt: "<owned prompt />" });
+		expect(mocks.acknowledgeManagedGuidance).toHaveBeenCalledTimes(3);
+		for (const call of mocks.acknowledgeManagedGuidance.mock.calls) {
+			expect(call).toEqual([selection, "session-1", undefined, process.env, undefined]);
+		}
+		expect(results).toEqual([
+			{ systemPrompt: "<owned prompt />" },
+			{ systemPrompt: "<owned prompt />" },
+			{ systemPrompt: "<owned prompt />" },
+		]);
 		expect(emit).toHaveBeenCalledWith(
 			"codethread:millstrand-identity-context:v1",
 			expect.objectContaining({ identity: "coral-lucid-bison", nativeSessionId: "session-1" }),

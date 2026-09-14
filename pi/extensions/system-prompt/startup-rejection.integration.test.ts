@@ -28,6 +28,56 @@ const originalEnvironment = Object.fromEntries(
 const tempDirs: string[] = [];
 let runnerSession: TestSession | undefined;
 
+function managedLaunchExtension(runId: string, invalidatePromptOptions = false) {
+	return (pi: any) => {
+		pi.on("session_start", (_event: unknown, ctx: any) => {
+			const attempt = 1;
+			const invocation = `${runId}-invocation`;
+			const identity = `${runId}-identity`;
+			const cwd = ctx.cwd;
+			const workspace = join(cwd, ".millstrand");
+			const nativeSessionId = ctx.sessionManager.getSessionId();
+			const context = {
+				schema: "millstrand.agent-managed-context/v1",
+				"identity-instruction": `Your Millstrand identity is ${identity}. Use ${identity} for identity-bearing operations; pass \`--by-identity ${identity}\` explicitly. Do not invent another identity.`,
+				"appended-system-prompts": [
+					"first frozen contribution",
+					"intentionally repeated",
+					"intentionally repeated",
+				],
+			};
+			process.env.MILLSTRAND_MANAGED_GUIDANCE = JSON.stringify({
+				schema: "millstrand.agent-guidance-bootstrap/v1",
+				transport: "native-v1",
+				"run-id": runId,
+				attempt,
+				invocation,
+				harness: "pi",
+				"bundle-sha256": sha256CanonicalJson([runId, workspace, context]),
+				"capability-sha256": "a".repeat(64),
+			});
+			process.env.MILLSTRAND_MANAGED_BOOTSTRAP = JSON.stringify({
+				schema: "millstrand.agent-managed-bootstrap/v1",
+				"run-id": runId,
+				harness: "pi",
+				identity,
+				"reservation-id": `${runId}-reservation`,
+				cwd,
+				workspace,
+				attempt,
+				invocation,
+				scope: "root",
+				"expected-native-session-id": nativeSessionId,
+			});
+		});
+		if (invalidatePromptOptions) {
+			pi.on("before_agent_start", (event: any) => {
+				delete event.systemPromptOptions.selectedTools;
+			});
+		}
+	};
+}
+
 afterEach(async () => {
 	runnerSession?.dispose();
 	runnerSession = undefined;
@@ -142,6 +192,68 @@ describe("system-prompt startup rejection handling", () => {
 		await runnerSession.session.prompt("must not reach the model");
 
 		expect(stream).not.toHaveBeenCalled();
+	});
+
+	it("blocks the provider after the real runner catches invalid owned prompt options", async () => {
+		const root = await mkdtemp(join(tmpdir(), "pi-managed-runner-options-"));
+		tempDirs.push(root);
+		const cwd = join(root, "repo");
+		const agentDir = join(root, "agent-home");
+		const logPath = join(root, "calls.jsonl");
+		await mkdir(join(cwd, ".millstrand"), { recursive: true });
+		await mkdir(agentDir, { recursive: true });
+		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.MILLSTRAND_PI_STRAND_BIN = fakeGuidanceStrand;
+		process.env.FAKE_GUIDANCE_LOG = logPath;
+		delete process.env.FAKE_GUIDANCE_MODE;
+
+		runnerSession = await createTestSession({
+			cwd,
+			extensionFactories: [
+				managedLaunchExtension("runner-invalid-options", true),
+				systemPromptExtension,
+			],
+		});
+		let providerRequests = 0;
+		const provider = createServer((_request, response) => {
+			providerRequests += 1;
+			response.writeHead(500).end("invalid prompt options reached the provider");
+		});
+		await new Promise<void>((resolvePromise, reject) => {
+			provider.once("error", reject);
+			provider.listen(0, "127.0.0.1", resolvePromise);
+		});
+		const address = provider.address();
+		if (!address || typeof address === "string") throw new Error("test provider did not bind");
+		runnerSession.session.agent.state.model = {
+			...runnerSession.session.agent.state.model,
+			baseUrl: `http://127.0.0.1:${address.port}/v1`,
+		};
+		const abort = vi.spyOn(runnerSession.session.agent, "abort");
+		try {
+			await runnerSession.session.prompt("must be cancelled");
+			await runnerSession.session.agent.waitForIdle();
+		} finally {
+			await new Promise<void>((resolvePromise, reject) =>
+				provider.close((error) => (error ? reject(error) : resolvePromise())),
+			);
+		}
+
+		expect(abort).toHaveBeenCalledTimes(1);
+		expect(providerRequests).toBe(0);
+		const calls = (await readFile(logPath, "utf8"))
+			.trim()
+			.split("\n")
+			.map((line) => JSON.parse(line));
+		expect(calls.map((call) => call.operation.slice(0, 3))).toEqual([
+			["agent", "startup", "pi"],
+			["agent", "guidance", "fail"],
+		]);
+		const receiptIndex = calls[1].operation.indexOf("--receipt");
+		expect(JSON.parse(calls[1].operation[receiptIndex + 1])).toMatchObject({
+			stage: "validation",
+			code: "system-prompt-options-invalid",
+		});
 	});
 
 	it("aborts the active provider boundary after the real runner catches an ack failure", async () => {

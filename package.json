@@ -16,7 +16,8 @@
 		"pi/extensions",
 		"pi/themes",
 		"plugins",
-		"scripts/managed-guidance-preflight.mjs"
+		"scripts/managed-guidance-preflight.mjs",
+		"pnpm-lock.yaml"
 	],
 	"bin": {
 		"pi": "./pies/pi-shim.ts",

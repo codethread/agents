@@ -415,9 +415,36 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (event: BeforeAgentStartEvent, ctx) => {
-		const options = getOwnedSystemPromptOptions(event);
 		const nativeSelection = managedSelection.kind === "native-v1" ? managedSelection : null;
 		const nativeSessionId = nativeSelection ? ctx.sessionManager.getSessionId() : "";
+		let options: OwnedSystemPromptOptions;
+		try {
+			options = getOwnedSystemPromptOptions(event);
+		} catch (error) {
+			if (nativeSelection) {
+				const message = error instanceof Error ? error.message : String(error);
+				managedError = message;
+				managedTurnBlocked = true;
+				try {
+					await failManagedGuidance(
+						nativeSelection,
+						nativeSessionId,
+						"validation",
+						"system-prompt-options-invalid",
+						message,
+						undefined,
+						process.env,
+						ctx.signal,
+					);
+				} catch (failureError) {
+					const failureMessage =
+						failureError instanceof Error ? failureError.message : String(failureError);
+					managedError = `${message}; failure receipt was not recorded: ${failureMessage}`;
+				}
+				throw new Error(managedError);
+			}
+			throw error;
+		}
 		if (nativeSelection && (options.customPrompt?.trim() || options.appendSystemPrompt?.trim())) {
 			const message = "native-v1 received a competing Pi system-prompt option";
 			managedError = message;

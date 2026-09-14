@@ -21,9 +21,30 @@ function files(path: string): string[] {
 	return readdirSync(path, { recursive: true }).map(String).sort();
 }
 
-async function invoke(request: Record<string, unknown>): Promise<any> {
+async function runCommand(command: string, args: string[], cwd = root): Promise<void> {
+	await new Promise<void>((resolvePromise, reject) => {
+		const child = spawn(command, args, {
+			cwd,
+			env: process.env,
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+		let stderr = "";
+		child.stderr.setEncoding("utf8");
+		child.stderr.on("data", (chunk) => (stderr += chunk));
+		child.on("error", reject);
+		child.on("close", (code) => {
+			if (code === 0) resolvePromise();
+			else reject(new Error(`${command} exited ${code}: ${stderr}`));
+		});
+	});
+}
+
+async function invoke(
+	request: Record<string, unknown>,
+	preflightEntrypoint = preflight,
+): Promise<any> {
 	return await new Promise((resolvePromise, reject) => {
-		const child = spawn(process.execPath, [preflight], {
+		const child = spawn(process.execPath, [preflightEntrypoint], {
 			cwd: root,
 			env: { PATH: process.env.PATH },
 			stdio: ["pipe", "pipe", "pipe"],
@@ -118,6 +139,25 @@ describe("managed guidance Pi preflight", () => {
 		expect(files(fixture.base)).toEqual(before);
 	});
 
+	it("runs the no-model preflight from a pnpm-packed installation", async () => {
+		const packDirectory = temporaryDirectory();
+		await runCommand("pnpm", ["pack", "--pack-destination", packDirectory]);
+		const archiveName = readdirSync(packDirectory).find((name) => name.endsWith(".tgz"));
+		expect(archiveName).toBeDefined();
+		const extractionDirectory = temporaryDirectory();
+		await runCommand("tar", ["-xzf", join(packDirectory, archiveName!), "-C", extractionDirectory]);
+		const packedRoot = realpathSync(join(extractionDirectory, "package"));
+		const packedPreflight = join(packedRoot, "scripts/managed-guidance-preflight.mjs");
+		const fixture = world({ packages: [`+${packedRoot}`] });
+
+		const result = await invoke(request(fixture), packedPreflight);
+
+		expect(result.result, JSON.stringify(result)).toBe("capable");
+		expect(result.capability["hook-fact"]["prompt-owner-entrypoint"]).toBe(
+			join(packedRoot, "pi/extensions/system-prompt/index.ts"),
+		);
+	});
+
 	it("honors CLI extension selectors without enabling or inferring native", async () => {
 		const fixture = world();
 		const result = await invoke(request(fixture, ["--no-extensions", "--extension", owner]));
@@ -141,6 +181,17 @@ describe("managed guidance Pi preflight", () => {
 	it("rejects missing, duplicate, changed-owner, and competing prompt profiles", async () => {
 		const missing = world();
 		expect((await invoke(request(missing))).code).toBe("missing-hook");
+
+		const missingExplicit = world({ packages: [`+${root}`] });
+		expect(
+			await invoke(
+				request(missingExplicit, ["--extension", join(missingExplicit.base, "missing.ts")]),
+			),
+		).toMatchObject({
+			result: "legacy-required",
+			code: "unverifiable-profile",
+			diagnostic: expect.stringContaining("explicit extension path does not exist"),
+		});
 
 		const duplicate = world({ packages: [`+${root}`] });
 		const secondOwner = join(duplicate.base, "second-owner.ts");

@@ -356,10 +356,14 @@ function replacePathStrings(value, from, to) {
 	return value;
 }
 
-async function listCodexHooks(request, selectors) {
-	const sourceCodexHome = request.env.CODEX_HOME
+function codexHome(request) {
+	return request.env.CODEX_HOME
 		? nonblank(request.env.CODEX_HOME, "CODEX_HOME")
 		: join(nonblank(request.env.HOME, "HOME"), ".codex");
+}
+
+async function listCodexHooks(request, selectors) {
+	const sourceCodexHome = codexHome(request);
 	if (
 		!isAbsolute(sourceCodexHome) ||
 		!existsSync(sourceCodexHome) ||
@@ -464,8 +468,7 @@ async function listCodexHooks(request, selectors) {
 }
 
 function codexConfigEvidence(request) {
-	const paths = [];
-	if (request.env.CODEX_HOME) paths.push(join(request.env.CODEX_HOME, "config.toml"));
+	const paths = [join(codexHome(request), "config.toml")];
 	let directory = request.cwd;
 	for (;;) {
 		paths.push(join(directory, ".codex/config.toml"));
@@ -764,8 +767,11 @@ function piProfile(request, parsed) {
 					...extensionEntries(resolveLocalSource(entry, dirname(settingsPath), request.env)),
 				);
 	}
-	for (const entry of parsed.extensionPaths)
-		entries.push(...extensionEntries(resolveLocalSource(entry, request.cwd, request.env)));
+	for (const entry of parsed.extensionPaths) {
+		const path = resolveLocalSource(entry, request.cwd, request.env);
+		if (!existsSync(path)) throw new Error(`explicit extension path does not exist: ${path}`);
+		entries.push(...extensionEntries(path));
+	}
 	entries = [...new Set(entries.map((entry) => resolve(entry)))];
 	const ownerCandidates = entries.filter((entry) => {
 		const source = readFileSync(entry, "utf8");
