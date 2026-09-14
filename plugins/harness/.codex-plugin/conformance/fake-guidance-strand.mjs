@@ -14,10 +14,11 @@ if (take("--timeout") !== "3s") throw new Error("timeout mismatch");
 const operationIndex = args.indexOf("agent");
 const operation = args.slice(operationIndex);
 const mode = process.env.FAKE_GUIDANCE_MODE ?? "success";
-const managedNames = Object.keys(process.env).filter((name) =>
-	/^MILLSTRAND_(?:MANAGED_|AGENT_ID|RUN_ID|WORKSPACE|RESERVATION_ID|BOOTSTRAP_|IDENTITY_TRANSPORT)/.test(
-		name,
-	),
+const managedNames = Object.keys(process.env).filter(
+	(name) =>
+		/^MILLSTRAND_(?:MANAGED_|AGENT_ID|RUN_ID|WORKSPACE|BOOTSTRAP_)/.test(name) ||
+		name.endsWith("_RESERVATION_ID") ||
+		name.endsWith("_IDENTITY_TRANSPORT"),
 );
 if (process.env.FAKE_GUIDANCE_LOG) {
 	appendFileSync(

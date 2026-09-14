@@ -236,15 +236,15 @@ call_strand() {
 	local -a scrubbed_names=(
 		MILLSTRAND_AGENT_ID
 		MILLSTRAND_RUN_ID
-		MILLSTRAND_RESERVATION_ID
 		MILLSTRAND_MANAGED_BOOTSTRAP
 		MILLSTRAND_MANAGED_GUIDANCE
-		MILLSTRAND_IDENTITY_TRANSPORT
 		MILLSTRAND_WORKSPACE
 	)
 	local inherited_name
 	while IFS= read -r inherited_name; do
-		if [[ "$inherited_name" == MILLSTRAND_BOOTSTRAP_* ]]; then
+		if [[ "$inherited_name" == MILLSTRAND_BOOTSTRAP_* ||
+			"$inherited_name" == *_RESERVATION_ID ||
+			"$inherited_name" == *_IDENTITY_TRANSPORT ]]; then
 			scrubbed_names+=("$inherited_name")
 		fi
 	done < <(compgen -e)

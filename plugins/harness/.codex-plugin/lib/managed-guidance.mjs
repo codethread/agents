@@ -541,6 +541,7 @@ async function recordRuntimeFailure(nativeSessionId, cwd, code, diagnostic) {
 		if (guidance.transport !== "native-v1")
 			throw new Error("runtime failure was not fenced by native-v1 metadata");
 		const bootstrap = parseBootstrap(process.env.MILLSTRAND_MANAGED_BOOTSTRAP ?? "");
+		validateBootstrapFences(bootstrap, guidance, nativeSessionId, cwd);
 		await sendReceipt("fail", guidance, bootstrap, nativeSessionId, {
 			outcome: "failed",
 			stage: "preflight",

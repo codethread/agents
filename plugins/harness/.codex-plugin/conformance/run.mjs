@@ -493,13 +493,20 @@ async function checkManagedGuidanceReplay() {
 	const sourceProbePayload = { ...sourcePayload, cwd: join(sourceProbeRoot, "host-cwd") };
 	mkdirSync(join(sourceProbePayload.cwd, ".millstrand"), { recursive: true });
 	const sourceProbeLog = join(sourceProbeRoot, "guidance-calls.jsonl");
+	const sourceProbeManagedEnvironment = managedGuidanceEnvironment(
+		sourceProbePayload,
+		"managed-source-probe",
+	);
+	const sourceProbeGuidance = JSON.parse(sourceProbeManagedEnvironment.MILLSTRAND_MANAGED_GUIDANCE);
 	const sourceProbeResult = await run(
 		"bash",
 		[join(sourceProbePlugin, ".codex-plugin/hooks/identity.sh")],
 		{
 			input: JSON.stringify(sourceProbePayload),
 			env: fixtureEnvironment({
-				...managedGuidanceEnvironment(sourceProbePayload, "managed-source-probe"),
+				...sourceProbeManagedEnvironment,
+				MILLSTRAND_FOO_RESERVATION_ID: "inherited-suffixed-reservation",
+				MILLSTRAND_FOO_IDENTITY_TRANSPORT: "inherited-suffixed-transport",
 				MILLSTRAND_CODEX_STRAND_BIN: fakeGuidanceStrand,
 				FAKE_GUIDANCE_LOG: sourceProbeLog,
 				TMPDIR: sourceProbeRoot,
@@ -522,10 +529,66 @@ async function checkManagedGuidanceReplay() {
 	const sourceProbeReceiptIndex = sourceProbeCalls[0].operation.indexOf("--receipt");
 	assert.notEqual(sourceProbeReceiptIndex, -1);
 	const sourceProbeReceipt = JSON.parse(sourceProbeCalls[0].operation[sourceProbeReceiptIndex + 1]);
-	assert.equal(sourceProbeReceipt.outcome, "failed");
-	assert.equal(sourceProbeReceipt.stage, "preflight");
-	assert.equal(sourceProbeReceipt.code, "unverifiable-profile");
+	assert.deepEqual(sourceProbeReceipt, {
+		schema: "millstrand.agent-guidance-receipt/v1",
+		"run-id": sourceProbeGuidance["run-id"],
+		attempt: sourceProbeGuidance.attempt,
+		invocation: sourceProbeGuidance.invocation,
+		harness: "codex",
+		"native-session-id": sourceProbePayload.session_id,
+		transport: "native-v1",
+		"bundle-sha256": sourceProbeGuidance["bundle-sha256"],
+		"capability-sha256": sourceProbeGuidance["capability-sha256"],
+		outcome: "failed",
+		stage: "preflight",
+		code: "unverifiable-profile",
+		diagnostic: "Millstrand identity startup received an invalid configured-source result.",
+	});
 	assert.deepEqual(sourceProbeCalls[0].managedNames, []);
+
+	for (const mismatch of ["run-id", "attempt", "invocation", "session", "cwd"]) {
+		const mismatchLog = join(sourceProbeRoot, `${mismatch}-fence-calls.jsonl`);
+		const mismatchEnvironment = managedGuidanceEnvironment(
+			sourceProbePayload,
+			`managed-source-probe-${mismatch}`,
+		);
+		const bootstrap = JSON.parse(mismatchEnvironment.MILLSTRAND_MANAGED_BOOTSTRAP);
+		if (mismatch === "run-id") bootstrap["run-id"] = "mismatched-run";
+		else if (mismatch === "attempt") bootstrap.attempt += 1;
+		else if (mismatch === "invocation") bootstrap.invocation = "mismatched-invocation";
+		else if (mismatch === "session") bootstrap["expected-native-session-id"] = "mismatched-session";
+		else bootstrap.cwd = join(sourceProbeRoot, "mismatched-cwd");
+		const mismatchResult = await run(
+			"bash",
+			[join(sourceProbePlugin, ".codex-plugin/hooks/identity.sh")],
+			{
+				input: JSON.stringify(sourceProbePayload),
+				env: fixtureEnvironment({
+					...mismatchEnvironment,
+					MILLSTRAND_MANAGED_BOOTSTRAP: JSON.stringify(bootstrap),
+					MILLSTRAND_CODEX_STRAND_BIN: fakeGuidanceStrand,
+					FAKE_GUIDANCE_LOG: mismatchLog,
+					TMPDIR: sourceProbeRoot,
+				}),
+			},
+		);
+		assert.equal(mismatchResult.code, 0, mismatchResult.stderr);
+		assert.ok(Buffer.byteLength(mismatchResult.stdout) < 1024);
+		const mismatchOutput = parseSingleJsonLine(
+			mismatchResult.stdout,
+			`${mismatch} source-probe fence mismatch`,
+		);
+		assert.equal(mismatchOutput.continue, false);
+		assert.equal("hookSpecificOutput" in mismatchOutput, false);
+		assert.match(mismatchOutput.systemMessage, /failure receipt was not recorded/);
+		assert.match(
+			mismatchOutput.systemMessage,
+			new RegExp(
+				`managed bootstrap ${mismatch === "session" ? "native session" : mismatch} fence mismatch`,
+			),
+		);
+		assert.equal(existsSync(mismatchLog), false, "fence mismatch must not contact Strand");
+	}
 
 	const childRoot = temporaryDirectory("codex-managed-child-");
 	const childSourcePayload = JSON.parse(
@@ -797,6 +860,8 @@ async function checkPayloadReplay() {
 						MILLSTRAND_BOOTSTRAP_V1: "inherited-bootstrap",
 						MILLSTRAND_BOOTSTRAP_FUTURE_V9: "inherited-future-bootstrap",
 						MILLSTRAND_RESERVATION_ID: "inherited-reservation",
+						MILLSTRAND_FOO_RESERVATION_ID: "inherited-suffixed-reservation",
+						MILLSTRAND_FOO_IDENTITY_TRANSPORT: "inherited-suffixed-transport",
 					}
 				: {};
 		const result = await run("bash", [identityHook, "--configured-source"], {

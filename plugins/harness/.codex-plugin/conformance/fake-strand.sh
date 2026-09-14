@@ -55,8 +55,9 @@ while IFS= read -r name; do
 		"$name" == MILLSTRAND_MANAGED_BOOTSTRAP ||
 		"$name" == MILLSTRAND_MANAGED_GUIDANCE ||
 		"$name" == MILLSTRAND_WORKSPACE ||
-		"$name" == MILLSTRAND_IDENTITY_TRANSPORT ||
-		"$name" == MILLSTRAND_BOOTSTRAP_* ]]; then
+		"$name" == MILLSTRAND_BOOTSTRAP_* ||
+		"$name" == *_RESERVATION_ID ||
+		"$name" == *_IDENTITY_TRANSPORT ]]; then
 		managed_environment_present=true
 	fi
 done < <(compgen -e)
