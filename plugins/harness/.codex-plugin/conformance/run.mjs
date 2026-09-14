@@ -1145,6 +1145,35 @@ function onlyEntry(response) {
 	return response.data[0];
 }
 
+function managedIdentityHooks(entry) {
+	return entry.hooks.filter(
+		(hook) =>
+			["sessionStart", "subagentStart"].includes(hook.eventName) &&
+			hook.command.includes("/.codex-plugin/hooks/identity.sh"),
+	);
+}
+
+function trustHooks(world, hooks) {
+	const configPath = join(world.codexHome, "config.toml");
+	writeFileSync(
+		configPath,
+		`${readFileSync(configPath, "utf8")}\n${hooks
+			.map((hook) => `[hooks.state."${hook.key}"]\ntrusted_hash = "${hook.currentHash}"\n`)
+			.join("\n")}`,
+	);
+}
+
+function mutateInstalledIdentityHook(world, eventName, mutate) {
+	const manifestPath = join(world.installedPlugin, ".codex-plugin/hooks/hooks.json");
+	const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+	const hook = manifest.hooks[eventName]
+		.flatMap((registration) => registration.hooks)
+		.find((candidate) => candidate.command.includes("/.codex-plugin/hooks/identity.sh"));
+	assert.ok(hook, `${eventName} identity hook fixture must exist`);
+	mutate(hook);
+	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, "\t")}\n`);
+}
+
 async function startFixtureProvider() {
 	const requests = [];
 	const server = createServer((request, response) => {
@@ -1575,20 +1604,104 @@ async function checkManagedGuidancePreflight() {
 	assert.equal(untrustedResult.code, "untrusted-hook", JSON.stringify(untrustedResult));
 
 	const entry = onlyEntry(await listHooks(untrusted));
-	const identity = entry.hooks.find(
-		(hook) => hook.eventName === "sessionStart" && hook.command.includes("identity.sh"),
-	);
-	writeFileSync(
-		join(untrusted.codexHome, "config.toml"),
-		`${readFileSync(join(untrusted.codexHome, "config.toml"), "utf8")}\n[hooks.state."${identity.key}"]\ntrusted_hash = "${identity.currentHash}"\n`,
-	);
+	const identities = managedIdentityHooks(entry);
+	assert.deepEqual(identities.map((hook) => hook.eventName).sort(), [
+		"sessionStart",
+		"subagentStart",
+	]);
+	trustHooks(untrusted, identities);
 	const capable = await runPreflight(untrusted);
 	assert.equal(capable.result, "capable");
 	assert.equal(capable.capability.harness, "codex");
 	assert.equal(capable.capability["host-version"], expectedCodexVersion);
 	assert.equal(capable.capability["max-context-bytes"], 3072);
-	assert.equal(capable.capability["hook-fact"].trustStatus, "trusted");
-	assert.equal(capable.capability["hook-fact"].timeoutSec, 18);
+	assert.deepEqual(Object.keys(capable.capability["hook-fact"]), ["sessionStart", "subagentStart"]);
+	for (const [eventName, hookFact] of Object.entries(capable.capability["hook-fact"])) {
+		assert.equal(hookFact.eventName, eventName);
+		assert.equal(hookFact.source, "plugin");
+		assert.equal(hookFact.pluginId, "harness@agents");
+		assert.equal(hookFact.trustStatus, "trusted");
+		assert.equal(hookFact.timeoutSec, 18);
+		assert.equal(hookFact.additionalContextLimit, 4096);
+		assert.equal(
+			hookFact.command,
+			`bash "${realpathSync(join(untrusted.installedPlugin, ".codex-plugin/hooks/identity.sh"))}"`,
+		);
+	}
+
+	const missingSubagent = createCodexWorld();
+	const missingSubagentManifestPath = join(
+		missingSubagent.installedPlugin,
+		".codex-plugin/hooks/hooks.json",
+	);
+	const missingSubagentManifest = JSON.parse(readFileSync(missingSubagentManifestPath, "utf8"));
+	delete missingSubagentManifest.hooks.SubagentStart;
+	writeFileSync(
+		missingSubagentManifestPath,
+		`${JSON.stringify(missingSubagentManifest, null, "\t")}\n`,
+	);
+	const missingSubagentResult = await runPreflight(missingSubagent);
+	assert.equal(missingSubagentResult.code, "missing-hook");
+	assert.match(missingSubagentResult.diagnostic, /subagentStart/);
+
+	const untrustedSubagent = createCodexWorld();
+	const untrustedSubagentHooks = managedIdentityHooks(
+		onlyEntry(await listHooks(untrustedSubagent)),
+	);
+	trustHooks(
+		untrustedSubagent,
+		untrustedSubagentHooks.filter((hook) => hook.eventName === "sessionStart"),
+	);
+	const untrustedSubagentResult = await runPreflight(untrustedSubagent);
+	assert.equal(untrustedSubagentResult.code, "untrusted-hook");
+	assert.match(untrustedSubagentResult.diagnostic, /subagentStart/);
+
+	const changedSubagent = createCodexWorld();
+	mutateInstalledIdentityHook(changedSubagent, "SubagentStart", (hook) => {
+		hook.command = `echo changed; ${hook.command}`;
+	});
+	trustHooks(changedSubagent, managedIdentityHooks(onlyEntry(await listHooks(changedSubagent))));
+	const changedSubagentResult = await runPreflight(changedSubagent);
+	assert.equal(changedSubagentResult.code, "changed-hook");
+	assert.match(changedSubagentResult.diagnostic, /subagentStart command or limits/);
+
+	const missingLimits = createCodexWorld();
+	mutateInstalledIdentityHook(missingLimits, "SubagentStart", (hook) => {
+		delete hook.timeout;
+		delete hook.additionalContextLimit;
+	});
+	trustHooks(missingLimits, managedIdentityHooks(onlyEntry(await listHooks(missingLimits))));
+	const missingLimitsResult = await runPreflight(missingLimits);
+	assert.equal(missingLimitsResult.code, "changed-hook");
+	assert.match(missingLimitsResult.diagnostic, /subagentStart command or limits/);
+
+	const alteredLimits = createCodexWorld();
+	mutateInstalledIdentityHook(alteredLimits, "SessionStart", (hook) => {
+		hook.timeout = 19;
+		hook.additionalContextLimit = 4097;
+	});
+	trustHooks(alteredLimits, managedIdentityHooks(onlyEntry(await listHooks(alteredLimits))));
+	const alteredLimitsResult = await runPreflight(alteredLimits);
+	assert.equal(alteredLimitsResult.code, "changed-hook");
+	assert.match(alteredLimitsResult.diagnostic, /sessionStart command or limits/);
+
+	const duplicateSubagent = createCodexWorld();
+	const duplicateSubagentCommand = `bash "${join(duplicateSubagent.installedPlugin, ".codex-plugin/hooks/identity.sh")}"`;
+	writeFileSync(
+		join(duplicateSubagent.codexHome, "hooks.json"),
+		JSON.stringify({
+			hooks: {
+				SubagentStart: [{ hooks: [{ type: "command", command: duplicateSubagentCommand }] }],
+			},
+		}),
+	);
+	const duplicateSubagentResult = await runPreflight(duplicateSubagent);
+	assert.equal(duplicateSubagentResult.code, "duplicate-injector");
+	assert.match(duplicateSubagentResult.diagnostic, /subagentStart/);
+
+	const unsupportedArgumentResult = await runPreflight(untrusted, ["--unreviewed-option", "value"]);
+	assert.equal(unsupportedArgumentResult.code, "unverifiable-profile");
+	assert.match(unsupportedArgumentResult.diagnostic, /unsupported Codex extra argument/);
 	for (const attachedProfile of ["--profile=unreviewed", "-punreviewed"]) {
 		assert.equal((await runPreflight(untrusted, [attachedProfile])).code, "unverifiable-profile");
 	}
@@ -1624,14 +1737,7 @@ async function checkManagedGuidancePreflight() {
 	);
 
 	const changed = createCodexWorld();
-	const changedEntry = onlyEntry(await listHooks(changed));
-	const changedIdentity = changedEntry.hooks.find(
-		(hook) => hook.eventName === "sessionStart" && hook.command.includes("identity.sh"),
-	);
-	writeFileSync(
-		join(changed.codexHome, "config.toml"),
-		`${readFileSync(join(changed.codexHome, "config.toml"), "utf8")}\n[hooks.state."${changedIdentity.key}"]\ntrusted_hash = "${changedIdentity.currentHash}"\n`,
-	);
+	trustHooks(changed, managedIdentityHooks(onlyEntry(await listHooks(changed))));
 	writeFileSync(
 		join(changed.installedPlugin, ".codex-plugin/lib/managed-guidance.mjs"),
 		`${readFileSync(join(changed.installedPlugin, ".codex-plugin/lib/managed-guidance.mjs"), "utf8")}\n// changed\n`,

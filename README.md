@@ -134,7 +134,7 @@ The executable reads one `millstrand.agent-guidance-preflight/v1` request from s
 }
 ```
 
-Every response is one bounded JSON object followed by a newline:
+Every response is one bounded JSON object followed by a newline. A capable Codex response records separate `sessionStart` and `subagentStart` entries under `capability.hook-fact`; each entry includes the exact command, source, trust, timeout, and context limit used by the profile check, while `adapter-sha256` binds their shared adapter closure.
 
 | `result`          | Top-level schema                         | Additional fields                                                                                                                                      |
 | ----------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -153,4 +153,4 @@ Every response is one bounded JSON object followed by a newline:
 | `unverifiable-profile` | The request, selectors, paths, configuration, or effective Pi extension profile is invalid   |
 | `probe-failed`         | The bounded Codex `hooks/list` probe could not produce usable evidence                       |
 
-Profile evidence accounts for split and attached Codex feature selectors, rejects Codex profile selectors, and treats Pi `-ne` exactly like `--no-extensions`. Preflight does not select transport, mutate configuration, create sessions, call Strand startup, or make model requests. Harnesses remains the sole admission owner, and its approved adapter/preflight allowlist is intentionally empty until coordinated acceptance. Consequently these sources do not enable native delivery by installation alone; omitted metadata keeps existing legacy/unmanaged behavior.
+Profile evidence accounts for split and attached Codex feature selectors, rejects Codex profile selectors and unsupported Codex `extra-argv`, and treats Pi `-ne` exactly like `--no-extensions`. Preflight does not select transport, mutate configuration, create sessions, call Strand startup, or make model requests. Harnesses remains the sole admission owner, and its approved adapter/preflight allowlist is intentionally empty until coordinated acceptance. Consequently these sources do not enable native delivery by installation alone; omitted metadata keeps existing legacy/unmanaged behavior.

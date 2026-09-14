@@ -283,6 +283,9 @@ function parseSelectors(argv, harness) {
 			selectors.push(argument);
 			continue;
 		}
+		if (harness === "codex") {
+			throw new Error(`unsupported Codex extra argument: ${argument || "<blank>"}`);
+		}
 		if (harness === "pi" && ["-e", "--extension"].includes(argument)) {
 			const value = argv[++index];
 			if (typeof value !== "string") throw new Error(`${argument} has no value`);
@@ -519,36 +522,76 @@ async function preflightCodex(request) {
 		return fail("unverifiable-profile", "hooks/list cwd/profile mismatch");
 	if (Array.isArray(profile.warnings) && profile.warnings.length > 0)
 		return fail("unverifiable-profile", "Codex reported hook configuration warnings");
-	const injectors = profile.hooks.filter(
-		(entry) =>
-			entry?.eventName === "sessionStart" &&
-			typeof entry.command === "string" &&
-			entry.command.includes("/.codex-plugin/hooks/identity.sh"),
+	const requiredEvents = ["sessionStart", "subagentStart"];
+	const injectorsByEvent = new Map(
+		requiredEvents.map((eventName) => [
+			eventName,
+			profile.hooks.filter(
+				(entry) =>
+					entry?.eventName === eventName &&
+					typeof entry.command === "string" &&
+					entry.command.includes("/.codex-plugin/hooks/identity.sh"),
+			),
+		]),
 	);
-	if (injectors.length === 0)
-		return fail("missing-hook", "no managed sessionStart injector is effective");
-	if (injectors.length !== 1)
-		return fail(
-			"duplicate-injector",
-			`${injectors.length} managed sessionStart injectors are effective`,
+	for (const eventName of requiredEvents) {
+		const injectors = injectorsByEvent.get(eventName);
+		if (injectors.length === 0)
+			return fail("missing-hook", `no managed ${eventName} injector is effective`);
+		if (injectors.length !== 1)
+			return fail(
+				"duplicate-injector",
+				`${injectors.length} managed ${eventName} injectors are effective`,
+			);
+	}
+	const hookFacts = {};
+	const installedPluginRoots = new Set();
+	for (const eventName of requiredEvents) {
+		const hook = object(injectorsByEvent.get(eventName)[0], `managed ${eventName} hook`);
+		if (hook.enabled !== true) return fail("missing-hook", `managed ${eventName} hook is disabled`);
+		if (hook.trustStatus !== "trusted")
+			return fail("untrusted-hook", `managed ${eventName} hook is not trusted by Codex`);
+		if (hook.source !== "plugin" || hook.pluginId !== "harness@agents")
+			return fail(
+				"untrusted-hook",
+				`managed ${eventName} hook source/plugin registration is not approved`,
+			);
+		if (!String(hook.sourcePath).endsWith("/.codex-plugin/hooks/hooks.json"))
+			return fail("changed-hook", `managed ${eventName} hook manifest path is unexpected`);
+		const installedPluginRoot = resolve(dirname(hook.sourcePath), "../..");
+		installedPluginRoots.add(installedPluginRoot);
+		const expectedCommand = `bash "${join(installedPluginRoot, ".codex-plugin/hooks/identity.sh")}"`;
+		if (
+			hook.command !== expectedCommand ||
+			hook.timeoutSec !== 18 ||
+			hook.additionalContextLimit !== 4096
+		) {
+			return fail(
+				"changed-hook",
+				`managed ${eventName} command or limits differ from the reviewed profile`,
+			);
+		}
+		hookFacts[eventName] = Object.fromEntries(
+			[
+				"eventName",
+				"key",
+				"source",
+				"sourcePath",
+				"pluginId",
+				"command",
+				"enabled",
+				"trustStatus",
+				"currentHash",
+				"timeoutSec",
+				"additionalContextLimit",
+			].map((key) => [key, hook[key]]),
 		);
-	const hook = object(injectors[0], "managed hook");
-	if (hook.enabled !== true) return fail("missing-hook", "managed hook is disabled");
-	if (hook.trustStatus !== "trusted")
-		return fail("untrusted-hook", "managed hook is not trusted by Codex");
-	if (hook.source !== "plugin" || hook.pluginId !== "harness@agents")
-		return fail("untrusted-hook", "managed hook source/plugin registration is not approved");
-	if (!String(hook.sourcePath).endsWith("/.codex-plugin/hooks/hooks.json"))
-		return fail("changed-hook", "managed hook manifest path is unexpected");
-	if (
-		!String(hook.command).endsWith('/.codex-plugin/hooks/identity.sh"') ||
-		hook.timeoutSec < 15 ||
-		hook.additionalContextLimit < 4096
-	)
-		return fail("changed-hook", "managed command or limits differ from the reviewed profile");
+	}
+	if (installedPluginRoots.size !== 1)
+		return fail("untrusted-hook", "managed Codex hooks do not share one approved plugin root");
 	let adapterHash;
 	try {
-		const installedPluginRoot = resolve(dirname(hook.sourcePath), "../..");
+		const [installedPluginRoot] = installedPluginRoots;
 		adapterHash = codexClosureHash(installedPluginRoot);
 		if (adapterHash !== codexClosureHash()) {
 			return fail(
@@ -560,21 +603,6 @@ async function preflightCodex(request) {
 		return fail("changed-hook", `managed adapter closure is incomplete: ${error.message}`);
 	}
 	const executableHash = hashFile(request.executable);
-	const hookFact = Object.fromEntries(
-		[
-			"eventName",
-			"key",
-			"source",
-			"sourcePath",
-			"pluginId",
-			"command",
-			"enabled",
-			"trustStatus",
-			"currentHash",
-			"timeoutSec",
-			"additionalContextLimit",
-		].map((key) => [key, hook[key]]),
-	);
 	const launchProfileHash = sha256CanonicalJson({
 		harness: "codex",
 		mode: request.mode,
@@ -587,7 +615,7 @@ async function preflightCodex(request) {
 		model: request.model ?? null,
 		effort: request.effort ?? null,
 		nativeSessionId: request["native-session-id"] ?? null,
-		hookFact,
+		hookFact: hookFacts,
 	});
 	return {
 		schema: REQUEST_SCHEMA,
@@ -601,7 +629,7 @@ async function preflightCodex(request) {
 			"host-version": version,
 			"launch-profile-sha256": launchProfileHash,
 			"max-context-bytes": 3072,
-			"hook-fact": hookFact,
+			"hook-fact": hookFacts,
 		},
 	};
 }
