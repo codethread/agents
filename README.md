@@ -114,4 +114,43 @@ This package contains the Agents-owned, disabled `native-v1` adapters for Codex 
 node scripts/managed-guidance-preflight.mjs
 ```
 
-The executable reads one `millstrand.agent-guidance-preflight/v1` request from stdin and returns strict bounded capability evidence or `legacy-required`. Its profile evidence accounts for split and attached Codex feature selectors, rejects Codex profile selectors, and treats Pi `-ne` exactly like `--no-extensions`. It does not select transport, mutate configuration, create sessions, call Strand startup, or make model requests. Harnesses remains the sole admission owner, and its approved adapter/preflight allowlist is intentionally empty until coordinated acceptance. Consequently these sources do not enable native delivery by installation alone; omitted metadata keeps existing legacy/unmanaged behavior.
+The executable reads one `millstrand.agent-guidance-preflight/v1` request from stdin. Required fields are `schema`, `harness` (`codex` or `pi`), `executable`, `mode` (`headless` or `interactive`), `cwd`, `workspace`, `env`, `extra-argv`, and `resumes`. `executable` must be an existing absolute file; `cwd` and `workspace` must be existing canonical absolute directories without symlinks. `env` must contain only string values, and `extra-argv` must contain only strings. `model`, `effort`, and `native-session-id` are optional, except that `native-session-id` is required when `resumes` is true.
+
+```json
+{
+	"schema": "millstrand.agent-guidance-preflight/v1",
+	"harness": "codex",
+	"executable": "/absolute/path/to/codex",
+	"mode": "headless",
+	"cwd": "/absolute/path/to/project",
+	"workspace": "/absolute/path/to/project/.millstrand",
+	"env": {
+		"HOME": "/absolute/path/to/home",
+		"CODEX_HOME": "/absolute/path/to/home/.codex",
+		"PATH": "/usr/local/bin:/usr/bin:/bin"
+	},
+	"extra-argv": ["--enable", "hooks"],
+	"resumes": false
+}
+```
+
+Every response is one bounded JSON object followed by a newline:
+
+| `result`          | Top-level schema                         | Additional fields                                                                                                                                      |
+| ----------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `capable`         | `millstrand.agent-guidance-preflight/v1` | `capability`, whose schema is `millstrand.agent-guidance-capability/v1` and includes adapter, executable, host-version, launch-profile, and hook facts |
+| `legacy-required` | `millstrand.agent-guidance-preflight/v1` | `code` and a bounded `diagnostic`                                                                                                                      |
+
+`legacy-required` failure codes are:
+
+| Code                   | Meaning                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `unsupported-host`     | The executable or resolved host package is not the pinned Codex 0.154.0 or Pi 0.84.4 profile |
+| `missing-hook`         | The required managed injector or Pi prompt owner is not effective                            |
+| `changed-hook`         | The hook command, manifest, limits, or adapter closure differs from the reviewed profile     |
+| `untrusted-hook`       | Codex does not report the approved trusted plugin registration                               |
+| `duplicate-injector`   | More than one managed injector or Pi prompt owner is effective                               |
+| `unverifiable-profile` | The request, selectors, paths, configuration, or effective Pi extension profile is invalid   |
+| `probe-failed`         | The bounded Codex `hooks/list` probe could not produce usable evidence                       |
+
+Profile evidence accounts for split and attached Codex feature selectors, rejects Codex profile selectors, and treats Pi `-ne` exactly like `--no-extensions`. Preflight does not select transport, mutate configuration, create sessions, call Strand startup, or make model requests. Harnesses remains the sole admission owner, and its approved adapter/preflight allowlist is intentionally empty until coordinated acceptance. Consequently these sources do not enable native delivery by installation alone; omitted metadata keeps existing legacy/unmanaged behavior.

@@ -278,11 +278,7 @@ function parseBootstrap(raw) {
 		"scope",
 		"expected-native-session-id",
 	];
-	closed(
-		value,
-		allowed,
-		allowed.filter((key) => key !== "expected-native-session-id"),
-	);
+	closed(value, allowed);
 	if (value.schema !== BOOTSTRAP_SCHEMA || value.harness !== "codex" || value.scope !== "root")
 		throw new Error("managed bootstrap schema, provider, or scope is invalid");
 	const bootstrap = {
@@ -296,14 +292,10 @@ function parseBootstrap(raw) {
 		attempt: positive(value.attempt, "bootstrap attempt"),
 		invocation: nonblank(value.invocation, "bootstrap invocation"),
 		scope: "root",
-		...(value["expected-native-session-id"] === undefined
-			? {}
-			: {
-					"expected-native-session-id": nonblank(
-						value["expected-native-session-id"],
-						"expected-native-session-id",
-					),
-				}),
+		"expected-native-session-id": nonblank(
+			value["expected-native-session-id"],
+			"expected-native-session-id",
+		),
 	};
 	return bootstrap;
 }
@@ -313,10 +305,7 @@ function validateBootstrapFences(bootstrap, guidance, nativeSessionId, cwd) {
 		if (bootstrap[key] !== guidance[key])
 			throw new Error(`managed bootstrap ${key} fence mismatch`);
 	if (bootstrap.cwd !== resolve(cwd)) throw new Error("managed bootstrap cwd fence mismatch");
-	if (
-		bootstrap["expected-native-session-id"] !== undefined &&
-		bootstrap["expected-native-session-id"] !== nativeSessionId
-	)
+	if (bootstrap["expected-native-session-id"] !== nativeSessionId)
 		throw new Error("managed bootstrap native session fence mismatch");
 }
 

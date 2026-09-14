@@ -623,6 +623,42 @@ async function checkManagedGuidanceReplay() {
 		});
 	}
 
+	const missingSessionRoot = temporaryDirectory("codex-managed-missing-session-fence-");
+	const missingSessionPayload = {
+		...sourcePayload,
+		cwd: join(missingSessionRoot, "host-cwd"),
+	};
+	mkdirSync(join(missingSessionPayload.cwd, ".millstrand"), { recursive: true });
+	const missingSessionLog = join(missingSessionRoot, "guidance-calls.jsonl");
+	const missingSessionEnvironment = managedGuidanceEnvironment(
+		missingSessionPayload,
+		"managed-missing-session-fence",
+	);
+	const missingSessionBootstrap = JSON.parse(
+		missingSessionEnvironment.MILLSTRAND_MANAGED_BOOTSTRAP,
+	);
+	delete missingSessionBootstrap["expected-native-session-id"];
+	const missingSessionResult = await run("bash", [identityHook, "--configured-source"], {
+		input: JSON.stringify(missingSessionPayload),
+		env: fixtureEnvironment({
+			...missingSessionEnvironment,
+			MILLSTRAND_MANAGED_BOOTSTRAP: JSON.stringify(missingSessionBootstrap),
+			MILLSTRAND_CODEX_STRAND_BIN: fakeGuidanceStrand,
+			FAKE_GUIDANCE_LOG: missingSessionLog,
+			TMPDIR: missingSessionRoot,
+		}),
+	});
+	assert.equal(missingSessionResult.code, 0, missingSessionResult.stderr);
+	assert.ok(Buffer.byteLength(missingSessionResult.stdout) < 1024);
+	const missingSessionOutput = parseSingleJsonLine(
+		missingSessionResult.stdout,
+		"missing managed native session fence",
+	);
+	assert.equal(missingSessionOutput.continue, false);
+	assert.equal("hookSpecificOutput" in missingSessionOutput, false);
+	assert.match(missingSessionOutput.systemMessage, /closed v1 schema key mismatch/);
+	assert.equal(existsSync(missingSessionLog), false, "invalid bootstrap must not contact Strand");
+
 	const failureRoot = temporaryDirectory("codex-managed-failure-host-");
 	const payload = { ...sourcePayload, cwd: join(failureRoot, "host-cwd") };
 	mkdirSync(join(payload.cwd, ".millstrand"), { recursive: true });
@@ -1556,6 +1592,24 @@ async function checkManagedGuidancePreflight() {
 	for (const attachedProfile of ["--profile=unreviewed", "-punreviewed"]) {
 		assert.equal((await runPreflight(untrusted, [attachedProfile])).code, "unverifiable-profile");
 	}
+	for (const splitProfile of [
+		["--profile", "unreviewed"],
+		["-p", "unreviewed"],
+	]) {
+		assert.equal((await runPreflight(untrusted, splitProfile)).code, "unverifiable-profile");
+	}
+	const splitEnable = await runPreflight(untrusted, ["--enable", "hooks"]);
+	assert.equal(splitEnable.result, "capable");
+	assert.notEqual(
+		splitEnable.capability["launch-profile-sha256"],
+		capable.capability["launch-profile-sha256"],
+		"split feature selectors must be represented in capability evidence",
+	);
+	assert.equal(
+		(await runPreflight(untrusted, ["--disable", "hooks"])).code,
+		"missing-hook",
+		"a split disabling selector must reach the effective hook probe",
+	);
 	const attachedEnable = await runPreflight(untrusted, ["--enable=hooks"]);
 	assert.equal(attachedEnable.result, "capable");
 	assert.notEqual(
