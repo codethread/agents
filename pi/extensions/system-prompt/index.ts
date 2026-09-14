@@ -131,6 +131,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 	let managedSelection: ManagedPiSelection = { kind: "unmanaged" };
 	let managedBundle: ManagedGuidanceBundle | null = null;
 	let managedError: string | undefined;
+	let managedTurnBlocked = false;
 	const toolPromptMetadata = new Map<string, ToolPromptMetadata>();
 	const registerTool = pi.registerTool.bind(pi);
 	pi.registerTool = ((definition: ToolDefinition) => {
@@ -218,6 +219,17 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		},
 	});
 
+	pi.on("input", () => {
+		if (!managedTurnBlocked) return;
+		return { action: "handled" };
+	});
+
+	pi.on("before_provider_request", (event, ctx) => {
+		if (!managedTurnBlocked) return;
+		ctx.abort();
+		return event.payload;
+	});
+
 	pi.on("session_shutdown", () => {
 		pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, null);
 	});
@@ -230,6 +242,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		managedSelection = { kind: "unmanaged" };
 		managedBundle = null;
 		managedError = undefined;
+		managedTurnBlocked = false;
 		pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, null);
 
 		const wantsToolsDebug = pi.getFlag(DEBUG_TOOLS_FLAG) === true;
@@ -271,6 +284,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			managedError = message;
+			managedTurnBlocked = true;
 			notify(ctx, `[millstrand-guidance] ${message}`, "error");
 			process.stderr.write(`[millstrand-guidance] ${message}\n`);
 			throw error;
@@ -312,6 +326,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 				const message = error instanceof Error ? error.message : String(error);
 				const stage = error instanceof ManagedGuidanceAdapterError ? error.stage : "startup";
 				managedError = message;
+				managedTurnBlocked = true;
 				try {
 					await failManagedGuidance(
 						managedSelection,
@@ -368,6 +383,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 						? dynamicPromptResult.reason.message
 						: String(dynamicPromptResult.reason);
 				managedError = message;
+				managedTurnBlocked = true;
 				try {
 					await failManagedGuidance(
 						managedSelection,
@@ -405,6 +421,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		if (nativeSelection && (options.customPrompt?.trim() || options.appendSystemPrompt?.trim())) {
 			const message = "native-v1 received a competing Pi system-prompt option";
 			managedError = message;
+			managedTurnBlocked = true;
 			await failManagedGuidance(
 				nativeSelection,
 				nativeSessionId,
@@ -428,6 +445,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			if (nativeSelection) {
 				const message = error instanceof Error ? error.message : String(error);
 				managedError = message;
+				managedTurnBlocked = true;
 				await failManagedGuidance(
 					nativeSelection,
 					nativeSessionId,
@@ -478,6 +496,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			if (nativeSelection) {
 				const message = error instanceof Error ? error.message : String(error);
 				managedError = message;
+				managedTurnBlocked = true;
 				await failManagedGuidance(
 					nativeSelection,
 					nativeSessionId,
@@ -503,6 +522,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				managedError = message;
+				managedTurnBlocked = true;
 				try {
 					await failManagedGuidance(
 						nativeSelection,

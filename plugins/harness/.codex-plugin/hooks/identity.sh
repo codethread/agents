@@ -233,18 +233,26 @@ call_strand() {
 	shift
 	local stdout_file="$work_dir/$label.stdout"
 	local stderr_file="$work_dir/$label.stderr"
-	local -a command=(
-		env
-		-u MILLSTRAND_AGENT_ID
-		-u MILLSTRAND_RUN_ID
-		-u MILLSTRAND_RESERVATION_ID
-		-u MILLSTRAND_BOOTSTRAP_V1
-		-u MILLSTRAND_MANAGED_BOOTSTRAP
-		-u MILLSTRAND_MANAGED_GUIDANCE
-		-u MILLSTRAND_IDENTITY_TRANSPORT
-		-u MILLSTRAND_WORKSPACE
-		"$strand_bin"
+	local -a scrubbed_names=(
+		MILLSTRAND_AGENT_ID
+		MILLSTRAND_RUN_ID
+		MILLSTRAND_RESERVATION_ID
+		MILLSTRAND_MANAGED_BOOTSTRAP
+		MILLSTRAND_MANAGED_GUIDANCE
+		MILLSTRAND_IDENTITY_TRANSPORT
+		MILLSTRAND_WORKSPACE
 	)
+	local inherited_name
+	while IFS= read -r inherited_name; do
+		if [[ "$inherited_name" == MILLSTRAND_BOOTSTRAP_* ]]; then
+			scrubbed_names+=("$inherited_name")
+		fi
+	done < <(compgen -e)
+	local -a command=(env)
+	for inherited_name in "${scrubbed_names[@]}"; do
+		command+=(-u "$inherited_name")
+	done
+	command+=("$strand_bin")
 	if [[ -n "$workspace" ]]; then
 		command+=(--workspace "$workspace")
 	fi

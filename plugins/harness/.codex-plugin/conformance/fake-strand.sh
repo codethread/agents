@@ -49,7 +49,7 @@ done
 
 managed_environment_present=false
 while IFS= read -r name; do
-	if [[ "$name" == MILLSTRAND_AGENT_ID || "$name" == MILLSTRAND_RUN_ID || "$name" == MILLSTRAND_RESERVATION_ID || "$name" == MILLSTRAND_BOOTSTRAP_V1 ]]; then
+	if [[ "$name" == MILLSTRAND_AGENT_ID || "$name" == MILLSTRAND_RUN_ID || "$name" == MILLSTRAND_RESERVATION_ID || "$name" == MILLSTRAND_BOOTSTRAP_* ]]; then
 		managed_environment_present=true
 	fi
 done < <(compgen -e)

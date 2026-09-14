@@ -125,6 +125,19 @@ describe("managed guidance Pi preflight", () => {
 		expect(result.capability["hook-fact"].extensions).toHaveLength(1);
 	});
 
+	it("treats -ne as --no-extensions before applying explicit extension selectors", async () => {
+		const disabled = world({ packages: [`+${root}`] });
+		expect(await invoke(request(disabled, ["-ne"]))).toMatchObject({
+			result: "legacy-required",
+			code: "missing-hook",
+		});
+
+		const explicit = world({ packages: [`+${root}`] });
+		const result = await invoke(request(explicit, ["-ne", "-e", owner]));
+		expect(result.result).toBe("capable");
+		expect(result.capability["hook-fact"].extensions).toHaveLength(1);
+	});
+
 	it("rejects missing, duplicate, changed-owner, and competing prompt profiles", async () => {
 		const missing = world();
 		expect((await invoke(request(missing))).code).toBe("missing-hook");

@@ -139,7 +139,8 @@ describe("system-prompt extension", () => {
 		expect(counts.get("session_start")).toBe(1);
 		expect(counts.get("before_agent_start")).toBe(1);
 		expect(counts.get("agent_start")).toBe(1);
-		expect(counts.has("input")).toBe(false);
+		expect(counts.get("input")).toBe(1);
+		expect(counts.get("before_provider_request")).toBe(1);
 	});
 
 	it("arms --debug-prompt without sending a synthetic ping", async () => {

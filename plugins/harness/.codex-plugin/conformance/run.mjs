@@ -9,14 +9,16 @@ import {
 	mkdirSync,
 	readFileSync,
 	readdirSync,
+	readlinkSync,
 	realpathSync,
 	rmSync,
+	lstatSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { sha256CanonicalJson } from "../lib/managed-guidance.mjs";
+import { hashFile, sha256CanonicalJson } from "../lib/managed-guidance.mjs";
 
 const runnerPath = fileURLToPath(import.meta.url);
 const conformanceRoot = dirname(runnerPath);
@@ -453,11 +455,15 @@ async function checkManagedGuidanceReplay() {
 		"exit",
 	]) {
 		const directory = temporaryDirectory("codex-managed-failure-");
+		const logPath = join(directory, "guidance-calls.jsonl");
+		const managedEnvironment = managedGuidanceEnvironment(payload);
+		const guidance = JSON.parse(managedEnvironment.MILLSTRAND_MANAGED_GUIDANCE);
 		const result = await run("bash", [identityHook, "--configured-source"], {
 			input: payloadText,
 			env: fixtureEnvironment({
-				...managedGuidanceEnvironment(payload),
+				...managedEnvironment,
 				MILLSTRAND_CODEX_STRAND_BIN: fakeGuidanceStrand,
+				FAKE_GUIDANCE_LOG: logPath,
 				FAKE_GUIDANCE_MODE: mode,
 				TMPDIR: directory,
 			}),
@@ -468,6 +474,48 @@ async function checkManagedGuidanceReplay() {
 		assert.equal(output.continue, false);
 		assert.match(output.systemMessage, /managed guidance failed/i);
 		assert.equal("hookSpecificOutput" in output, false);
+
+		const calls = parseJsonLines(readFileSync(logPath, "utf8"), `${mode} failure calls`);
+		assert.deepEqual(calls[0].operation.slice(0, 3), ["agent", "startup", "codex"]);
+		assert.deepEqual(calls.at(-1).operation.slice(0, 3), ["agent", "guidance", "fail"]);
+		const receiptFlag = calls.at(-1).operation.indexOf("--receipt");
+		assert.notEqual(receiptFlag, -1, `${mode} failure call must carry a receipt`);
+		const receipt = JSON.parse(calls.at(-1).operation[receiptFlag + 1]);
+		assert.deepEqual(
+			{
+				schema: receipt.schema,
+				runId: receipt["run-id"],
+				attempt: receipt.attempt,
+				invocation: receipt.invocation,
+				harness: receipt.harness,
+				nativeSessionId: receipt["native-session-id"],
+				transport: receipt.transport,
+				bundleSha256: receipt["bundle-sha256"],
+				capabilitySha256: receipt["capability-sha256"],
+				outcome: receipt.outcome,
+			},
+			{
+				schema: "millstrand.agent-guidance-receipt/v1",
+				runId: "managed-current",
+				attempt: 1,
+				invocation: "invocation-managed-current-1",
+				harness: "codex",
+				nativeSessionId: payload.session_id,
+				transport: "native-v1",
+				bundleSha256: guidance["bundle-sha256"],
+				capabilitySha256: "a".repeat(64),
+				outcome: "failed",
+			},
+		);
+		assert.ok(["startup", "validation", "rendering", "handoff"].includes(receipt.stage));
+		assert.equal(receipt.code, `${receipt.stage}-failed`);
+		assert.equal(typeof receipt.diagnostic, "string");
+		assert.ok(receipt.diagnostic.length > 0 && receipt.diagnostic.length <= 500);
+		assert.deepEqual(
+			calls.flatMap((call) => call.managedNames),
+			[],
+			`${mode} failure receipt child must receive scrubbed ownership`,
+		);
 	}
 
 	const malformedMetadata = await run("bash", [identityHook, "--configured-source"], {
@@ -529,6 +577,7 @@ async function checkPayloadReplay() {
 						MILLSTRAND_AGENT_ID: "inherited-parent-must-not-be-used",
 						MILLSTRAND_RUN_ID: "inherited-run",
 						MILLSTRAND_BOOTSTRAP_V1: "inherited-bootstrap",
+						MILLSTRAND_BOOTSTRAP_FUTURE_V9: "inherited-future-bootstrap",
 						MILLSTRAND_RESERVATION_ID: "inherited-reservation",
 					}
 				: {};
@@ -1230,6 +1279,25 @@ async function checkCliDiscovery() {
 	assert.equal(linkedEntry.cwd, "/workspace/project-linked-worktree");
 }
 
+function snapshotFilesystemTree(root) {
+	const entries = [];
+	const visit = (directory, prefix = "") => {
+		for (const name of readdirSync(directory).sort()) {
+			const path = join(directory, name);
+			const relativePath = prefix ? join(prefix, name) : name;
+			const stats = lstatSync(path);
+			if (stats.isSymbolicLink()) entries.push([relativePath, "link", readlinkSync(path)]);
+			else if (stats.isDirectory()) {
+				entries.push([relativePath, "directory"]);
+				visit(path, relativePath);
+			} else if (stats.isFile()) entries.push([relativePath, "file", hashFile(path)]);
+			else entries.push([relativePath, "other", stats.mode]);
+		}
+	};
+	visit(root);
+	return entries;
+}
+
 async function runPreflight(world, extraArgv = []) {
 	const executable = realpathSync(
 		(await run("which", ["codex"], { env: fixtureEnvironment() })).stdout.trim(),
@@ -1254,6 +1322,8 @@ async function runPreflight(world, extraArgv = []) {
 		model: "gpt-5.4",
 		effort: "low",
 	};
+	const inspectedPaths = [world.codexHome, world.cwd, workspace];
+	const before = inspectedPaths.map(snapshotFilesystemTree);
 	const result = await run("node", [managedGuidancePreflight], {
 		input: JSON.stringify(request),
 		env: fixtureEnvironment(),
@@ -1261,12 +1331,18 @@ async function runPreflight(world, extraArgv = []) {
 		timeout: 20_000,
 	});
 	assert.equal(result.code, 0, result.stderr);
+	assert.deepEqual(
+		inspectedPaths.map(snapshotFilesystemTree),
+		before,
+		"Codex preflight must not write to CODEX_HOME, cwd, or workspace",
+	);
 	return parseSingleJsonLine(result.stdout, "managed guidance preflight");
 }
 
 async function checkManagedGuidancePreflight() {
 	const untrusted = createCodexWorld();
-	assert.equal((await runPreflight(untrusted)).code, "untrusted-hook");
+	const untrustedResult = await runPreflight(untrusted);
+	assert.equal(untrustedResult.code, "untrusted-hook", JSON.stringify(untrustedResult));
 
 	const entry = onlyEntry(await listHooks(untrusted));
 	const identity = entry.hooks.find(
@@ -1283,6 +1359,21 @@ async function checkManagedGuidancePreflight() {
 	assert.equal(capable.capability["max-context-bytes"], 3072);
 	assert.equal(capable.capability["hook-fact"].trustStatus, "trusted");
 	assert.equal(capable.capability["hook-fact"].timeoutSec, 18);
+	for (const attachedProfile of ["--profile=unreviewed", "-punreviewed"]) {
+		assert.equal((await runPreflight(untrusted, [attachedProfile])).code, "unverifiable-profile");
+	}
+	const attachedEnable = await runPreflight(untrusted, ["--enable=hooks"]);
+	assert.equal(attachedEnable.result, "capable");
+	assert.notEqual(
+		attachedEnable.capability["launch-profile-sha256"],
+		capable.capability["launch-profile-sha256"],
+		"attached feature selectors must be represented in capability evidence",
+	);
+	assert.notEqual(
+		(await runPreflight(untrusted, ["--disable=hooks"])).result,
+		"capable",
+		"an attached disabling selector must reach the effective hook probe",
+	);
 
 	const changed = createCodexWorld();
 	const changedEntry = onlyEntry(await listHooks(changed));

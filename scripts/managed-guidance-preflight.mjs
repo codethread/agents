@@ -1,6 +1,18 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
+import {
+	cpSync,
+	existsSync,
+	lstatSync,
+	mkdtempSync,
+	mkdirSync,
+	readFileSync,
+	readdirSync,
+	realpathSync,
+	rmSync,
+	statSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -240,7 +252,13 @@ function parseSelectors(argv, harness) {
 			selectors.push("-c", attached);
 			continue;
 		}
-		if (harness === "codex" && (argument === "--profile" || argument === "-p")) {
+		if (
+			harness === "codex" &&
+			(argument === "--profile" ||
+				argument === "-p" ||
+				argument.startsWith("--profile=") ||
+				(argument.startsWith("-p") && argument.length > 2))
+		) {
 			throw new Error("Codex profile selectors are not verifiable in native-v1");
 		}
 		if (harness === "codex" && argument === "--dangerously-bypass-hook-trust") {
@@ -250,6 +268,16 @@ function parseSelectors(argv, harness) {
 			const value = argv[++index];
 			if (typeof value !== "string") throw new Error(`${argument} has no value`);
 			selectors.push(argument, value);
+			continue;
+		}
+		if (
+			harness === "codex" &&
+			(argument.startsWith("--enable=") || argument.startsWith("--disable="))
+		) {
+			if (!argument.slice(argument.indexOf("=") + 1)) {
+				throw new Error(`${argument.slice(0, argument.indexOf("="))} has no value`);
+			}
+			selectors.push(argument);
 			continue;
 		}
 		if (harness === "pi" && ["-e", "--extension"].includes(argument)) {
@@ -262,7 +290,7 @@ function parseSelectors(argv, harness) {
 			extensionPaths.push(argument.slice("--extension=".length));
 			continue;
 		}
-		if (harness === "pi" && argument === "--no-extensions") {
+		if (harness === "pi" && (argument === "--no-extensions" || argument === "-ne")) {
 			noExtensions = true;
 			continue;
 		}
@@ -277,9 +305,33 @@ function parseSelectors(argv, harness) {
 }
 
 async function versionOf(request) {
-	const result = await run(request.executable, ["--version"], request);
-	if (result.code !== 0) throw new Error(`host version probe exited ${result.code}`);
-	return result.stdout.trim();
+	let probeRoot;
+	let probeRequest = request;
+	if (request.harness === "codex") {
+		probeRoot = mkdtempSync(join(tmpdir(), "millstrand-codex-version-"));
+		const isolatedEnvironment = { ...request.env };
+		for (const [environmentName, directoryName] of [
+			["CODEX_HOME", "codex-home"],
+			["HOME", "home"],
+			["XDG_CONFIG_HOME", "config"],
+			["XDG_STATE_HOME", "state"],
+			["XDG_CACHE_HOME", "cache"],
+			["XDG_RUNTIME_DIR", "runtime"],
+			["TMPDIR", "tmp"],
+		]) {
+			const path = join(probeRoot, directoryName);
+			mkdirSync(path);
+			isolatedEnvironment[environmentName] = path;
+		}
+		probeRequest = { ...request, env: isolatedEnvironment };
+	}
+	try {
+		const result = await run(request.executable, ["--version"], probeRequest);
+		if (result.code !== 0) throw new Error(`host version probe exited ${result.code}`);
+		return result.stdout.trim();
+	} finally {
+		if (probeRoot) rmSync(probeRoot, { recursive: true, force: true });
+	}
 }
 
 function codexClosureHash(root = codexPluginRoot) {
@@ -293,80 +345,122 @@ function codexClosureHash(root = codexPluginRoot) {
 	return sha256CanonicalJson(paths.map((path) => [path, hashFile(join(root, path))]));
 }
 
+function replacePathStrings(value, from, to) {
+	if (typeof value === "string") return value.split(from).join(to);
+	if (Array.isArray(value)) return value.map((member) => replacePathStrings(member, from, to));
+	if (value && typeof value === "object") {
+		return Object.fromEntries(
+			Object.entries(value).map(([key, member]) => [key, replacePathStrings(member, from, to)]),
+		);
+	}
+	return value;
+}
+
 async function listCodexHooks(request, selectors) {
-	return await new Promise((resolvePromise, reject) => {
-		const child = spawn(request.executable, [...selectors, "app-server", "--stdio"], {
-			cwd: request.cwd,
-			env: scrubPreflightEnvironment(request.env),
-			stdio: ["pipe", "pipe", "pipe"],
-		});
-		let buffer = "";
-		let bytes = 0;
-		let initialized = false;
-		let done = false;
-		let stderr = "";
-		const finishError = (error) => {
-			if (done) return;
-			done = true;
-			clearTimeout(timer);
-			child.kill("SIGKILL");
-			reject(error);
-		};
-		child.stderr.setEncoding("utf8");
-		child.stderr.on("data", (chunk) => {
-			stderr += chunk;
-			bytes += Buffer.byteLength(chunk);
-			if (bytes > RESPONSE_MAX_BYTES)
-				finishError(new Error("Codex probe output exceeded its bound"));
-		});
-		child.stdout.setEncoding("utf8");
-		child.stdout.on("data", (chunk) => {
-			buffer += chunk;
-			bytes += Buffer.byteLength(chunk);
-			if (bytes > RESPONSE_MAX_BYTES)
-				return finishError(new Error("Codex probe output exceeded its bound"));
-			try {
-				for (;;) {
-					const newline = buffer.indexOf("\n");
-					if (newline < 0) break;
-					const line = buffer.slice(0, newline);
-					buffer = buffer.slice(newline + 1);
-					if (!line) continue;
-					const message = object(
-						parseStrictJson(line, RESPONSE_MAX_BYTES),
-						"Codex app-server message",
-					);
-					if (message.id === 1 && !initialized) {
-						if (message.error) throw new Error("Codex initialize failed");
-						initialized = true;
-						child.stdin.write(`${JSON.stringify({ method: "initialized" })}\n`);
-						child.stdin.write(
-							`${JSON.stringify({ id: 2, method: "hooks/list", params: { cwds: [request.cwd] } })}\n`,
+	const sourceCodexHome = request.env.CODEX_HOME
+		? nonblank(request.env.CODEX_HOME, "CODEX_HOME")
+		: join(nonblank(request.env.HOME, "HOME"), ".codex");
+	if (
+		!isAbsolute(sourceCodexHome) ||
+		!existsSync(sourceCodexHome) ||
+		!statSync(sourceCodexHome).isDirectory()
+	) {
+		throw new Error("Codex home must be an existing absolute directory");
+	}
+	const probeRoot = mkdtempSync(join(tmpdir(), "millstrand-codex-preflight-"));
+	const probeCodexHome = join(probeRoot, "codex-home");
+	cpSync(sourceCodexHome, probeCodexHome, { recursive: true, verbatimSymlinks: true });
+	for (const name of ["config", "state", "cache", "runtime", "tmp"]) {
+		mkdirSync(join(probeRoot, name));
+	}
+	const probeEnvironment = {
+		...scrubPreflightEnvironment(request.env),
+		CODEX_HOME: probeCodexHome,
+		XDG_CONFIG_HOME: join(probeRoot, "config"),
+		XDG_STATE_HOME: join(probeRoot, "state"),
+		XDG_CACHE_HOME: join(probeRoot, "cache"),
+		XDG_RUNTIME_DIR: join(probeRoot, "runtime"),
+		TMPDIR: join(probeRoot, "tmp"),
+	};
+	try {
+		const result = await new Promise((resolvePromise, reject) => {
+			const child = spawn(request.executable, [...selectors, "app-server", "--stdio"], {
+				cwd: request.cwd,
+				env: probeEnvironment,
+				stdio: ["pipe", "pipe", "pipe"],
+			});
+			let buffer = "";
+			let bytes = 0;
+			let initialized = false;
+			let done = false;
+			let stderr = "";
+			const finishError = (error) => {
+				if (done) return;
+				done = true;
+				clearTimeout(timer);
+				child.kill("SIGKILL");
+				reject(error);
+			};
+			child.stderr.setEncoding("utf8");
+			child.stderr.on("data", (chunk) => {
+				stderr += chunk;
+				bytes += Buffer.byteLength(chunk);
+				if (bytes > RESPONSE_MAX_BYTES)
+					finishError(new Error("Codex probe output exceeded its bound"));
+			});
+			child.stdout.setEncoding("utf8");
+			child.stdout.on("data", (chunk) => {
+				buffer += chunk;
+				bytes += Buffer.byteLength(chunk);
+				if (bytes > RESPONSE_MAX_BYTES)
+					return finishError(new Error("Codex probe output exceeded its bound"));
+				try {
+					for (;;) {
+						const newline = buffer.indexOf("\n");
+						if (newline < 0) break;
+						const line = buffer.slice(0, newline);
+						buffer = buffer.slice(newline + 1);
+						if (!line) continue;
+						const message = object(
+							parseStrictJson(line, RESPONSE_MAX_BYTES),
+							"Codex app-server message",
 						);
-					} else if (message.id === 2) {
-						if (message.error) throw new Error("Codex hooks/list failed");
-						done = true;
-						clearTimeout(timer);
-						child.kill("SIGTERM");
-						resolvePromise(message.result);
+						if (message.id === 1 && !initialized) {
+							if (message.error) throw new Error("Codex initialize failed");
+							initialized = true;
+							child.stdin.write(`${JSON.stringify({ method: "initialized" })}\n`);
+							child.stdin.write(
+								`${JSON.stringify({ id: 2, method: "hooks/list", params: { cwds: [request.cwd] } })}\n`,
+							);
+						} else if (message.id === 2) {
+							if (message.error) throw new Error("Codex hooks/list failed");
+							done = true;
+							clearTimeout(timer);
+							child.kill("SIGTERM");
+							resolvePromise(message.result);
+						}
 					}
+				} catch (error) {
+					finishError(error);
 				}
-			} catch (error) {
-				finishError(error);
-			}
+			});
+			child.on("error", finishError);
+			child.on("close", (code) => {
+				if (!done)
+					finishError(new Error(`Codex app-server exited ${code}: ${stderr.slice(0, 300)}`));
+			});
+			const timer = setTimeout(
+				() => finishError(new Error("Codex hooks/list exceeded 5 seconds")),
+				5_000,
+			);
+			child.stdin.write(
+				`${JSON.stringify({ id: 1, method: "initialize", params: { clientInfo: { name: "millstrand-guidance-preflight", version: "1" }, capabilities: { experimentalApi: true } } })}\n`,
+			);
 		});
-		child.on("error", finishError);
-		child.on("close", (code) => {
-			if (!done) finishError(new Error(`Codex app-server exited ${code}: ${stderr.slice(0, 300)}`));
-		});
-		const timer = setTimeout(
-			() => finishError(new Error("Codex hooks/list exceeded 5 seconds")),
-			5_000,
-		);
-		child.stdin.write(
-			`${JSON.stringify({ id: 1, method: "initialize", params: { clientInfo: { name: "millstrand-guidance-preflight", version: "1" }, capabilities: { experimentalApi: true } } })}\n`,
-		);
-	});
+		return replacePathStrings(result, probeCodexHome, sourceCodexHome);
+	} finally {
+		rmSync(probeRoot, { recursive: true, force: true });
+	}
 }
 
 function codexConfigEvidence(request) {
