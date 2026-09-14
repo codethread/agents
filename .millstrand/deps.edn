@@ -17,11 +17,11 @@
    :deps/root "spools/kanban"}
   ct.spools/harnesses
   {:git/url "https://github.com/codethread/harnesses.spool.git"
-   :git/sha "9548390ce621461ba0a289859fe9b0af963f5805"
+   :git/sha "6410da676b3b41be55a58f4abc5fe773cfc75cb9"
    :deps/root "."}
   ;; Shared bootstrap with deferred executor activation.
   codethread/config
   {:git/url "https://github.com/codethread/codethread.spool.git"
-   :git/sha "3dcf5f051842512d444b9d111d3998f4078081f6"
+   :git/sha "6c7a22cb4311076e172470a65298a089a85b52ef"
    :deps/root "spools/config"}
   }}
