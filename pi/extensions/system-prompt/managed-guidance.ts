@@ -76,19 +76,28 @@ export type ManagedPiSelection =
 type NativeManagedPiSelection = Extract<ManagedPiSelection, { kind: "native-v1" }>;
 export type StagedManagedPiSelection =
 	| { kind: "selected"; selection: ManagedPiSelection }
-	| { kind: "rejected"; selection: NativeManagedPiSelection; message: string };
+	| {
+			kind: "rejected";
+			selection: NativeManagedPiSelection;
+			message: string;
+			receiptRouteTrusted: boolean;
+	  };
 
 export type ManagedGuidanceStage = "preflight" | "startup" | "validation" | "rendering" | "handoff";
 
 export class ManagedGuidanceAdapterError extends Error {
 	readonly stage: ManagedGuidanceStage;
+	readonly receiptRouteTrusted: boolean;
 
-	constructor(stage: ManagedGuidanceStage, message: string) {
+	constructor(stage: ManagedGuidanceStage, message: string, receiptRouteTrusted = true) {
 		super(message);
 		this.name = "ManagedGuidanceAdapterError";
 		this.stage = stage;
+		this.receiptRouteTrusted = receiptRouteTrusted;
 	}
 }
+
+class ManagedGuidanceRouteFenceError extends Error {}
 
 function object(value: unknown, label: string): Record<string, unknown> {
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -238,12 +247,14 @@ export function stageManagedPiGuidanceSelection(
 		throw new Error(`${MANAGED_BOOTSTRAP_ENV} is required for native-v1.`);
 	const bootstrap = parseBootstrap(rawBootstrap);
 	const selection: NativeManagedPiSelection = { kind: "native-v1", metadata, bootstrap };
+	const receiptRouteTrusted = bootstrap.cwd === resolve(cwd);
 	for (const key of ["run-id", "attempt", "invocation"] as const) {
 		if (bootstrap[key] !== metadata[key]) {
 			return {
 				kind: "rejected",
 				selection,
 				message: `managed bootstrap ${key} fence mismatch.`,
+				receiptRouteTrusted,
 			};
 		}
 	}
@@ -252,6 +263,7 @@ export function stageManagedPiGuidanceSelection(
 			kind: "rejected",
 			selection,
 			message: "managed bootstrap native session fence mismatch.",
+			receiptRouteTrusted,
 		};
 	}
 	if (bootstrap.cwd !== resolve(cwd)) {
@@ -259,6 +271,7 @@ export function stageManagedPiGuidanceSelection(
 			kind: "rejected",
 			selection,
 			message: "managed bootstrap cwd fence mismatch.",
+			receiptRouteTrusted: false,
 		};
 	}
 	return { kind: "selected", selection };
@@ -350,11 +363,11 @@ function parseBundle(
 	if (bundle["native-session-id"] !== nativeSessionId) {
 		throw new Error("guidance bundle native session fence mismatch.");
 	}
-	if (
-		bundle.identity !== selection.bootstrap.identity ||
-		bundle.workspace !== selection.bootstrap.workspace
-	) {
-		throw new Error("guidance bundle identity or workspace fence mismatch.");
+	if (bundle.workspace !== selection.bootstrap.workspace) {
+		throw new ManagedGuidanceRouteFenceError("guidance bundle workspace fence mismatch.");
+	}
+	if (bundle.identity !== selection.bootstrap.identity) {
+		throw new Error("guidance bundle identity fence mismatch.");
 	}
 	if (bundle.context["identity-instruction"] !== canonicalIdentity(bundle.identity)) {
 		throw new Error("guidance bundle identity instruction is not canonical.");
@@ -560,6 +573,7 @@ export async function fetchManagedGuidance(
 		throw new ManagedGuidanceAdapterError(
 			"validation",
 			error instanceof Error ? error.message : String(error),
+			!(error instanceof ManagedGuidanceRouteFenceError),
 		);
 	}
 }

@@ -285,21 +285,23 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			if (stagedSelection.kind === "rejected") {
 				managedError = stagedSelection.message;
 				managedTurnBlocked = true;
-				try {
-					await failManagedGuidance(
-						stagedSelection.selection,
-						nativeSessionId,
-						"validation",
-						"selection-fence-mismatch",
-						stagedSelection.message,
-						undefined,
-						process.env,
-						ctx.signal,
-					);
-				} catch (failureError) {
-					const failureMessage =
-						failureError instanceof Error ? failureError.message : String(failureError);
-					managedError = `${stagedSelection.message}; failure receipt was not recorded: ${failureMessage}`;
+				if (stagedSelection.receiptRouteTrusted) {
+					try {
+						await failManagedGuidance(
+							stagedSelection.selection,
+							nativeSessionId,
+							"validation",
+							"selection-fence-mismatch",
+							stagedSelection.message,
+							undefined,
+							process.env,
+							ctx.signal,
+						);
+					} catch (failureError) {
+						const failureMessage =
+							failureError instanceof Error ? failureError.message : String(failureError);
+						managedError = `${stagedSelection.message}; failure receipt was not recorded: ${failureMessage}`;
+					}
 				}
 				throw new Error(managedError);
 			}
@@ -349,21 +351,23 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 				const stage = error instanceof ManagedGuidanceAdapterError ? error.stage : "startup";
 				managedError = message;
 				managedTurnBlocked = true;
-				try {
-					await failManagedGuidance(
-						managedSelection,
-						nativeSessionId,
-						stage,
-						`${stage}-failed`,
-						message,
-						undefined,
-						process.env,
-						ctx.signal,
-					);
-				} catch (failureError) {
-					const failureMessage =
-						failureError instanceof Error ? failureError.message : String(failureError);
-					managedError = `${message}; failure receipt was not recorded: ${failureMessage}`;
+				if (!(error instanceof ManagedGuidanceAdapterError) || error.receiptRouteTrusted) {
+					try {
+						await failManagedGuidance(
+							managedSelection,
+							nativeSessionId,
+							stage,
+							`${stage}-failed`,
+							message,
+							undefined,
+							process.env,
+							ctx.signal,
+						);
+					} catch (failureError) {
+						const failureMessage =
+							failureError instanceof Error ? failureError.message : String(failureError);
+						managedError = `${message}; failure receipt was not recorded: ${failureMessage}`;
+					}
 				}
 				notify(ctx, `[millstrand-guidance] ${managedError}`, "error");
 				process.stderr.write(`[millstrand-guidance] ${managedError}\n`);

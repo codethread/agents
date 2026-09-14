@@ -300,11 +300,17 @@ function parseBootstrap(raw) {
 	return bootstrap;
 }
 
-function validateBootstrapFences(bootstrap, guidance, nativeSessionId, cwd) {
+class RouteFenceError extends Error {}
+
+function validateBootstrapRoute(bootstrap, cwd) {
+	if (bootstrap.cwd !== resolve(cwd))
+		throw new RouteFenceError("managed bootstrap cwd fence mismatch");
+}
+
+function validateBootstrapFences(bootstrap, guidance, nativeSessionId) {
 	for (const key of ["run-id", "attempt", "invocation"])
 		if (bootstrap[key] !== guidance[key])
 			throw new Error(`managed bootstrap ${key} fence mismatch`);
-	if (bootstrap.cwd !== resolve(cwd)) throw new Error("managed bootstrap cwd fence mismatch");
 	if (bootstrap["expected-native-session-id"] !== nativeSessionId)
 		throw new Error("managed bootstrap native session fence mismatch");
 }
@@ -445,12 +451,10 @@ function parseBundle(stdout, guidance, bootstrap, nativeSessionId) {
 		"capability-sha256",
 	])
 		if (bundle[key] !== guidance[key]) throw new Error(`guidance bundle ${key} fence mismatch`);
-	if (
-		bundle["native-session-id"] !== nativeSessionId ||
-		bundle.identity !== bootstrap.identity ||
-		bundle.workspace !== bootstrap.workspace
-	)
-		throw new Error("guidance bundle native session, identity, or workspace fence mismatch");
+	if (bundle.workspace !== bootstrap.workspace)
+		throw new RouteFenceError("guidance bundle workspace fence mismatch");
+	if (bundle["native-session-id"] !== nativeSessionId || bundle.identity !== bootstrap.identity)
+		throw new Error("guidance bundle native session or identity fence mismatch");
 	if (context["identity-instruction"] !== canonicalIdentity(bundle.identity))
 		throw new Error("guidance identity instruction is not canonical");
 	if (
@@ -541,7 +545,8 @@ async function recordRuntimeFailure(nativeSessionId, cwd, code, diagnostic) {
 		if (guidance.transport !== "native-v1")
 			throw new Error("runtime failure was not fenced by native-v1 metadata");
 		const bootstrap = parseBootstrap(process.env.MILLSTRAND_MANAGED_BOOTSTRAP ?? "");
-		validateBootstrapFences(bootstrap, guidance, nativeSessionId, cwd);
+		validateBootstrapRoute(bootstrap, cwd);
+		validateBootstrapFences(bootstrap, guidance, nativeSessionId);
 		await sendReceipt("fail", guidance, bootstrap, nativeSessionId, {
 			outcome: "failed",
 			stage: "preflight",
@@ -559,6 +564,7 @@ async function recordRuntimeFailure(nativeSessionId, cwd, code, diagnostic) {
 async function handoff(nativeSessionId, cwd, eventName) {
 	let guidance;
 	let bootstrap;
+	let receiptRouteTrusted = false;
 	let stage = "startup";
 	try {
 		guidance = parseGuidance(process.env.MILLSTRAND_MANAGED_GUIDANCE ?? "", "codex");
@@ -566,7 +572,9 @@ async function handoff(nativeSessionId, cwd, eventName) {
 			throw new Error("native handoff was invoked without native-v1 selection");
 		bootstrap = parseBootstrap(process.env.MILLSTRAND_MANAGED_BOOTSTRAP ?? "");
 		stage = "validation";
-		validateBootstrapFences(bootstrap, guidance, nativeSessionId, cwd);
+		validateBootstrapRoute(bootstrap, cwd);
+		receiptRouteTrusted = true;
+		validateBootstrapFences(bootstrap, guidance, nativeSessionId);
 		stage = "startup";
 		const startup = await runStrand(
 			[
@@ -613,7 +621,8 @@ async function handoff(nativeSessionId, cwd, eventName) {
 		);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		if (guidance?.transport === "native-v1" && bootstrap) {
+		if (error instanceof RouteFenceError) receiptRouteTrusted = false;
+		if (guidance?.transport === "native-v1" && bootstrap && receiptRouteTrusted) {
 			try {
 				await sendReceipt("fail", guidance, bootstrap, nativeSessionId, {
 					outcome: "failed",

@@ -55,6 +55,7 @@ if (operation[1] === "startup") {
 		],
 	};
 	const digest = sha256CanonicalJson([guidance["run-id"], workspace, context]);
+	const responseWorkspace = mode === "workspace-mismatch" ? `${workspace}/other` : workspace;
 	const response = {
 		schema: "millstrand.agent-guidance-bundle/v1",
 		operation: "agent startup",
@@ -65,7 +66,7 @@ if (operation[1] === "startup") {
 		"native-session-id": session,
 		identity: bootstrap.identity,
 		"strand-id": "fixture-identity-strand",
-		workspace,
+		workspace: responseWorkspace,
 		transport: "native-v1",
 		"bundle-sha256": mode === "digest-mismatch" ? "b".repeat(64) : digest,
 		"capability-sha256": guidance["capability-sha256"],

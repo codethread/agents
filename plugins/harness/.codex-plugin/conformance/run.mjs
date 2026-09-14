@@ -621,12 +621,10 @@ async function checkManagedGuidanceReplay() {
 		[false, false],
 	);
 
-	for (const mismatch of ["run-id", "attempt", "invocation", "session", "cwd"]) {
+	for (const mismatch of ["run-id", "attempt", "invocation", "session"]) {
 		const mismatchRoot = temporaryDirectory(`codex-managed-${mismatch}-fence-`);
 		const mismatchPayload = { ...sourcePayload, cwd: join(mismatchRoot, "host-cwd") };
 		mkdirSync(join(mismatchPayload.cwd, ".millstrand"), { recursive: true });
-		const mismatchedCwd = join(mismatchRoot, "mismatched-cwd");
-		mkdirSync(mismatchedCwd);
 		const mismatchLog = join(mismatchRoot, "guidance-calls.jsonl");
 		const mismatchEnvironment = managedGuidanceEnvironment(
 			mismatchPayload,
@@ -638,7 +636,6 @@ async function checkManagedGuidanceReplay() {
 		else if (mismatch === "attempt") bootstrap.attempt = 2;
 		else if (mismatch === "invocation") bootstrap.invocation = "mismatched-invocation";
 		else if (mismatch === "session") bootstrap["expected-native-session-id"] = "mismatched-session";
-		else bootstrap.cwd = mismatchedCwd;
 		const mismatchResult = await run("bash", [identityHook, "--configured-source"], {
 			input: JSON.stringify(mismatchPayload),
 			env: fixtureEnvironment({
@@ -685,6 +682,82 @@ async function checkManagedGuidanceReplay() {
 			diagnostic: `managed bootstrap ${mismatch === "session" ? "native session" : mismatch} fence mismatch`,
 		});
 	}
+
+	const rejectedRouteRoot = temporaryDirectory("codex-managed-cwd-route-fence-");
+	const rejectedRoutePayload = {
+		...sourcePayload,
+		cwd: join(rejectedRouteRoot, "host-cwd"),
+	};
+	mkdirSync(join(rejectedRoutePayload.cwd, ".millstrand"), { recursive: true });
+	const rejectedRouteCwd = join(rejectedRouteRoot, "rejected-cwd");
+	mkdirSync(rejectedRouteCwd);
+	const rejectedRouteLog = join(rejectedRouteRoot, "guidance-calls.jsonl");
+	const rejectedRouteEnvironment = managedGuidanceEnvironment(
+		rejectedRoutePayload,
+		"managed-cwd-route-fence",
+	);
+	const rejectedRouteBootstrap = JSON.parse(rejectedRouteEnvironment.MILLSTRAND_MANAGED_BOOTSTRAP);
+	rejectedRouteBootstrap.cwd = rejectedRouteCwd;
+	const rejectedRouteResult = await run("bash", [identityHook, "--configured-source"], {
+		input: JSON.stringify(rejectedRoutePayload),
+		env: fixtureEnvironment({
+			...rejectedRouteEnvironment,
+			MILLSTRAND_MANAGED_BOOTSTRAP: JSON.stringify(rejectedRouteBootstrap),
+			MILLSTRAND_CODEX_STRAND_BIN: fakeGuidanceStrand,
+			FAKE_GUIDANCE_LOG: rejectedRouteLog,
+			TMPDIR: rejectedRouteRoot,
+		}),
+	});
+	assert.equal(rejectedRouteResult.code, 0, rejectedRouteResult.stderr);
+	const rejectedRouteOutput = parseSingleJsonLine(
+		rejectedRouteResult.stdout,
+		"rejected managed cwd route",
+	);
+	assert.equal(rejectedRouteOutput.continue, false);
+	assert.match(rejectedRouteOutput.systemMessage, /cwd fence mismatch/);
+	assert.equal(
+		existsSync(rejectedRouteLog),
+		false,
+		"rejected bootstrap route must not contact Strand",
+	);
+
+	const workspaceFenceRoot = temporaryDirectory("codex-managed-workspace-route-fence-");
+	const workspaceFencePayload = {
+		...sourcePayload,
+		cwd: join(workspaceFenceRoot, "host-cwd"),
+	};
+	mkdirSync(join(workspaceFencePayload.cwd, ".millstrand"), { recursive: true });
+	const workspaceFenceLog = join(workspaceFenceRoot, "guidance-calls.jsonl");
+	const workspaceFenceEnvironment = managedGuidanceEnvironment(
+		workspaceFencePayload,
+		"managed-workspace-route-fence",
+	);
+	const workspaceFenceResult = await run("bash", [identityHook, "--configured-source"], {
+		input: JSON.stringify(workspaceFencePayload),
+		env: fixtureEnvironment({
+			...workspaceFenceEnvironment,
+			MILLSTRAND_CODEX_STRAND_BIN: fakeGuidanceStrand,
+			FAKE_GUIDANCE_LOG: workspaceFenceLog,
+			FAKE_GUIDANCE_MODE: "workspace-mismatch",
+			TMPDIR: workspaceFenceRoot,
+		}),
+	});
+	assert.equal(workspaceFenceResult.code, 0, workspaceFenceResult.stderr);
+	const workspaceFenceOutput = parseSingleJsonLine(
+		workspaceFenceResult.stdout,
+		"managed workspace route fence",
+	);
+	assert.equal(workspaceFenceOutput.continue, false);
+	assert.match(workspaceFenceOutput.systemMessage, /workspace fence mismatch/);
+	const workspaceFenceCalls = parseJsonLines(
+		readFileSync(workspaceFenceLog, "utf8"),
+		"managed workspace route calls",
+	);
+	assert.deepEqual(
+		workspaceFenceCalls.map((call) => call.operation.slice(0, 3)),
+		[["agent", "startup", "codex"]],
+		"workspace route mismatch must not route a failure receipt",
+	);
 
 	const missingSessionRoot = temporaryDirectory("codex-managed-missing-session-fence-");
 	const missingSessionPayload = {

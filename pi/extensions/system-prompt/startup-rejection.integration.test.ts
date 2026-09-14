@@ -199,8 +199,8 @@ describe("system-prompt startup rejection handling", () => {
 		expect(stream).not.toHaveBeenCalled();
 	});
 
-	it("records and blocks each safely staged guidance fence mismatch", async () => {
-		for (const mismatch of ["run-id", "attempt", "invocation", "session", "cwd"] as const) {
+	it("records and blocks each safely routed guidance fence mismatch", async () => {
+		for (const mismatch of ["run-id", "attempt", "invocation", "session"] as const) {
 			const root = await mkdtemp(join(tmpdir(), `pi-managed-runner-${mismatch}-fence-`));
 			tempDirs.push(root);
 			const cwd = join(root, "repo");
@@ -236,7 +236,7 @@ describe("system-prompt startup rejection handling", () => {
 			expect(calls, mismatch).toHaveLength(1);
 			expect(calls[0].operation.slice(0, 3), mismatch).toEqual(["agent", "guidance", "fail"]);
 			expect(calls[0].workspace, mismatch).toBe(join(cwd, ".millstrand"));
-			expect(calls[0].cwd, mismatch).toBe(mismatch === "cwd" ? join(cwd, "mismatched-cwd") : cwd);
+			expect(calls[0].cwd, mismatch).toBe(cwd);
 			expect(calls[0].managedNames, mismatch).toEqual([]);
 			const guidance = JSON.parse(process.env.MILLSTRAND_MANAGED_GUIDANCE!);
 			const receiptIndex = calls[0].operation.indexOf("--receipt");
@@ -261,6 +261,68 @@ describe("system-prompt startup rejection handling", () => {
 			runnerSession.dispose();
 			runnerSession = undefined;
 		}
+	});
+
+	it("blocks a rejected bootstrap route without making a cross-route Strand call", async () => {
+		const root = await mkdtemp(join(tmpdir(), "pi-managed-runner-cwd-fence-"));
+		tempDirs.push(root);
+		const cwd = join(root, "repo");
+		const agentDir = join(root, "agent-home");
+		const logPath = join(root, "calls.jsonl");
+		await mkdir(join(cwd, ".millstrand"), { recursive: true });
+		await mkdir(join(cwd, "mismatched-cwd"), { recursive: true });
+		await mkdir(agentDir, { recursive: true });
+		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.MILLSTRAND_PI_STRAND_BIN = fakeGuidanceStrand;
+		process.env.FAKE_GUIDANCE_LOG = logPath;
+		delete process.env.FAKE_GUIDANCE_MODE;
+
+		runnerSession = await createTestSession({
+			cwd,
+			systemPrompt: "base prompt",
+			extensionFactories: [
+				managedLaunchExtension("runner-cwd-fence", false, "cwd"),
+				systemPromptExtension,
+			],
+		});
+		const stream = vi.fn();
+		runnerSession.session.agent.streamFn = stream;
+
+		await runnerSession.session.prompt("must not reach the model or rejected route");
+
+		expect(stream).not.toHaveBeenCalled();
+		await expect(readFile(logPath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+	});
+
+	it("does not send a failure receipt after a bundle workspace route mismatch", async () => {
+		const root = await mkdtemp(join(tmpdir(), "pi-managed-runner-workspace-fence-"));
+		tempDirs.push(root);
+		const cwd = join(root, "repo");
+		const agentDir = join(root, "agent-home");
+		const logPath = join(root, "calls.jsonl");
+		await mkdir(join(cwd, ".millstrand"), { recursive: true });
+		await mkdir(agentDir, { recursive: true });
+		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.MILLSTRAND_PI_STRAND_BIN = fakeGuidanceStrand;
+		process.env.FAKE_GUIDANCE_LOG = logPath;
+		process.env.FAKE_GUIDANCE_MODE = "workspace-mismatch";
+
+		runnerSession = await createTestSession({
+			cwd,
+			systemPrompt: "base prompt",
+			extensionFactories: [managedLaunchExtension("runner-workspace-fence"), systemPromptExtension],
+		});
+		const stream = vi.fn();
+		runnerSession.session.agent.streamFn = stream;
+
+		await runnerSession.session.prompt("must not reach the model or a receipt route");
+
+		expect(stream).not.toHaveBeenCalled();
+		const calls = (await readFile(logPath, "utf8"))
+			.trim()
+			.split("\n")
+			.map((line) => JSON.parse(line));
+		expect(calls.map((call) => call.operation.slice(0, 3))).toEqual([["agent", "startup", "pi"]]);
 	});
 
 	it("blocks the provider after the real runner catches invalid owned prompt options", async () => {
