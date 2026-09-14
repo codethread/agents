@@ -9,12 +9,14 @@ import {
 	mkdirSync,
 	readFileSync,
 	readdirSync,
+	realpathSync,
 	rmSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { sha256CanonicalJson } from "../lib/managed-guidance.mjs";
 
 const runnerPath = fileURLToPath(import.meta.url);
 const conformanceRoot = dirname(runnerPath);
@@ -22,6 +24,11 @@ const pluginRoot = resolve(conformanceRoot, "../..");
 const payloadRoot = join(conformanceRoot, "payloads");
 const identityHook = join(pluginRoot, ".codex-plugin/hooks/identity.sh");
 const fakeStrand = join(conformanceRoot, "fake-strand.sh");
+const fakeGuidanceStrand = join(conformanceRoot, "fake-guidance-strand.mjs");
+const managedGuidancePreflight = resolve(
+	pluginRoot,
+	"../../scripts/managed-guidance-preflight.mjs",
+);
 const expectedCodexVersion = "codex-cli 0.154.0";
 const schemaRoot = join(conformanceRoot, "schemas");
 const inputSchemas = {
@@ -320,6 +327,172 @@ async function checkHostKillRecovery(payloadText) {
 		2,
 		"a healthy replay must reach Strand after the abandoned OS lock is released",
 	);
+}
+
+function managedGuidanceEnvironment(payload, runId = "managed-current", attempt = 1) {
+	const identity = "fixture-managed-identity";
+	const workspace = join(payload.cwd, ".millstrand");
+	const context = {
+		schema: "millstrand.agent-managed-context/v1",
+		"identity-instruction": `Your Millstrand identity is ${identity}. Use ${identity} for identity-bearing operations; pass \`--by-identity ${identity}\` explicitly. Do not invent another identity.`,
+		"appended-system-prompts": [
+			"first frozen contribution",
+			"intentionally repeated",
+			"intentionally repeated",
+		],
+	};
+	const invocation = `invocation-${runId}-${attempt}`;
+	const guidance = {
+		schema: "millstrand.agent-guidance-bootstrap/v1",
+		transport: "native-v1",
+		"run-id": runId,
+		attempt,
+		invocation,
+		harness: "codex",
+		"bundle-sha256": sha256CanonicalJson([runId, workspace, context]),
+		"capability-sha256": "a".repeat(64),
+	};
+	const bootstrap = {
+		schema: "millstrand.agent-managed-bootstrap/v1",
+		"run-id": runId,
+		harness: "codex",
+		identity,
+		"reservation-id": `reservation-${runId}`,
+		cwd: payload.cwd,
+		workspace,
+		attempt,
+		invocation,
+		scope: "root",
+		"expected-native-session-id": payload.session_id,
+	};
+	return {
+		MILLSTRAND_AGENT_ID: identity,
+		MILLSTRAND_RUN_ID: runId,
+		MILLSTRAND_MANAGED_GUIDANCE: JSON.stringify(guidance),
+		MILLSTRAND_MANAGED_BOOTSTRAP: JSON.stringify(bootstrap),
+	};
+}
+
+async function checkManagedGuidanceReplay() {
+	for (const [index, fileName] of [
+		"session-start-startup.json",
+		"session-start-resume.json",
+		"session-start-clear.json",
+		"session-start-compact.json",
+	].entries()) {
+		const sourcePayload = JSON.parse(readFileSync(join(payloadRoot, fileName), "utf8"));
+		const directory = temporaryDirectory("codex-managed-guidance-");
+		const payload = { ...sourcePayload, cwd: join(directory, "host-cwd") };
+		mkdirSync(join(payload.cwd, ".millstrand"), { recursive: true });
+		const payloadText = JSON.stringify(payload);
+		const logPath = join(directory, "calls.jsonl");
+		const runId = `current-${index}`;
+		const environment = fixtureEnvironment({
+			...managedGuidanceEnvironment(payload, runId),
+			MILLSTRAND_CODEX_STRAND_BIN: fakeGuidanceStrand,
+			FAKE_GUIDANCE_LOG: logPath,
+			TMPDIR: directory,
+		});
+		const result = await run("bash", [identityHook, "--configured-source"], {
+			input: payloadText,
+			env: environment,
+		});
+		assert.equal(result.code, 0, result.stderr);
+		const output = parseSingleJsonLine(result.stdout, `${fileName} managed output`);
+		assertHookOutput(output, "SessionStart");
+		const context = output.hookSpecificOutput.additionalContext;
+		assert.ok(context.startsWith("Your Millstrand identity is fixture-managed-identity."));
+		assert.equal(context.match(/first frozen contribution/g)?.length, 1);
+		assert.equal(context.match(/intentionally repeated/g)?.length, 2);
+		assert.equal(context.match(/Current Millstrand run:/g)?.length, 1);
+		assert.match(context, new RegExp(`Current Millstrand run: ${runId}\\.`));
+		const calls = parseJsonLines(readFileSync(logPath, "utf8"), `${fileName} managed calls`);
+		assert.equal(calls.length, 2, "each reconstruction must fetch and acknowledge");
+		assert.deepEqual(
+			calls.map((call) => call.operation.slice(0, 3)),
+			[
+				["agent", "startup", "codex"],
+				["agent", "guidance", "acknowledge"],
+			],
+		);
+		assert.deepEqual(
+			calls.flatMap((call) => call.managedNames),
+			[],
+			"Strand children must receive scrubbed ownership",
+		);
+
+		const replay = await run("bash", [identityHook, "--configured-source"], {
+			input: payloadText,
+			env: { ...environment, FAKE_GUIDANCE_MODE: "ack-replay" },
+		});
+		assertHookOutput(
+			parseSingleJsonLine(replay.stdout, `${fileName} replay output`),
+			"SessionStart",
+		);
+		assert.equal(
+			parseJsonLines(readFileSync(logPath, "utf8"), `${fileName} replay calls`).length,
+			4,
+			"receipt replay must not suppress reconstruction",
+		);
+	}
+
+	const sourcePayload = JSON.parse(
+		readFileSync(join(payloadRoot, "session-start-startup.json"), "utf8"),
+	);
+	const failureRoot = temporaryDirectory("codex-managed-failure-host-");
+	const payload = { ...sourcePayload, cwd: join(failureRoot, "host-cwd") };
+	mkdirSync(join(payload.cwd, ".millstrand"), { recursive: true });
+	const payloadText = JSON.stringify(payload);
+	for (const mode of [
+		"malformed",
+		"duplicate-key",
+		"digest-mismatch",
+		"session-mismatch",
+		"flood",
+		"ack-ignored",
+		"exit",
+	]) {
+		const directory = temporaryDirectory("codex-managed-failure-");
+		const result = await run("bash", [identityHook, "--configured-source"], {
+			input: payloadText,
+			env: fixtureEnvironment({
+				...managedGuidanceEnvironment(payload),
+				MILLSTRAND_CODEX_STRAND_BIN: fakeGuidanceStrand,
+				FAKE_GUIDANCE_MODE: mode,
+				TMPDIR: directory,
+			}),
+		});
+		assert.equal(result.code, 0, result.stderr);
+		assert.ok(Buffer.byteLength(result.stdout) < 1024, `${mode} failure output must be bounded`);
+		const output = parseSingleJsonLine(result.stdout, `${mode} managed failure`);
+		assert.equal(output.continue, false);
+		assert.match(output.systemMessage, /managed guidance failed/i);
+		assert.equal("hookSpecificOutput" in output, false);
+	}
+
+	const malformedMetadata = await run("bash", [identityHook, "--configured-source"], {
+		input: payloadText,
+		env: fixtureEnvironment({
+			MILLSTRAND_AGENT_ID: "managed",
+			MILLSTRAND_RUN_ID: "run",
+			MILLSTRAND_MANAGED_GUIDANCE:
+				'{"schema":"millstrand.agent-guidance-bootstrap/v1","transport":"legacy","transport":"native-v1"}',
+		}),
+	});
+	assert.equal(parseSingleJsonLine(malformedMetadata.stdout, "malformed metadata").continue, false);
+
+	const legacy = await run("bash", [identityHook, "--configured-source"], {
+		input: payloadText,
+		env: fixtureEnvironment({
+			MILLSTRAND_AGENT_ID: "managed",
+			MILLSTRAND_RUN_ID: "run",
+			MILLSTRAND_MANAGED_GUIDANCE: JSON.stringify({
+				schema: "millstrand.agent-guidance-bootstrap/v1",
+				transport: "legacy",
+			}),
+		}),
+	});
+	assert.equal(legacy.stdout, "", "explicit legacy must preserve the existing managed transport");
 }
 
 async function checkPayloadReplay() {
@@ -980,7 +1153,7 @@ async function checkCliDiscovery() {
 		assert.equal(hook.source, "plugin");
 		assert.equal(hook.pluginId, "harness@agents");
 		assert.equal(hook.trustStatus, "untrusted");
-		assert.equal(hook.timeoutSec, 8);
+		assert.equal(hook.timeoutSec, 18);
 		assert.equal(hook.additionalContextLimit, 4096);
 		assert.match(hook.sourcePath, /\.codex-plugin\/hooks\/hooks\.json$/);
 	}
@@ -1057,6 +1230,115 @@ async function checkCliDiscovery() {
 	assert.equal(linkedEntry.cwd, "/workspace/project-linked-worktree");
 }
 
+async function runPreflight(world, extraArgv = []) {
+	const executable = realpathSync(
+		(await run("which", ["codex"], { env: fixtureEnvironment() })).stdout.trim(),
+	);
+	const workspace = join(world.cwd, ".millstrand");
+	mkdirSync(workspace, { recursive: true });
+	const env = fixtureEnvironment({
+		CODEX_HOME: world.codexHome,
+		HOME: world.home,
+		CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG: "1",
+	});
+	const request = {
+		schema: "millstrand.agent-guidance-preflight/v1",
+		harness: "codex",
+		executable,
+		mode: "headless",
+		cwd: realpathSync(world.cwd),
+		workspace: realpathSync(workspace),
+		env,
+		"extra-argv": extraArgv,
+		resumes: false,
+		model: "gpt-5.4",
+		effort: "low",
+	};
+	const result = await run("node", [managedGuidancePreflight], {
+		input: JSON.stringify(request),
+		env: fixtureEnvironment(),
+		cwd: world.cwd,
+		timeout: 20_000,
+	});
+	assert.equal(result.code, 0, result.stderr);
+	return parseSingleJsonLine(result.stdout, "managed guidance preflight");
+}
+
+async function checkManagedGuidancePreflight() {
+	const untrusted = createCodexWorld();
+	assert.equal((await runPreflight(untrusted)).code, "untrusted-hook");
+
+	const entry = onlyEntry(await listHooks(untrusted));
+	const identity = entry.hooks.find(
+		(hook) => hook.eventName === "sessionStart" && hook.command.includes("identity.sh"),
+	);
+	writeFileSync(
+		join(untrusted.codexHome, "config.toml"),
+		`${readFileSync(join(untrusted.codexHome, "config.toml"), "utf8")}\n[hooks.state."${identity.key}"]\ntrusted_hash = "${identity.currentHash}"\n`,
+	);
+	const capable = await runPreflight(untrusted);
+	assert.equal(capable.result, "capable");
+	assert.equal(capable.capability.harness, "codex");
+	assert.equal(capable.capability["host-version"], expectedCodexVersion);
+	assert.equal(capable.capability["max-context-bytes"], 3072);
+	assert.equal(capable.capability["hook-fact"].trustStatus, "trusted");
+	assert.equal(capable.capability["hook-fact"].timeoutSec, 18);
+
+	const changed = createCodexWorld();
+	const changedEntry = onlyEntry(await listHooks(changed));
+	const changedIdentity = changedEntry.hooks.find(
+		(hook) => hook.eventName === "sessionStart" && hook.command.includes("identity.sh"),
+	);
+	writeFileSync(
+		join(changed.codexHome, "config.toml"),
+		`${readFileSync(join(changed.codexHome, "config.toml"), "utf8")}\n[hooks.state."${changedIdentity.key}"]\ntrusted_hash = "${changedIdentity.currentHash}"\n`,
+	);
+	writeFileSync(
+		join(changed.installedPlugin, ".codex-plugin/lib/managed-guidance.mjs"),
+		`${readFileSync(join(changed.installedPlugin, ".codex-plugin/lib/managed-guidance.mjs"), "utf8")}\n// changed\n`,
+	);
+	assert.equal((await runPreflight(changed)).code, "changed-hook");
+
+	const duplicate = createCodexWorld();
+	const duplicateCommand = `bash "${join(duplicate.installedPlugin, ".codex-plugin/hooks/identity.sh")}"`;
+	writeFileSync(
+		join(duplicate.codexHome, "hooks.json"),
+		JSON.stringify({
+			hooks: { SessionStart: [{ hooks: [{ type: "command", command: duplicateCommand }] }] },
+		}),
+	);
+	assert.equal((await runPreflight(duplicate)).code, "duplicate-injector");
+
+	const missing = createCodexWorld({ enabled: false });
+	assert.equal((await runPreflight(missing)).code, "missing-hook");
+
+	const mismatch = createCodexWorld();
+	assert.equal(
+		(await runPreflight(mismatch, ["-c", 'developer_instructions="hostile"'])).code,
+		"unverifiable-profile",
+	);
+
+	const duplicateKeyRequest = JSON.stringify({
+		schema: "millstrand.agent-guidance-preflight/v1",
+		harness: "codex",
+		executable: "/missing",
+		mode: "headless",
+		cwd: "/tmp",
+		workspace: "/tmp",
+		env: {},
+		"extra-argv": [],
+		resumes: false,
+	}).replace(/}$/, ',"harness":"pi"}');
+	const malformed = await run("node", [managedGuidancePreflight], {
+		input: duplicateKeyRequest,
+		env: fixtureEnvironment(),
+	});
+	assert.equal(
+		parseSingleJsonLine(malformed.stdout, "duplicate-key preflight").code,
+		"unverifiable-profile",
+	);
+}
+
 async function holdInterruptProbe() {
 	const directory = temporaryDirectory("codex-hook-interrupt-");
 	writeFileSync(join(directory, "artifact"), "must be removed\n");
@@ -1080,7 +1362,9 @@ try {
 		await holdInterruptProbe();
 	} else {
 		await checkPayloadReplay();
+		await checkManagedGuidanceReplay();
 		await checkCliDiscovery();
+		await checkManagedGuidancePreflight();
 		await checkInvocationEnabledHooks();
 		await checkActualHostDuplicateSources();
 		console.log(

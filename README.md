@@ -105,3 +105,13 @@ Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm fo
 Running Pi from this checkout loads the package through `.pi/settings.json`. The project-local `.pi/extensions/pi-internals/` helper reports Pi runtime, source, settings, and extension paths when debugging the repository itself.
 
 Changing prompt-layer context or switching models/providers can reduce provider prompt-cache reuse. Keep dynamic injected context bounded and stable when cache reuse matters.
+
+## Disabled managed-guidance adapters
+
+This package contains the Agents-owned, disabled `native-v1` adapters for Codex CLI 0.154.0 and `@earendil-works/pi-coding-agent` 0.84.4. Capability inspection is no-model and read-only:
+
+```text
+node scripts/managed-guidance-preflight.mjs
+```
+
+The executable reads one `millstrand.agent-guidance-preflight/v1` request from stdin and returns strict bounded capability evidence or `legacy-required`. It does not select transport, mutate configuration, create sessions, call Strand startup, or make model requests. Harnesses remains the sole admission owner, and its approved adapter/preflight allowlist is intentionally empty until coordinated acceptance. Consequently these sources do not enable native delivery by installation alone; omitted metadata keeps existing legacy/unmanaged behavior.

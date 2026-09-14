@@ -83,7 +83,16 @@ mkfifo "$request_fifo" "$response_fifo" || exit 1
 # Reaching this handler proves the invoking host's effective hooks feature is
 # enabled. Replay that effective value because Codex CLI overrides such as
 # `--enable hooks` are process-local and are otherwise lost by this probe.
-"$codex_bin" -c features.hooks=true app-server --stdio <"$request_fifo" >"$response_fifo" 2>"$stderr_file" &
+env \
+	-u MILLSTRAND_AGENT_ID \
+	-u MILLSTRAND_RUN_ID \
+	-u MILLSTRAND_RESERVATION_ID \
+	-u MILLSTRAND_BOOTSTRAP_V1 \
+	-u MILLSTRAND_MANAGED_BOOTSTRAP \
+	-u MILLSTRAND_MANAGED_GUIDANCE \
+	-u MILLSTRAND_IDENTITY_TRANSPORT \
+	-u MILLSTRAND_WORKSPACE \
+	"$codex_bin" -c features.hooks=true app-server --stdio <"$request_fifo" >"$response_fifo" 2>"$stderr_file" &
 app_pid=$!
 exec 8>"$request_fifo"
 exec 9<"$response_fifo"

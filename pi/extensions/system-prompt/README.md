@@ -5,7 +5,8 @@
 This directory is intentionally flat:
 
 - `index.ts` — Pi flags, commands, event hooks, and tool-guideline grouping
-- `native-identity.ts` — Strand invocation, response parsing, and lifecycle status
+- `native-identity.ts` — unmanaged Strand identity invocation, response parsing, and lifecycle status
+- `managed-guidance.ts` — disabled native-v1 metadata, bundle, rendering, receipt, and bounded transport boundary
 - `prompt-builder.ts` — pure system-prompt rendering helpers
 - `templates.ts` — `agent.njk` discovery/rendering plus `--debug-prompt` override parsing
 - `tool-report.ts` — `--debug-tools` selector parsing and report rendering
@@ -62,16 +63,21 @@ Prefer precise file-edit tools over shell redirection.
 - Normal unmanaged startup needs no Millstrand identity, run, or reservation environment variables. Strand discovers a workspace from `--cwd`.
 - `--millstrand-workspace <dir>` selects an explicit workspace. A relative value is resolved once against the parent session cwd, then the resulting absolute route is used for parent startup and passed unchanged to child and grandchild sessions through private child metadata. It is not reinterpreted against a delegated child's cwd or inherited as managed ownership.
 - `--millstrand-identity <name>` asserts an existing identity already bound to this exact Pi session. It cannot invent, attach, or move a friendly name; Millhouse rejects unknown or conflicting values before writing.
-- A process with `MILLSTRAND_RUN_ID` is treated as a legacy managed launch. Native resolution is suppressed so its existing append-system-prompt transport remains authoritative until the managed native-v1 cutover.
-- Strand, workspace, Weaver, conflict, and response-schema failures are reported visibly. Pi remains usable but unbound, and no identity block is rendered. The extension never guesses a name, retries, creates a workspace, or starts infrastructure.
+- A process with `MILLSTRAND_RUN_ID` but no `MILLSTRAND_MANAGED_GUIDANCE` document is treated as a legacy managed launch. Native resolution is suppressed, so its existing append-system-prompt transport remains authoritative.
+- The exact closed legacy guidance document also suppresses native identity. Unknown, malformed, duplicate-key, partial, or oversized guidance never falls through to unmanaged identity.
+- Explicit `native-v1` requires the matching managed bootstrap, run/attempt/invocation/provider/native-session/capability/bundle fences, and a strict bundle from the versioned `agent startup` attachment operation. Identity is rendered first, every frozen append position is preserved in order, and one deterministic current-run footer closes one managed reminder block.
+- Every startup/resume/reload lifecycle fetches again; every effective prompt reconstructs the managed block and performs a fenced adapter-handoff acknowledgement immediately before return. There is no permanent sentinel. Startup, validation, rendering, and handoff errors submit a fenced failure receipt and stop that selected turn without identity minting, retry, legacy fallback, truncation, or a second prompt owner.
+- `MILLSTRAND_MANAGED_BOOTSTRAP`, `MILLSTRAND_MANAGED_GUIDANCE`, and existing ownership/bootstrap hints are removed from delegated child environments. `PI_SUBAGENT=1` cannot consume root guidance ownership.
+- Strand, workspace, Weaver, conflict, and response-schema failures are reported visibly. Unmanaged Pi remains usable but unbound, and no identity block is rendered. The extension never guesses a name, retries, creates a workspace, or starts infrastructure.
 
 ## Debug surfaces
 
 - `--debug-prompt` — print the next materialized effective system prompt and exit; send a message manually (for example with `--print ping`); accepts optional JSON template-var overrides
 - `/debug-prompt` — show the last materialized effective system prompt in the UI; if no message has been sent yet, it warns the user to send one first
 - `--debug-tools [tool,...]` — print all registered tools, or selected tools, with active status, their approximate system-prompt contribution, and provider-neutral model definition; exits before a model request
-- `--debug-millstrand-identity` — resolve and print the native session binding/status as JSON, then exit before a model request
-- `/debug-millstrand-identity` — show the current binding/status in the standard hidden debug panel
+- `--debug-millstrand-identity` — resolve and print the unmanaged native session binding/status as JSON, then exit before a model request
+- `/debug-millstrand-identity` — show the current unmanaged binding/status in the standard hidden debug panel
+- `--debug-managed-guidance` — on an already fenced native-v1 fixture, fetch, render, acknowledge, print the evidence and effective prompt, then exit before a model request
 
 Example:
 
