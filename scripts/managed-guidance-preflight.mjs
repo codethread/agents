@@ -62,7 +62,10 @@ function object(value, label) {
 function closed(value, allowed, required) {
 	const allowedSet = new Set(allowed);
 	const keys = Object.keys(value);
-	if (keys.some((key) => !allowedSet.has(key)) || required.some((key) => !(key in value))) {
+	if (
+		keys.some((key) => !allowedSet.has(key)) ||
+		required.some((key) => !Object.hasOwn(value, key))
+	) {
 		throw new Error(
 			`request keys do not match the closed v1 schema (actual: ${keys.sort().join(", ")})`,
 		);
@@ -656,6 +659,12 @@ function extensionEntries(path) {
 	return entries;
 }
 
+function reviewedPiEntrypoints() {
+	const declared = directExtensionEntries(packageRoot);
+	if (!declared) throw new Error("reviewed Pi package has no extension declaration");
+	return new Set(declared.flatMap(extensionEntries).map((entrypoint) => realpathSync(entrypoint)));
+}
+
 function resolveLocalSource(source, base, env) {
 	const expanded = expandHome(source, env);
 	if (!expanded || (!source.startsWith(".") && !source.startsWith("/") && !source.startsWith("~")))
@@ -773,14 +782,22 @@ function piProfile(request, parsed) {
 		entries.push(...extensionEntries(path));
 	}
 	entries = [...new Set(entries.map((entry) => resolve(entry)))];
-	const ownerCandidates = entries.filter((entry) => {
-		const source = readFileSync(entry, "utf8");
-		return (
-			source.includes('pi.on("before_agent_start"') &&
-			source.includes("getOwnedSystemPromptOptions") &&
-			source.includes("buildSystemPrompt")
+	const reviewedEntrypoints = reviewedPiEntrypoints();
+	const canonicalEntries = entries.map((entrypoint) => ({
+		entrypoint,
+		canonical: realpathSync(entrypoint),
+	}));
+	const unreviewed = canonicalEntries.find(({ canonical }) => !reviewedEntrypoints.has(canonical));
+	if (unreviewed) {
+		throw Object.assign(
+			new Error(
+				`extension is outside the reviewed Agents package profile: ${unreviewed.entrypoint}`,
+			),
+			{ code: "unverifiable-profile" },
 		);
-	});
+	}
+	const ownerPath = realpathSync(piOwner);
+	const ownerCandidates = canonicalEntries.filter(({ canonical }) => canonical === ownerPath);
 	if (ownerCandidates.length === 0)
 		throw Object.assign(new Error("no owned Pi system-prompt renderer is effective"), {
 			code: "missing-hook",
@@ -790,16 +807,11 @@ function piProfile(request, parsed) {
 			new Error(`${ownerCandidates.length} Pi system-prompt owners are effective`),
 			{ code: "duplicate-injector" },
 		);
-	if (realpathSync(ownerCandidates[0]) !== realpathSync(piOwner))
-		throw Object.assign(
-			new Error("effective Pi prompt owner is not the reviewed Agents entrypoint"),
-			{ code: "untrusted-hook" },
-		);
 	const extensions = entries.map((entrypoint) => ({
 		entrypoint,
 		"closure-sha256": importClosure(entrypoint),
 	}));
-	return { entries, extensions, owner: ownerCandidates[0] };
+	return { entries, extensions, owner: ownerCandidates[0].entrypoint };
 }
 
 function locatePiHostPackage(executable) {

@@ -71,7 +71,7 @@ export function parseStrictJson(text, maxBytes) {
 		if (character === "{") {
 			position += 1;
 			whitespace();
-			const result = {};
+			const result = Object.create(null);
 			const keys = new Set();
 			if (text[position] === "}") {
 				position += 1;
@@ -196,7 +196,10 @@ function object(value, label) {
 function closed(value, allowed, required = allowed) {
 	const keys = Object.keys(value);
 	const allowedSet = new Set(allowed);
-	if (keys.some((key) => !allowedSet.has(key)) || required.some((key) => !(key in value))) {
+	if (
+		keys.some((key) => !allowedSet.has(key)) ||
+		required.some((key) => !Object.hasOwn(value, key))
+	) {
 		throw new Error(`closed v1 schema key mismatch (actual: ${keys.sort().join(", ")}).`);
 	}
 }
@@ -260,7 +263,7 @@ export function parseGuidance(raw, harness = "codex") {
 	};
 }
 
-function parseBootstrap(raw, guidance, nativeSessionId, cwd) {
+function parseBootstrap(raw) {
 	const value = object(parseStrictJson(raw, METADATA_MAX_BYTES), "managed bootstrap");
 	const allowed = [
 		"schema",
@@ -302,7 +305,11 @@ function parseBootstrap(raw, guidance, nativeSessionId, cwd) {
 					),
 				}),
 	};
-	for (const key of ["run-id", "attempt", "invocation", "harness"])
+	return bootstrap;
+}
+
+function validateBootstrapFences(bootstrap, guidance, nativeSessionId, cwd) {
+	for (const key of ["run-id", "attempt", "invocation"])
 		if (bootstrap[key] !== guidance[key])
 			throw new Error(`managed bootstrap ${key} fence mismatch`);
 	if (bootstrap.cwd !== resolve(cwd)) throw new Error("managed bootstrap cwd fence mismatch");
@@ -311,7 +318,6 @@ function parseBootstrap(raw, guidance, nativeSessionId, cwd) {
 		bootstrap["expected-native-session-id"] !== nativeSessionId
 	)
 		throw new Error("managed bootstrap native session fence mismatch");
-	return bootstrap;
 }
 
 function scrubbedEnvironment() {
@@ -545,12 +551,7 @@ async function recordRuntimeFailure(nativeSessionId, cwd, code, diagnostic) {
 		const guidance = parseGuidance(process.env.MILLSTRAND_MANAGED_GUIDANCE ?? "", "codex");
 		if (guidance.transport !== "native-v1")
 			throw new Error("runtime failure was not fenced by native-v1 metadata");
-		const bootstrap = parseBootstrap(
-			process.env.MILLSTRAND_MANAGED_BOOTSTRAP ?? "",
-			guidance,
-			nativeSessionId,
-			cwd,
-		);
+		const bootstrap = parseBootstrap(process.env.MILLSTRAND_MANAGED_BOOTSTRAP ?? "");
 		await sendReceipt("fail", guidance, bootstrap, nativeSessionId, {
 			outcome: "failed",
 			stage: "preflight",
@@ -573,12 +574,10 @@ async function handoff(nativeSessionId, cwd, eventName) {
 		guidance = parseGuidance(process.env.MILLSTRAND_MANAGED_GUIDANCE ?? "", "codex");
 		if (guidance.transport !== "native-v1")
 			throw new Error("native handoff was invoked without native-v1 selection");
-		bootstrap = parseBootstrap(
-			process.env.MILLSTRAND_MANAGED_BOOTSTRAP ?? "",
-			guidance,
-			nativeSessionId,
-			cwd,
-		);
+		bootstrap = parseBootstrap(process.env.MILLSTRAND_MANAGED_BOOTSTRAP ?? "");
+		stage = "validation";
+		validateBootstrapFences(bootstrap, guidance, nativeSessionId, cwd);
+		stage = "startup";
 		const startup = await runStrand(
 			[
 				"--workspace",

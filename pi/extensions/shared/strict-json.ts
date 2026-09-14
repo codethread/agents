@@ -60,7 +60,7 @@ export function parseStrictJson(text: string, maxBytes: number): unknown {
 		if (character === "{") {
 			position += 1;
 			whitespace();
-			const object: Record<string, unknown> = {};
+			const object = Object.create(null) as Record<string, unknown>;
 			const keys = new Set<string>();
 			if (text[position] === "}") {
 				position += 1;

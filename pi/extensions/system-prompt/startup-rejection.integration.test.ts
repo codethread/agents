@@ -31,7 +31,7 @@ let runnerSession: TestSession | undefined;
 function managedLaunchExtension(
 	runId: string,
 	invalidatePromptOptions = false,
-	fenceMismatch?: "session" | "cwd",
+	fenceMismatch?: "run-id" | "attempt" | "invocation" | "session" | "cwd",
 ) {
 	return (pi: any) => {
 		pi.on("session_start", (_event: unknown, ctx: any) => {
@@ -62,14 +62,14 @@ function managedLaunchExtension(
 			});
 			process.env.MILLSTRAND_MANAGED_BOOTSTRAP = JSON.stringify({
 				schema: "millstrand.agent-managed-bootstrap/v1",
-				"run-id": runId,
+				"run-id": fenceMismatch === "run-id" ? "mismatched-run" : runId,
 				harness: "pi",
 				identity,
 				"reservation-id": `${runId}-reservation`,
 				cwd: fenceMismatch === "cwd" ? join(cwd, "mismatched-cwd") : cwd,
 				workspace,
-				attempt,
-				invocation,
+				attempt: fenceMismatch === "attempt" ? 2 : attempt,
+				invocation: fenceMismatch === "invocation" ? "mismatched-invocation" : invocation,
 				scope: "root",
 				"expected-native-session-id":
 					fenceMismatch === "session" ? "mismatched-session" : nativeSessionId,
@@ -199,8 +199,8 @@ describe("system-prompt startup rejection handling", () => {
 		expect(stream).not.toHaveBeenCalled();
 	});
 
-	it("records and blocks safely staged session and cwd fence mismatches", async () => {
-		for (const mismatch of ["session", "cwd"] as const) {
+	it("records and blocks each safely staged guidance fence mismatch", async () => {
+		for (const mismatch of ["run-id", "attempt", "invocation", "session", "cwd"] as const) {
 			const root = await mkdtemp(join(tmpdir(), `pi-managed-runner-${mismatch}-fence-`));
 			tempDirs.push(root);
 			const cwd = join(root, "repo");
@@ -212,7 +212,8 @@ describe("system-prompt startup rejection handling", () => {
 			process.env.PI_CODING_AGENT_DIR = agentDir;
 			process.env.MILLSTRAND_PI_STRAND_BIN = fakeGuidanceStrand;
 			process.env.FAKE_GUIDANCE_LOG = logPath;
-			delete process.env.FAKE_GUIDANCE_MODE;
+			if (mismatch === "invocation") process.env.FAKE_GUIDANCE_MODE = "ack-ignored";
+			else delete process.env.FAKE_GUIDANCE_MODE;
 
 			runnerSession = await createTestSession({
 				cwd,
@@ -234,12 +235,27 @@ describe("system-prompt startup rejection handling", () => {
 				.map((line) => JSON.parse(line));
 			expect(calls, mismatch).toHaveLength(1);
 			expect(calls[0].operation.slice(0, 3), mismatch).toEqual(["agent", "guidance", "fail"]);
+			expect(calls[0].workspace, mismatch).toBe(join(cwd, ".millstrand"));
+			expect(calls[0].cwd, mismatch).toBe(mismatch === "cwd" ? join(cwd, "mismatched-cwd") : cwd);
+			expect(calls[0].managedNames, mismatch).toEqual([]);
+			const guidance = JSON.parse(process.env.MILLSTRAND_MANAGED_GUIDANCE!);
 			const receiptIndex = calls[0].operation.indexOf("--receipt");
-			expect(JSON.parse(calls[0].operation[receiptIndex + 1]), mismatch).toMatchObject({
+			const receipt = JSON.parse(calls[0].operation[receiptIndex + 1]);
+			expect(receipt, mismatch).toEqual({
+				schema: "millstrand.agent-guidance-receipt/v1",
+				"run-id": guidance["run-id"],
+				attempt: guidance.attempt,
+				invocation: guidance.invocation,
+				harness: "pi",
+				"native-session-id": runnerSession.session.sessionManager.getSessionId(),
+				transport: "native-v1",
+				"bundle-sha256": guidance["bundle-sha256"],
+				"capability-sha256": guidance["capability-sha256"],
+				outcome: "failed",
 				stage: "validation",
 				code: "selection-fence-mismatch",
 				diagnostic: expect.stringContaining(
-					`${mismatch === "session" ? "native session" : "cwd"} fence mismatch`,
+					`${mismatch === "session" ? "native session" : mismatch} fence mismatch`,
 				),
 			});
 			runnerSession.dispose();

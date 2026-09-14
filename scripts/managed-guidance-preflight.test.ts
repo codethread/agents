@@ -39,10 +39,7 @@ async function runCommand(command: string, args: string[], cwd = root): Promise<
 	});
 }
 
-async function invoke(
-	request: Record<string, unknown>,
-	preflightEntrypoint = preflight,
-): Promise<any> {
+async function invokeRaw(input: string, preflightEntrypoint = preflight): Promise<any> {
 	return await new Promise((resolvePromise, reject) => {
 		const child = spawn(process.execPath, [preflightEntrypoint], {
 			cwd: root,
@@ -60,8 +57,15 @@ async function invoke(
 			if (code !== 0) reject(new Error(`preflight exited ${code}: ${stderr}`));
 			else resolvePromise(JSON.parse(stdout));
 		});
-		child.stdin.end(JSON.stringify(request));
+		child.stdin.end(input);
 	});
+}
+
+async function invoke(
+	request: Record<string, unknown>,
+	preflightEntrypoint = preflight,
+): Promise<any> {
+	return await invokeRaw(JSON.stringify(request), preflightEntrypoint);
 }
 
 function world(settings?: Record<string, unknown>) {
@@ -178,7 +182,7 @@ describe("managed guidance Pi preflight", () => {
 		expect(result.capability["hook-fact"].extensions).toHaveLength(1);
 	});
 
-	it("rejects missing, duplicate, changed-owner, and competing prompt profiles", async () => {
+	it("rejects missing and extensions outside the canonical reviewed profile", async () => {
 		const missing = world();
 		expect((await invoke(request(missing))).code).toBe("missing-hook");
 
@@ -193,35 +197,57 @@ describe("managed guidance Pi preflight", () => {
 			diagnostic: expect.stringContaining("explicit extension path does not exist"),
 		});
 
-		const duplicate = world({ packages: [`+${root}`] });
-		const secondOwner = join(duplicate.base, "second-owner.ts");
+		const competing = world({ packages: [`+${root}`] });
+		const computedOwner = join(competing.base, "computed-owner.ts");
 		writeFileSync(
-			secondOwner,
-			'// getOwnedSystemPromptOptions buildSystemPrompt\nexport default function x(pi) { pi.on("before_agent_start", () => ({ systemPrompt: "x" })); }\n',
+			computedOwner,
+			"const event = ['before', 'agent', 'start'].join('_');\nexport default function x(pi) { pi.on(event, () => ({ systemPrompt: 'x' })); }\n",
 		);
-		expect((await invoke(request(duplicate, ["--extension", secondOwner]))).code).toBe(
-			"duplicate-injector",
+		expect(await invoke(request(competing, ["--extension", computedOwner]))).toMatchObject({
+			result: "legacy-required",
+			code: "unverifiable-profile",
+			diagnostic: expect.stringContaining("outside the reviewed Agents package profile"),
+		});
+
+		const benign = world({ packages: [`+${root}`] });
+		const unknownBenign = join(benign.base, "unknown-benign.ts");
+		writeFileSync(
+			unknownBenign,
+			"export default function x(pi) { pi.registerCommand('benign', { handler() {} }); }\n",
 		);
+		expect(await invoke(request(benign, ["--extension", unknownBenign]))).toMatchObject({
+			result: "legacy-required",
+			code: "unverifiable-profile",
+			diagnostic: expect.stringContaining("outside the reviewed Agents package profile"),
+		});
 
 		const changed = world();
 		const changedOwner = join(changed.base, "changed-owner.ts");
 		writeFileSync(
 			changedOwner,
-			'// getOwnedSystemPromptOptions buildSystemPrompt\nexport default function x(pi) { pi.on("before_agent_start", () => ({ systemPrompt: "x" })); }\n',
+			"export default function x(pi) { pi.on('before_agent_start', () => ({ systemPrompt: 'x' })); }\n",
 		);
 		expect(
 			(await invoke(request(changed, ["--no-extensions", "--extension", changedOwner]))).code,
-		).toBe("untrusted-hook");
+		).toBe("unverifiable-profile");
 
-		const competing = world({ packages: [`+${root}`] });
-		expect((await invoke(request(competing, ["--append-system-prompt=hostile"]))).code).toBe(
-			"unverifiable-profile",
-		);
+		const promptCompetition = world({ packages: [`+${root}`] });
+		expect(
+			(await invoke(request(promptCompetition, ["--append-system-prompt=hostile"]))).code,
+		).toBe("unverifiable-profile");
 	});
 
-	it("rejects malformed and duplicate-key requests with one bounded response", async () => {
+	it("rejects malformed, inherited, and duplicate-key request fields", async () => {
 		const fixture = world({ packages: [`+${root}`] });
-		const encoded = JSON.stringify(request(fixture)).replace(/}$/, ',"harness":"codex"}');
+		const validRequest = request(fixture);
+		const inherited = await invokeRaw(`{"__proto__":${JSON.stringify(validRequest)}}`);
+		expect(inherited).toMatchObject({
+			result: "legacy-required",
+			code: "unverifiable-profile",
+			diagnostic: expect.stringContaining("request keys do not match the closed v1 schema"),
+		});
+
+		const encoded = JSON.stringify(validRequest).replace(/}$/, ',"harness":"codex"}');
 		const response = await new Promise<string>((resolvePromise, reject) => {
 			const child = spawn(process.execPath, [preflight], {
 				cwd: root,

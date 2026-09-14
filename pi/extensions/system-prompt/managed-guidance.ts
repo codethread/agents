@@ -100,7 +100,10 @@ function object(value: unknown, label: string): Record<string, unknown> {
 function closedKeys(value: Record<string, unknown>, allowed: string[], required = allowed) {
 	const actual = Object.keys(value).sort();
 	const allowedSet = new Set(allowed);
-	if (actual.some((key) => !allowedSet.has(key)) || required.some((key) => !(key in value))) {
+	if (
+		actual.some((key) => !allowedSet.has(key)) ||
+		required.some((key) => !Object.hasOwn(value, key))
+	) {
 		throw new Error(
 			`response keys do not match the closed v1 schema (actual: ${actual.join(", ")}).`,
 		);
@@ -170,7 +173,7 @@ function parseMetadata(raw: string): { transport: "legacy" } | ManagedGuidanceMe
 	};
 }
 
-function parseBootstrap(raw: string, metadata: ManagedGuidanceMetadata): ManagedBootstrap {
+function parseBootstrap(raw: string): ManagedBootstrap {
 	const value = object(parseStrictJson(raw, METADATA_MAX_BYTES), MANAGED_BOOTSTRAP_ENV);
 	closedKeys(value, [
 		"schema",
@@ -206,10 +209,6 @@ function parseBootstrap(raw: string, metadata: ManagedGuidanceMetadata): Managed
 			"expected-native-session-id",
 		),
 	};
-	for (const key of ["run-id", "attempt", "invocation", "harness"] as const) {
-		if (bootstrap[key] !== metadata[key])
-			throw new Error(`managed bootstrap ${key} fence mismatch.`);
-	}
 	return bootstrap;
 }
 
@@ -237,8 +236,17 @@ export function stageManagedPiGuidanceSelection(
 	const rawBootstrap = env[MANAGED_BOOTSTRAP_ENV];
 	if (rawBootstrap === undefined)
 		throw new Error(`${MANAGED_BOOTSTRAP_ENV} is required for native-v1.`);
-	const bootstrap = parseBootstrap(rawBootstrap, metadata);
+	const bootstrap = parseBootstrap(rawBootstrap);
 	const selection: NativeManagedPiSelection = { kind: "native-v1", metadata, bootstrap };
+	for (const key of ["run-id", "attempt", "invocation"] as const) {
+		if (bootstrap[key] !== metadata[key]) {
+			return {
+				kind: "rejected",
+				selection,
+				message: `managed bootstrap ${key} fence mismatch.`,
+			};
+		}
+	}
 	if (bootstrap["expected-native-session-id"] !== nativeSessionId) {
 		return {
 			kind: "rejected",

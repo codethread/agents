@@ -134,6 +134,16 @@ describe("managed Pi guidance selection", () => {
 		).toThrow("duplicate object key");
 	});
 
+	it("rejects required fields supplied only through a __proto__ value", () => {
+		const f = fixture();
+		expect(() =>
+			selectManagedPiGuidance(f.session, cwd, {
+				MILLSTRAND_MANAGED_GUIDANCE: `{"__proto__":${JSON.stringify(f.metadata)}}`,
+				MILLSTRAND_MANAGED_BOOTSTRAP: JSON.stringify(f.bootstrap),
+			}),
+		).toThrow("response keys do not match the closed v1 schema");
+	});
+
 	it("rejects missing, changed, oversized, provider, session, and fence metadata", () => {
 		const f = fixture();
 		const cases: Array<[string, NodeJS.ProcessEnv]> = [
@@ -169,23 +179,39 @@ describe("managed Pi guidance selection", () => {
 		}
 	});
 
-	it("retains validated native metadata when session or cwd fences reject selection", () => {
+	it("retains both validated documents when cross-document or host fences reject selection", () => {
 		const f = fixture();
-		for (const [nativeSessionId, actualCwd, message] of [
-			["other-session", cwd, "native session fence mismatch"],
-			[f.session, "/other-repo", "cwd fence mismatch"],
+		for (const scenario of [
+			{ key: "run-id", value: "other-run", message: "run-id fence mismatch" },
+			{ key: "attempt", value: 2, message: "attempt fence mismatch" },
+			{ key: "invocation", value: "other-invocation", message: "invocation fence mismatch" },
+			{
+				key: "expected-native-session-id",
+				value: "other-session",
+				message: "native session fence mismatch",
+			},
 		] as const) {
-			const staged = stageManagedPiGuidanceSelection(nativeSessionId, actualCwd, f.env);
+			const bootstrap = { ...f.bootstrap, [scenario.key]: scenario.value };
+			const staged = stageManagedPiGuidanceSelection(f.session, cwd, {
+				...f.env,
+				MILLSTRAND_MANAGED_BOOTSTRAP: JSON.stringify(bootstrap),
+			});
 			expect(staged).toMatchObject({
 				kind: "rejected",
 				selection: {
 					kind: "native-v1",
 					metadata: f.metadata,
-					bootstrap: f.bootstrap,
+					bootstrap,
 				},
-				message: expect.stringContaining(message),
+				message: expect.stringContaining(scenario.message),
 			});
 		}
+		const cwdStage = stageManagedPiGuidanceSelection(f.session, "/other-repo", f.env);
+		expect(cwdStage).toMatchObject({
+			kind: "rejected",
+			selection: { metadata: f.metadata, bootstrap: f.bootstrap },
+			message: expect.stringContaining("cwd fence mismatch"),
+		});
 	});
 
 	it("never lets a Pi child consume inherited root guidance", () => {

@@ -18,7 +18,13 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { hashFile, sha256CanonicalJson } from "../lib/managed-guidance.mjs";
+import {
+	canonicalJson,
+	hashFile,
+	parseGuidance,
+	parseStrictJson,
+	sha256CanonicalJson,
+} from "../lib/managed-guidance.mjs";
 
 const runnerPath = fileURLToPath(import.meta.url);
 const conformanceRoot = dirname(runnerPath);
@@ -272,6 +278,42 @@ function fixtureEnvironment(extra = {}) {
 	return env;
 }
 
+function checkStrictJsonRegression() {
+	const parsed = parseStrictJson(
+		'{"__proto__":{"polluted":true},"nested":{"__proto__":{"deep":true}}}',
+		1024,
+	);
+	assert.equal(Object.getPrototypeOf(parsed), null);
+	assert.equal(Object.getPrototypeOf(parsed.__proto__), null);
+	assert.equal(Object.getPrototypeOf(parsed.nested), null);
+	assert.equal(Object.getPrototypeOf(parsed.nested.__proto__), null);
+	assert.equal(Object.hasOwn(parsed, "__proto__"), true);
+	assert.equal(Object.hasOwn(parsed.nested, "__proto__"), true);
+	assert.equal({}.polluted, undefined);
+	assert.equal(
+		canonicalJson(parsed),
+		'{"__proto__":{"polluted":true},"nested":{"__proto__":{"deep":true}}}',
+	);
+	assert.throws(
+		() => parseStrictJson('{"key":1,"\\u006bey":2}', 1024),
+		/duplicate object key "key"/,
+	);
+	const inheritedGuidance = {
+		schema: "millstrand.agent-guidance-bootstrap/v1",
+		transport: "native-v1",
+		"run-id": "inherited-run",
+		attempt: 1,
+		invocation: "inherited-invocation",
+		harness: "codex",
+		"bundle-sha256": "a".repeat(64),
+		"capability-sha256": "b".repeat(64),
+	};
+	assert.throws(
+		() => parseGuidance(`{"__proto__":${JSON.stringify(inheritedGuidance)}}`),
+		/closed v1 schema key mismatch/,
+	);
+}
+
 async function checkHostKillRecovery(payloadText) {
 	const directory = temporaryDirectory("codex-hook-sigkill-recovery-");
 	const stateDirectory = join(directory, "state");
@@ -515,6 +557,71 @@ async function checkManagedGuidanceReplay() {
 		childCalls.map((call) => call.managed_environment_present),
 		[false, false],
 	);
+
+	for (const mismatch of ["run-id", "attempt", "invocation", "session", "cwd"]) {
+		const mismatchRoot = temporaryDirectory(`codex-managed-${mismatch}-fence-`);
+		const mismatchPayload = { ...sourcePayload, cwd: join(mismatchRoot, "host-cwd") };
+		mkdirSync(join(mismatchPayload.cwd, ".millstrand"), { recursive: true });
+		const mismatchedCwd = join(mismatchRoot, "mismatched-cwd");
+		mkdirSync(mismatchedCwd);
+		const mismatchLog = join(mismatchRoot, "guidance-calls.jsonl");
+		const mismatchEnvironment = managedGuidanceEnvironment(
+			mismatchPayload,
+			`managed-${mismatch}-fence`,
+		);
+		const guidance = JSON.parse(mismatchEnvironment.MILLSTRAND_MANAGED_GUIDANCE);
+		const bootstrap = JSON.parse(mismatchEnvironment.MILLSTRAND_MANAGED_BOOTSTRAP);
+		if (mismatch === "run-id") bootstrap["run-id"] = "mismatched-run";
+		else if (mismatch === "attempt") bootstrap.attempt = 2;
+		else if (mismatch === "invocation") bootstrap.invocation = "mismatched-invocation";
+		else if (mismatch === "session") bootstrap["expected-native-session-id"] = "mismatched-session";
+		else bootstrap.cwd = mismatchedCwd;
+		const mismatchResult = await run("bash", [identityHook, "--configured-source"], {
+			input: JSON.stringify(mismatchPayload),
+			env: fixtureEnvironment({
+				...mismatchEnvironment,
+				MILLSTRAND_MANAGED_BOOTSTRAP: JSON.stringify(bootstrap),
+				MILLSTRAND_CODEX_STRAND_BIN: fakeGuidanceStrand,
+				FAKE_GUIDANCE_LOG: mismatchLog,
+				...(mismatch === "invocation" ? { FAKE_GUIDANCE_MODE: "ack-ignored" } : {}),
+				TMPDIR: mismatchRoot,
+			}),
+		});
+		assert.equal(mismatchResult.code, 0, mismatchResult.stderr);
+		const mismatchOutput = parseSingleJsonLine(
+			mismatchResult.stdout,
+			`${mismatch} managed fence failure`,
+		);
+		assert.equal(mismatchOutput.continue, false);
+		assert.equal("hookSpecificOutput" in mismatchOutput, false);
+		const mismatchCalls = parseJsonLines(
+			readFileSync(mismatchLog, "utf8"),
+			`${mismatch} managed fence calls`,
+		);
+		assert.equal(mismatchCalls.length, 1);
+		assert.deepEqual(mismatchCalls[0].operation.slice(0, 3), ["agent", "guidance", "fail"]);
+		assert.equal(mismatchCalls[0].workspace, bootstrap.workspace);
+		assert.equal(mismatchCalls[0].cwd, bootstrap.cwd);
+		assert.deepEqual(mismatchCalls[0].managedNames, []);
+		const receiptIndex = mismatchCalls[0].operation.indexOf("--receipt");
+		assert.notEqual(receiptIndex, -1);
+		const receipt = JSON.parse(mismatchCalls[0].operation[receiptIndex + 1]);
+		assert.deepEqual(receipt, {
+			schema: "millstrand.agent-guidance-receipt/v1",
+			"run-id": guidance["run-id"],
+			attempt: guidance.attempt,
+			invocation: guidance.invocation,
+			harness: "codex",
+			"native-session-id": mismatchPayload.session_id,
+			transport: "native-v1",
+			"bundle-sha256": guidance["bundle-sha256"],
+			"capability-sha256": guidance["capability-sha256"],
+			outcome: "failed",
+			stage: "validation",
+			code: "validation-failed",
+			diagnostic: `managed bootstrap ${mismatch === "session" ? "native session" : mismatch} fence mismatch`,
+		});
+	}
 
 	const failureRoot = temporaryDirectory("codex-managed-failure-host-");
 	const payload = { ...sourcePayload, cwd: join(failureRoot, "host-cwd") };
@@ -1539,6 +1646,7 @@ try {
 	if (process.argv[2] === "--interrupt-probe") {
 		await holdInterruptProbe();
 	} else {
+		checkStrictJsonRegression();
 		await checkPayloadReplay();
 		await checkManagedGuidanceReplay();
 		await checkCliDiscovery();
