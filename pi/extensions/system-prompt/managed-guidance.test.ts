@@ -6,6 +6,7 @@ import {
 	fetchManagedGuidance,
 	renderManagedGuidance,
 	selectManagedPiGuidance,
+	stageManagedPiGuidanceSelection,
 	type BoundedCommand,
 	type ManagedGuidanceBundle,
 } from "./managed-guidance.js";
@@ -165,6 +166,25 @@ describe("managed Pi guidance selection", () => {
 		];
 		for (const [, env] of cases) {
 			expect(() => selectManagedPiGuidance(f.session, cwd, env)).toThrow();
+		}
+	});
+
+	it("retains validated native metadata when session or cwd fences reject selection", () => {
+		const f = fixture();
+		for (const [nativeSessionId, actualCwd, message] of [
+			["other-session", cwd, "native session fence mismatch"],
+			[f.session, "/other-repo", "cwd fence mismatch"],
+		] as const) {
+			const staged = stageManagedPiGuidanceSelection(nativeSessionId, actualCwd, f.env);
+			expect(staged).toMatchObject({
+				kind: "rejected",
+				selection: {
+					kind: "native-v1",
+					metadata: f.metadata,
+					bootstrap: f.bootstrap,
+				},
+				message: expect.stringContaining(message),
+			});
 		}
 	});
 

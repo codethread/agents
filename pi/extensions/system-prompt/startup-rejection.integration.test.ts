@@ -28,7 +28,11 @@ const originalEnvironment = Object.fromEntries(
 const tempDirs: string[] = [];
 let runnerSession: TestSession | undefined;
 
-function managedLaunchExtension(runId: string, invalidatePromptOptions = false) {
+function managedLaunchExtension(
+	runId: string,
+	invalidatePromptOptions = false,
+	fenceMismatch?: "session" | "cwd",
+) {
 	return (pi: any) => {
 		pi.on("session_start", (_event: unknown, ctx: any) => {
 			const attempt = 1;
@@ -62,12 +66,13 @@ function managedLaunchExtension(runId: string, invalidatePromptOptions = false) 
 				harness: "pi",
 				identity,
 				"reservation-id": `${runId}-reservation`,
-				cwd,
+				cwd: fenceMismatch === "cwd" ? join(cwd, "mismatched-cwd") : cwd,
 				workspace,
 				attempt,
 				invocation,
 				scope: "root",
-				"expected-native-session-id": nativeSessionId,
+				"expected-native-session-id":
+					fenceMismatch === "session" ? "mismatched-session" : nativeSessionId,
 			});
 		});
 		if (invalidatePromptOptions) {
@@ -192,6 +197,54 @@ describe("system-prompt startup rejection handling", () => {
 		await runnerSession.session.prompt("must not reach the model");
 
 		expect(stream).not.toHaveBeenCalled();
+	});
+
+	it("records and blocks safely staged session and cwd fence mismatches", async () => {
+		for (const mismatch of ["session", "cwd"] as const) {
+			const root = await mkdtemp(join(tmpdir(), `pi-managed-runner-${mismatch}-fence-`));
+			tempDirs.push(root);
+			const cwd = join(root, "repo");
+			const agentDir = join(root, "agent-home");
+			const logPath = join(root, "calls.jsonl");
+			await mkdir(join(cwd, ".millstrand"), { recursive: true });
+			await mkdir(join(cwd, "mismatched-cwd"), { recursive: true });
+			await mkdir(agentDir, { recursive: true });
+			process.env.PI_CODING_AGENT_DIR = agentDir;
+			process.env.MILLSTRAND_PI_STRAND_BIN = fakeGuidanceStrand;
+			process.env.FAKE_GUIDANCE_LOG = logPath;
+			delete process.env.FAKE_GUIDANCE_MODE;
+
+			runnerSession = await createTestSession({
+				cwd,
+				systemPrompt: "base prompt",
+				extensionFactories: [
+					managedLaunchExtension(`runner-${mismatch}-fence`, false, mismatch),
+					systemPromptExtension,
+				],
+			});
+			const stream = vi.fn();
+			runnerSession.session.agent.streamFn = stream;
+
+			await runnerSession.session.prompt("must not reach the model");
+
+			expect(stream, mismatch).not.toHaveBeenCalled();
+			const calls = (await readFile(logPath, "utf8"))
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line));
+			expect(calls, mismatch).toHaveLength(1);
+			expect(calls[0].operation.slice(0, 3), mismatch).toEqual(["agent", "guidance", "fail"]);
+			const receiptIndex = calls[0].operation.indexOf("--receipt");
+			expect(JSON.parse(calls[0].operation[receiptIndex + 1]), mismatch).toMatchObject({
+				stage: "validation",
+				code: "selection-fence-mismatch",
+				diagnostic: expect.stringContaining(
+					`${mismatch === "session" ? "native session" : "cwd"} fence mismatch`,
+				),
+			});
+			runnerSession.dispose();
+			runnerSession = undefined;
+		}
 	});
 
 	it("blocks the provider after the real runner catches invalid owned prompt options", async () => {

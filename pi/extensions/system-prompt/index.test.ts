@@ -5,7 +5,11 @@ const mocks = vi.hoisted(() => {
 	const loadClaudeLocalContextFiles = vi.fn(async () => []);
 	const renderDynamicPrompt = vi.fn(async () => "<dynamic />");
 	const showDebugMessage = vi.fn(async () => {});
-	const selectManagedPiGuidance = vi.fn(() => ({ kind: "unmanaged" as const }));
+	const selectManagedPiGuidance = vi.fn((..._args: unknown[]) => ({ kind: "unmanaged" as const }));
+	const stageManagedPiGuidanceSelection = vi.fn((...args: unknown[]) => ({
+		kind: "selected" as const,
+		selection: selectManagedPiGuidance(...args),
+	}));
 	const fetchManagedGuidance = vi.fn();
 	const acknowledgeManagedGuidance = vi.fn(async () => {});
 	const failManagedGuidance = vi.fn(async () => {});
@@ -25,6 +29,7 @@ const mocks = vi.hoisted(() => {
 		renderDynamicPrompt,
 		showDebugMessage,
 		selectManagedPiGuidance,
+		stageManagedPiGuidanceSelection,
 		fetchManagedGuidance,
 		acknowledgeManagedGuidance,
 		failManagedGuidance,
@@ -53,6 +58,7 @@ vi.mock("./managed-guidance.js", () => ({
 	ManagedGuidanceAdapterError: class ManagedGuidanceAdapterError extends Error {},
 	DEBUG_MANAGED_GUIDANCE_FLAG: "debug-managed-guidance",
 	selectManagedPiGuidance: mocks.selectManagedPiGuidance,
+	stageManagedPiGuidanceSelection: mocks.stageManagedPiGuidanceSelection,
 	fetchManagedGuidance: mocks.fetchManagedGuidance,
 	acknowledgeManagedGuidance: mocks.acknowledgeManagedGuidance,
 	failManagedGuidance: mocks.failManagedGuidance,

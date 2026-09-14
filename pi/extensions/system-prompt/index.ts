@@ -23,7 +23,7 @@ import {
 	fetchManagedGuidance,
 	formatManagedGuidanceDebug,
 	renderManagedGuidance,
-	selectManagedPiGuidance,
+	stageManagedPiGuidanceSelection,
 	ManagedGuidanceAdapterError,
 	type ManagedGuidanceBundle,
 	type ManagedPiSelection,
@@ -280,7 +280,29 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 
 		const nativeSessionId = ctx.sessionManager.getSessionId();
 		try {
-			managedSelection = selectManagedPiGuidance(nativeSessionId, ctx.cwd);
+			const stagedSelection = stageManagedPiGuidanceSelection(nativeSessionId, ctx.cwd);
+			managedSelection = stagedSelection.selection;
+			if (stagedSelection.kind === "rejected") {
+				managedError = stagedSelection.message;
+				managedTurnBlocked = true;
+				try {
+					await failManagedGuidance(
+						stagedSelection.selection,
+						nativeSessionId,
+						"validation",
+						"selection-fence-mismatch",
+						stagedSelection.message,
+						undefined,
+						process.env,
+						ctx.signal,
+					);
+				} catch (failureError) {
+					const failureMessage =
+						failureError instanceof Error ? failureError.message : String(failureError);
+					managedError = `${stagedSelection.message}; failure receipt was not recorded: ${failureMessage}`;
+				}
+				throw new Error(managedError);
+			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			managedError = message;

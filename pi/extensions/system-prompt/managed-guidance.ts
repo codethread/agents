@@ -73,6 +73,11 @@ export type ManagedPiSelection =
 			bootstrap: ManagedBootstrap;
 	  };
 
+type NativeManagedPiSelection = Extract<ManagedPiSelection, { kind: "native-v1" }>;
+export type StagedManagedPiSelection =
+	| { kind: "selected"; selection: ManagedPiSelection }
+	| { kind: "rejected"; selection: NativeManagedPiSelection; message: string };
+
 export type ManagedGuidanceStage = "preflight" | "startup" | "validation" | "rendering" | "handoff";
 
 export class ManagedGuidanceAdapterError extends Error {
@@ -208,29 +213,57 @@ function parseBootstrap(raw: string, metadata: ManagedGuidanceMetadata): Managed
 	return bootstrap;
 }
 
+export function stageManagedPiGuidanceSelection(
+	nativeSessionId: string,
+	cwd: string,
+	env: NodeJS.ProcessEnv = process.env,
+): StagedManagedPiSelection {
+	if (env.PI_SUBAGENT?.trim() === "1") {
+		return { kind: "selected", selection: { kind: "unmanaged" } };
+	}
+	const rawGuidance = env[MANAGED_GUIDANCE_ENV];
+	if (rawGuidance === undefined) {
+		return {
+			kind: "selected",
+			selection: env.MILLSTRAND_RUN_ID?.trim()
+				? { kind: "legacy", reason: "managed metadata has no guidance document" }
+				: { kind: "unmanaged" },
+		};
+	}
+	const metadata = parseMetadata(rawGuidance);
+	if (metadata.transport === "legacy") {
+		return { kind: "selected", selection: { kind: "legacy", reason: "legacy selected" } };
+	}
+	const rawBootstrap = env[MANAGED_BOOTSTRAP_ENV];
+	if (rawBootstrap === undefined)
+		throw new Error(`${MANAGED_BOOTSTRAP_ENV} is required for native-v1.`);
+	const bootstrap = parseBootstrap(rawBootstrap, metadata);
+	const selection: NativeManagedPiSelection = { kind: "native-v1", metadata, bootstrap };
+	if (bootstrap["expected-native-session-id"] !== nativeSessionId) {
+		return {
+			kind: "rejected",
+			selection,
+			message: "managed bootstrap native session fence mismatch.",
+		};
+	}
+	if (bootstrap.cwd !== resolve(cwd)) {
+		return {
+			kind: "rejected",
+			selection,
+			message: "managed bootstrap cwd fence mismatch.",
+		};
+	}
+	return { kind: "selected", selection };
+}
+
 export function selectManagedPiGuidance(
 	nativeSessionId: string,
 	cwd: string,
 	env: NodeJS.ProcessEnv = process.env,
 ): ManagedPiSelection {
-	if (env.PI_SUBAGENT?.trim() === "1") return { kind: "unmanaged" };
-	const rawGuidance = env[MANAGED_GUIDANCE_ENV];
-	if (rawGuidance === undefined) {
-		return env.MILLSTRAND_RUN_ID?.trim()
-			? { kind: "legacy", reason: "managed metadata has no guidance document" }
-			: { kind: "unmanaged" };
-	}
-	const metadata = parseMetadata(rawGuidance);
-	if (metadata.transport === "legacy") return { kind: "legacy", reason: "legacy selected" };
-	const rawBootstrap = env[MANAGED_BOOTSTRAP_ENV];
-	if (rawBootstrap === undefined)
-		throw new Error(`${MANAGED_BOOTSTRAP_ENV} is required for native-v1.`);
-	const bootstrap = parseBootstrap(rawBootstrap, metadata);
-	if (bootstrap["expected-native-session-id"] !== nativeSessionId) {
-		throw new Error("managed bootstrap native session fence mismatch.");
-	}
-	if (bootstrap.cwd !== resolve(cwd)) throw new Error("managed bootstrap cwd fence mismatch.");
-	return { kind: "native-v1", metadata, bootstrap };
+	const staged = stageManagedPiGuidanceSelection(nativeSessionId, cwd, env);
+	if (staged.kind === "rejected") throw new Error(staged.message);
+	return staged.selection;
 }
 
 function parseBundle(

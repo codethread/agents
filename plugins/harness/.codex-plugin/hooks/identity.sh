@@ -139,7 +139,7 @@ if [[ ${1:-} != --configured-source && ${1:-} != --locked ]]; then
 		(.configured == (.configured | floor)) and
 		(.configured >= 0)
 	' >/dev/null 2>&1 <<<"$source_result"; then
-		warning "Millstrand identity startup received an invalid configured-source result; this session is unbound."
+		managed_runtime_failure "unverifiable-profile" "Millstrand identity startup received an invalid configured-source result."
 		exit 0
 	fi
 	configured_sources=$(jq -er '.configured' <<<"$source_result")

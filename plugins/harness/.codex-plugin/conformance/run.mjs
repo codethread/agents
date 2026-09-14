@@ -441,6 +441,81 @@ async function checkManagedGuidanceReplay() {
 	const sourcePayload = JSON.parse(
 		readFileSync(join(payloadRoot, "session-start-startup.json"), "utf8"),
 	);
+	const sourceProbeRoot = temporaryDirectory("codex-managed-source-probe-");
+	const sourceProbePlugin = join(sourceProbeRoot, "harness");
+	cpSync(pluginRoot, sourceProbePlugin, { recursive: true });
+	writeFileSync(
+		join(sourceProbePlugin, ".codex-plugin/hooks/identity-sources.sh"),
+		"#!/usr/bin/env bash\nprintf '%s\\n' '{\"configured\":\"invalid\"}'\n",
+	);
+	const sourceProbePayload = { ...sourcePayload, cwd: join(sourceProbeRoot, "host-cwd") };
+	mkdirSync(join(sourceProbePayload.cwd, ".millstrand"), { recursive: true });
+	const sourceProbeLog = join(sourceProbeRoot, "guidance-calls.jsonl");
+	const sourceProbeResult = await run(
+		"bash",
+		[join(sourceProbePlugin, ".codex-plugin/hooks/identity.sh")],
+		{
+			input: JSON.stringify(sourceProbePayload),
+			env: fixtureEnvironment({
+				...managedGuidanceEnvironment(sourceProbePayload, "managed-source-probe"),
+				MILLSTRAND_CODEX_STRAND_BIN: fakeGuidanceStrand,
+				FAKE_GUIDANCE_LOG: sourceProbeLog,
+				TMPDIR: sourceProbeRoot,
+			}),
+		},
+	);
+	assert.equal(sourceProbeResult.code, 0, sourceProbeResult.stderr);
+	const sourceProbeOutput = parseSingleJsonLine(
+		sourceProbeResult.stdout,
+		"managed malformed source probe",
+	);
+	assert.equal(sourceProbeOutput.continue, false);
+	assert.equal("hookSpecificOutput" in sourceProbeOutput, false);
+	const sourceProbeCalls = parseJsonLines(
+		readFileSync(sourceProbeLog, "utf8"),
+		"managed malformed source probe calls",
+	);
+	assert.equal(sourceProbeCalls.length, 1);
+	assert.deepEqual(sourceProbeCalls[0].operation.slice(0, 3), ["agent", "guidance", "fail"]);
+	const sourceProbeReceiptIndex = sourceProbeCalls[0].operation.indexOf("--receipt");
+	assert.notEqual(sourceProbeReceiptIndex, -1);
+	const sourceProbeReceipt = JSON.parse(sourceProbeCalls[0].operation[sourceProbeReceiptIndex + 1]);
+	assert.equal(sourceProbeReceipt.outcome, "failed");
+	assert.equal(sourceProbeReceipt.stage, "preflight");
+	assert.equal(sourceProbeReceipt.code, "unverifiable-profile");
+	assert.deepEqual(sourceProbeCalls[0].managedNames, []);
+
+	const childRoot = temporaryDirectory("codex-managed-child-");
+	const childSourcePayload = JSON.parse(
+		readFileSync(join(payloadRoot, "subagent-start.json"), "utf8"),
+	);
+	const childPayload = { ...childSourcePayload, cwd: join(childRoot, "host-cwd") };
+	mkdirSync(join(childPayload.cwd, ".millstrand"), { recursive: true });
+	const childLog = join(childRoot, "identity-calls.jsonl");
+	const childResult = await run("bash", [identityHook, "--configured-source"], {
+		input: JSON.stringify(childPayload),
+		env: fixtureEnvironment({
+			...managedGuidanceEnvironment(childPayload, "managed-root-for-child"),
+			MILLSTRAND_CODEX_STRAND_BIN: fakeStrand,
+			FAKE_STRAND_LOG: childLog,
+			TMPDIR: childRoot,
+		}),
+	});
+	assert.equal(childResult.code, 0, childResult.stderr);
+	const childOutput = parseSingleJsonLine(childResult.stdout, "managed SubagentStart output");
+	assertHookOutput(childOutput, "SubagentStart");
+	assert.match(childOutput.hookSpecificOutput.additionalContext, /fixture-child-identity/);
+	assert.doesNotMatch(
+		childOutput.hookSpecificOutput.additionalContext,
+		/fixture-managed-identity|first frozen contribution|Current Millstrand run/,
+	);
+	const childCalls = parseJsonLines(readFileSync(childLog, "utf8"), "managed child calls");
+	assert.equal(childCalls.length, 2);
+	assert.deepEqual(
+		childCalls.map((call) => call.managed_environment_present),
+		[false, false],
+	);
+
 	const failureRoot = temporaryDirectory("codex-managed-failure-host-");
 	const payload = { ...sourcePayload, cwd: join(failureRoot, "host-cwd") };
 	mkdirSync(join(payload.cwd, ".millstrand"), { recursive: true });
