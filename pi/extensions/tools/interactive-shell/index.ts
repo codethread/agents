@@ -302,7 +302,8 @@ export default function interactiveShell(pi: ExtensionAPI) {
 		description:
 			"Spawn and control interactive shell tmux sessions. Supports creating a shell, sending input, tailing output, listing spawned shells, and killing a shell.",
 		promptGuidelines: [
-			"Favour default `bash` tool, only use interactive_shell for genunine tty requirements (TUIs, REPLs) or when requiring a persisted terminal you can pass by reference to other agents.",
+			"Favour default `bash` tool, especially when you need to await the response",
+			"Only use interactive_shell for genunine tty requirements (TUIs, REPLs) or when requiring a persisted terminal you can pass by reference to other agents.",
 			"Use interactive_shell action=spawn with a short friendly name to create a shell first, then action=send to type commands into it.",
 			"Never call interactive_shell send, tail, or kill in the same tool-call batch as spawn; wait for the spawn result and shell id first.",
 			"When creating multiple shells, spawn them one at a time; each shell is created in its own tmux session.",
