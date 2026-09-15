@@ -37,6 +37,8 @@ function isBootstrapOwnershipKey(name: string): boolean {
 		name === "MILLSTRAND_AGENT_ID" ||
 		name === "MILLSTRAND_RUN_ID" ||
 		name === "MILLSTRAND_RESERVATION_ID" ||
+		name === "MILLSTRAND_MANAGED_BOOTSTRAP" ||
+		name === "MILLSTRAND_MANAGED_GUIDANCE" ||
 		name === "MILLSTRAND_BOOTSTRAP_V1" ||
 		name === "MILLSTRAND_IDENTITY_TRANSPORT" ||
 		name.startsWith("MILLSTRAND_BOOTSTRAP_") ||

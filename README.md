@@ -100,8 +100,61 @@ pnpm install
 pnpm check
 ```
 
-Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm format`. Vitest includes unit, snapshot, and Pi runtime integration tests backed by `@gaodes/pi-test-harness`.
+Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm format`. Run `pnpm test:managed-guidance-preflight` for the focused no-model Codex/Pi capability probe suite and `pnpm test:codex-hooks` for Codex hook conformance. Vitest includes unit, snapshot, and Pi runtime integration tests backed by `@gaodes/pi-test-harness`.
 
 Running Pi from this checkout loads the package through `.pi/settings.json`. The project-local `.pi/extensions/pi-internals/` helper reports Pi runtime, source, settings, and extension paths when debugging the repository itself.
 
 Changing prompt-layer context or switching models/providers can reduce provider prompt-cache reuse. Keep dynamic injected context bounded and stable when cache reuse matters.
+
+## Disabled managed-guidance adapters
+
+This package contains the Agents-owned, disabled `native-v1` adapters for Codex CLI 0.154.0 and `@earendil-works/pi-coding-agent` 0.84.4. Capability inspection is no-model and read-only:
+
+```text
+node scripts/managed-guidance-preflight.mjs
+```
+
+The executable reads one `millstrand.agent-guidance-preflight/v1` request from stdin. Required fields are `schema`, `harness` (`codex` or `pi`), `executable`, `mode` (`headless` or `interactive`), `cwd`, `workspace`, `env`, `extra-argv`, and `resumes`. `executable` must be an existing absolute file; `cwd` and `workspace` must be existing canonical absolute directories without symlinks. `env` must contain only string values, and `extra-argv` must contain only strings. `model`, `effort`, and `native-session-id` are optional, except that `native-session-id` is required when `resumes` is true.
+
+```json
+{
+	"schema": "millstrand.agent-guidance-preflight/v1",
+	"harness": "codex",
+	"executable": "/absolute/path/to/codex",
+	"mode": "headless",
+	"cwd": "/absolute/path/to/project",
+	"workspace": "/absolute/path/to/project/.millstrand",
+	"env": {
+		"HOME": "/absolute/path/to/home",
+		"CODEX_HOME": "/absolute/path/to/home/.codex",
+		"PATH": "/usr/local/bin:/usr/bin:/bin"
+	},
+	"extra-argv": ["--enable", "hooks"],
+	"resumes": false
+}
+```
+
+Every response is one bounded JSON object followed by a newline. A `capable` response's public `capability` object has `schema`, `harness`, `adapter-contract`, `adapter-sha256`, `executable-sha256`, `host-version`, `launch-profile-sha256`, `max-context-bytes`, and `hook-fact`. Codex reports a 3,072-byte managed context limit. Its hook fact records separate `sessionStart` and `subagentStart` entries with the exact command, source, trust, timeout, and configured context limit; `adapter-sha256` binds their shared adapter closure.
+
+Pi reports a 65,536-byte managed context limit. Its hook fact has `host-package`, `host-package-version`, `host-package-sha256`, `extensions` (ordered `entrypoint` and `closure-sha256` facts), `prompt-owner-entrypoint`, and `system-prompt-options-contract`. The effective Pi profile is reconstructed from global and project settings using each scope's own path base, enabled local packages, auto-discovered extension directories, split `-e`/`--extension` arguments, and `-ne`/`--no-extensions`. Pi 0.84.4 treats leading `+`/`-` package-source characters literally and ignores attached `--extension=PATH`, so preflight does not reinterpret either form. An overlapping global/project package declaration with project `autoload:false` is reported as unverifiable until the host's delta semantics are modeled. Every effective entrypoint must belong to this reviewed Agents package, exactly one canonical `system-prompt` owner must remain, and competing Pi system/append prompt files or CLI options are rejected. Symlinks encountered during extension-directory discovery make the profile unverifiable rather than being omitted from evidence. The launch-profile digest also binds mode, cwd, workspace, executable, arguments, resume/session, model, effort, and those hook facts.
+
+| `result`          | Top-level schema                         | Additional fields                                                                                            |
+| ----------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `capable`         | `millstrand.agent-guidance-preflight/v1` | `capability`, whose schema is `millstrand.agent-guidance-capability/v1` and includes the public fields above |
+| `legacy-required` | `millstrand.agent-guidance-preflight/v1` | `code` and a bounded `diagnostic`                                                                            |
+
+`legacy-required` failure codes are:
+
+| Code                   | Meaning                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `unsupported-host`     | The executable or resolved host package is not the pinned Codex 0.154.0 or Pi 0.84.4 profile |
+| `missing-hook`         | The required managed injector or Pi prompt owner is not effective                            |
+| `changed-hook`         | The hook command, manifest, limits, or adapter closure differs from the reviewed profile     |
+| `untrusted-hook`       | Codex does not report the approved trusted plugin registration                               |
+| `duplicate-injector`   | More than one managed injector or Pi prompt owner is effective                               |
+| `unverifiable-profile` | The request, selectors, paths, configuration, or effective Pi extension profile is invalid   |
+| `probe-failed`         | The bounded Codex `hooks/list` probe could not produce usable evidence                       |
+
+For Pi specifically, `unsupported-host` covers a version or resolved `@earendil-works/pi-coding-agent` 0.84.4 package mismatch; `missing-hook` means the owned renderer is absent; `duplicate-injector` means it is effective more than once; and `unverifiable-profile` covers unreviewed/missing extension paths, invalid settings or selectors, competing prompt sources/options, and other profile evidence that cannot be verified. Codex additionally uses `changed-hook`, `untrusted-hook`, and `probe-failed` for its effective hook evidence.
+
+Profile evidence accounts for split and attached Codex feature selectors, rejects Codex profile selectors and unsupported Codex `extra-argv`, and treats Pi `-ne` exactly like `--no-extensions`. A completed Codex `hooks/list` probe is shut down with a bounded, awaited exact-child TERM/KILL sequence. Preflight does not select transport, mutate configuration, create sessions, call Strand startup, or make model requests. Harnesses remains the sole admission owner, and its approved adapter/preflight allowlist is intentionally empty until coordinated acceptance. Consequently these sources do not enable native delivery by installation alone; omitted metadata keeps existing legacy/unmanaged behavior.

@@ -5,6 +5,16 @@ const mocks = vi.hoisted(() => {
 	const loadClaudeLocalContextFiles = vi.fn(async () => []);
 	const renderDynamicPrompt = vi.fn(async () => "<dynamic />");
 	const showDebugMessage = vi.fn(async () => {});
+	const selectManagedPiGuidance = vi.fn((..._args: unknown[]) => ({ kind: "unmanaged" as const }));
+	const stageManagedPiGuidanceSelection = vi.fn((...args: unknown[]) => ({
+		kind: "selected" as const,
+		selection: selectManagedPiGuidance(...args),
+	}));
+	const fetchManagedGuidance = vi.fn();
+	const acknowledgeManagedGuidance = vi.fn(async () => {});
+	const failManagedGuidance = vi.fn(async () => {});
+	const renderManagedGuidance = vi.fn(() => "<managed />");
+	const formatManagedGuidanceDebug = vi.fn(() => '{"selection":"native-v1"}');
 	const isLegacyManagedPiEnvironment = vi.fn(() => false);
 	const resolveNativeIdentity = vi.fn(async (_exec, options) => ({
 		identity: "warm-silver-lemur",
@@ -19,6 +29,13 @@ const mocks = vi.hoisted(() => {
 		loadClaudeLocalContextFiles,
 		renderDynamicPrompt,
 		showDebugMessage,
+		selectManagedPiGuidance,
+		stageManagedPiGuidanceSelection,
+		fetchManagedGuidance,
+		acknowledgeManagedGuidance,
+		failManagedGuidance,
+		renderManagedGuidance,
+		formatManagedGuidanceDebug,
 		isLegacyManagedPiEnvironment,
 		resolveNativeIdentity,
 	};
@@ -37,6 +54,18 @@ vi.mock("./native-identity.js", () => ({
 	isLegacyManagedPiEnvironment: mocks.isLegacyManagedPiEnvironment,
 	nativeIdentityModel: vi.fn((ctx) => ctx.model?.id),
 	resolveNativeIdentity: mocks.resolveNativeIdentity,
+}));
+
+vi.mock("./managed-guidance.js", () => ({
+	ManagedGuidanceAdapterError: class ManagedGuidanceAdapterError extends Error {},
+	DEBUG_MANAGED_GUIDANCE_FLAG: "debug-managed-guidance",
+	selectManagedPiGuidance: mocks.selectManagedPiGuidance,
+	stageManagedPiGuidanceSelection: mocks.stageManagedPiGuidanceSelection,
+	fetchManagedGuidance: mocks.fetchManagedGuidance,
+	acknowledgeManagedGuidance: mocks.acknowledgeManagedGuidance,
+	failManagedGuidance: mocks.failManagedGuidance,
+	formatManagedGuidanceDebug: mocks.formatManagedGuidanceDebug,
+	renderManagedGuidance: mocks.renderManagedGuidance,
 }));
 
 vi.mock("./prompt-builder.js", () => ({
@@ -58,6 +87,12 @@ beforeEach(() => {
 	mocks.buildPrompt.mockReturnValue("<owned prompt />");
 	mocks.loadClaudeLocalContextFiles.mockResolvedValue([]);
 	mocks.renderDynamicPrompt.mockResolvedValue("<dynamic />");
+	mocks.selectManagedPiGuidance.mockReturnValue({ kind: "unmanaged" });
+	mocks.fetchManagedGuidance.mockReset();
+	mocks.acknowledgeManagedGuidance.mockResolvedValue(undefined);
+	mocks.failManagedGuidance.mockResolvedValue(undefined);
+	mocks.renderManagedGuidance.mockReturnValue("<managed />");
+	mocks.formatManagedGuidanceDebug.mockReturnValue('{"selection":"native-v1"}');
 	mocks.isLegacyManagedPiEnvironment.mockReturnValue(false);
 	mocks.resolveNativeIdentity.mockImplementation(async (_exec, options) => ({
 		identity: "warm-silver-lemur",
@@ -90,7 +125,7 @@ describe("system-prompt extension", () => {
 			exec,
 		} as any);
 
-		expect(registerFlag).toHaveBeenCalledTimes(5);
+		expect(registerFlag).toHaveBeenCalledTimes(6);
 		expect(registerFlag).toHaveBeenCalledWith(
 			"debug-prompt",
 			expect.objectContaining({ type: "boolean", default: false }),
@@ -113,7 +148,8 @@ describe("system-prompt extension", () => {
 		expect(counts.get("session_start")).toBe(1);
 		expect(counts.get("before_agent_start")).toBe(1);
 		expect(counts.get("agent_start")).toBe(1);
-		expect(counts.has("input")).toBe(false);
+		expect(counts.get("input")).toBe(1);
+		expect(counts.get("before_provider_request")).toBe(1);
 	});
 
 	it("arms --debug-prompt without sending a synthetic ping", async () => {
@@ -228,6 +264,169 @@ describe("system-prompt extension", () => {
 		expect(result).toEqual({
 			systemPrompt: "<owned prompt />",
 		});
+	});
+
+	it("refetches and acknowledges managed guidance across startup, resume, and reload", async () => {
+		const selection = {
+			kind: "native-v1" as const,
+			metadata: { "run-id": "run-1" },
+			bootstrap: {},
+		};
+		const bundle = {
+			identity: "coral-lucid-bison",
+			workspace: "/world/.millstrand",
+			context: { "identity-instruction": "canonical identity" },
+		};
+		mocks.selectManagedPiGuidance.mockReturnValue(selection as any);
+		mocks.fetchManagedGuidance.mockResolvedValue(bundle);
+		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
+		const emit = vi.fn();
+		systemPromptExtension({
+			events: { emit, on: vi.fn() },
+			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
+				handlers.set(eventName, handler);
+			},
+			registerFlag: vi.fn(),
+			registerCommand: vi.fn(),
+			registerTool: vi.fn(),
+			getFlag: vi.fn(() => false),
+			getActiveTools: vi.fn(() => []),
+			sendUserMessage: vi.fn(),
+			exec: vi.fn(),
+		} as any);
+		const ctx = {
+			cwd: "/repo",
+			hasUI: false,
+			model: null,
+			sessionManager: { getSessionId: () => "session-1" },
+		};
+
+		const event = {
+			systemPrompt: "base",
+			systemPromptOptions: {
+				cwd: "/repo",
+				selectedTools: [],
+				toolSnippets: {},
+				promptGuidelines: [],
+			},
+		};
+		const results = [];
+		for (const reason of ["startup", "resume", "reload"]) {
+			await handlers.get("session_start")?.({ reason }, ctx);
+			results.push(await handlers.get("before_agent_start")?.(event, ctx));
+		}
+
+		expect(mocks.resolveNativeIdentity).not.toHaveBeenCalled();
+		expect(mocks.fetchManagedGuidance).toHaveBeenCalledTimes(3);
+		expect(mocks.renderManagedGuidance).toHaveBeenCalledTimes(3);
+		expect(mocks.renderManagedGuidance).toHaveBeenCalledWith(bundle);
+		expect(mocks.buildPrompt).toHaveBeenCalledTimes(3);
+		expect(mocks.buildPrompt).toHaveBeenCalledWith(
+			expect.objectContaining({
+				managedGuidance: "<managed />",
+				millstrandIdentityInstruction: undefined,
+			}),
+		);
+		expect(mocks.acknowledgeManagedGuidance).toHaveBeenCalledTimes(3);
+		for (const call of mocks.acknowledgeManagedGuidance.mock.calls) {
+			expect(call).toEqual([selection, "session-1", undefined, process.env, undefined]);
+		}
+		expect(results).toEqual([
+			{ systemPrompt: "<owned prompt />" },
+			{ systemPrompt: "<owned prompt />" },
+			{ systemPrompt: "<owned prompt />" },
+		]);
+		expect(emit).toHaveBeenCalledWith(
+			"codethread:millstrand-identity-context:v1",
+			expect.objectContaining({ identity: "coral-lucid-bison", nativeSessionId: "session-1" }),
+		);
+	});
+
+	it("debugs managed guidance after fetch, render, and acknowledgement, then exits", async () => {
+		const selection = {
+			kind: "native-v1" as const,
+			metadata: { "run-id": "run-debug" },
+			bootstrap: {},
+		};
+		const bundle = {
+			identity: "coral-lucid-bison",
+			workspace: "/world/.millstrand",
+			context: { "identity-instruction": "canonical identity" },
+		};
+		mocks.selectManagedPiGuidance.mockReturnValue(selection as any);
+		mocks.fetchManagedGuidance.mockResolvedValue(bundle);
+		mocks.buildPrompt.mockReturnValue("<effective managed prompt />");
+		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
+		systemPromptExtension({
+			events: { emit: vi.fn(), on: vi.fn() },
+			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
+				handlers.set(eventName, handler);
+			},
+			registerFlag: vi.fn(),
+			registerCommand: vi.fn(),
+			registerTool: vi.fn(),
+			getFlag: vi.fn((name: string) => name === "debug-managed-guidance"),
+			getActiveTools: vi.fn(() => []),
+			sendUserMessage: vi.fn(),
+			exec: vi.fn(),
+		} as any);
+		const ctx = {
+			cwd: "/repo",
+			hasUI: false,
+			model: null,
+			sessionManager: { getSessionId: () => "session-debug" },
+		};
+		const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+		const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+
+		try {
+			await handlers.get("session_start")?.({ reason: "startup" }, ctx);
+			await handlers.get("before_agent_start")?.(
+				{
+					systemPrompt: "base",
+					systemPromptOptions: {
+						cwd: "/repo",
+						selectedTools: [],
+						toolSnippets: {},
+						promptGuidelines: [],
+					},
+				},
+				ctx,
+			);
+
+			expect(mocks.fetchManagedGuidance).toHaveBeenCalledWith(
+				selection,
+				"session-debug",
+				undefined,
+				process.env,
+				undefined,
+			);
+			expect(mocks.renderManagedGuidance).toHaveBeenCalledWith(bundle);
+			expect(mocks.acknowledgeManagedGuidance).toHaveBeenCalledWith(
+				selection,
+				"session-debug",
+				undefined,
+				process.env,
+				undefined,
+			);
+			expect(mocks.fetchManagedGuidance.mock.invocationCallOrder[0]).toBeLessThan(
+				mocks.renderManagedGuidance.mock.invocationCallOrder[0],
+			);
+			expect(mocks.renderManagedGuidance.mock.invocationCallOrder[0]).toBeLessThan(
+				mocks.acknowledgeManagedGuidance.mock.invocationCallOrder[0],
+			);
+			expect(stdout.mock.calls.map(([text]) => text)).toEqual([
+				'{"selection":"native-v1"}\n',
+				"<effective managed prompt />\n",
+			]);
+			expect(exit).toHaveBeenCalledWith(0);
+			expect(mocks.acknowledgeManagedGuidance.mock.invocationCallOrder[0]).toBeLessThan(
+				exit.mock.invocationCallOrder[0],
+			);
+		} finally {
+			stdout.mockRestore();
+			exit.mockRestore();
+		}
 	});
 
 	it("renders templates once per session start and again after reload", async () => {
@@ -364,7 +563,10 @@ describe("system-prompt extension", () => {
 	});
 
 	it("keeps legacy managed prompt transport authoritative", async () => {
-		mocks.isLegacyManagedPiEnvironment.mockReturnValue(true);
+		mocks.selectManagedPiGuidance.mockReturnValue({
+			kind: "legacy",
+			reason: "managed metadata has no guidance document",
+		} as any);
 		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
 		systemPromptExtension({
 			events: { emit: vi.fn(), on: vi.fn() },

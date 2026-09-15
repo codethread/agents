@@ -20,12 +20,18 @@ warning() {
 	jq -cn --arg message "$message" '{continue: true, systemMessage: $message}'
 }
 
+managed_failure() {
+	local message=$1
+	jq -cn --arg message "$message" '{continue: false, stopReason: $message, systemMessage: $message}'
+}
+
 script_dir=$(cd -P "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd) || {
 	warning "Millstrand identity startup cannot resolve its packaged hook path; this session is unbound."
 	exit 0
 }
 script_path="$script_dir/identity.sh"
 source_probe="$script_dir/identity-sources.sh"
+managed_guidance_helper="$script_dir/../lib/managed-guidance.mjs"
 if [[ ! -x "$source_probe" ]]; then
 	warning "Millstrand identity startup cannot inspect configured injector sources; this session is unbound."
 	exit 0
@@ -36,6 +42,7 @@ payload=$(cat) || {
 	exit 0
 }
 
+managed_guidance_mode=unmanaged
 event_name=$(jq -er '.hook_event_name' <<<"$payload" 2>/dev/null) || {
 	warning "Millstrand identity startup received an invalid Codex hook payload; this session is unbound."
 	exit 0
@@ -55,9 +62,27 @@ case "$event_name" in
 			exit 0
 		fi
 
-		# Existing managed launchers already carry identity and prompt guidance.
-		# Native-v1 managed attachment is a later, explicitly versioned contract.
-		if [[ ${MILLSTRAND_AGENT_ID+x} == x || ${MILLSTRAND_RUN_ID+x} == x ]]; then
+		if [[ ${MILLSTRAND_MANAGED_GUIDANCE+x} == x ]]; then
+			if ! command -v node >/dev/null 2>&1 || [[ ! -f "$managed_guidance_helper" ]]; then
+				managed_failure "Millstrand managed guidance adapter is missing; the selected native-v1 launch was stopped."
+				exit 0
+			fi
+			managed_guidance_mode=$(node "$managed_guidance_helper" classify 2>&1)
+			managed_guidance_status=$?
+			if ((managed_guidance_status != 0)); then
+				managed_diagnostic=$(LC_ALL=C printf '%s' "$managed_guidance_mode" | head -c 300 | tr '\n\r\t' '   ')
+				managed_failure "Millstrand managed guidance metadata is invalid: $managed_diagnostic"
+				exit 0
+			fi
+			if [[ "$managed_guidance_mode" == legacy ]]; then
+				exit 0
+			fi
+			if [[ "$managed_guidance_mode" != native-v1 ]]; then
+				managed_failure "Millstrand managed guidance selected an unsupported transport."
+				exit 0
+			fi
+		elif [[ ${MILLSTRAND_AGENT_ID+x} == x || ${MILLSTRAND_RUN_ID+x} == x ]]; then
+			# Old spool/new adapter: keep the existing managed prompt transport authoritative.
 			exit 0
 		fi
 		;;
@@ -89,12 +114,22 @@ model=$(jq -er '.model' <<<"$payload")
 source=$(jq -er '.source // "child"' <<<"$payload")
 agent_id=$(jq -er '.agent_id // "root"' <<<"$payload")
 
+managed_runtime_failure() {
+	local code=$1
+	local diagnostic=$2
+	if [[ "$event_name" == SessionStart && "$managed_guidance_mode" == native-v1 ]]; then
+		node "$managed_guidance_helper" fail "$session_id" "$cwd" "$code" "$diagnostic"
+	else
+		warning "$diagnostic This session is unbound."
+	fi
+}
+
 if [[ ${1:-} != --configured-source && ${1:-} != --locked ]]; then
 	source_result=$(bash "$source_probe" "$event_name" "$cwd" 2>&1)
 	source_status=$?
 	if ((source_status != 0)); then
 		source_diagnostic=$(LC_ALL=C printf '%s' "$source_result" | head -c 160 | tr '\n\r\t' '   ')
-		warning "Millstrand identity startup could not inspect Codex hook configuration: $source_diagnostic. This session is unbound."
+		managed_runtime_failure "unverifiable-profile" "Millstrand could not inspect Codex hook configuration: $source_diagnostic."
 		exit 0
 	fi
 	if ! jq -e '
@@ -104,12 +139,12 @@ if [[ ${1:-} != --configured-source && ${1:-} != --locked ]]; then
 		(.configured == (.configured | floor)) and
 		(.configured >= 0)
 	' >/dev/null 2>&1 <<<"$source_result"; then
-		warning "Millstrand identity startup received an invalid configured-source result; this session is unbound."
+		managed_runtime_failure "unverifiable-profile" "Millstrand identity startup received an invalid configured-source result."
 		exit 0
 	fi
 	configured_sources=$(jq -er '.configured' <<<"$source_result")
 	if ((configured_sources != 1)); then
-		warning "Duplicate Millstrand identity injector configuration detected ($configured_sources configured sources); identity was not bound or injected."
+		managed_runtime_failure "duplicate-injector" "Duplicate Millstrand identity injector configuration detected ($configured_sources configured sources); context was not injected."
 		exit 0
 	fi
 	printf '%s' "$payload" | bash "$script_path" --configured-source
@@ -130,7 +165,7 @@ lock_key=$(jq -nr \
 	'[$event, $session, $source, $agent] | @base64 | gsub("="; "") | gsub("\\+"; "-") | gsub("/"; "_")')
 lock_file="$lock_root/$lock_key.lock"
 if ! mkdir -p "$lock_root" 2>/dev/null; then
-	warning "Millstrand identity startup could not establish duplicate-injector protection; this session is unbound."
+	managed_runtime_failure "probe-failed" "Millstrand identity startup could not establish duplicate-injector protection."
 	exit 0
 fi
 
@@ -143,17 +178,22 @@ if [[ ${1:-} != --locked ]]; then
 		printf '%s' "$payload" | flock -n "$lock_file" \
 			bash "$script_path" --locked || lock_status=$?
 	else
-		warning "Millstrand identity startup requires lockf or flock for crash-safe duplicate protection; this session is unbound."
+		managed_runtime_failure "probe-failed" "Millstrand identity startup requires lockf or flock for crash-safe duplicate protection."
 		exit 0
 	fi
 	if ((lock_status == 0)); then
 		exit 0
 	fi
 	if ((lock_status == 75 || lock_status == 1)); then
-		warning "Duplicate Millstrand identity injector detected for this Codex event; duplicate context was not injected."
+		managed_runtime_failure "duplicate-injector" "Duplicate Millstrand identity injector detected for this Codex event; duplicate context was not injected."
 	else
-		warning "Millstrand identity lock execution failed (exit $lock_status); this session is unbound."
+		managed_runtime_failure "probe-failed" "Millstrand identity lock execution failed (exit $lock_status)."
 	fi
+	exit 0
+fi
+
+if [[ "$event_name" == SessionStart && "$managed_guidance_mode" == native-v1 ]]; then
+	node "$managed_guidance_helper" handoff "$session_id" "$cwd" "$event_name"
 	exit 0
 fi
 
@@ -193,15 +233,26 @@ call_strand() {
 	shift
 	local stdout_file="$work_dir/$label.stdout"
 	local stderr_file="$work_dir/$label.stderr"
-	local -a command=(
-		env
-		-u MILLSTRAND_AGENT_ID
-		-u MILLSTRAND_RUN_ID
-		-u MILLSTRAND_RESERVATION_ID
-		-u MILLSTRAND_BOOTSTRAP_V1
-		-u MILLSTRAND_WORKSPACE
-		"$strand_bin"
+	local -a scrubbed_names=(
+		MILLSTRAND_AGENT_ID
+		MILLSTRAND_RUN_ID
+		MILLSTRAND_MANAGED_BOOTSTRAP
+		MILLSTRAND_MANAGED_GUIDANCE
+		MILLSTRAND_WORKSPACE
 	)
+	local inherited_name
+	while IFS= read -r inherited_name; do
+		if [[ "$inherited_name" == MILLSTRAND_BOOTSTRAP_* ||
+			"$inherited_name" == *_RESERVATION_ID ||
+			"$inherited_name" == *_IDENTITY_TRANSPORT ]]; then
+			scrubbed_names+=("$inherited_name")
+		fi
+	done < <(compgen -e)
+	local -a command=(env)
+	for inherited_name in "${scrubbed_names[@]}"; do
+		command+=(-u "$inherited_name")
+	done
+	command+=("$strand_bin")
 	if [[ -n "$workspace" ]]; then
 		command+=(--workspace "$workspace")
 	fi

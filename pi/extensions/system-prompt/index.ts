@@ -10,13 +10,24 @@ import {
 	DEBUG_MILLSTRAND_IDENTITY_FLAG,
 	formatNativeIdentityState,
 	getNativeIdentityInputs,
-	isLegacyManagedPiEnvironment,
 	MILLSTRAND_IDENTITY_FLAG,
 	MILLSTRAND_WORKSPACE_FLAG,
 	nativeIdentityModel,
 	resolveNativeIdentity,
 	type NativeIdentityState,
 } from "./native-identity.js";
+import {
+	acknowledgeManagedGuidance,
+	DEBUG_MANAGED_GUIDANCE_FLAG,
+	failManagedGuidance,
+	fetchManagedGuidance,
+	formatManagedGuidanceDebug,
+	renderManagedGuidance,
+	stageManagedPiGuidanceSelection,
+	ManagedGuidanceAdapterError,
+	type ManagedGuidanceBundle,
+	type ManagedPiSelection,
+} from "./managed-guidance.js";
 import {
 	DEFAULT_PERSONA,
 	buildSystemPrompt,
@@ -117,6 +128,10 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 	let dynamicPrompt: string | null = null;
 	let lastMaterializedPrompt: string | null = null;
 	let nativeIdentityState: NativeIdentityState = { status: "pending" };
+	let managedSelection: ManagedPiSelection = { kind: "unmanaged" };
+	let managedBundle: ManagedGuidanceBundle | null = null;
+	let managedError: string | undefined;
+	let managedTurnBlocked = false;
 	const toolPromptMetadata = new Map<string, ToolPromptMetadata>();
 	const registerTool = pi.registerTool.bind(pi);
 	pi.registerTool = ((definition: ToolDefinition) => {
@@ -148,6 +163,11 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 	});
 	pi.registerFlag(DEBUG_MILLSTRAND_IDENTITY_FLAG, {
 		description: "Resolve and print native Pi Millstrand identity state, then exit",
+		type: "boolean",
+		default: false,
+	});
+	pi.registerFlag(DEBUG_MANAGED_GUIDANCE_FLAG, {
+		description: "Validate and print managed native-v1 guidance handoff, then exit",
 		type: "boolean",
 		default: false,
 	});
@@ -199,6 +219,17 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		},
 	});
 
+	pi.on("input", () => {
+		if (!managedTurnBlocked) return;
+		return { action: "handled" };
+	});
+
+	pi.on("before_provider_request", (event, ctx) => {
+		if (!managedTurnBlocked) return;
+		ctx.abort();
+		return event.payload;
+	});
+
 	pi.on("session_shutdown", () => {
 		pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, null);
 	});
@@ -208,6 +239,10 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		dynamicPrompt = null;
 		lastMaterializedPrompt = null;
 		nativeIdentityState = { status: "pending" };
+		managedSelection = { kind: "unmanaged" };
+		managedBundle = null;
+		managedError = undefined;
+		managedTurnBlocked = false;
 		pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, null);
 
 		const wantsToolsDebug = pi.getFlag(DEBUG_TOOLS_FLAG) === true;
@@ -244,6 +279,40 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		}
 
 		const nativeSessionId = ctx.sessionManager.getSessionId();
+		try {
+			const stagedSelection = stageManagedPiGuidanceSelection(nativeSessionId, ctx.cwd);
+			managedSelection = stagedSelection.selection;
+			if (stagedSelection.kind === "rejected") {
+				managedError = stagedSelection.message;
+				managedTurnBlocked = true;
+				if (stagedSelection.receiptRouteTrusted) {
+					try {
+						await failManagedGuidance(
+							stagedSelection.selection,
+							nativeSessionId,
+							"validation",
+							"selection-fence-mismatch",
+							stagedSelection.message,
+							undefined,
+							process.env,
+							ctx.signal,
+						);
+					} catch (failureError) {
+						const failureMessage =
+							failureError instanceof Error ? failureError.message : String(failureError);
+						managedError = `${stagedSelection.message}; failure receipt was not recorded: ${failureMessage}`;
+					}
+				}
+				throw new Error(managedError);
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			managedError = message;
+			managedTurnBlocked = true;
+			notify(ctx, `[millstrand-guidance] ${message}`, "error");
+			process.stderr.write(`[millstrand-guidance] ${message}\n`);
+			throw error;
+		}
 		const dynamicPromptPromise = renderDynamicPrompt(
 			{
 				cwd: ctx.cwd,
@@ -257,7 +326,54 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			(reason: unknown) => ({ status: "rejected" as const, reason }),
 		);
 
-		if (isLegacyManagedPiEnvironment()) {
+		if (managedSelection.kind === "native-v1") {
+			nativeIdentityState = {
+				status: "suppressed",
+				reason: "managed native-v1 owns identity and frozen guidance",
+				nativeSessionId,
+			};
+			try {
+				managedBundle = await fetchManagedGuidance(
+					managedSelection,
+					nativeSessionId,
+					undefined,
+					process.env,
+					ctx.signal,
+				);
+				pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, {
+					identity: managedBundle.identity,
+					instruction: managedBundle.context["identity-instruction"],
+					nativeSessionId,
+					workspace: managedBundle.workspace,
+				});
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				const stage = error instanceof ManagedGuidanceAdapterError ? error.stage : "startup";
+				managedError = message;
+				managedTurnBlocked = true;
+				if (!(error instanceof ManagedGuidanceAdapterError) || error.receiptRouteTrusted) {
+					try {
+						await failManagedGuidance(
+							managedSelection,
+							nativeSessionId,
+							stage,
+							`${stage}-failed`,
+							message,
+							undefined,
+							process.env,
+							ctx.signal,
+						);
+					} catch (failureError) {
+						const failureMessage =
+							failureError instanceof Error ? failureError.message : String(failureError);
+						managedError = `${message}; failure receipt was not recorded: ${failureMessage}`;
+					}
+				}
+				notify(ctx, `[millstrand-guidance] ${managedError}`, "error");
+				process.stderr.write(`[millstrand-guidance] ${managedError}\n`);
+				throw new Error(managedError);
+			}
+		} else if (managedSelection.kind === "legacy") {
 			nativeIdentityState = {
 				status: "suppressed",
 				reason: "legacy managed run uses its existing prompt transport",
@@ -286,7 +402,34 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		}
 
 		const dynamicPromptResult = await dynamicPromptPromise;
-		if (dynamicPromptResult.status === "rejected") throw dynamicPromptResult.reason;
+		if (dynamicPromptResult.status === "rejected") {
+			if (managedSelection.kind === "native-v1") {
+				const message =
+					dynamicPromptResult.reason instanceof Error
+						? dynamicPromptResult.reason.message
+						: String(dynamicPromptResult.reason);
+				managedError = message;
+				managedTurnBlocked = true;
+				try {
+					await failManagedGuidance(
+						managedSelection,
+						nativeSessionId,
+						"rendering",
+						"dynamic-prompt-failed",
+						message,
+						undefined,
+						process.env,
+						ctx.signal,
+					);
+				} catch (failureError) {
+					const failureMessage =
+						failureError instanceof Error ? failureError.message : String(failureError);
+					managedError = `${message}; failure receipt was not recorded: ${failureMessage}`;
+				}
+				throw new Error(managedError);
+			}
+			throw dynamicPromptResult.reason;
+		}
 		dynamicPrompt = dynamicPromptResult.value;
 		if (wantsIdentityDebug) {
 			process.stdout.write(`${formatNativeIdentityState(nativeIdentityState, ctx.cwd)}\n`);
@@ -298,18 +441,92 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (event: BeforeAgentStartEvent, ctx) => {
-		const options = getOwnedSystemPromptOptions(event);
-		const [projectRules, claudeLocalContextFiles] = await Promise.all([
-			discoverProjectRules(options.cwd, pi.exec, ctx.signal),
-			loadClaudeLocalContextFiles(options.cwd),
-		]);
+		const nativeSelection = managedSelection.kind === "native-v1" ? managedSelection : null;
+		const nativeSessionId = nativeSelection ? ctx.sessionManager.getSessionId() : "";
+		let options: OwnedSystemPromptOptions;
+		try {
+			options = getOwnedSystemPromptOptions(event);
+		} catch (error) {
+			if (nativeSelection) {
+				const message = error instanceof Error ? error.message : String(error);
+				managedError = message;
+				managedTurnBlocked = true;
+				try {
+					await failManagedGuidance(
+						nativeSelection,
+						nativeSessionId,
+						"validation",
+						"system-prompt-options-invalid",
+						message,
+						undefined,
+						process.env,
+						ctx.signal,
+					);
+				} catch (failureError) {
+					const failureMessage =
+						failureError instanceof Error ? failureError.message : String(failureError);
+					managedError = `${message}; failure receipt was not recorded: ${failureMessage}`;
+				}
+				throw new Error(managedError);
+			}
+			throw error;
+		}
+		if (nativeSelection && (options.customPrompt?.trim() || options.appendSystemPrompt?.trim())) {
+			const message = "native-v1 received a competing Pi system-prompt option";
+			managedError = message;
+			managedTurnBlocked = true;
+			await failManagedGuidance(
+				nativeSelection,
+				nativeSessionId,
+				"validation",
+				"competing-prompt-option",
+				message,
+				undefined,
+				process.env,
+				ctx.signal,
+			);
+			throw new Error(message);
+		}
+		let projectRules: Awaited<ReturnType<typeof discoverProjectRules>>;
+		let claudeLocalContextFiles: Awaited<ReturnType<typeof loadClaudeLocalContextFiles>>;
+		try {
+			[projectRules, claudeLocalContextFiles] = await Promise.all([
+				discoverProjectRules(options.cwd, pi.exec, ctx.signal),
+				loadClaudeLocalContextFiles(options.cwd),
+			]);
+		} catch (error) {
+			if (nativeSelection) {
+				const message = error instanceof Error ? error.message : String(error);
+				managedError = message;
+				managedTurnBlocked = true;
+				await failManagedGuidance(
+					nativeSelection,
+					nativeSessionId,
+					"rendering",
+					"local-context-failed",
+					message,
+					undefined,
+					process.env,
+					ctx.signal,
+				);
+			}
+			throw error;
+		}
 		for (const warning of projectRules.warnings) {
 			notify(ctx, `[project-rules] ${warning}`, "warning");
 		}
 
-		return {
-			systemPrompt: buildSystemPrompt({
+		let systemPrompt: string;
+		try {
+			let managedGuidance: string | undefined;
+			if (nativeSelection) {
+				if (!managedBundle)
+					throw new Error("native-v1 guidance was not fetched for this lifecycle.");
+				managedGuidance = renderManagedGuidance(managedBundle);
+			}
+			systemPrompt = buildSystemPrompt({
 				persona: options.customPrompt?.trim() || DEFAULT_PERSONA,
+				managedGuidance,
 				millstrandIdentityInstruction:
 					nativeIdentityState.status === "bound" ? nativeIdentityState.instruction : undefined,
 				cwd: options.cwd,
@@ -327,8 +544,63 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 				appendSystemPrompt: options.appendSystemPrompt,
 				dynamicPrompt,
 				projectRules: getUnconditionalRules(projectRules.rules),
-			}),
-		};
+			});
+		} catch (error) {
+			if (nativeSelection) {
+				const message = error instanceof Error ? error.message : String(error);
+				managedError = message;
+				managedTurnBlocked = true;
+				await failManagedGuidance(
+					nativeSelection,
+					nativeSessionId,
+					"rendering",
+					"rendering-failed",
+					message,
+					undefined,
+					process.env,
+					ctx.signal,
+				);
+			}
+			throw error;
+		}
+		if (nativeSelection) {
+			try {
+				await acknowledgeManagedGuidance(
+					nativeSelection,
+					nativeSessionId,
+					undefined,
+					process.env,
+					ctx.signal,
+				);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				managedError = message;
+				managedTurnBlocked = true;
+				try {
+					await failManagedGuidance(
+						nativeSelection,
+						nativeSessionId,
+						"handoff",
+						"acknowledgement-failed",
+						message,
+						undefined,
+						process.env,
+						ctx.signal,
+					);
+				} catch (failureError) {
+					const failureMessage =
+						failureError instanceof Error ? failureError.message : String(failureError);
+					managedError = `${message}; failure receipt was not recorded: ${failureMessage}`;
+				}
+				throw new Error(managedError);
+			}
+			if (pi.getFlag(DEBUG_MANAGED_GUIDANCE_FLAG) === true) {
+				process.stdout.write(`${formatManagedGuidanceDebug(managedSelection, managedBundle)}\n`);
+				process.stdout.write(`${systemPrompt}\n`);
+				process.exit(0);
+			}
+		}
+		return { systemPrompt };
 	});
 
 	pi.on("agent_start", (_event, ctx) => {

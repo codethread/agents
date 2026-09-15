@@ -42,9 +42,9 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 
 ## System prompt
 
-| Extension                                    | Summary                                                                                                                            |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [`system-prompt`](./system-prompt/README.md) | Prompt owner: binds native Pi sessions to Millstrand identities and composes identity, resources, append text, and rendered rules. |
+| Extension                                    | Summary                                                                                                                                     |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`system-prompt`](./system-prompt/README.md) | Prompt owner: binds unmanaged Pi sessions to Millstrand identities and contains the disabled, strictly fenced managed `native-v1` renderer. |
 
 ## Messaging
 
