@@ -232,6 +232,39 @@ describe("managed guidance Pi preflight", () => {
 		});
 	});
 
+	it("rejects an overlapping project autoload:false delta instead of hiding global extensions", async () => {
+		const fixture = world();
+		const sharedPackage = join(fixture.agentDir, "shared-package");
+		mkdirSync(sharedPackage);
+		writeFileSync(
+			join(sharedPackage, "package.json"),
+			JSON.stringify({ pi: { extensions: ["./global-extension.ts"] } }),
+		);
+		writeFileSync(
+			join(sharedPackage, "global-extension.ts"),
+			"export default function globalExtension() {}\n",
+		);
+		writeFileSync(
+			join(fixture.agentDir, "settings.json"),
+			JSON.stringify({ packages: [sharedPackage] }),
+		);
+		writeFileSync(
+			join(fixture.cwd, ".pi/settings.json"),
+			JSON.stringify({
+				packages: [{ source: sharedPackage, autoload: false }],
+				extensions: [owner],
+			}),
+		);
+
+		expect(await invoke(request(fixture))).toMatchObject({
+			result: "legacy-required",
+			code: "unverifiable-profile",
+			diagnostic: expect.stringContaining(
+				"overlapping global/project package with project autoload:false",
+			),
+		});
+	});
+
 	it("rejects symlink entries that pinned Pi extension discovery would follow", async () => {
 		const fixture = world({ packages: [root] });
 		const external = join(fixture.base, "external-extension.ts");

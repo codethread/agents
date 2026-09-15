@@ -760,7 +760,7 @@ function resolveLocalPackageSource(source, base, env) {
 	return resolve(base, expanded);
 }
 
-function packageExtensions(settings, settingsPath, env, seenRoots) {
+function packageExtensions(settings, settingsPath, env, seenRoots, scope) {
 	if (settings.packages === undefined) return [];
 	if (!Array.isArray(settings.packages)) throw new Error("settings packages must be an array");
 	const enabled = new Map();
@@ -769,7 +769,15 @@ function packageExtensions(settings, settingsPath, env, seenRoots) {
 			typeof entry === "string" ? { source: entry } : object(entry, "package source");
 		const source = nonblank(descriptor.source, "package source");
 		const root = resolveLocalPackageSource(source, dirname(settingsPath), env);
-		if (seenRoots.has(root) || enabled.has(root)) continue;
+		const previous = seenRoots.get(root);
+		if (previous) {
+			if (scope === "global" && previous.scope === "project" && previous.autoload === false) {
+				throw new Error(
+					`overlapping global/project package with project autoload:false is unverifiable: ${root}`,
+				);
+			}
+			continue;
+		}
 		if (!existsSync(join(root, "package.json")))
 			throw new Error(`local package has no package.json: ${root}`);
 		const manifest = object(
@@ -786,8 +794,8 @@ function packageExtensions(settings, settingsPath, env, seenRoots) {
 			root,
 			declared.map((value) => resolve(root, value)),
 		);
+		seenRoots.set(root, { scope, autoload: descriptor.autoload });
 	}
-	for (const root of enabled.keys()) seenRoots.add(root);
 	return [...enabled.values()].flatMap((paths) => paths.flatMap(extensionEntries));
 }
 
@@ -846,9 +854,11 @@ function piProfile(request, parsed) {
 	const project = readSettings(projectPath);
 	let entries = [];
 	if (!parsed.noExtensions) {
-		const seenPackageRoots = new Set();
-		entries.push(...packageExtensions(project, projectPath, request.env, seenPackageRoots));
-		entries.push(...packageExtensions(global, globalPath, request.env, seenPackageRoots));
+		const seenPackageRoots = new Map();
+		entries.push(
+			...packageExtensions(project, projectPath, request.env, seenPackageRoots, "project"),
+		);
+		entries.push(...packageExtensions(global, globalPath, request.env, seenPackageRoots, "global"));
 		for (const auto of [join(request.cwd, ".pi/extensions"), join(agentDir, "extensions")])
 			entries.push(...extensionEntries(auto));
 		for (const [settings, settingsPath] of [
