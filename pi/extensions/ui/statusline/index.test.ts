@@ -88,6 +88,16 @@ describe("renderStatuslineItems", () => {
 			expect(thinItems[4]).toBe("busy now");
 			expect(theme.fg).toHaveBeenCalledWith("accent", "merry-swift-moose");
 
+			const nativeIdentityItems = renderStatuslineItems({
+				ctx,
+				pi,
+				footerData,
+				theme,
+				width: 80,
+				millstrandIdentity: "crisp-kind-ibis",
+			});
+			expect(nativeIdentityItems[1]).toBe("crisp-kind-ibis");
+
 			const wideItems = renderStatuslineItems({ ctx, pi, footerData, theme, width: 120 });
 			expect(wideItems).toHaveLength(3);
 			expect(wideItems[0]).toContain("/repo (main)");

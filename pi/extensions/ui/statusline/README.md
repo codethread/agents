@@ -24,7 +24,7 @@ The stats row shows current/max context tokens, the latest cache-hit timestamp w
 
 Inside the provider parentheses, `sub` indicates subscription authentication and `L` indicates `PI_CACHE_RETENTION=long`.
 
-Working directory, git branch, session name/ID, agent identity (`MILLSTRAND_AGENT_ID`), active model, and provider are shown according to available width.
+Working directory, git branch, session name/ID, Millstrand identity, active model, and provider are shown according to available width. Native Pi identities come from the shared session identity event; legacy managed sessions continue to use `MILLSTRAND_AGENT_ID`.
 
 ## Debug
 

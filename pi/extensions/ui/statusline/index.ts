@@ -63,6 +63,7 @@ export interface FooterRenderDeps {
 export type StatuslineItemRenderDeps = Omit<FooterRenderDeps, "width"> & {
 	width?: number;
 	debug?: boolean;
+	millstrandIdentity?: string;
 };
 
 export function isLongCacheRetentionEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -134,6 +135,7 @@ export function renderStatuslineItems({
 	theme,
 	width = Number.POSITIVE_INFINITY,
 	debug = false,
+	millstrandIdentity,
 }: StatuslineItemRenderDeps): string[] {
 	const extensionStatuses = footerData.getExtensionStatuses();
 	let pwd = shortenHome(ctx.cwd);
@@ -187,7 +189,7 @@ export function renderStatuslineItems({
 	});
 
 	const ellipsis = theme.fg("dim", "...");
-	const agentIdentity = getAgentIdentity();
+	const agentIdentity = getAgentIdentity(millstrandIdentity);
 	const pathItem = theme.fg("dim", pwd);
 	const agentItem = agentIdentity ? theme.fg("accent", agentIdentity) : null;
 	const costItem = theme.fg("dim", costDisplay);
@@ -357,8 +359,11 @@ export function formatSessionLabel(
 	return null;
 }
 
-function getAgentIdentity(env: NodeJS.ProcessEnv = process.env): string | null {
-	const identity = sanitizeStatusText(env.MILLSTRAND_AGENT_ID ?? "");
+function getAgentIdentity(
+	nativeIdentity?: string,
+	env: NodeJS.ProcessEnv = process.env,
+): string | null {
+	const identity = sanitizeStatusText(nativeIdentity ?? env.MILLSTRAND_AGENT_ID ?? "");
 	return identity || null;
 }
 

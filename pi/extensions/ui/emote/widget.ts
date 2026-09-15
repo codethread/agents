@@ -22,6 +22,7 @@ function buildCanvasItems(width: number, deps: WidgetDeps, theme: any): string[]
 		theme,
 		width,
 		debug: deps.pi.getFlag("debug-statusline") === true,
+		millstrandIdentity: deps.getMillstrandIdentity()?.identity,
 	});
 }
 
@@ -103,6 +104,7 @@ export interface WidgetDeps {
 	getCurrentEmoteSet: () => string;
 	getFooterData: () => any;
 	getImageVisible: () => boolean;
+	getMillstrandIdentity: () => { identity: string } | null;
 	placement: EmoteWidgetPlacement;
 }
 

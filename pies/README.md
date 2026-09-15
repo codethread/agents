@@ -183,7 +183,7 @@ The fitted marginal footprint was about 184.7 MiB per separate Pi process versus
 
 ## Current limitations
 
-- This implementation targets Pi SDK `0.84.4` and Node 24.
+- This implementation targets Pi SDK `0.85.1` and Node 24.
 - `--resume` needs Pi's interactive selector; use `--session <path|id>` instead.
 - `--mode rpc` and `--export` are not implemented.
 - Image `@file` arguments skip Pi's automatic resize pass.
