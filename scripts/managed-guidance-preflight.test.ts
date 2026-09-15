@@ -1,5 +1,15 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync, mkdirSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+	chmodSync,
+	mkdtempSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -118,7 +128,7 @@ afterEach(() => {
 
 describe("managed guidance Pi preflight", () => {
 	it("returns no-model capability evidence for the exact 0.84.4 owned profile without writes", async () => {
-		const fixture = world({ packages: [`+${root}`] });
+		const fixture = world({ packages: [root] });
 		const before = files(fixture.base);
 		const result = await invoke(request(fixture));
 		expect(result).toMatchObject({
@@ -152,7 +162,7 @@ describe("managed guidance Pi preflight", () => {
 		await runCommand("tar", ["-xzf", join(packDirectory, archiveName!), "-C", extractionDirectory]);
 		const packedRoot = realpathSync(join(extractionDirectory, "package"));
 		const packedPreflight = join(packedRoot, "scripts/managed-guidance-preflight.mjs");
-		const fixture = world({ packages: [`+${packedRoot}`] });
+		const fixture = world({ packages: [packedRoot] });
 
 		const result = await invoke(request(fixture), packedPreflight);
 
@@ -170,23 +180,105 @@ describe("managed guidance Pi preflight", () => {
 	});
 
 	it("treats -ne as --no-extensions before applying explicit extension selectors", async () => {
-		const disabled = world({ packages: [`+${root}`] });
+		const disabled = world({ packages: [root] });
 		expect(await invoke(request(disabled, ["-ne"]))).toMatchObject({
 			result: "legacy-required",
 			code: "missing-hook",
 		});
 
-		const explicit = world({ packages: [`+${root}`] });
+		const explicit = world({ packages: [root] });
 		const result = await invoke(request(explicit, ["-ne", "-e", owner]));
 		expect(result.result).toBe("capable");
 		expect(result.capability["hook-fact"].extensions).toHaveLength(1);
+	});
+
+	it("preserves global and project extension scopes with their own path bases", async () => {
+		const fixture = world({ extensions: [owner] });
+		const globalExtension = join(fixture.agentDir, "global-extension.ts");
+		writeFileSync(globalExtension, "export default function globalExtension() {}\n");
+		writeFileSync(
+			join(fixture.agentDir, "settings.json"),
+			JSON.stringify({ extensions: ["./global-extension.ts"] }),
+		);
+
+		expect(await invoke(request(fixture))).toMatchObject({
+			result: "legacy-required",
+			code: "unverifiable-profile",
+			diagnostic: expect.stringContaining(globalExtension),
+		});
+	});
+
+	it("preserves global and project package scopes with their own path bases", async () => {
+		const fixture = world({ packages: [root] });
+		const globalPackage = join(fixture.agentDir, "global-package");
+		mkdirSync(globalPackage);
+		writeFileSync(
+			join(globalPackage, "package.json"),
+			JSON.stringify({ pi: { extensions: ["./global-extension.ts"] } }),
+		);
+		writeFileSync(
+			join(globalPackage, "global-extension.ts"),
+			"export default function globalExtension() {}\n",
+		);
+		writeFileSync(
+			join(fixture.agentDir, "settings.json"),
+			JSON.stringify({ packages: ["./global-package"] }),
+		);
+
+		expect(await invoke(request(fixture))).toMatchObject({
+			result: "legacy-required",
+			code: "unverifiable-profile",
+			diagnostic: expect.stringContaining(join(globalPackage, "global-extension.ts")),
+		});
+	});
+
+	it("rejects symlink entries that pinned Pi extension discovery would follow", async () => {
+		const fixture = world({ packages: [root] });
+		const external = join(fixture.base, "external-extension.ts");
+		const extensionsDirectory = join(fixture.cwd, ".pi/extensions");
+		writeFileSync(external, "export default function externalExtension() {}\n");
+		mkdirSync(extensionsDirectory);
+		symlinkSync(external, join(extensionsDirectory, "linked-extension.ts"));
+
+		expect(await invoke(request(fixture))).toMatchObject({
+			result: "legacy-required",
+			code: "unverifiable-profile",
+			diagnostic: expect.stringContaining("extension discovery contains a symbolic link"),
+		});
+	});
+
+	it("treats package source leading signs as literal path characters", async () => {
+		const leadingPlus = world({ packages: [`+${root}`] });
+		expect(await invoke(request(leadingPlus))).toMatchObject({
+			result: "legacy-required",
+			code: "unverifiable-profile",
+			diagnostic: expect.stringContaining("local package has no package.json"),
+		});
+
+		const leadingMinus = world({ packages: [root, `-${root}`] });
+		expect(await invoke(request(leadingMinus))).toMatchObject({
+			result: "legacy-required",
+			code: "unverifiable-profile",
+			diagnostic: expect.stringContaining("local package has no package.json"),
+		});
+	});
+
+	it("rejects attached --extension syntax that pinned Pi ignores", async () => {
+		const fixture = world();
+		expect(
+			await invoke(request(fixture, ["--no-extensions", `--extension=${owner}`])),
+		).toMatchObject({
+			result: "legacy-required",
+			code: "unverifiable-profile",
+			diagnostic: expect.stringContaining("attached Pi --extension syntax is not supported"),
+		});
 	});
 
 	it("rejects missing and extensions outside the canonical reviewed profile", async () => {
 		const missing = world();
 		expect((await invoke(request(missing))).code).toBe("missing-hook");
 
-		const missingExplicit = world({ packages: [`+${root}`] });
+		const missingExplicit = world({ packages: [root] });
 		expect(
 			await invoke(
 				request(missingExplicit, ["--extension", join(missingExplicit.base, "missing.ts")]),
@@ -197,7 +289,7 @@ describe("managed guidance Pi preflight", () => {
 			diagnostic: expect.stringContaining("explicit extension path does not exist"),
 		});
 
-		const competing = world({ packages: [`+${root}`] });
+		const competing = world({ packages: [root] });
 		const computedOwner = join(competing.base, "computed-owner.ts");
 		writeFileSync(
 			computedOwner,
@@ -209,7 +301,7 @@ describe("managed guidance Pi preflight", () => {
 			diagnostic: expect.stringContaining("outside the reviewed Agents package profile"),
 		});
 
-		const benign = world({ packages: [`+${root}`] });
+		const benign = world({ packages: [root] });
 		const unknownBenign = join(benign.base, "unknown-benign.ts");
 		writeFileSync(
 			unknownBenign,
@@ -231,14 +323,14 @@ describe("managed guidance Pi preflight", () => {
 			(await invoke(request(changed, ["--no-extensions", "--extension", changedOwner]))).code,
 		).toBe("unverifiable-profile");
 
-		const promptCompetition = world({ packages: [`+${root}`] });
+		const promptCompetition = world({ packages: [root] });
 		expect(
 			(await invoke(request(promptCompetition, ["--append-system-prompt=hostile"]))).code,
 		).toBe("unverifiable-profile");
 	});
 
 	it("rejects malformed, inherited, and duplicate-key request fields", async () => {
-		const fixture = world({ packages: [`+${root}`] });
+		const fixture = world({ packages: [root] });
 		const validRequest = request(fixture);
 		const inherited = await invokeRaw(`{"__proto__":${JSON.stringify(validRequest)}}`);
 		expect(inherited).toMatchObject({
@@ -263,5 +355,83 @@ describe("managed guidance Pi preflight", () => {
 		expect(response.trim().split("\n")).toHaveLength(1);
 		expect(Buffer.byteLength(response)).toBeLessThan(1024);
 		expect(JSON.parse(response).code).toBe("unverifiable-profile");
+	});
+});
+
+function processExists(pid: number): boolean {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
+		throw error;
+	}
+}
+
+describe("managed guidance Codex preflight", () => {
+	it("awaits bounded exact-child shutdown when hooks/list ignores SIGTERM", async () => {
+		const fixture = world();
+		const codexHome = join(fixture.base, "codex-home");
+		const fakeExecutable = join(fixture.base, "fake-codex.mjs");
+		const pidFile = join(fixture.base, "app-server.pid");
+		mkdirSync(codexHome);
+		writeFileSync(
+			fakeExecutable,
+			`#!/usr/bin/env node
+import { writeFileSync } from "node:fs";
+if (process.argv.includes("--version")) {
+	process.stdout.write("codex-cli 0.154.0\\n");
+	process.exit(0);
+}
+writeFileSync(process.env.FAKE_CODEX_PID_FILE, String(process.pid));
+process.on("SIGTERM", () => {});
+const originalParent = process.ppid;
+setInterval(() => {
+	if (process.ppid !== originalParent) process.exit(0);
+}, 25);
+let input = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (chunk) => {
+	input += chunk;
+	for (;;) {
+		const newline = input.indexOf("\\n");
+		if (newline < 0) break;
+		const line = input.slice(0, newline);
+		input = input.slice(newline + 1);
+		if (!line) continue;
+		const message = JSON.parse(line);
+		if (message.id === 1) {
+			process.stdout.write(JSON.stringify({ id: 1, result: {} }) + "\\n");
+		} else if (message.id === 2) {
+			process.stdout.write(JSON.stringify({
+				id: 2,
+				result: { data: [{ cwd: message.params.cwds[0], hooks: [], warnings: [] }] },
+			}) + "\\n");
+		}
+	}
+});
+`,
+		);
+		chmodSync(fakeExecutable, 0o755);
+		const result = await invoke({
+			schema: "millstrand.agent-guidance-preflight/v1",
+			harness: "codex",
+			executable: fakeExecutable,
+			mode: "headless",
+			cwd: fixture.cwd,
+			workspace: fixture.workspace,
+			env: {
+				PATH: process.env.PATH ?? "",
+				HOME: fixture.base,
+				CODEX_HOME: codexHome,
+				FAKE_CODEX_PID_FILE: pidFile,
+			},
+			"extra-argv": [],
+			resumes: false,
+		});
+
+		expect(result).toMatchObject({ result: "legacy-required", code: "missing-hook" });
+		const appServerPid = Number.parseInt(readFileSync(pidFile, "utf8"), 10);
+		expect(processExists(appServerPid)).toBe(false);
 	});
 });

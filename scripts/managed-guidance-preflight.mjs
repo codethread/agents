@@ -164,6 +164,32 @@ function scrubPreflightEnvironment(env) {
 	return result;
 }
 
+function terminateExactChild(child, label) {
+	if (child.pid === undefined) return Promise.resolve();
+	return new Promise((resolvePromise, reject) => {
+		let settled = false;
+		let forceTimer;
+		let deadlineTimer;
+		const finish = (error) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(forceTimer);
+			clearTimeout(deadlineTimer);
+			child.off("close", closed);
+			if (error) reject(error);
+			else resolvePromise();
+		};
+		const closed = () => finish();
+		child.once("close", closed);
+		child.kill("SIGTERM");
+		forceTimer = setTimeout(() => child.kill("SIGKILL"), 250);
+		deadlineTimer = setTimeout(
+			() => finish(new Error(`${label} did not exit after exact-child SIGKILL`)),
+			1_250,
+		);
+	});
+}
+
 function run(command, args, request, { input = "", timeout = 5_000 } = {}) {
 	return new Promise((resolvePromise, reject) => {
 		const child = spawn(command, args, {
@@ -293,8 +319,7 @@ function parseSelectors(argv, harness) {
 			continue;
 		}
 		if (harness === "pi" && argument.startsWith("--extension=")) {
-			extensionPaths.push(argument.slice("--extension=".length));
-			continue;
+			throw new Error("attached Pi --extension syntax is not supported by 0.84.4");
 		}
 		if (harness === "pi" && (argument === "--no-extensions" || argument === "-ne")) {
 			noExtensions = true;
@@ -408,8 +433,22 @@ async function listCodexHooks(request, selectors) {
 				if (done) return;
 				done = true;
 				clearTimeout(timer);
-				child.kill("SIGKILL");
-				reject(error);
+				child.stdin.destroy();
+				void terminateExactChild(child, "Codex hooks/list probe").then(
+					() => reject(error),
+					(shutdownError) =>
+						reject(new Error(`${error.message}; cleanup failed: ${shutdownError.message}`)),
+				);
+			};
+			const finishSuccess = (value) => {
+				if (done) return;
+				done = true;
+				clearTimeout(timer);
+				child.stdin.end();
+				void terminateExactChild(child, "Codex hooks/list probe").then(
+					() => resolvePromise(value),
+					reject,
+				);
 			};
 			child.stderr.setEncoding("utf8");
 			child.stderr.on("data", (chunk) => {
@@ -444,10 +483,7 @@ async function listCodexHooks(request, selectors) {
 							);
 						} else if (message.id === 2) {
 							if (message.error) throw new Error("Codex hooks/list failed");
-							done = true;
-							clearTimeout(timer);
-							child.kill("SIGTERM");
-							resolvePromise(message.result);
+							finishSuccess(message.result);
 						}
 					}
 				} catch (error) {
@@ -456,8 +492,10 @@ async function listCodexHooks(request, selectors) {
 			});
 			child.on("error", finishError);
 			child.on("close", (code) => {
-				if (!done)
-					finishError(new Error(`Codex app-server exited ${code}: ${stderr.slice(0, 300)}`));
+				if (done) return;
+				done = true;
+				clearTimeout(timer);
+				reject(new Error(`Codex app-server exited ${code}: ${stderr.slice(0, 300)}`));
 			});
 			const timer = setTimeout(
 				() => finishError(new Error("Codex hooks/list exceeded 5 seconds")),
@@ -674,6 +712,9 @@ function extensionEntries(path) {
 	const entries = [];
 	for (const item of readdirSync(path, { withFileTypes: true })) {
 		const itemPath = join(path, item.name);
+		if (item.isSymbolicLink()) {
+			throw new Error(`extension discovery contains a symbolic link: ${itemPath}`);
+		}
 		if (
 			item.isFile() &&
 			[".ts", ".js"].includes(extname(item.name)) &&
@@ -702,21 +743,33 @@ function resolveLocalSource(source, base, env) {
 	return resolve(base, expanded);
 }
 
-function packageExtensions(settings, settingsPath, env) {
+function resolveLocalPackageSource(source, base, env) {
+	const expanded = expandHome(source, env);
+	if (
+		!expanded ||
+		(!source.startsWith(".") &&
+			!source.startsWith("/") &&
+			!source.startsWith("~") &&
+			!source.startsWith("+") &&
+			!source.startsWith("-"))
+	) {
+		throw new Error(
+			`non-local package/resource source is unverifiable without cache mutation: ${source}`,
+		);
+	}
+	return resolve(base, expanded);
+}
+
+function packageExtensions(settings, settingsPath, env, seenRoots) {
 	if (settings.packages === undefined) return [];
 	if (!Array.isArray(settings.packages)) throw new Error("settings packages must be an array");
 	const enabled = new Map();
 	for (const entry of settings.packages) {
 		const descriptor =
 			typeof entry === "string" ? { source: entry } : object(entry, "package source");
-		let source = nonblank(descriptor.source, "package source");
-		const marker = source[0] === "+" || source[0] === "-" ? source[0] : "+";
-		if (source[0] === "+" || source[0] === "-") source = source.slice(1);
-		const root = resolveLocalSource(source, dirname(settingsPath), env);
-		if (marker === "-") {
-			enabled.delete(root);
-			continue;
-		}
+		const source = nonblank(descriptor.source, "package source");
+		const root = resolveLocalPackageSource(source, dirname(settingsPath), env);
+		if (seenRoots.has(root) || enabled.has(root)) continue;
 		if (!existsSync(join(root, "package.json")))
 			throw new Error(`local package has no package.json: ${root}`);
 		const manifest = object(
@@ -734,6 +787,7 @@ function packageExtensions(settings, settingsPath, env) {
 			declared.map((value) => resolve(root, value)),
 		);
 	}
+	for (const root of enabled.keys()) seenRoots.add(root);
 	return [...enabled.values()].flatMap((paths) => paths.flatMap(extensionEntries));
 }
 
@@ -787,22 +841,28 @@ function piProfile(request, parsed) {
 		if (existsSync(path)) throw new Error(`competing Pi prompt source is present: ${path}`);
 	}
 	const globalPath = join(agentDir, "settings.json");
-	const projectCandidate = join(request.cwd, ".pi/settings.json");
-	const projectPath = existsSync(projectCandidate) ? projectCandidate : undefined;
+	const projectPath = join(request.cwd, ".pi/settings.json");
 	const global = readSettings(globalPath);
-	const project = projectPath ? readSettings(projectPath) : {};
-	const settings = { ...global, ...project };
-	const settingsPath = projectPath ?? globalPath;
+	const project = readSettings(projectPath);
 	let entries = [];
 	if (!parsed.noExtensions) {
-		entries.push(...packageExtensions(settings, settingsPath, request.env));
+		const seenPackageRoots = new Set();
+		entries.push(...packageExtensions(project, projectPath, request.env, seenPackageRoots));
+		entries.push(...packageExtensions(global, globalPath, request.env, seenPackageRoots));
 		for (const auto of [join(request.cwd, ".pi/extensions"), join(agentDir, "extensions")])
 			entries.push(...extensionEntries(auto));
-		if (Array.isArray(settings.extensions))
-			for (const entry of settings.extensions)
-				entries.push(
-					...extensionEntries(resolveLocalSource(entry, dirname(settingsPath), request.env)),
-				);
+		for (const [settings, settingsPath] of [
+			[project, projectPath],
+			[global, globalPath],
+		]) {
+			if (Array.isArray(settings.extensions)) {
+				for (const entry of settings.extensions) {
+					entries.push(
+						...extensionEntries(resolveLocalSource(entry, dirname(settingsPath), request.env)),
+					);
+				}
+			}
+		}
 	}
 	for (const entry of parsed.extensionPaths) {
 		const path = resolveLocalSource(entry, request.cwd, request.env);

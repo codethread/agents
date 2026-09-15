@@ -165,7 +165,7 @@ lock_key=$(jq -nr \
 	'[$event, $session, $source, $agent] | @base64 | gsub("="; "") | gsub("\\+"; "-") | gsub("/"; "_")')
 lock_file="$lock_root/$lock_key.lock"
 if ! mkdir -p "$lock_root" 2>/dev/null; then
-	warning "Millstrand identity startup could not establish duplicate-injector protection; this session is unbound."
+	managed_runtime_failure "probe-failed" "Millstrand identity startup could not establish duplicate-injector protection."
 	exit 0
 fi
 
@@ -178,7 +178,7 @@ if [[ ${1:-} != --locked ]]; then
 		printf '%s' "$payload" | flock -n "$lock_file" \
 			bash "$script_path" --locked || lock_status=$?
 	else
-		warning "Millstrand identity startup requires lockf or flock for crash-safe duplicate protection; this session is unbound."
+		managed_runtime_failure "probe-failed" "Millstrand identity startup requires lockf or flock for crash-safe duplicate protection."
 		exit 0
 	fi
 	if ((lock_status == 0)); then

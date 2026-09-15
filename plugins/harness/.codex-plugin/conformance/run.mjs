@@ -590,6 +590,53 @@ async function checkManagedGuidanceReplay() {
 		assert.equal(existsSync(mismatchLog), false, "fence mismatch must not contact Strand");
 	}
 
+	const lockSetupRoot = temporaryDirectory("codex-managed-lock-setup-");
+	const lockSetupPayload = { ...sourcePayload, cwd: join(lockSetupRoot, "host-cwd") };
+	mkdirSync(join(lockSetupPayload.cwd, ".millstrand"), { recursive: true });
+	const blockedRuntimePath = join(lockSetupRoot, "runtime-is-a-file");
+	writeFileSync(blockedRuntimePath, "not a directory\n");
+	const lockSetupLog = join(lockSetupRoot, "guidance-calls.jsonl");
+	const lockSetupEnvironment = fixtureEnvironment({
+		...managedGuidanceEnvironment(lockSetupPayload, "managed-lock-setup"),
+		MILLSTRAND_CODEX_STRAND_BIN: fakeGuidanceStrand,
+		FAKE_GUIDANCE_LOG: lockSetupLog,
+		TMPDIR: lockSetupRoot,
+	});
+	lockSetupEnvironment.XDG_RUNTIME_DIR = blockedRuntimePath;
+	const lockSetupResult = await run("bash", [identityHook, "--configured-source"], {
+		input: JSON.stringify(lockSetupPayload),
+		env: lockSetupEnvironment,
+	});
+	assert.equal(lockSetupResult.code, 0, lockSetupResult.stderr);
+	const lockSetupOutput = parseSingleJsonLine(lockSetupResult.stdout, "managed lock setup failure");
+	assert.equal(lockSetupOutput.continue, false);
+	assert.equal("hookSpecificOutput" in lockSetupOutput, false);
+	assert.match(lockSetupOutput.systemMessage, /duplicate-injector protection/);
+	const lockSetupCalls = parseJsonLines(
+		readFileSync(lockSetupLog, "utf8"),
+		"managed lock setup calls",
+	);
+	assert.equal(lockSetupCalls.length, 1);
+	assert.deepEqual(lockSetupCalls[0].operation.slice(0, 3), ["agent", "guidance", "fail"]);
+	const lockSetupReceiptIndex = lockSetupCalls[0].operation.indexOf("--receipt");
+	assert.notEqual(lockSetupReceiptIndex, -1);
+	assert.deepEqual(JSON.parse(lockSetupCalls[0].operation[lockSetupReceiptIndex + 1]), {
+		schema: "millstrand.agent-guidance-receipt/v1",
+		"run-id": "managed-lock-setup",
+		attempt: 1,
+		invocation: "invocation-managed-lock-setup-1",
+		harness: "codex",
+		"native-session-id": lockSetupPayload.session_id,
+		transport: "native-v1",
+		"bundle-sha256": JSON.parse(lockSetupEnvironment.MILLSTRAND_MANAGED_GUIDANCE)["bundle-sha256"],
+		"capability-sha256": "a".repeat(64),
+		outcome: "failed",
+		stage: "preflight",
+		code: "probe-failed",
+		diagnostic: "Millstrand identity startup could not establish duplicate-injector protection.",
+	});
+	assert.deepEqual(lockSetupCalls[0].managedNames, []);
+
 	const childRoot = temporaryDirectory("codex-managed-child-");
 	const childSourcePayload = JSON.parse(
 		readFileSync(join(payloadRoot, "subagent-start.json"), "utf8"),
