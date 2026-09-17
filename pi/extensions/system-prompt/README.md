@@ -4,9 +4,9 @@
 
 This directory is intentionally flat:
 
-- `index.ts` — Pi flags, commands, event hooks, and tool-guideline grouping
-- `native-identity.ts` — unmanaged Strand identity invocation, response parsing, and lifecycle status
-- `managed-guidance.ts` — disabled native-v1 metadata, bundle, rendering, receipt, and bounded transport boundary
+- `index.ts` — prompt/UI composition around Harnesses-owned identity data
+- `native-identity.ts` — compatibility re-export of Harnesses identity state formatting
+- `managed-guidance.ts` — compatibility re-export of Harnesses managed handoff APIs
 - `prompt-builder.ts` — pure system-prompt rendering helpers
 - `templates.ts` — `agent.njk` discovery/rendering plus `--debug-prompt` override parsing
 - `tool-report.ts` — `--debug-tools` selector parsing and report rendering
@@ -15,11 +15,11 @@ This directory is intentionally flat:
 
 The extension replaces Pi's generated prompt during `before_agent_start` using structured `systemPromptOptions` for the renderer persona, tool metadata, skills, context files, append text, date, and cwd. It also loads `CLAUDE.local.md` from the cwd and each ancestor, ordered from the filesystem root toward the cwd, and appends those files after Pi's discovered `AGENTS.md`/`CLAUDE.md` context files.
 
-On every `session_start`, the extension passes Pi's actual `ctx.sessionManager.getSessionId()` and `ctx.cwd` to `strand identity startup pi`. This covers startup, reload, resume, new-session, and fork lifecycles: the same native ID recovers its identity, while a new/forked ID gets its own binding. The canonical instruction returned by Millhouse is rendered once as `<system-reminder type="millstrand-identity">` in the owned prompt on every turn. It is separate from both the renderer persona and user append text.
+The Harnesses package owns every `session_start` identity lookup and publishes plain identity, state, and managed-guidance data. This extension composes that lifecycle into its existing entrypoint, then chooses to render the canonical instruction once as `<system-reminder type="millstrand-identity">` in the owned prompt. Other consumers independently use the same data for statusline, emote, subagent, or debug presentation.
 
-The resolved session context is published over Pi's shared `pi.events` bus for other extensions. This is deliberately not module state: Pi loads each extension through an isolated jiti instance with `moduleCache: false`. Each lifecycle first publishes an unbound reset, then the newly resolved identity and explicit workspace; shutdown publishes another reset.
+Lifecycle data is published over Pi's shared `pi.events` bus rather than module state because Pi loads extensions through isolated jiti instances with `moduleCache: false`. Each lifecycle first publishes an unbound reset, then the newly resolved identity and explicit workspace; shutdown publishes another reset.
 
-The native contract requires Millhouse identity implementation `9939588e925c5a3c73608feb8182c4f52d586f64` (the implementation released by Millhouse merge `b1955a96ad91bf2909a407859fca1565ec4b9fdb`) or newer. The supported host package is `@earendil-works/pi-coding-agent` 0.84.4.
+The native data contract and managed adapter implementation are documented and tested in the Harnesses repository under `plugins/millstrand-identity/`. This package depends on that implementation rather than owning a second copy.
 
 It also renders Nunjucks rule templates into the owned prompt:
 

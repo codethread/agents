@@ -11,7 +11,7 @@ import systemPromptExtension from "./index.js";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const fakeGuidanceStrand = join(
 	packageRoot,
-	"plugins/harness/.codex-plugin/conformance/fake-guidance-strand.mjs",
+	"node_modules/@codethread/harnesses/plugins/millstrand-identity/.codex-plugin/conformance/fake-guidance-strand.mjs",
 );
 const managedEnvironmentNames = [
 	"FAKE_GUIDANCE_LOG",
@@ -105,6 +105,8 @@ describe("system-prompt startup rejection handling", () => {
 		await writeFile(join(agentDir, "agent.njk"), "{% if invalid_template %}");
 		process.env.PI_CODING_AGENT_DIR = agentDir;
 		delete process.env.MILLSTRAND_RUN_ID;
+		delete process.env.MILLSTRAND_MANAGED_BOOTSTRAP;
+		delete process.env.MILLSTRAND_MANAGED_GUIDANCE;
 
 		let finishStrand!: () => void;
 		const exec = vi.fn(
@@ -166,7 +168,7 @@ describe("system-prompt startup rejection handling", () => {
 			process.off("unhandledRejection", unhandledRejection);
 		}
 		await rejection;
-		expect(emit).toHaveBeenLastCalledWith(
+		expect(emit).toHaveBeenCalledWith(
 			"codethread:millstrand-identity-context:v1",
 			expect.objectContaining({
 				identity: "delayed-template-beaver",

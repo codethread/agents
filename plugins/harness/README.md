@@ -1,6 +1,6 @@
 # Harness Plugin
 
-Session and harness affordances for Claude Code, Pi, and Codex: session introspection skills, benchmark orchestration, rich HTML responses, tmux workflows, dialogue capture, and native Codex identity injection.
+Session and harness affordances for Claude Code, Pi, and Codex: session introspection skills, benchmark orchestration, rich HTML responses, tmux workflows, and dialogue capture.
 
 ## Contents
 
@@ -11,29 +11,21 @@ Session and harness affordances for Claude Code, Pi, and Codex: session introspe
 - `skills/rich-response/` — render long-form responses as self-contained HTML
 - `skills/tmux/` — durable terminal sessions for long-lived commands
 - `hooks/` — Claude Code dialogue-capture and window-title hooks (below)
-- `.codex-plugin/hooks/` — separate Codex dialogue-capture and native identity hooks (below)
-- `.codex-plugin/conformance/` — Codex 0.154.0 identity replay and disposable CLI discovery fixtures
+- `.codex-plugin/hooks/` — Codex dialogue-capture hooks (below)
 - `hooks-reference.md` — vendored copy of the official Claude Code hooks reference
 
 ## Codex startup identity
 
-The manifest points explicitly at `.codex-plugin/hooks/hooks.json`, keeping `capture.sh` observational and independently registering `identity.sh` for `SessionStart` and `SubagentStart`.
-
-The identity adapter targets **Codex CLI 0.154.0** and Millhouse identity API commit `b1955a96ad91bf2909a407859fca1565ec4b9fdb`. It passes the strict payload cwd to Strand, optionally routes through `MILLSTRAND_CODEX_WORKSPACE`, and invokes `identity startup codex` with a three-second request deadline. Startup, resume, clear, and compact recover the root `session_id`. Children use the collision-safe parent-session/`agent_id` key and record parentage without trusting inherited parent identity or run variables.
-
-Successful canonical Millhouse instructions are returned only through `hookSpecificOutput.additionalContext`, which Codex treats as extra **developer context**, not a replacement system prompt. Before Strand runs, the hook asks Codex `hooks/list` for the effective cwd configuration and requires exactly one enabled identity injector for that event. The query preserves the invoking host's effective hooks feature state—including process-local `--enable hooks`—and detects staggered package/package and plugin/user duplicates without trusting ambient `PLUGIN_ROOT`. A crash-safe OS lock separately covers overlapping execution. Required context is capped below the configured `additionalContextLimit`; oversized or invalid responses produce a visible unbound warning instead of a guessed identity.
-
-Managed roots without guidance metadata, or with the exact legacy guidance document, retain legacy suppression. The same single hook contains a disabled `MILLSTRAND_MANAGED_GUIDANCE` native-v1 branch: it validates closed bootstrap metadata, fetches one frozen bundle through versioned `agent startup`, checks every run/attempt/invocation/provider/native-session/capability/digest fence, renders identity plus ordered append positions and one current-run footer under 3,072 bytes, then acknowledges adapter handoff immediately before returning one `additionalContext`. Startup/resume/clear/compact always reconstruct; no session sentinel is written. Invalid selected-native startup, including duplicate-protection lock setup failure, records a fenced failure where metadata and receipt routing are trustworthy and returns a stopping hook response; cwd/workspace route-fence mismatches stop without routing a receipt through rejected data. It never performs unmanaged minting or legacy downgrade. Strand children receive neither managed bootstrap/guidance nor existing ownership hints. The hook never creates a workspace or operates Weaver.
-
-Run `pnpm test:codex-hooks` for sanitized production-hook replays, managed bundle/receipt failures and reconstruction, and disposable `hooks/list` discovery/trust checks. Run `pnpm test:codex-hooks:live` for the production identity hook against real Strand and a pinned Millhouse API in an isolated foreground Mill/Weaver world. See `.codex-plugin/conformance/README.md` for the exact CLI, JSON, coexistence, child, failure, and validation contracts.
-
-Validation is deliberately **CLI-only**: no desktop app, installed plugin cache, existing conversation, or real provider was exercised; desktop execution is intended but not runtime-certified. Disposable Codex 0.154.0 processes send model-bound requests to a local SSE fixture, proving fresh and resumed identity injection when hooks are enabled only for the invocation, one identity message for an ordinary single package, and none for staggered duplicate sources. OpenAI's official [hooks](https://developers.openai.com/codex/hooks/) and [plugin packaging](https://developers.openai.com/plugins/build/plugins/) documentation covers supported local clients including Codex CLI and Codex in the ChatGPT desktop app; hook files must exist locally and remain subject to trust — web installation does not deploy them. The local fixture proves transport, not real-model inference or obedience.
+The Millstrand identity hook moved to the Harnesses repository's focused
+`millstrand-identity` plugin. Install that Codex marketplace separately when
+native session identity is required. This plugin retains only observational
+dialogue capture.
 
 ## Dialogue capture hooks
 
 Claude Code's on-disk session transcripts are officially internal and can change on any release. These hooks capture the parts we care about through the supported hook interface at the moment they happen, into a JSONL log whose schema **we** own. Downstream tooling (devflow Q&A extraction, jq scripts) should consume this log, not the raw transcripts.
 
-Pi sessions get the same treatment from this repo's `pi/extensions/dialogue-capture` extension, which writes the same schema to the sibling `pi-dialogue/` directory (Pi-specific mapping and divergences in that extension's README). Codex sessions get the same forward-only treatment from `capture.sh`, which writes to the sibling `codex-dialogue/` directory. The separate Codex `identity.sh` hook does not write capture records.
+Pi sessions get the same treatment from this repo's `pi/extensions/dialogue-capture` extension, which writes the same schema to the sibling `pi-dialogue/` directory (Pi-specific mapping and divergences in that extension's README). Codex sessions get the same forward-only treatment from `capture.sh`, which writes to the sibling `codex-dialogue/` directory. Millstrand identity hooks are provided separately by Harnesses and do not write capture records here.
 
 The schema tables and queries below are the shared reference for all harness dialogue logs.
 
