@@ -93,7 +93,7 @@
 		"*": "prettier --write --ignore-unknown"
 	},
 	"dependencies": {
-		"@codethread/harnesses": "github:codethread/harnesses.spool#e683416e4c3037ede2a8ac347f478d790fdcb434",
+		"@codethread/harnesses": "github:codethread/harnesses.spool#e69a50203b0a42c74008bb23cc1b9c94e935d06c",
 		"@earendil-works/pi-ai": "0.85.1",
 		"@earendil-works/pi-coding-agent": "0.85.1",
 		"@mozilla/readability": "^0.6.0",
