@@ -41,6 +41,105 @@ const mocks = vi.hoisted(() => {
 	};
 });
 
+vi.mock("@codethread/harnesses/pi/millstrand-identity", () => ({
+	createMillstrandIdentityLifecycle: (pi: any) => {
+		let identityState: any = { status: "pending" };
+		let guidanceContext: any = { selection: { kind: "unmanaged" }, bundle: null };
+		let blocked = false;
+		return {
+			get identityState() {
+				return identityState;
+			},
+			get guidanceContext() {
+				return guidanceContext;
+			},
+			registerFlags() {
+				for (const [name, type] of [
+					["millstrand-identity", "string"],
+					["millstrand-workspace", "string"],
+					["debug-millstrand-identity", "boolean"],
+				] as const) {
+					pi.registerFlag(name, { type, ...(type === "boolean" ? { default: false } : {}) });
+				}
+			},
+			async sessionStart(ctx: any) {
+				const sessionId = ctx.sessionManager.getSessionId();
+				const staged: any = mocks.stageManagedPiGuidanceSelection(sessionId, ctx.cwd);
+				if (staged.kind === "rejected") {
+					blocked = true;
+					if (staged.receiptRouteTrusted) {
+						await (mocks.failManagedGuidance as any)(
+							staged.selection,
+							sessionId,
+							"validation",
+							"selection-fence-mismatch",
+							staged.message,
+							undefined,
+							process.env,
+							ctx.signal,
+						);
+					}
+					throw new Error(staged.message);
+				}
+				const selection = staged.selection;
+				if (selection.kind === "native-v1") {
+					const bundle = await mocks.fetchManagedGuidance(
+						selection,
+						sessionId,
+						undefined,
+						process.env,
+						ctx.signal,
+					);
+					identityState = {
+						status: "suppressed",
+						reason: "managed native-v1 owns identity and frozen guidance",
+						nativeSessionId: sessionId,
+					};
+					guidanceContext = { selection, bundle };
+					pi.events.emit("codethread:millstrand-identity-context:v1", {
+						identity: bundle.identity,
+						instruction: bundle.context["identity-instruction"],
+						nativeSessionId: sessionId,
+						workspace: bundle.workspace,
+					});
+				} else if (selection.kind === "legacy") {
+					identityState = {
+						status: "suppressed",
+						reason: "legacy managed run uses its existing prompt transport",
+						nativeSessionId: sessionId,
+					};
+					guidanceContext = { selection, bundle: null };
+				} else {
+					try {
+						const resolved = await mocks.resolveNativeIdentity(pi.exec, {
+							cwd: ctx.cwd,
+							nativeSessionId: sessionId,
+						});
+						identityState = { status: "bound", ...resolved };
+						guidanceContext = { selection, bundle: null };
+						pi.events.emit("codethread:millstrand-identity-context:v1", resolved);
+					} catch (error) {
+						const message = error instanceof Error ? error.message : String(error);
+						identityState = { status: "error", error: message, nativeSessionId: sessionId };
+						if (ctx.hasUI) ctx.ui.notify(`[millstrand-identity] ${message}`, "error");
+						process.stderr.write(`[millstrand-identity] ${message}\n`);
+					}
+				}
+			},
+			sessionShutdown() {},
+			input: () => (blocked ? { action: "handled" } : undefined),
+			beforeProviderRequest(event: any, ctx: any) {
+				if (!blocked) return;
+				ctx.abort();
+				return event.payload;
+			},
+			reportGuidanceFailure() {
+				blocked = true;
+			},
+		};
+	},
+}));
+
 vi.mock("../components/debug-message/index.js", () => ({
 	showDebugMessage: mocks.showDebugMessage,
 }));

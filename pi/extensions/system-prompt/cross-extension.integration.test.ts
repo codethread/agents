@@ -78,6 +78,8 @@ printf '{"type":"message_end","message":{"role":"assistant","content":[{"type":"
 			process.env.MILLSTRAND_PI_PARENT_IDENTITY = "ancestor-parent";
 			process.env.MILLSTRAND_PI_WORKSPACE = join(root, "ancestor-world");
 			delete process.env.MILLSTRAND_RUN_ID;
+			delete process.env.MILLSTRAND_MANAGED_BOOTSTRAP;
+			delete process.env.MILLSTRAND_MANAGED_GUIDANCE;
 
 			const loadPair = async (cwd: string) => {
 				const eventBus = createEventBus();

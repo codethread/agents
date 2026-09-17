@@ -7,6 +7,9 @@ settings:
 importers:
   .:
     dependencies:
+      "@codethread/harnesses":
+        specifier: github:codethread/harnesses.spool#e683416e4c3037ede2a8ac347f478d790fdcb434
+        version: https://codeload.github.com/codethread/harnesses.spool/tar.gz/e683416e4c3037ede2a8ac347f478d790fdcb434(@earendil-works/pi-coding-agent@0.85.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6))
       "@earendil-works/pi-ai":
         specifier: 0.85.1
         version: 0.85.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
@@ -320,6 +323,15 @@ packages:
       {
         integrity: sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==,
       }
+
+  "@codethread/harnesses@https://codeload.github.com/codethread/harnesses.spool/tar.gz/e683416e4c3037ede2a8ac347f478d790fdcb434":
+    resolution:
+      {
+        tarball: https://codeload.github.com/codethread/harnesses.spool/tar.gz/e683416e4c3037ede2a8ac347f478d790fdcb434,
+      }
+    version: 0.1.0
+    peerDependencies:
+      "@earendil-works/pi-coding-agent": "*"
 
   "@earendil-works/chord@0.85.1":
     resolution:
@@ -4419,6 +4431,10 @@ snapshots:
   "@babel/runtime@7.29.2": {}
 
   "@borewit/text-codec@0.2.2": {}
+
+  "@codethread/harnesses@https://codeload.github.com/codethread/harnesses.spool/tar.gz/e683416e4c3037ede2a8ac347f478d790fdcb434(@earendil-works/pi-coding-agent@0.85.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6))":
+    dependencies:
+      "@earendil-works/pi-coding-agent": 0.85.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
 
   "@earendil-works/chord@0.85.1":
     dependencies:
