@@ -5,23 +5,23 @@
    :deps/root "spools/batteries"}
   millhouse.spools/workflow
   {:git/url "https://github.com/codethread/millhouse.spool.git"
-   :git/sha "3132c8f7f10455c893da28fef0e9ca0047560f82"
+   :git/sha "d86740a5bc8a99ee1637df995d85ff725be31dc6"
    :deps/root "spools/workflow"}
   millhouse.spools/identity
   {:git/url "https://github.com/codethread/millhouse.spool.git"
-   :git/sha "b1955a96ad91bf2909a407859fca1565ec4b9fdb"
+   :git/sha "d86740a5bc8a99ee1637df995d85ff725be31dc6"
    :deps/root "spools/identity"}
   millhouse.spools/kanban
   {:git/url "https://github.com/codethread/millhouse.spool.git"
-   :git/sha "f487eb42ea9523e8bd405e64a7c319013217d988"
+   :git/sha "d86740a5bc8a99ee1637df995d85ff725be31dc6"
    :deps/root "spools/kanban"}
   ct.spools/harnesses
   {:git/url "https://github.com/codethread/harnesses.spool.git"
-   :git/sha "c140d7c80484854e406f0b57933b7ddfce6734b0"
+   :git/sha "d6bbcfa8633c0c6966c4cac386751157ad0b7063"
    :deps/root "."}
   ;; Shared bootstrap with deferred executor activation.
   codethread/config
   {:git/url "https://github.com/codethread/codethread.spool.git"
-   :git/sha "6c7a22cb4311076e172470a65298a089a85b52ef"
+   :git/sha "fc8105cefe624f4c0cd7312e0f400d650dd7e52d"
    :deps/root "spools/config"}
   }}
