@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
 	appendPromptHistoryRecord: vi.fn<() => Promise<string>>(
@@ -35,8 +35,12 @@ beforeEach(() => {
 	mocks.loadPromptHistoryRecords.mockResolvedValue([]);
 });
 
+afterEach(() => {
+	vi.unstubAllEnvs();
+});
+
 describe("prompt-history extension", () => {
-	it("registers one flag, two shortcuts, and session/message handlers", () => {
+	it("registers one flag, three shortcuts, and session/message handlers", () => {
 		const on = vi.fn();
 		const registerFlag = vi.fn();
 		const registerShortcut = vi.fn();
@@ -53,7 +57,11 @@ describe("prompt-history extension", () => {
 			"debug-prompt-history",
 			expect.objectContaining({ type: "boolean", default: false }),
 		);
-		expect(registerShortcut).toHaveBeenCalledTimes(2);
+		expect(registerShortcut.mock.calls.map(([shortcut]) => shortcut)).toEqual([
+			"ctrl+p",
+			"ctrl+shift+p",
+			"ctrl+r",
+		]);
 
 		const events = on.mock.calls.map(([eventName]) => eventName);
 		expect(events).toEqual(["session_start", "message_end"]);
@@ -230,5 +238,193 @@ describe("prompt-history extension", () => {
 			"warning",
 		);
 		expect(mocks.loadPromptHistoryRecords).not.toHaveBeenCalled();
+	});
+
+	it("inserts the prompt selected in the fzf-tmux picker", async () => {
+		const shortcuts = new Map<string, (ctx: any) => unknown | Promise<unknown>>();
+		const setEditorText = vi.fn();
+		const setStatus = vi.fn();
+		const selection = {
+			version: 1,
+			timestamp: 3,
+			message: "multi\nline prompt",
+			cwd: "/repo/app",
+			repoRoot: "/repo",
+		};
+		const exec = vi.fn<
+			(
+				command: string,
+				args: string[],
+				options?: { cwd?: string },
+			) => Promise<{
+				stdout: string;
+				stderr: string;
+				code: number;
+				killed: boolean;
+			}>
+		>(async () => ({
+			stdout: `2026-09-19 05:36  app  multi line prompt\t${JSON.stringify(selection)}\n`,
+			stderr: "",
+			code: 0,
+			killed: false,
+		}));
+		vi.stubEnv("TMUX", "/tmp/tmux-501/default,123,0");
+
+		promptHistoryExtension({
+			on: vi.fn(),
+			registerFlag: vi.fn(),
+			registerShortcut(
+				shortcut: string,
+				options: { handler: (ctx: any) => unknown | Promise<unknown> },
+			) {
+				shortcuts.set(shortcut, options.handler);
+			},
+			getFlag: vi.fn(() => false),
+			exec,
+		} as any);
+
+		await shortcuts.get("ctrl+r")?.({
+			cwd: "/repo/app",
+			signal: undefined,
+			hasUI: true,
+			ui: { setEditorText, setStatus, notify: vi.fn() },
+		});
+
+		expect(exec).toHaveBeenCalledTimes(1);
+		const [command, args, options] = exec.mock.calls[0];
+		expect(command).toBe("bash");
+		expect(args[0]).toBe("-c");
+		expect(args.slice(3)).toEqual(["/tmp/cache/pi/messages.jsonl", "/repo", "/repo/app"]);
+		expect(options).toEqual({ cwd: "/repo/app" });
+		expect(setEditorText).toHaveBeenCalledWith("multi\nline prompt");
+		expect(setStatus).toHaveBeenCalledWith("prompt-history", undefined);
+	});
+
+	it("requires tmux before opening the fuzzy picker", async () => {
+		const shortcuts = new Map<string, (ctx: any) => unknown | Promise<unknown>>();
+		const notify = vi.fn();
+		const exec = vi.fn();
+		vi.stubEnv("TMUX", "");
+
+		promptHistoryExtension({
+			on: vi.fn(),
+			registerFlag: vi.fn(),
+			registerShortcut(
+				shortcut: string,
+				options: { handler: (ctx: any) => unknown | Promise<unknown> },
+			) {
+				shortcuts.set(shortcut, options.handler);
+			},
+			getFlag: vi.fn(() => false),
+			exec,
+		} as any);
+
+		await shortcuts.get("ctrl+r")?.({
+			cwd: "/repo/app",
+			signal: undefined,
+			hasUI: true,
+			ui: { notify, setEditorText: vi.fn(), setStatus: vi.fn() },
+		});
+
+		expect(exec).not.toHaveBeenCalled();
+		expect(notify).toHaveBeenCalledWith(expect.stringContaining("tmux"), "warning");
+	});
+
+	it("warns instead of picking outside git repositories", async () => {
+		const shortcuts = new Map<string, (ctx: any) => unknown | Promise<unknown>>();
+		const notify = vi.fn();
+		const exec = vi.fn();
+		mocks.resolvePromptHistoryGitContext.mockResolvedValue(undefined);
+		vi.stubEnv("TMUX", "/tmp/tmux-501/default,123,0");
+
+		promptHistoryExtension({
+			on: vi.fn(),
+			registerFlag: vi.fn(),
+			registerShortcut(
+				shortcut: string,
+				options: { handler: (ctx: any) => unknown | Promise<unknown> },
+			) {
+				shortcuts.set(shortcut, options.handler);
+			},
+			getFlag: vi.fn(() => false),
+			exec,
+		} as any);
+
+		await shortcuts.get("ctrl+r")?.({
+			cwd: "/tmp",
+			signal: undefined,
+			hasUI: true,
+			ui: { notify, setEditorText: vi.fn(), setStatus: vi.fn() },
+		});
+
+		expect(exec).not.toHaveBeenCalled();
+		expect(notify).toHaveBeenCalledWith(
+			"Prompt history is unavailable outside git repositories.",
+			"warning",
+		);
+	});
+
+	it("reports picker failures and empty results without touching the editor", async () => {
+		const shortcuts = new Map<string, (ctx: any) => unknown | Promise<unknown>>();
+		const notify = vi.fn();
+		const setEditorText = vi.fn();
+		vi.stubEnv("TMUX", "/tmp/tmux-501/default,123,0");
+
+		const exec = vi.fn<
+			(
+				command: string,
+				args: string[],
+				options?: { cwd?: string },
+			) => Promise<{
+				stdout: string;
+				stderr: string;
+				code: number;
+				killed: boolean;
+			}>
+		>(async () => ({ stdout: "", stderr: "", code: 1, killed: false }));
+
+		promptHistoryExtension({
+			on: vi.fn(),
+			registerFlag: vi.fn(),
+			registerShortcut(
+				shortcut: string,
+				options: { handler: (ctx: any) => unknown | Promise<unknown> },
+			) {
+				shortcuts.set(shortcut, options.handler);
+			},
+			getFlag: vi.fn(() => false),
+			exec,
+		} as any);
+
+		const ctx = {
+			cwd: "/repo/app",
+			signal: undefined,
+			hasUI: true,
+			ui: { notify, setEditorText, setStatus: vi.fn() },
+		};
+
+		await shortcuts.get("ctrl+r")?.(ctx);
+		expect(notify).toHaveBeenCalledWith("No prompt history found for repo scope.", "info");
+		expect(setEditorText).not.toHaveBeenCalled();
+
+		notify.mockClear();
+		exec.mockResolvedValue({ stdout: "", stderr: "", code: 130, killed: false });
+		await shortcuts.get("ctrl+r")?.(ctx);
+		expect(notify).not.toHaveBeenCalled();
+		expect(setEditorText).not.toHaveBeenCalled();
+
+		notify.mockClear();
+		exec.mockResolvedValue({
+			stdout: "",
+			stderr: "prompt-history: Ctrl+R fuzzy history requires jq on PATH.\n",
+			code: 3,
+			killed: false,
+		});
+		await shortcuts.get("ctrl+r")?.(ctx);
+		expect(notify).toHaveBeenCalledWith(
+			"prompt-history: Ctrl+R fuzzy history requires jq on PATH.",
+			"warning",
+		);
+		expect(setEditorText).not.toHaveBeenCalled();
 	});
 });

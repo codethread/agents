@@ -20,6 +20,7 @@ Prompt history provides shell-like recall for previously submitted Pi user promp
 - **SPEC-002.B4:** Keep normal sessions cheap: append on submitted user messages, but do not scan history unless the user presses a recall shortcut.
 - **SPEC-002.B5:** Insert recalled prompts into the editor without auto-submitting them.
 - **SPEC-002.B6:** Provide a debug flag that surfaces cache path, append behavior, selected scope, load counts, and selected index.
+- **SPEC-002.B33:** Offer an `fzf-tmux` fuzzy picker over history on `Ctrl+R`, streaming the JSONL cache through `jq` instead of implementing a fuzzy matcher in TypeScript, with `Tab` / `Shift+Tab` cycling the listing scope between repo, cwd, and global.
 
 ### SPEC-002.P4 Non-Goals
 
@@ -37,6 +38,7 @@ Prompt history provides shell-like recall for previously submitted Pi user promp
 
 - **SPEC-002.D2 Decision:** Implement storage and filtering in TypeScript rather than shelling out to `jq`.
   - **Rationale:** Shortcut handling is interactive and should avoid process startup, shell quoting, and external command dependencies. Node JSON parsing is sufficient, and TypeScript can lazily read only what recall needs.
+  - **Exception:** The `Ctrl+R` fuzzy picker (D14) deliberately delegates to `jq` and `fzf-tmux`, because fuzzy matching is `fzf`'s job and the picker is opt-in per keypress.
 
 - **SPEC-002.D3 Decision:** Do not read the history file during ordinary sessions unless recall is used.
   - **Rationale:** Most sessions will never touch prompt recall. The extension should append cheap records as prompts are submitted and defer all scan/filter work until the user presses a recall shortcut.
@@ -71,6 +73,12 @@ Prompt history provides shell-like recall for previously submitted Pi user promp
 - **SPEC-002.D13 Decision:** Force a TUI render after programmatic editor updates.
   - **Rationale:** `ctx.ui.setEditorText()` updates editor state without requesting a render. Recall resolves git context and reads history asynchronously (always on the first press), so the render triggered by the keypress can complete before the text is applied and the editor appears unchanged until the next render-triggering event. Clearing an unset footer status requests a render without changing visible state.
 
+- **SPEC-002.D14 Decision:** Provide an `fzf-tmux` fuzzy picker on `Ctrl+R`, streaming the cache file through `jq` rather than building fuzzy matching in TypeScript, and cycle the listing scope with `Tab` / `Shift+Tab` inside the picker.
+  - **Rationale:** `fzf` already owns fuzzy matching, preview rendering, and terminal interaction; piping the JSONL cache through `jq` keeps the extension code limited to building the pipeline and parsing the selected record. Each fzf line carries a display field (local time, cwd basename, one-line message preview) and a hidden raw-record field so multi-line prompts round-trip exactly. Scope switching uses `reload()` plus a `load`-event `transform-header()`, so the popup stays open and the typed query is preserved instead of cancelling and relaunching through Pi with a bespoke exit code.
+
+- **SPEC-002.D15 Decision:** Require tmux for the fuzzy picker and surface picker failures as non-fatal notifications.
+  - **Rationale:** `fzf-tmux` needs a tmux client to draw its popup; without one the picker would fight Pi for the terminal. Empty history, cancelled pickers (`130`), and missing tools (`jq`/`fzf-tmux`) are normal outcomes with clear messages instead of errors.
+
 ## SPEC-002.P6 3. Architecture
 
 ### SPEC-002.P7 Component structure
@@ -80,8 +88,10 @@ pi/extensions/ui/prompt-history/
 |-- index.ts                 # Extension entrypoint, shortcut/event registration, debug flag
 |-- history.ts               # Storage path, append, lazy read/filter, JSONL encode/decode
 |-- git.ts                   # Git worktree detection and canonical repo-root resolution
+|-- fzf.ts                   # Ctrl+R fzf-tmux pipeline script and selection parsing
 |-- history.test.ts          # Storage, filtering, ordering, Markdown round-trip tests
 |-- git.test.ts              # Git output parsing tests
+|-- fzf.test.ts              # Fuzzy picker selection parsing tests
 `-- README.md                # Usage, keybinding setup, debug flag
 ```
 
@@ -108,6 +118,11 @@ Update package extension indexes and shell wrapper support:
    - lazily load up to 100 newest matching records for the requested scope
    - cycle through the in-memory scope buffer on repeated presses
    - call `ctx.ui.setEditorText(record.message)` for the selected record
+4. When `Ctrl+R` is pressed:
+   - ensure tmux is available and the current cwd is inside a git work tree; otherwise notify and do nothing
+   - stream cache records through `jq` into `fzf-tmux`, newest first, starting with the repo scope
+   - cycle the scope (repo -> cwd -> global, reversed with `Shift+Tab`) in place using `fzf` `reload()`; the `load` event refreshes the scope header
+   - parse the selected `fzf` line back into prompt text and call `ctx.ui.setEditorText(message)`
 
 ## SPEC-002.P9 4. Data Model
 
@@ -136,20 +151,22 @@ Contract notes:
 
 ### SPEC-002.P12 Keyboard shortcuts
 
-| Shortcut       | Scope                  | Behavior                                                                                        |
-| -------------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
-| `Up`           | Current editor history | Pi built-in `tui.editor.cursorUp` recalls prior prompt text in the current editor history flow. |
-| `Ctrl+P`       | Repo root              | Extension recalls prompts from the same canonical repository.                                   |
-| `Ctrl+Shift+P` | Global                 | Extension recalls all recorded prompts, newest-first.                                           |
+| Shortcut       | Scope                  | Behavior                                                                                                          |
+| -------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `Up`           | Current editor history | Pi built-in `tui.editor.cursorUp` recalls prior prompt text in the current editor history flow.                   |
+| `Ctrl+P`       | Repo root              | Extension recalls prompts from the same canonical repository.                                                     |
+| `Ctrl+Shift+P` | Global                 | Extension recalls all recorded prompts, newest-first.                                                             |
+| `Ctrl+R`       | Repo root              | Extension opens an `fzf-tmux` fuzzy picker, newest-first, with `Tab` / `Shift+Tab` cycling repo/cwd/global scope. |
 
-These behaviors require moving conflicting built-in `Ctrl+P` / `Ctrl+Shift+P` bindings in `~/.pi/agent/keybindings.json`, including Pi's default model cycling and any other built-in surfaces that still claim those keys.
+These behaviors require moving conflicting built-in `Ctrl+P` / `Ctrl+Shift+P` bindings in `~/.pi/agent/keybindings.json`, including Pi's default model cycling and any other built-in surfaces that still claim those keys. `Ctrl+R` does not require a remap to work, but moving `app.session.rename` (session picker only) silences the extension-conflict diagnostic.
 
 Example direction:
 
 ```json
 {
 	"app.model.cycleForward": "ctrl+alt+p",
-	"app.model.cycleBackward": "ctrl+shift+alt+p"
+	"app.model.cycleBackward": "ctrl+shift+alt+p",
+	"app.session.rename": "ctrl+alt+r"
 }
 ```
 

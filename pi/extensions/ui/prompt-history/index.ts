@@ -11,9 +11,17 @@ import {
 	type PromptHistoryScope,
 } from "./history.js";
 import { resolvePromptHistoryGitContext, type PromptHistoryGitContext } from "./git.js";
+import {
+	PICKER_EXIT_CANCELLED,
+	PICKER_EXIT_NO_MATCH,
+	buildPromptHistoryPickerScript,
+	parsePromptHistoryPickerSelection,
+} from "./fzf.js";
 
 const DEBUG_FLAG = "debug-prompt-history";
 const WARNING_OUTSIDE_GIT = "Prompt history is unavailable outside git repositories.";
+const WARNING_WITHOUT_TMUX =
+	"Ctrl+R fuzzy prompt history requires tmux. Start Pi inside tmux to use the picker.";
 
 type RecallScopeName = "repo" | "global";
 
@@ -176,6 +184,69 @@ export default function promptHistoryExtension(pi: ExtensionAPI) {
 		debugLog(pi, ctx, `selected scope=${scope} index=${index + 1}/${recallState.records.length}`);
 	}
 
+	async function pickPrompt(ctx: ExtensionContext) {
+		if (!ctx.hasUI) return;
+		if (!process.env.TMUX?.trim()) {
+			notify(ctx, WARNING_WITHOUT_TMUX, "warning");
+			debugLog(pi, ctx, `fuzzy picker blocked without tmux cwd=${ctx.cwd}`);
+			return;
+		}
+
+		try {
+			const gitContext = await getGitContext(ctx);
+			if (!gitContext) {
+				notify(ctx, WARNING_OUTSIDE_GIT, "warning");
+				debugLog(pi, ctx, `fuzzy picker blocked outside git repo cwd=${ctx.cwd}`);
+				return;
+			}
+
+			const cachePath = getPromptHistoryCachePath();
+			const result = await pi.exec(
+				"bash",
+				[
+					"-c",
+					buildPromptHistoryPickerScript(),
+					"prompt-history-picker",
+					cachePath,
+					gitContext.repoRoot,
+					gitContext.cwd,
+				],
+				{ cwd: ctx.cwd },
+			);
+
+			if (result.code === PICKER_EXIT_NO_MATCH) {
+				notify(ctx, "No prompt history found for repo scope.", "info");
+				debugLog(pi, ctx, `fuzzy picker found no matches repo=${gitContext.repoRoot}`);
+				return;
+			}
+			if (result.code === PICKER_EXIT_CANCELLED) {
+				debugLog(pi, ctx, "fuzzy picker cancelled");
+				return;
+			}
+			if (result.code !== 0) {
+				notify(
+					ctx,
+					result.stderr.trim() || `prompt-history: fuzzy picker exited with code ${result.code}.`,
+					"warning",
+				);
+				debugLog(pi, ctx, `fuzzy picker failed code=${result.code}`);
+				return;
+			}
+
+			const message = parsePromptHistoryPickerSelection(result.stdout);
+			if (message === undefined) return;
+			ctx.ui.setEditorText(message);
+			ctx.ui.setStatus("prompt-history", undefined);
+			debugLog(
+				pi,
+				ctx,
+				`fuzzy picker selected repo=${gitContext.repoRoot} chars=${message.length}`,
+			);
+		} catch (error) {
+			notify(ctx, `prompt-history: ${getErrorMessage(error)}`, "warning");
+		}
+	}
+
 	pi.registerFlag(DEBUG_FLAG, {
 		description: "Print prompt-history diagnostics while recording and recalling prompts",
 		type: "boolean",
@@ -193,6 +264,13 @@ export default function promptHistoryExtension(pi: ExtensionAPI) {
 		description: "Recall prompt history across all repositories",
 		handler: async (ctx) => {
 			await recallPrompt("global", ctx);
+		},
+	});
+
+	pi.registerShortcut(Key.ctrl("r"), {
+		description: "Pick prompt history for the current repository with fzf-tmux",
+		handler: async (ctx) => {
+			await pickPrompt(ctx);
 		},
 	});
 
