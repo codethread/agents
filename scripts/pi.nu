@@ -92,6 +92,7 @@ def --wrapped pi [
 	--debug-web-access: string                # [EXT] Run web access debug command: search <query> or fetch <url>
 	--debug-pi-internals                      # [EXT] Print Pi internals discovery report and exit
 	--debug-dialogue-capture                  # [EXT] Print dialogue-capture log path and captured events, then exit
+	--debug-notify                            # [EXT] Print one-shot settled notification configuration and exit
 	...args: string
 ] {
 	mut pi_args = []
@@ -148,6 +149,7 @@ def --wrapped pi [
 	if $debug_web_access != null { $pi_args = ($pi_args | append ["--debug-web-access" $debug_web_access]) }
 	if $debug_pi_internals { $pi_args = ($pi_args | append "--debug-pi-internals") }
 	if $debug_dialogue_capture { $pi_args = ($pi_args | append "--debug-dialogue-capture") }
+	if $debug_notify { $pi_args = ($pi_args | append "--debug-notify") }
 
 	$pi_args = ($pi_args | append $args)
 	let final_pi_args = $pi_args
