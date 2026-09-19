@@ -83,7 +83,7 @@ describe("prompt-history extension", () => {
 					],
 				},
 			},
-			{ cwd: "/repo/app", signal: undefined, hasUI: false },
+			{ cwd: "/repo/app", signal: undefined, hasUI: true },
 		);
 
 		expect(mocks.createPromptHistoryRecord).toHaveBeenCalledWith({
@@ -94,9 +94,32 @@ describe("prompt-history extension", () => {
 		expect(mocks.appendPromptHistoryRecord).toHaveBeenCalledTimes(1);
 	});
 
+	it("does not record prompts in non-interactive sessions", async () => {
+		const handlers = new Map<string, (event: any, ctx: any) => unknown | Promise<unknown>>();
+
+		promptHistoryExtension({
+			on(eventName: string, handler: (event: any, ctx: any) => unknown | Promise<unknown>) {
+				handlers.set(eventName, handler);
+			},
+			registerFlag: vi.fn(),
+			registerShortcut: vi.fn(),
+			getFlag: vi.fn(() => false),
+			exec: vi.fn(),
+		} as any);
+
+		await handlers.get("message_end")?.(
+			{ message: { role: "user", content: "headless prompt" } },
+			{ cwd: "/repo/app", signal: undefined, hasUI: false },
+		);
+
+		expect(mocks.resolvePromptHistoryGitContext).not.toHaveBeenCalled();
+		expect(mocks.appendPromptHistoryRecord).not.toHaveBeenCalled();
+	});
+
 	it("cycles recalled prompts within a loaded scope buffer", async () => {
 		const shortcuts = new Map<string, (ctx: any) => unknown | Promise<unknown>>();
 		const setEditorText = vi.fn();
+		const setStatus = vi.fn();
 		mocks.loadPromptHistoryRecords.mockResolvedValue([
 			{ version: 1, timestamp: 3, message: "latest", cwd: "/repo/app", repoRoot: "/repo" },
 			{ version: 1, timestamp: 2, message: "older", cwd: "/repo/app", repoRoot: "/repo" },
@@ -119,7 +142,7 @@ describe("prompt-history extension", () => {
 			cwd: "/repo/app",
 			signal: undefined,
 			hasUI: true,
-			ui: { setEditorText, notify: vi.fn() },
+			ui: { setEditorText, setStatus, notify: vi.fn() },
 		};
 		await shortcuts.get("ctrl+p")?.(ctx);
 		await shortcuts.get("ctrl+p")?.(ctx);
@@ -128,6 +151,8 @@ describe("prompt-history extension", () => {
 		expect(mocks.loadPromptHistoryRecords).toHaveBeenCalledTimes(1);
 		expect(setEditorText).toHaveBeenNthCalledWith(1, "latest");
 		expect(setEditorText).toHaveBeenNthCalledWith(2, "older");
+		expect(setStatus).toHaveBeenCalledTimes(2);
+		expect(setStatus).toHaveBeenCalledWith("prompt-history", undefined);
 	});
 
 	it("avoids reloading loaded recall results after a new prompt is appended", async () => {
@@ -157,7 +182,7 @@ describe("prompt-history extension", () => {
 			cwd: "/repo/app",
 			signal: undefined,
 			hasUI: true,
-			ui: { setEditorText, notify: vi.fn() },
+			ui: { setEditorText, setStatus: vi.fn(), notify: vi.fn() },
 		};
 		await shortcuts.get("ctrl+p")?.(ctx);
 		await handlers.get("message_end")?.({ message: { role: "user", content: "newest" } }, ctx);
@@ -197,7 +222,7 @@ describe("prompt-history extension", () => {
 			cwd: "/tmp",
 			signal: undefined,
 			hasUI: true,
-			ui: { notify, setEditorText: vi.fn() },
+			ui: { notify, setEditorText: vi.fn(), setStatus: vi.fn() },
 		});
 
 		expect(notify).toHaveBeenCalledWith(

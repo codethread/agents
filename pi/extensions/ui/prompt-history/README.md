@@ -2,7 +2,7 @@
 
 > Recall previously submitted user prompts across sessions and linked worktrees.
 
-This extension appends submitted user prompts to `${XDG_CACHE_HOME:-~/.cache}/pi/messages.jsonl` when Pi is running inside a git repository. It records both the exact cwd and a canonical repo root so you can recall prompts from anywhere in the same repo/worktree family or globally.
+This extension appends submitted user prompts to `${XDG_CACHE_HOME:-~/.cache}/pi/messages.jsonl` when Pi is running interactively (`ctx.hasUI`) inside a git repository. Headless runs such as `--print` or subagent sessions are not recorded. It records both the exact cwd and a canonical repo root so you can recall prompts from anywhere in the same repo/worktree family or globally.
 
 **Prompt recall paths:**
 

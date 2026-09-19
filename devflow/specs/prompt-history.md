@@ -3,7 +3,7 @@
 **Document ID:** `SPEC-002`
 
 **Status:** Implemented
-**Last Updated:** 2026-06-04
+**Last Updated:** 2026-09-19
 **Configuration identification:** `SPEC-002` prefixes section and point identifiers in this document. Existing human-readable numbering is preserved for migration traceability.
 
 ## SPEC-002.P1 1. Overview
@@ -14,7 +14,7 @@ Prompt history provides shell-like recall for previously submitted Pi user promp
 
 ### SPEC-002.P3 Goals
 
-- **SPEC-002.B1:** Record submitted user prompt text while Pi is running inside a git repository.
+- **SPEC-002.B1:** Record submitted user prompt text while Pi is running interactively (`ctx.hasUI`) inside a git repository.
 - **SPEC-002.B2:** Preserve enough location context to distinguish exact cwd history from shared repo/worktree history.
 - **SPEC-002.B3:** Recall prompts without parsing Pi session files or depending on current-session editor history.
 - **SPEC-002.B4:** Keep normal sessions cheap: append on submitted user messages, but do not scan history unless the user presses a recall shortcut.
@@ -65,6 +65,12 @@ Prompt history provides shell-like recall for previously submitted Pi user promp
 - **SPEC-002.D11 Decision:** Test Markdown prompt round-tripping through JSONL encoding/decoding.
   - **Rationale:** User prompts are often Markdown-heavy, with code fences, quotes, XML-ish tags, backticks, and multiline content. Lossless storage of prompt text is more important than malformed-file tolerance for the first implementation.
 
+- **SPEC-002.D12 Decision:** Record only interactive sessions (`ctx.hasUI`).
+  - **Rationale:** Headless runs (`--print`, subagent sessions) are machine-driven, have no editor surface to recall into, and would otherwise flood the shared history file. Interactive-only recording keeps the history aligned with its recall UI.
+
+- **SPEC-002.D13 Decision:** Force a TUI render after programmatic editor updates.
+  - **Rationale:** `ctx.ui.setEditorText()` updates editor state without requesting a render. Recall resolves git context and reads history asynchronously (always on the first press), so the render triggered by the keypress can complete before the text is applied and the editor appears unchanged until the next render-triggering event. Clearing an unset footer status requests a render without changing visible state.
+
 ## SPEC-002.P6 3. Architecture
 
 ### SPEC-002.P7 Component structure
@@ -92,6 +98,7 @@ Update package extension indexes and shell wrapper support:
    - `ctrl+shift+p` shortcut for global recall
    - user-message recording hook
 2. When a user message is submitted:
+   - skip recording when `ctx.hasUI` is false
    - resolve exact `ctx.cwd`
    - check whether it is inside a git work tree
    - derive canonical `repoRoot`
@@ -159,7 +166,7 @@ Example direction:
 - **SPEC-002.B13:** [ ] Add prompt-history extension directory and README.
 - **SPEC-002.B14:** [ ] Resolve XDG cache path and create the parent directory when appending.
 - **SPEC-002.B15:** [ ] Implement git worktree detection and canonical repo-root parsing from git common-dir output.
-- **SPEC-002.B16:** [ ] Append one record for submitted user messages only when inside a git repository.
+- **SPEC-002.B16:** [ ] Append one record for submitted user messages only in interactive sessions inside a git repository.
 - **SPEC-002.B17:** [ ] Add tests for record encoding/decoding, Markdown round-trip, and git output parsing.
 
 ### SPEC-002.P16 Phase 2: Lazy recall

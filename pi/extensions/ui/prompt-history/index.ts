@@ -106,6 +106,11 @@ export default function promptHistoryExtension(pi: ExtensionAPI) {
 	}
 
 	async function recordPrompt(ctx: ExtensionContext, message: AgentMessage) {
+		if (!ctx.hasUI) {
+			debugLog(pi, ctx, "skip append without UI");
+			return;
+		}
+
 		const promptText = extractUserMessageText(message);
 		if (!promptText) return;
 
@@ -162,6 +167,11 @@ export default function promptHistoryExtension(pi: ExtensionAPI) {
 		const index = recallState.nextIndex % recallState.records.length;
 		const record = recallState.records[index];
 		ctx.ui.setEditorText(record.message);
+		// `setEditorText` updates editor state without requesting a render, and recall
+		// is async (git resolution and history scans, always on the first press), so
+		// the render triggered by the keypress can run before the text is applied.
+		// Clearing an unset footer status requests a render with no visual change.
+		ctx.ui.setStatus("prompt-history", undefined);
 		recallState.nextIndex = (index + 1) % recallState.records.length;
 		debugLog(pi, ctx, `selected scope=${scope} index=${index + 1}/${recallState.records.length}`);
 	}
