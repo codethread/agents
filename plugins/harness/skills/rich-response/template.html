@@ -37,6 +37,10 @@
 				--syntax-type: #a86a00;
 				--syntax-operator: #286983;
 				--syntax-punctuation: #f2e9e1;
+				--diagram-node-bg: #f2e9e1;
+				--diagram-node-border: #797593;
+				--diagram-cluster-bg: #faf4ed;
+				--diagram-cluster-border: #907aa9;
 			}
 			@media (prefers-color-scheme: dark) {
 				:root {
@@ -70,6 +74,10 @@
 					--syntax-type: #decef2;
 					--syntax-operator: #6e698f;
 					--syntax-punctuation: #58556b;
+					--diagram-node-bg: #393552;
+					--diagram-node-border: #908caa;
+					--diagram-cluster-bg: #2a283e;
+					--diagram-cluster-border: #c4a7e7;
 				}
 			}
 			* {
@@ -321,21 +329,142 @@
 				vertical-align: 0.1em;
 			}
 
-			/* Diagrams render as SVG; keep them tidy. */
+			/* Diagrams stay in document flow but use the viewport width instead of the prose column. */
 			.diagram-wrapper {
 				position: relative;
-				margin: 1.2em 0;
+				width: calc(100vw - 2rem);
+				margin: 1.2em calc(50% - 50vw + 1rem);
 			}
 			.mermaid,
 			.graphviz {
 				margin: 0;
 				text-align: center;
 			}
-			.mermaid svg,
+			.mermaid {
+				height: clamp(17rem, 43vh, 35rem);
+				padding: 0;
+				overflow: hidden;
+				touch-action: none;
+			}
+			.mermaid svg {
+				width: 100%;
+				height: 100%;
+				max-width: none !important;
+				background: transparent;
+				cursor: grab;
+			}
+			.mermaid svg.is-dragging {
+				cursor: grabbing;
+			}
+			.mermaid svg.is-zoom-cursor {
+				cursor: zoom-in;
+			}
 			.graphviz svg {
+				width: auto;
 				max-width: 100%;
+				max-height: clamp(17rem, 43vh, 35rem);
 				height: auto;
 				background: transparent;
+			}
+			.graphviz svg > g.graph > polygon {
+				fill: transparent;
+			}
+			body.diagram-overlay-open {
+				overflow: hidden;
+			}
+			.diagram-wrapper.is-fullscreen {
+				position: fixed;
+				inset: 0;
+				z-index: 1000;
+				display: flex;
+				width: 100vw;
+				height: 100vh;
+				margin: 0;
+				padding: 1rem;
+				background: var(--bg);
+			}
+			.diagram-wrapper.is-fullscreen .mermaid,
+			.diagram-wrapper.is-fullscreen .graphviz {
+				flex: 1;
+				height: 100%;
+				max-height: none;
+				overflow: hidden;
+			}
+			.diagram-wrapper.is-fullscreen .graphviz {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+			.diagram-wrapper.is-fullscreen .graphviz svg {
+				width: 100%;
+				height: 100%;
+				max-height: 100%;
+			}
+			.fullscreen-btn {
+				position: absolute;
+				top: 0.5rem;
+				right: 3.25rem;
+				z-index: 3;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				width: 2rem;
+				height: 2rem;
+				padding: 0.4rem;
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				background: var(--bg);
+				color: var(--muted);
+				cursor: pointer;
+			}
+			.fullscreen-btn:hover {
+				color: var(--fg);
+				border-color: var(--diagram-cluster-border);
+			}
+			.fullscreen-btn:focus-visible {
+				outline: 2px solid var(--link);
+				outline-offset: 1px;
+			}
+			.fullscreen-btn svg {
+				width: 1rem;
+				height: 1rem;
+				fill: none;
+				stroke: currentColor;
+				stroke-width: 2;
+			}
+			.diagram-controls {
+				position: absolute;
+				top: 0.6rem;
+				left: 0.6rem;
+				z-index: 2;
+				display: flex;
+				gap: 0.3rem;
+				padding: 0.3rem;
+				background: color-mix(in srgb, var(--bg) 92%, transparent);
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				box-shadow: 0 2px 8px color-mix(in srgb, var(--fg) 12%, transparent);
+			}
+			.diagram-controls button {
+				min-width: 2rem;
+				height: 2rem;
+				padding: 0 0.55rem;
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				background: var(--code-bg);
+				color: var(--fg);
+				font: inherit;
+				font-size: 0.85rem;
+				font-weight: 600;
+				line-height: 1;
+				cursor: pointer;
+			}
+			.diagram-controls button:hover {
+				border-color: var(--diagram-cluster-border);
+			}
+			.diagram-controls button:focus-visible {
+				outline: 2px solid var(--link);
+				outline-offset: 1px;
 			}
 
 			/* Tabs — CSS-only via :has(). Supports up to 5 tabs per group. */
@@ -447,8 +576,25 @@
 				max-height: calc(100vh - 5rem);
 				overflow-y: auto;
 				line-height: 1.4;
-				padding-left: 1rem;
+				padding: 0.75rem 1.5rem;
 				border-left: 1px solid var(--border);
+				border-radius: 8px;
+				background: transparent;
+				transition:
+					opacity 160ms ease,
+					background-color 160ms ease,
+					box-shadow 160ms ease;
+			}
+			.outline.diagram-overlap {
+				opacity: 0.12;
+			}
+			.outline.diagram-overlap:hover,
+			.outline.diagram-overlap:focus-within {
+				opacity: 1;
+				background: color-mix(in srgb, var(--bg) 90%, transparent);
+				box-shadow: 0 0 6px 2px color-mix(in srgb, var(--bg) 45%, transparent);
+				-webkit-backdrop-filter: blur(3px);
+				backdrop-filter: blur(3px);
 			}
 			.outline-title {
 				color: var(--muted);
@@ -608,6 +754,22 @@
 				'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg>';
 			const checkIcon =
 				'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
+			const fullscreenIcon =
+				'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>';
+			const exitFullscreenIcon =
+				'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"/></svg>';
+			const isolatedOverlayEvents = [
+				"click",
+				"dblclick",
+				"mousedown",
+				"mousemove",
+				"mouseup",
+				"contextmenu",
+				"touchstart",
+				"touchmove",
+				"touchend",
+				"touchcancel",
+			];
 			const addCopyButton = (container, source) => {
 				const btn = document.createElement("button");
 				btn.className = "copy-btn";
@@ -630,6 +792,70 @@
 				});
 				container.appendChild(btn);
 			};
+			const addFullscreenButton = (wrapper) => {
+				const btn = document.createElement("button");
+				btn.className = "fullscreen-btn";
+				btn.type = "button";
+				btn.title = "Open diagram fullscreen";
+				btn.setAttribute("aria-label", "Open diagram fullscreen");
+				btn.setAttribute("aria-pressed", "false");
+				btn.innerHTML = fullscreenIcon;
+
+				const setFullscreen = (active) => {
+					wrapper.classList.toggle("is-fullscreen", active);
+					document.body.classList.toggle("diagram-overlay-open", active);
+					if (active) {
+						wrapper.setAttribute("role", "dialog");
+						wrapper.setAttribute("aria-modal", "true");
+						wrapper.setAttribute("aria-label", "Fullscreen diagram");
+					} else {
+						wrapper.removeAttribute("role");
+						wrapper.removeAttribute("aria-modal");
+						wrapper.removeAttribute("aria-label");
+					}
+					btn.setAttribute("aria-pressed", String(active));
+					btn.setAttribute(
+						"aria-label",
+						active ? "Close fullscreen diagram" : "Open diagram fullscreen",
+					);
+					btn.title = active ? "Close fullscreen diagram" : "Open diagram fullscreen";
+					btn.innerHTML = active ? exitFullscreenIcon : fullscreenIcon;
+					requestAnimationFrame(() => wrapper.dispatchEvent(new Event("diagram-resize")));
+				};
+
+				btn.addEventListener("click", (event) => {
+					event.stopPropagation();
+					setFullscreen(!wrapper.classList.contains("is-fullscreen"));
+				});
+				window.addEventListener("keydown", (event) => {
+					if (event.key === "Escape" && wrapper.classList.contains("is-fullscreen")) {
+						event.preventDefault();
+						setFullscreen(false);
+						btn.focus();
+					}
+				});
+				isolatedOverlayEvents.forEach((type) => {
+					wrapper.addEventListener(
+						type,
+						(event) => {
+							if (!wrapper.classList.contains("is-fullscreen")) return;
+							event.stopPropagation();
+							if (type === "touchmove") event.preventDefault();
+						},
+						{ passive: false },
+					);
+				});
+				wrapper.addEventListener(
+					"wheel",
+					(event) => {
+						if (!wrapper.classList.contains("is-fullscreen")) return;
+						event.stopPropagation();
+						event.preventDefault();
+					},
+					{ passive: false },
+				);
+				wrapper.appendChild(btn);
+			};
 
 			document.querySelectorAll("pre:not(.mermaid):not(.graphviz)").forEach((pre) => {
 				addCopyButton(pre, () => {
@@ -645,7 +871,35 @@
 				pre.replaceWith(wrapper);
 				wrapper.appendChild(pre);
 				addCopyButton(wrapper, () => source);
+				addFullscreenButton(wrapper);
 			});
+
+			(() => {
+				const outline = document.querySelector(".outline");
+				if (!outline) return;
+				const diagrams = [...document.querySelectorAll(".diagram-wrapper")];
+				const overlaps = (a, b) =>
+					a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+				const update = () => {
+					const outlineRect = outline.getBoundingClientRect();
+					const isOverlapping = diagrams.some((diagram) =>
+						overlaps(outlineRect, diagram.getBoundingClientRect()),
+					);
+					outline.classList.toggle("diagram-overlap", isOverlapping);
+				};
+				let frame = 0;
+				const scheduleUpdate = () => {
+					if (frame) return;
+					frame = requestAnimationFrame(() => {
+						frame = 0;
+						update();
+					});
+				};
+				window.addEventListener("scroll", scheduleUpdate, { passive: true });
+				window.addEventListener("resize", scheduleUpdate);
+				diagrams.forEach((diagram) => diagram.addEventListener("diagram-resize", scheduleUpdate));
+				update();
+			})();
 		</script>
 
 		<script>
@@ -665,6 +919,10 @@
 						warnBd: "#a86a00",
 						errorBd: "#b4637a",
 						successBd: "#a86a00",
+						diagramNodeBg: "#f2e9e1",
+						diagramNodeBorder: "#797593",
+						diagramClusterBg: "#faf4ed",
+						diagramClusterBorder: "#907aa9",
 					},
 					moon: {
 						bg: "#232136",
@@ -680,6 +938,10 @@
 						warnBd: "#f6c177",
 						errorBd: "#eb6f92",
 						successBd: "#9ccfd8",
+						diagramNodeBg: "#393552",
+						diagramNodeBorder: "#908caa",
+						diagramClusterBg: "#2a283e",
+						diagramClusterBorder: "#c4a7e7",
 					},
 				};
 
@@ -702,6 +964,10 @@
 					warnBd: css("--warn-bd"),
 					errorBd: css("--error-bd"),
 					successBd: css("--success-bd"),
+					diagramNodeBg: css("--diagram-node-bg"),
+					diagramNodeBorder: css("--diagram-node-border"),
+					diagramClusterBg: css("--diagram-cluster-bg"),
+					diagramClusterBorder: css("--diagram-cluster-border"),
 				});
 
 				const normalizeColor = (value) => {
@@ -751,7 +1017,21 @@
 						.join(";");
 
 				const themeGraphvizSvg = (svg) => {
+					const colors = current();
 					svg.style.background = "transparent";
+					svg.querySelectorAll(".node > polygon, .node > path, .node > ellipse").forEach((node) => {
+						if (["white", "#ffffff"].includes(normalizeColor(node.getAttribute("fill")))) {
+							node.setAttribute("fill", colors.diagramNodeBg);
+						}
+						if (["black", "#000000"].includes(normalizeColor(node.getAttribute("stroke")))) {
+							node.setAttribute("stroke", colors.diagramNodeBorder);
+						}
+					});
+					svg.querySelectorAll("text:not([fill])").forEach((node) => {
+						if (!/(^|;)\s*fill\s*:/.test(node.getAttribute("style") || "")) {
+							node.setAttribute("fill", colors.fg);
+						}
+					});
 					svg.querySelectorAll("*").forEach((node) => {
 						["fill", "stroke", "color", "stop-color"].forEach((attr) => {
 							if (node.hasAttribute(attr)) {
@@ -776,9 +1056,9 @@
 								'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
 							fontSize: "16px",
 							textColor: colors.fg,
-							primaryColor: colors.codeBg,
+							primaryColor: colors.diagramNodeBg,
 							primaryTextColor: colors.fg,
-							primaryBorderColor: colors.border,
+							primaryBorderColor: colors.diagramNodeBorder,
 							secondaryColor: colors.infoBg,
 							secondaryTextColor: colors.fg,
 							secondaryBorderColor: colors.infoBd,
@@ -786,12 +1066,12 @@
 							tertiaryTextColor: colors.fg,
 							tertiaryBorderColor: colors.border,
 							lineColor: colors.link,
-							mainBkg: colors.codeBg,
+							mainBkg: colors.diagramNodeBg,
 							secondBkg: colors.infoBg,
 							tertiaryBkg: colors.bg,
-							clusterBkg: colors.codeBg,
-							clusterBorder: colors.border,
-							nodeBorder: colors.border,
+							clusterBkg: colors.diagramClusterBg,
+							clusterBorder: colors.diagramClusterBorder,
+							nodeBorder: colors.diagramNodeBorder,
 							edgeLabelBackground: colors.bg,
 							defaultLinkColor: colors.link,
 							titleColor: colors.fg,
@@ -840,6 +1120,100 @@
 			})();
 		</script>
 
+		<script>
+			const enhanceMermaidDiagrams = async () => {
+				const diagrams = [...document.querySelectorAll(".mermaid svg")];
+				if (!diagrams.length) return;
+
+				await new Promise((resolve, reject) => {
+					const script = document.createElement("script");
+					script.src = "https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js";
+					script.onload = resolve;
+					script.onerror = () => reject(new Error("failed to load svg-pan-zoom from CDN"));
+					document.head.appendChild(script);
+				});
+
+				diagrams.forEach((svg) => {
+					const wrapper = svg.closest(".diagram-wrapper");
+					if (!wrapper) throw new Error("Mermaid diagram is missing its wrapper");
+
+					const controls = document.createElement("div");
+					controls.className = "diagram-controls";
+					controls.setAttribute("role", "toolbar");
+					controls.setAttribute("aria-label", "Diagram zoom controls");
+					controls.innerHTML =
+						'<button type="button" data-action="zoom-in" aria-label="Zoom in" title="Zoom in">+</button>' +
+						'<button type="button" data-action="zoom-out" aria-label="Zoom out" title="Zoom out">−</button>' +
+						'<button type="button" data-action="fit" aria-label="Fit diagram" title="Fit diagram">Fit</button>';
+					wrapper.prepend(controls);
+
+					const controller = window.svgPanZoom(svg, {
+						center: true,
+						controlIconsEnabled: false,
+						dblClickZoomEnabled: true,
+						fit: true,
+						maxZoom: 12,
+						minZoom: 0.1,
+						mouseWheelZoomEnabled: false,
+						panEnabled: true,
+						zoomEnabled: true,
+					});
+
+					const fit = () => {
+						controller.resize();
+						controller.fit();
+						controller.center();
+					};
+					controls.querySelector('[data-action="zoom-in"]').addEventListener("click", () => {
+						controller.zoomIn();
+					});
+					controls.querySelector('[data-action="zoom-out"]').addEventListener("click", () => {
+						controller.zoomOut();
+					});
+					controls.querySelector('[data-action="fit"]').addEventListener("click", fit);
+					wrapper.addEventListener("diagram-resize", () => requestAnimationFrame(fit));
+
+					const setZoomCursor = (active) => {
+						svg.classList.toggle("is-zoom-cursor", active);
+					};
+					const updateZoomCursor = (event) => {
+						setZoomCursor(event.ctrlKey || event.metaKey);
+					};
+					window.addEventListener("keydown", updateZoomCursor);
+					window.addEventListener("keyup", updateZoomCursor);
+					window.addEventListener("blur", () => setZoomCursor(false));
+					svg.addEventListener("mouseenter", updateZoomCursor);
+					svg.addEventListener("mousedown", () => svg.classList.add("is-dragging"));
+					const stopDragging = () => svg.classList.remove("is-dragging");
+					svg.addEventListener("mouseup", stopDragging);
+					svg.addEventListener("mouseleave", stopDragging);
+					window.addEventListener("mouseup", stopDragging);
+
+					svg.addEventListener(
+						"wheel",
+						(event) => {
+							if (!event.ctrlKey && !event.metaKey) return;
+							event.preventDefault();
+
+							const deltaMultiplier =
+								event.deltaMode === WheelEvent.DOM_DELTA_LINE
+									? 16
+									: event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+										? svg.clientHeight
+										: 1;
+							const point = svg.createSVGPoint();
+							point.x = event.clientX;
+							point.y = event.clientY;
+							const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
+							controller.zoomAtPointBy(Math.exp(-event.deltaY * deltaMultiplier * 0.002), svgPoint);
+						},
+						{ passive: false },
+					);
+					fit();
+				});
+			};
+		</script>
+
 		<!--
   Mermaid: loaded only if a .mermaid block exists. UMD build (not ESM) so it works
   from file:// origins — `file://` is a unique security origin and blocks ES-module
@@ -857,6 +1231,11 @@
 							...richResponseTheme.mermaidTheme(),
 						});
 						await window.mermaid.run({ querySelector: ".mermaid" });
+						try {
+							await enhanceMermaidDiagrams();
+						} catch (e) {
+							console.error("[mermaid] zoom controls unavailable:", e?.message || e, e);
+						}
 					} catch (e) {
 						console.error("[mermaid] render failed:", e?.message || e, e);
 						document.querySelectorAll(".mermaid").forEach((el) => {

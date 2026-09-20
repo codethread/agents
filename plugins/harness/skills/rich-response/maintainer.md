@@ -6,8 +6,9 @@
 - All CSS inlined. No external stylesheet, no build step.
 - Vanilla JS adds copy icons to `<pre>` blocks. Mermaid and Graphviz source is captured before rendering so their icons copy the raw diagram text rather than generated SVG text.
 - Monospace `<pre>` blocks wrap by default; add `.no-wrap` on `<pre>` when horizontal scrolling is preferred for fixed-width layouts.
-- Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block, and uses page-aligned theme variables for its initial render.
-- Graphviz (`@viz-js/viz`) is loaded only if the page contains a `<pre class="graphviz">` block; after render, default black/white output and opposite Rose Pine hard-coded colors are normalized to the active page palette for readable initial light/dark renders.
+- Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block, uses higher-contrast page-aligned theme variables, and renders in a compact viewport-width viewer. After Mermaid renders, the template lazy-loads pinned `svg-pan-zoom@3.6.2` to add zoom, fit, drag-to-pan, double-click, Ctrl/Cmd-scroll, and trackpad-pinch interactions. Plain wheel events continue to scroll the page outside fullscreen.
+- Graphviz (`@viz-js/viz`) is loaded only if the page contains a `<pre class="graphviz">` block; after render, implicit text colors, default black/white output, default node fills/borders, and opposite Rose Pine hard-coded colors are normalized to the active page and diagram palettes for readable light/dark renders.
+- Mermaid and Graphviz viewers have a fullscreen overlay. It locks base-document scrolling, stops pointer/wheel propagation at the overlay boundary, preserves each viewer's inline behavior, and closes by button or Escape.
 - Two placeholders to fill: `{{TITLE}}` (appears twice — `<title>` and `<h1>`) and `{{BODY}}`.
 
 ## Why an HTTP server (not `file://`)
@@ -20,4 +21,4 @@ Runtime state lives under `/tmp/rich-response-server`: published documents in `d
 
 ## Outline (table of contents)
 
-Auto-generated from `<h2>` and `<h3>` elements when the doc has 3+ headings. Sticky in the right gutter on screens wider than 1520px; hidden below that. Its `left` offset is half the body's `max-width` (`48.5ch`) plus a gutter, so `.outline` must keep the body font size — the 0.85em type sits on its children, otherwise `ch` shrinks and the nav lands on top of the content. Each heading gets an auto-slugged `id` so deep-links work. Nothing for the agent to do — just use `<h2>` and `<h3>` for sections; the template handles the rest.
+Auto-generated from `<h2>` and `<h3>` elements when the doc has 3+ headings. Sticky in the right gutter on screens wider than 1520px; hidden below that. Its `left` offset is half the body's `max-width` (`48.5ch`) plus a gutter, so `.outline` must keep the body font size — the 0.85em type sits on its children, otherwise `ch` shrinks and the nav lands on top of the content. Each heading gets an auto-slugged `id` so deep-links work. Because diagrams break out beneath the fixed gutter, the outline dims only while its bounding box geometrically overlaps a diagram, then returns to full opacity on hover or keyboard focus. Nothing for the agent to do — just use `<h2>` and `<h3>` for sections; the template handles the rest.

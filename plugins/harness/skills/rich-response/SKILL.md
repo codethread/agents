@@ -75,8 +75,8 @@ After it returns, always reply with both clickable URLs: label the localhost URL
 - OS-respecting light/dark via `prefers-color-scheme` — Dawn colors from `pi/themes/rose-pine-dawn.json` in light mode and Moon colors from `pi/themes/rose-pine-moon.json` in dark mode.
 - All CSS inlined. No external stylesheet, no build step.
 - Vanilla JS adds copy icons to `<pre>` blocks. Diagram icons copy the raw Mermaid or DOT source captured before SVG rendering.
-- Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block, and is initialized with page-aligned theme variables instead of Mermaid's stock light/dark palettes.
-- Graphviz (`@viz-js/viz`, Graphviz compiled to WebAssembly) is loaded from CDN **only if** the page contains a `<pre class="graphviz">` block. No local `dot` binary is required. After render, default black/white output and opposite Rose Pine hard-coded colors are normalized to the active page palette for readable initial light/dark renders.
+- Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block, and is initialized with higher-contrast Rose Pine theme variables instead of Mermaid's stock light/dark palettes. Diagrams break out to the viewport width while remaining in document flow, use a compact inline height, and provide a fullscreen overlay that isolates pointer and wheel events from the base document. Mermaid diagrams lazy-load `svg-pan-zoom@3.6.2` after rendering and provide zoom in, zoom out, fit, drag-to-pan, double-click zoom, Ctrl/Cmd-scroll zoom, and trackpad pinch zoom interactions. Plain wheel events continue to scroll the page outside fullscreen.
+- Graphviz (`@viz-js/viz`, Graphviz compiled to WebAssembly) is loaded from CDN **only if** the page contains a `<pre class="graphviz">` block. No local `dot` binary is required. After render, implicit text colors, default black/white output, default node fills/borders, and opposite Rose Pine hard-coded colors are normalized to the active page and diagram palettes for readable light/dark renders.
 - Two placeholders to fill: `{{TITLE}}` (appears twice — `<title>` and `<h1>`) and `{{BODY}}`.
 
 ### Available primitives
@@ -138,7 +138,7 @@ Plain `<pre><code>…</code></pre>` (no language class) stays unhighlighted — 
 
 ### Mermaid
 
-Use `<pre class="mermaid">…</pre>`. Theme follows the page's initial OS light/dark mode using Rose Pine-aligned Mermaid theme variables. See the **mermaid** skill for syntax pitfalls — multi-space alignment, reserved IDs (`End`, `class`, etc.), label quoting. Don't HTML-entity-encode arrows inside the `<pre>` (`-->`, not `--&gt;`).
+Use `<pre class="mermaid">…</pre>`. Theme follows the page's initial OS light/dark mode using higher-contrast Rose Pine-aligned Mermaid theme variables. Wide diagrams automatically break out of the prose column into a compact full-width viewer with zoom, fit, pan, and fullscreen controls; do not add custom wrappers or sizing classes. See the **mermaid** skill for syntax pitfalls — multi-space alignment, reserved IDs (`End`, `class`, etc.), label quoting. Don't HTML-entity-encode arrows inside the `<pre>` (`-->`, not `--&gt;`).
 
 ### Graphviz
 
