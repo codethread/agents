@@ -77,7 +77,8 @@ function managedLaunchExtension(
 		});
 		if (invalidatePromptOptions) {
 			pi.on("before_agent_start", (event: any) => {
-				delete event.systemPromptOptions.selectedTools;
+				// Pi normalizes missing snippets, but our owned prompt contract rejects them.
+				delete event.systemPromptOptions.toolSnippets;
 			});
 		}
 	};
@@ -194,7 +195,7 @@ describe("system-prompt startup rejection handling", () => {
 			extensionFactories: [systemPromptExtension],
 		});
 		const stream = vi.fn();
-		runnerSession.session.agent.streamFn = stream;
+		runnerSession.session.agent.streamFunction = stream;
 
 		await runnerSession.session.prompt("must not reach the model");
 
@@ -226,7 +227,7 @@ describe("system-prompt startup rejection handling", () => {
 				],
 			});
 			const stream = vi.fn();
-			runnerSession.session.agent.streamFn = stream;
+			runnerSession.session.agent.streamFunction = stream;
 
 			await runnerSession.session.prompt("must not reach the model");
 
@@ -288,7 +289,7 @@ describe("system-prompt startup rejection handling", () => {
 			],
 		});
 		const stream = vi.fn();
-		runnerSession.session.agent.streamFn = stream;
+		runnerSession.session.agent.streamFunction = stream;
 
 		await runnerSession.session.prompt("must not reach the model or rejected route");
 
@@ -315,7 +316,7 @@ describe("system-prompt startup rejection handling", () => {
 			extensionFactories: [managedLaunchExtension("runner-workspace-fence"), systemPromptExtension],
 		});
 		const stream = vi.fn();
-		runnerSession.session.agent.streamFn = stream;
+		runnerSession.session.agent.streamFunction = stream;
 
 		await runnerSession.session.prompt("must not reach the model or a receipt route");
 
