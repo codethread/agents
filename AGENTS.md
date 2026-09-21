@@ -13,7 +13,7 @@ Never stop the mill; only the user may stop it.
   - extensions exposing `/debug-*` commands should use `./pi/extensions/components/debug-message/index.ts` for hidden debug output so the UI stays consistent (`Ctrl+G` open in editor, `Ctrl+Enter` send to agent)
   - when an extension adds new CLI flags, add them to `scripts/pi.nu` under the extension flags comment with an `[EXT]` prefix in the comment string
   - For local Pi testing, run `pi` from this repo root, e.g;
-    - `pi --model openai/gpt-5.4-nano:low --print ping`: run with a small model and get back a result
+    - `pi --model deepseek/deepseek-flash:low --print ping`: run with a small model and get back a result
     - `pi --no-extensions -e .` disable all extensions but load just the extensions in this repo for isolated testing
   - Always verify extension changes/additions in a fresh `pi` process through the `interactive_shell` tool; do not trust current-session tool bindings after `/reload` for validation.
 - Always keep the README.md files up-to-date for changes
