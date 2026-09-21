@@ -271,6 +271,27 @@ describe("getAgentRuntimeSettings", () => {
 		});
 	});
 
+	it("resolves max thinking separately from the DeepSeek model id", () => {
+		const agent = makeAgentConfig({
+			name: "scout",
+			model: "deepseek/deepseek-v4-flash:max",
+			modelCandidates: [{ id: "deepseek/deepseek-v4-flash:max" }],
+		});
+		const model = { id: "deepseek-v4-flash", provider: "deepseek" };
+		const registry = {
+			find: (provider: string, id: string) =>
+				provider === model.provider && id === model.id ? model : undefined,
+		};
+
+		expect(validateAgentModelPolicies([agent], registry)).toEqual([]);
+		expect(
+			getInheritedAgentRuntimeSettings(agent, parseAgentFlagCliOverrides([]), registry),
+		).toMatchObject({
+			modelRef: "deepseek/deepseek-v4-flash",
+			thinkingLevel: "max",
+		});
+	});
+
 	it("treats non-thinking suffixes as part of the model string", () => {
 		const agent: AgentConfig = {
 			name: "custom",

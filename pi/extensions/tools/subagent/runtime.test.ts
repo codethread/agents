@@ -654,10 +654,13 @@ describe("buildSingleAgentArgs", () => {
 		]);
 	});
 
-	it("passes candidate-local thinking only when declared", () => {
+	it.each([
+		["openai/gpt-5.4-mini", "low"],
+		["deepseek/deepseek-v4-flash", "max"],
+	])("passes candidate-local thinking for %s:%s", (model, thinking) => {
 		expect(
 			buildSingleAgentArgs("fixer", "Fix the typecheck errors", {
-				id: "openai/gpt-5.4-mini:low",
+				id: `${model}:${thinking}`,
 			}),
 		).toEqual([
 			"--mode",
@@ -666,9 +669,9 @@ describe("buildSingleAgentArgs", () => {
 			"--agent",
 			"fixer",
 			"--model",
-			"openai/gpt-5.4-mini",
+			model,
 			"--thinking",
-			"low",
+			thinking,
 			"--no-session",
 			"Task: Fix the typecheck errors",
 		]);

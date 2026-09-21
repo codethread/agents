@@ -65,6 +65,10 @@ You are a specialist in [whatever]...
 
 Canonical Pi tool names: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`, `subagent`. Claude Code compatibility settings are created automatically at `~/.pi/agent/extensions/pi-subagent/settings.json`; edit that file to change tool/model/effort mappings. A `null`-mapped Claude tool is ignored. Other names are treated as custom/extension tools, so use the extension's exact registered tool name (for example, `pi-internals`).
 
+Model suffixes accept Pi thinking levels: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`.
+For example, `deepseek/deepseek-v4-flash:max` selects Flash with native `max` thinking;
+`max` is distinct from `xhigh`. Unknown suffixes remain part of the model ID.
+
 Model policy examples:
 
 ```yaml

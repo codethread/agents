@@ -70,7 +70,7 @@ export interface AgentDiscoveryOptions {
 	includeBundledAgents?: boolean;
 }
 
-export type AgentThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
+export type AgentThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 export interface AgentRuntimeSettings {
 	tools?: string[];
@@ -166,6 +166,7 @@ const THINKING_LEVELS = new Set<AgentThinkingLevel>([
 	"medium",
 	"high",
 	"xhigh",
+	"max",
 ]);
 
 function getCompatSettingsPath(agentDir = getAgentDir()): string {
