@@ -5,14 +5,14 @@ describe("parsePiArgs", () => {
 	it("parses the common pi print-mode invocation", () => {
 		const parsed = parsePiArgs([
 			"--model",
-			"deepseek/deepseek-v4-flash",
+			"deepseek/deepseek-flash",
 			"--thinking",
 			"low",
 			"--print",
 			"ping",
 		]);
 
-		expect(parsed.model).toBe("deepseek/deepseek-v4-flash");
+		expect(parsed.model).toBe("deepseek/deepseek-flash");
 		expect(parsed.thinking).toBe("low");
 		expect(parsed.messages).toEqual(["ping"]);
 		expect(parsed.diagnostics).toEqual([]);

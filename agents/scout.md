@@ -44,7 +44,10 @@ meta: >
   - Earlier tests: mini performed best but nano did surprisingly well.
   - Nano didn't follow the output structure, but worth considering for future if costs go up
 tools: read, bash
-model: deepseek/deepseek-v4-flash:max
+model:
+  - id: deepseek/deepseek-flash:max
+    when: "!$IS_WORK"
+  - openai-codex/gpt-5.6-luna:max
 ---
 
 You are a recon agent. Investigate a codebase and return a navigation map.

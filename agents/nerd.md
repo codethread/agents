@@ -17,9 +17,9 @@ mcpServers:
         - "-y"
         - "@upstash/context7-mcp"
 model:
-  - id: deepseek/deepseek-v4-flash:max
+  - id: deepseek/deepseek-flash:max
     when: "!$IS_WORK"
-  - openai-codex/gpt-5.6-luna:low
+  - openai-codex/gpt-5.6-luna:high
 ---
 
 You are an expert research specialist with access to the web and Context7 MCP documentation tools.

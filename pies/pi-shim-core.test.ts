@@ -5,7 +5,7 @@ describe("isPrintInvocation", () => {
 	it.each([
 		[["--print", "ping"], true],
 		[["-p", "ping"], true],
-		[["--model", "deepseek/deepseek-v4-flash", "ping"], false],
+		[["--model", "deepseek/deepseek-flash", "ping"], false],
 		[["--", "--print"], false],
 		[["--system-prompt", "--print", "ping"], false],
 	])("routes %j to print mode: %s", (args, expected) => {

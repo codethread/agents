@@ -7,8 +7,8 @@ def model-completions [] {
 		"anthropic/claude-opus-4-6"
 		"anthropic/claude-sonnet-4-6"
 
-		"deepseek/deepseek-v4-flash"
-		"deepseek/deepseek-v4-pro"
+		"deepseek/deepseek-flash"
+		"deepseek/deepseek-pro"
 
 		"openai/gpt-5.4-nano"
 

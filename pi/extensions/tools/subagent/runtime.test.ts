@@ -656,7 +656,7 @@ describe("buildSingleAgentArgs", () => {
 
 	it.each([
 		["openai/gpt-5.4-mini", "low"],
-		["deepseek/deepseek-v4-flash", "max"],
+		["deepseek/deepseek-flash", "max"],
 	])("passes candidate-local thinking for %s:%s", (model, thinking) => {
 		expect(
 			buildSingleAgentArgs("fixer", "Fix the typecheck errors", {

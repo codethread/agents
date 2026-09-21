@@ -99,18 +99,18 @@ model: openai/gpt-5:low
 ```yaml
 model:
   - openai/gpt-5:low
-  - deepseek/deepseek-v4:high
+  - deepseek/deepseek:high
 ```
 
 ```yaml
 model:
-  id: deepseek/deepseek-v4:high
+  id: deepseek/deepseek:high
   when: "!$IS_WORK"
 ```
 
 ```yaml
 model:
-  - id: deepseek/deepseek-v4:high
+  - id: deepseek/deepseek:high
     when: "!$IS_WORK"
   - id: openai/gpt-5.4-mini:low
 ```
