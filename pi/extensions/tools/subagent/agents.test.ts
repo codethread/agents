@@ -274,10 +274,10 @@ describe("getAgentRuntimeSettings", () => {
 	it("resolves max thinking separately from the DeepSeek model id", () => {
 		const agent = makeAgentConfig({
 			name: "scout",
-			model: "deepseek/deepseek-v4-flash:max",
-			modelCandidates: [{ id: "deepseek/deepseek-v4-flash:max" }],
+			model: "deepseek/deepseek-flash:max",
+			modelCandidates: [{ id: "deepseek/deepseek-flash:max" }],
 		});
-		const model = { id: "deepseek-v4-flash", provider: "deepseek" };
+		const model = { id: "deepseek-flash", provider: "deepseek" };
 		const registry = {
 			find: (provider: string, id: string) =>
 				provider === model.provider && id === model.id ? model : undefined,
@@ -287,7 +287,7 @@ describe("getAgentRuntimeSettings", () => {
 		expect(
 			getInheritedAgentRuntimeSettings(agent, parseAgentFlagCliOverrides([]), registry),
 		).toMatchObject({
-			modelRef: "deepseek/deepseek-v4-flash",
+			modelRef: "deepseek/deepseek-flash",
 			thinkingLevel: "max",
 		});
 	});
@@ -528,8 +528,8 @@ describe("model policy validation", () => {
 			}),
 			makeAgentConfig({
 				name: "unavailable",
-				model: "deepseek/deepseek-v4:high",
-				modelCandidates: [{ id: "deepseek/deepseek-v4:high" }],
+				model: "deepseek/deepseek:high",
+				modelCandidates: [{ id: "deepseek/deepseek:high" }],
 			}),
 			makeAgentConfig({
 				name: "no-auth",
@@ -549,7 +549,7 @@ describe("model policy validation", () => {
 		expect(errors[0]).toBe("Invalid model policy for bad-config");
 		expect(errors[1]).toContain('agent "unavailable"');
 		expect(errors[1]).toContain("/tmp/unavailable.md");
-		expect(errors[1]).toContain('candidate "deepseek/deepseek-v4" is not available');
+		expect(errors[1]).toContain('candidate "deepseek/deepseek" is not available');
 		expect(errors[2]).toContain('agent "no-auth"');
 		expect(errors[2]).toContain("has no configured API key/auth");
 	});
@@ -838,7 +838,7 @@ describe("discoverAgents", () => {
 name: object-model
 description: Object model
 model:
-  id: deepseek/deepseek-v4:high
+  id: deepseek/deepseek:high
   when: " $WORK_PROFILE == 'home' "
 ---
 Object body.
@@ -881,8 +881,8 @@ Mixed body.
 			modelCandidates: [{ id: "openai/gpt-5.4-mini:low" }],
 		});
 		expect(byName.get("object-model")).toMatchObject({
-			model: "deepseek/deepseek-v4:high",
-			modelCandidates: [{ id: "deepseek/deepseek-v4:high" }],
+			model: "deepseek/deepseek:high",
+			modelCandidates: [{ id: "deepseek/deepseek:high" }],
 		});
 		expect(byName.get("mixed-model")?.modelCandidates).toEqual([
 			{ id: "openai/gpt-5.4-mini:low" },

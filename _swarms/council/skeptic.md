@@ -4,7 +4,7 @@ description: Challenges an argument by finding weaknesses, counterarguments, ris
 hidden: true
 tools: read, grep, find, ls
 model:
-  - id: deepseek/deepseek-v4-flash:max
+  - id: deepseek/deepseek-flash:max
     when: "!$IS_WORK"
   - openai-codex/gpt-5.6-terra:medium
 ---
