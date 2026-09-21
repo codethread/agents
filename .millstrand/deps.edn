@@ -22,6 +22,6 @@
   ;; Shared bootstrap with deferred executor activation.
   codethread/config
   {:git/url "https://github.com/codethread/codethread.spool.git"
-   :git/sha "fc8105cefe624f4c0cd7312e0f400d650dd7e52d"
+   :git/sha "45ebeb292e11ffcd32f390788d4f85c66becb307"
    :deps/root "spools/config"}
   }}
