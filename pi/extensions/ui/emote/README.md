@@ -4,6 +4,8 @@ Vendored from `pi-emote` and adapted for this package layout.
 
 Animated avatar widget above the editor. It reacts to session state: startup, idle, thinking, talking, read/write/tool calls, failures, and compaction.
 
+The avatar is **hidden at the start of every session** — the same state `/emote off` leaves it in. The status rows the widget renders (path, model, context/cost, session) stay visible; run `/emote` to toggle the avatar on for the current session.
+
 ## Local defaults
 
 This package assumes Kitty:
@@ -11,9 +13,9 @@ This package assumes Kitty:
 - direct Kitty: `kitty`
 - tmux in Kitty: `kitty-unicode`
 
-When Pi is running inside an SSH connection (`SSH_CONNECTION`, `SSH_CLIENT`, or `SSH_TTY` is set), image drawing is disabled so the extension does not try to draw remote Kitty images. The widget still renders the session/model footer details by default.
+The widget always renders the session/model footer details. Kitty image drawing only happens while the avatar is shown, so nothing is drawn until you run `/emote on`.
 
-Use `/emote on` to force emotes back on for the current session, or `/emote off` to hide them again without restarting Pi.
+Use `/emote` to toggle the avatar for the current session without restarting Pi.
 
 Avatar size can be a number or a responsive width map:
 
@@ -27,7 +29,7 @@ Avatar size can be a number or a responsive width map:
 }
 ```
 
-For width maps, the greatest key `<=` terminal width wins. `null` hides the widget.
+For width maps, the greatest key `<=` terminal width wins. `null` hides the avatar and keeps the status rows.
 
 Config defaults live in [`config.json`](./config.json). Override globally or per project:
 
@@ -66,14 +68,14 @@ Custom sets can be placed at `.pi/extensions/pi-emote/emotes/<name>/` or `~/.pi/
 
 ## `/emote [toggle|on|off|status]`
 
-Toggles a session-local emote visibility override.
+Toggles a session-local avatar visibility override. The avatar starts hidden each session.
 
 - `toggle` or no argument: flip the current effective visibility
-- `on`: force emotes on for this session, even when SSH auto-detection would normally hide them
-- `off`: hide emotes for this session
+- `on`: show the avatar for this session, drawing images even over SSH
+- `off`: hide the avatar for this session
 - `status`: show the current mode and effective renderer state
 
-This override is not persisted; restarting or reloading the session returns to normal auto-detection.
+This override is not persisted; restarting or reloading the session starts hidden again.
 
 ## License
 

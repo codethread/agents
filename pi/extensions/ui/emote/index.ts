@@ -140,7 +140,8 @@ export default function (pi: ExtensionAPI) {
 	const animator = new Animator(config, renderer);
 
 	function resolveSessionRenderer(): ResolvedRenderer {
-		if (visibilityOverride === false) {
+		// The avatar starts hidden each session (the `/emote off` state); `/emote on` forces it on.
+		if (visibilityOverride !== true) {
 			return {
 				protocol: "none",
 				multiplexer: null,
@@ -148,9 +149,7 @@ export default function (pi: ExtensionAPI) {
 				warningLevel: "info",
 			};
 		}
-		return resolveRenderer(config.terminals, userConfiguredTerminals, {
-			ignoreSsh: visibilityOverride === true,
-		});
+		return resolveRenderer(config.terminals, userConfiguredTerminals, { ignoreSsh: true });
 	}
 
 	function installFooter(ctx: any) {
@@ -243,7 +242,7 @@ export default function (pi: ExtensionAPI) {
 				? "forced on"
 				: visibilityOverride === false
 					? "forced off"
-					: "auto";
+					: "off by default";
 		const state =
 			visibilityOverride === false || lastResolved.protocol === "none"
 				? "image hidden"
