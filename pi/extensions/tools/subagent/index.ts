@@ -81,7 +81,7 @@ const SubagentParams = Type.Object({
 	timeout: Type.Optional(
 		Type.Integer({
 			minimum: 1,
-			description: `Maximum runtime in seconds. Defaults to ${DEFAULT_SUBAGENT_TIMEOUT_SECONDS} seconds (4.5 minutes).`,
+			description: `Maximum runtime in seconds. Defaults to ${DEFAULT_SUBAGENT_TIMEOUT_SECONDS} seconds (3 minutes).`,
 		}),
 	),
 });

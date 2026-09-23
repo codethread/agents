@@ -163,13 +163,13 @@ Spawns one `pi` subprocess with an isolated context window, including from Bun s
 	"task": "...",
 	"cwd": "/path",
 	"resume": "optional-id-from-previous-result",
-	"timeout": 270
+	"timeout": 180
 }
 ```
 
-All four fields (`agent`, `description`, `task`, `cwd`) are required. `resume` and `timeout` are optional. `timeout` is an integer number of seconds and defaults to 270 seconds (4.5 minutes). It limits the complete delegated call, including model-chain retries. For swarms, the same limit applies independently to every concurrently running member. Override it explicitly only when the task needs a different runtime budget.
+All four fields (`agent`, `description`, `task`, `cwd`) are required. `resume` and `timeout` are optional. `timeout` is an integer number of seconds and defaults to 180 seconds (3 minutes). It limits the complete delegated call, including model-chain retries. For swarms, the same limit applies independently to every concurrently running member. Override it explicitly only when the task needs a different runtime budget.
 
-When the limit expires, the child process is terminated and the tool returns a visible timeout error instead of trying another model candidate.
+When the limit expires, the child process is terminated and the tool returns an explicit timeout error instead of trying another model candidate. If the parent session is persisted, the error includes the saved session's exact resume ID and says it can be resumed; otherwise it says that no resumable session is available.
 
 - For a follow-up of a single-agent target, provide the exact session UUID in `<subagent-resume-id>`.
 - For a follow-up swarm, provide the prior friendly swarm resume ID (for example `swarm-review-...`).

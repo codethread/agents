@@ -150,6 +150,21 @@ function formatAttemptFailure(attempt: AttemptMetadata): string {
 	return `${attempt.attemptedModel} attempt ${attempt.attempt}: ${attempt.error ?? `exit ${attempt.exitCode ?? "unknown"}`}`;
 }
 
+export function formatSubagentTimeoutError(
+	agentName: string,
+	timeoutSeconds: number,
+	resumeId?: string,
+): string {
+	const duration =
+		timeoutSeconds % 60 === 0
+			? `${timeoutSeconds / 60} ${timeoutSeconds === 60 ? "minute" : "minutes"}`
+			: `${timeoutSeconds} ${timeoutSeconds === 1 ? "second" : "seconds"}`;
+	const timeout = `Subagent "${agentName}" timed out after ${duration}.`;
+	return resumeId
+		? `${timeout} Its session was preserved and can be resumed with resume: "${resumeId}".`
+		: `${timeout} This run was not persisted, so it cannot be resumed.`;
+}
+
 export function classifyModelChainResult(result: SingleResult): ModelFailureKind {
 	const lastAssistant = [...result.messages]
 		.reverse()
@@ -479,7 +494,11 @@ export async function runSingleAgent(
 			currentResult.exitCode = exitCode;
 			if (wasAborted) throw new Error("Subagent was aborted");
 			if (wasTimedOut) {
-				const timeoutMessage = `Subagent timed out after ${timeoutSeconds} ${timeoutSeconds === 1 ? "second" : "seconds"}.`;
+				const timeoutMessage = formatSubagentTimeoutError(
+					request.agent,
+					timeoutSeconds,
+					currentResult.sessionId,
+				);
 				currentResult.exitCode = 1;
 				currentResult.errorMessage = timeoutMessage;
 				currentResult.stderr = [currentResult.stderr.trim(), timeoutMessage]
