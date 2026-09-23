@@ -66,18 +66,22 @@ vi.mock("./widget.js", () => ({ createWidgetFactory: () => () => undefined }));
 import emoteExtension from "./index.js";
 
 type Handler = (event: unknown, ctx: any) => Promise<void> | void;
+type CommandHandler = (args: string, ctx: any) => Promise<void> | void;
 
 function createExtensionApi() {
 	const handlers = new Map<string, Handler>();
+	const commands = new Map<string, CommandHandler>();
 	const api = {
 		events: { on: vi.fn() },
 		getFlag: vi.fn(() => undefined),
 		on: vi.fn((event: string, handler: Handler) => handlers.set(event, handler)),
-		registerCommand: vi.fn(),
+		registerCommand: vi.fn((name: string, command: { handler: CommandHandler }) =>
+			commands.set(name, command.handler),
+		),
 		registerFlag: vi.fn(),
 	};
 	emoteExtension(api as any);
-	return { handlers };
+	return { commands, handlers };
 }
 
 function createContext(hasUI: boolean) {
@@ -86,6 +90,7 @@ function createContext(hasUI: boolean) {
 		hasUI,
 		model: { id: "test-model" },
 		ui: {
+			notify: vi.fn(),
 			setFooter: vi.fn(),
 			setWidget: vi.fn(),
 		},
@@ -111,12 +116,13 @@ describe("emote renderer lifecycle", () => {
 		stdout.mockRestore();
 	});
 
-	it("disposes the graphical renderer after an interactive session", async () => {
+	it("disposes the graphical renderer after it is enabled in an interactive session", async () => {
 		const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-		const { handlers } = createExtensionApi();
+		const { commands, handlers } = createExtensionApi();
 		const context = createContext(true);
 
 		await handlers.get("session_start")?.({}, context);
+		await commands.get("emote")?.("on", context);
 		await handlers.get("session_shutdown")?.({}, context);
 
 		expect(mocks.constructed).toHaveBeenCalled();
