@@ -4,6 +4,8 @@ Vendored from `pi-emote` and adapted for this package layout.
 
 Animated avatar widget above the editor. It reacts to session state: startup, idle, thinking, talking, read/write/tool calls, failures, and compaction.
 
+The extension only initializes terminal graphics for interactive UI sessions. Headless and `--print` sessions do not create or clean up Kitty images, so structured stdout remains machine-readable through process exit.
+
 ## Local defaults
 
 This package assumes Kitty:

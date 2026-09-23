@@ -38,6 +38,13 @@ function getInitialSize(size: number | Record<string, number | null>): number {
 
 type EmoteVisibilityOverride = boolean | null;
 
+const NO_RENDERER: ResolvedRenderer = {
+	protocol: "none",
+	multiplexer: null,
+	warning: null,
+	warningLevel: "info",
+};
+
 type EmoteCommandAction = "toggle" | "on" | "off" | "status";
 
 function parseEmoteCommandAction(args: string): EmoteCommandAction {
@@ -133,21 +140,15 @@ export default function (pi: ExtensionAPI) {
 	let footerDataRef: any = null;
 	let millstrandIdentity: ActiveMillstrandIdentity | null = null;
 	let widgetActive = false;
+	let uiSessionActive = false;
 	let visibilityOverride: EmoteVisibilityOverride = null;
-	let lastResolved = resolveRenderer(config.terminals, userConfiguredTerminals);
-	let renderer = createRendererFromResolved(lastResolved, getInitialSize(config.size));
+	let lastResolved = NO_RENDERER;
+	let renderer = createRendererFromResolved(NO_RENDERER, getInitialSize(config.size));
 
 	const animator = new Animator(config, renderer);
 
 	function resolveSessionRenderer(): ResolvedRenderer {
-		if (visibilityOverride === false) {
-			return {
-				protocol: "none",
-				multiplexer: null,
-				warning: null,
-				warningLevel: "info",
-			};
-		}
+		if (visibilityOverride === false) return NO_RENDERER;
 		return resolveRenderer(config.terminals, userConfiguredTerminals, {
 			ignoreSsh: visibilityOverride === true,
 		});
@@ -280,8 +281,6 @@ export default function (pi: ExtensionAPI) {
 
 	if (!config.enabled) return;
 
-	loadEmoteSet("default");
-
 	function getExplicitEmoteSet(): string | null {
 		const value = pi.getFlag(EMOTE_FLAG);
 		if (typeof value !== "string") return null;
@@ -311,6 +310,7 @@ export default function (pi: ExtensionAPI) {
 		log(`session_start: hasUI=${ctx.hasUI}`);
 		if (!ctx.hasUI) return;
 
+		uiSessionActive = true;
 		animator.clearAllTimers();
 		cwd = ctx.cwd;
 		visibilityOverride = null;
@@ -353,12 +353,15 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_shutdown", async (_event, ctx) => {
+		if (!uiSessionActive) return;
+
 		animator.clearAllTimers();
 		animator.disposeRenderer();
-		if (ctx.hasUI) clearWidget(ctx);
+		clearWidget(ctx);
 		animator.setTui(null);
 		ctxRef = null;
 		footerDataRef = null;
+		uiSessionActive = false;
 	});
 
 	pi.on("model_select", async (event) => {
