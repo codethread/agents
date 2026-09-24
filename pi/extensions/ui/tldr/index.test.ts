@@ -34,13 +34,23 @@ async function createTldrSession(options?: {
 		};
 	}
 
-	const modelRegistry = (t.session as any).modelRegistry;
-	modelRegistry.hasConfiguredAuth = vi.fn(() => true);
-	modelRegistry.getAvailable = vi.fn(() => options?.availableModels ?? [TLDR_MODEL]);
-	modelRegistry.getApiKeyAndHeaders = vi
-		.fn()
-		.mockResolvedValue(options?.authResult ?? { ok: true, apiKey: "test-key" });
-	modelRegistry.complete = completeSpy;
+	const sessionManager = (t.session as any).sessionManager;
+	if (typeof sessionManager.buildSessionProjection !== "function") {
+		sessionManager.buildSessionProjection = () => ({
+			messages: sessionManager
+				.getBranch()
+				.filter((entry: any) => entry.type === "message")
+				.map((entry: any) => entry.message),
+		});
+	}
+
+	const modelRuntime = t.session.modelRuntime;
+	vi.spyOn(modelRuntime, "getAvailableSnapshot").mockReturnValue(
+		(options?.availableModels ?? [TLDR_MODEL]) as ReturnType<
+			typeof modelRuntime.getAvailableSnapshot
+		>,
+	);
+	vi.spyOn(modelRuntime, "complete").mockImplementation(completeSpy);
 
 	return t;
 }
@@ -114,6 +124,49 @@ describe("tldr extension harness integration", () => {
 		]);
 		expect(session.events.messages).toHaveLength(messageCountBefore);
 		expect((session.session as any).sessionManager.getBranch()).toHaveLength(branchLengthBefore);
+	});
+
+	it("uses replacement content from the canonical session projection", async () => {
+		completeSpy.mockResolvedValue({
+			role: "assistant",
+			content: [{ type: "text", text: "summary" }],
+			stopReason: "stop",
+		} as any);
+		const session = await createTldrSession();
+		await session.run(when("Original request", [says("Original answer")]));
+
+		(session.session as any).sessionManager.buildSessionProjection = () => ({
+			messages: [
+				{ role: "user", content: [{ type: "text", text: "Original request" }] },
+				{ role: "assistant", content: [{ type: "text", text: "Corrected answer" }] },
+			],
+		});
+
+		await (session.session as any).prompt("/tldr");
+
+		const promptText = completeSpy.mock.calls[0][1].messages[0].content[0].text;
+		expect(promptText).toContain("# Assistant\n\nCorrected answer");
+		expect(promptText).not.toContain("Original answer");
+	});
+
+	it("excludes content omitted from the canonical session projection", async () => {
+		completeSpy.mockResolvedValue({
+			role: "assistant",
+			content: [{ type: "text", text: "summary" }],
+			stopReason: "stop",
+		} as any);
+		const session = await createTldrSession();
+		await session.run(when("Private request", [says("Visible answer")]));
+
+		(session.session as any).sessionManager.buildSessionProjection = () => ({
+			messages: [{ role: "assistant", content: [{ type: "text", text: "Visible answer" }] }],
+		});
+
+		await (session.session as any).prompt("/tldr");
+
+		const promptText = completeSpy.mock.calls[0][1].messages[0].content[0].text;
+		expect(promptText).not.toContain("Private request");
+		expect(promptText).toContain("# Assistant\n\nVisible answer");
 	});
 
 	it("warns and skips when no preferred summary model is available", async () => {

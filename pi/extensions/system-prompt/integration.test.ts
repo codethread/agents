@@ -51,25 +51,6 @@ async function createSystemPromptSession(cwd: string): Promise<TestSession> {
 		extensionFactories: [systemPromptExtension, projectStructureExtension, capturePromptsExtension],
 	});
 
-	const agent = (t.session as any).agent;
-	if (typeof agent.setTools !== "function") {
-		agent.setTools = (tools: unknown[]) => {
-			agent.state.tools = tools;
-		};
-	}
-
-	for (const modelRegistry of [
-		(t.session as any).modelRegistry,
-		(t.session as any)._modelRegistry,
-	]) {
-		if (!modelRegistry) continue;
-		modelRegistry.hasConfiguredAuth = () => true;
-		modelRegistry.isUsingOAuth = () => false;
-		modelRegistry.getApiKey = async () => "test-key";
-		modelRegistry.getApiKeyForProvider = async () => "test-key";
-		modelRegistry.getApiKeyAndHeaders = async () => ({ ok: true, apiKey: "test-key" });
-	}
-
 	return t;
 }
 

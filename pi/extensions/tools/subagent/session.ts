@@ -123,7 +123,8 @@ export async function updateManifest(
 	cwd: string,
 	entry: ManifestEntry,
 ): Promise<void> {
-	const manifestPath = path.join(dir, "manifest.json");
+	// Keep the queue key stable before and after creation under symlinked directories.
+	const manifestPath = path.join(await fs.promises.realpath(dir), "manifest.json");
 
 	await withFileMutationQueue(manifestPath, async () => {
 		let manifest: Manifest = {
@@ -240,7 +241,8 @@ export async function updateSwarmManifest(
 	cwd: string,
 	entry: SwarmManifestEntry,
 ): Promise<void> {
-	const manifestPath = path.join(dir, "swarm-manifest.json");
+	// Keep the queue key stable before and after creation under symlinked directories.
+	const manifestPath = path.join(await fs.promises.realpath(dir), "swarm-manifest.json");
 
 	await withFileMutationQueue(manifestPath, async () => {
 		let manifest: SwarmManifest = {

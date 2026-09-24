@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createPrunedSessionFile, findLatestAssistantEntryId, orderModels } from "./index.js";
+import { createPrunedSessionFile, findActiveBranchLeafId, orderModels } from "./index.js";
 
 function makeTempDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -47,14 +47,14 @@ describe("fork-off model ordering", () => {
 });
 
 describe("fork-off session pruning", () => {
-	it("finds the latest assistant entry in the active branch", () => {
+	it("uses a context edit after the assistant as the active branch leaf", () => {
 		expect(
-			findLatestAssistantEntryId([
+			findActiveBranchLeafId([
 				{ type: "message", id: "user-1", message: { role: "user" } },
 				{ type: "message", id: "assistant-1", message: { role: "assistant" } },
-				{ type: "message", id: "user-2", message: { role: "user" } },
+				{ type: "context_edit", id: "context-edit-1", parentId: "assistant-1" },
 			]),
-		).toBe("assistant-1");
+		).toBe("context-edit-1");
 	});
 
 	it("writes a temp session containing only the selected entry ancestry", async () => {
@@ -69,18 +69,29 @@ describe("fork-off session pruning", () => {
 				parentId: "root",
 				message: { role: "assistant", content: [] },
 			},
-			{ type: "message", id: "active-user", parentId: "assistant", message: { role: "user" } },
+			{ type: "context_edit", id: "context-edit", parentId: "assistant" },
+			{
+				type: "message",
+				id: "active-user",
+				parentId: "context-edit",
+				message: { role: "user" },
+			},
 			{ type: "message", id: "side", parentId: "root", message: { role: "user" } },
 		];
 		fs.writeFileSync(sessionFile, `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`);
 
-		const prunedFile = await createPrunedSessionFile(sessionFile, "assistant");
+		const prunedFile = await createPrunedSessionFile(sessionFile, "context-edit");
 		const prunedEntries = fs
 			.readFileSync(prunedFile, "utf8")
 			.trim()
 			.split("\n")
 			.map((line) => JSON.parse(line));
 
-		expect(prunedEntries.map((entry) => entry.id)).toEqual(["session-id", "root", "assistant"]);
+		expect(prunedEntries.map((entry) => entry.id)).toEqual([
+			"session-id",
+			"root",
+			"assistant",
+			"context-edit",
+		]);
 	});
 });
