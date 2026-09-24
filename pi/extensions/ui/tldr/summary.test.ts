@@ -9,39 +9,27 @@ describe("buildConversationTranscript", () => {
 	it("includes only user and assistant text, skipping tool calls, thinking, and tool results", () => {
 		const transcript = buildConversationTranscript([
 			{
-				type: "message",
-				message: {
-					role: "user",
-					content: [{ type: "text", text: "Need a TL;DR for this session." }],
-				},
+				role: "user",
+				content: [{ type: "text", text: "Need a TL;DR for this session." }],
 			},
 			{
-				type: "message",
-				message: {
-					role: "assistant",
-					content: [
-						{ type: "thinking", thinking: "internal" },
-						{ type: "text", text: "I'll build that extension." },
-						{ type: "toolCall", name: "read", arguments: { path: "foo.ts" } },
-					],
-				},
+				role: "assistant",
+				content: [
+					{ type: "thinking", thinking: "internal" },
+					{ type: "text", text: "I'll build that extension." },
+					{ type: "toolCall", name: "read", arguments: { path: "foo.ts" } },
+				],
 			},
 			{
-				type: "message",
-				message: {
-					role: "toolResult",
-					content: [{ type: "text", text: "tool output" }],
-				},
+				role: "toolResult",
+				content: [{ type: "text", text: "tool output" }],
 			},
 			{
-				type: "message",
-				message: {
-					role: "assistant",
-					content: [
-						{ type: "toolCall", name: "edit", arguments: {} },
-						{ type: "thinking", thinking: "more internal" },
-					],
-				},
+				role: "assistant",
+				content: [
+					{ type: "toolCall", name: "edit", arguments: {} },
+					{ type: "thinking", thinking: "more internal" },
+				],
 			},
 		]);
 
@@ -55,10 +43,7 @@ describe("buildConversationTranscript", () => {
 
 	it("supports string-based user content", () => {
 		const transcript = buildConversationTranscript([
-			{
-				type: "message",
-				message: { role: "user", content: "Summarize where this landed." },
-			},
+			{ role: "user", content: "Summarize where this landed." },
 		]);
 
 		expect(transcript).toBe("# User\n\nSummarize where this landed.");
@@ -69,11 +54,8 @@ describe("buildConversationTranscript", () => {
 		const transcript = buildConversationTranscript(
 			[
 				{
-					type: "message",
-					message: {
-						role: "assistant",
-						content: [{ type: "text", value: "missing text key" }],
-					},
+					role: "assistant",
+					content: [{ type: "text", value: "missing text key" }],
 				},
 			],
 			{ onDebug: (message) => debug.push(message) },

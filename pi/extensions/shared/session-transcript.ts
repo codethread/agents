@@ -8,19 +8,10 @@ const knownSessionNonTextBlockTypes = new Set(["thinking", "toolCall", "image"])
 
 const unknownArraySchema = z.array(z.unknown());
 
-const branchEntryBaseSchema = z
+const conversationMessageSchema = z
 	.object({
-		type: z.string(),
-	})
-	.passthrough();
-
-const branchMessageEntrySchema = z
-	.object({
-		type: z.literal("message"),
-		message: z.object({
-			role: z.string(),
-			content: z.unknown(),
-		}),
+		role: z.string(),
+		content: z.unknown(),
 	})
 	.passthrough();
 
@@ -124,44 +115,33 @@ function extractTextPartsFromContent(
 }
 
 export function buildConversationTranscript(
-	entries: readonly unknown[],
+	messages: readonly unknown[],
 	options: ParseOptions = {},
 ): string {
 	const sections: string[] = [];
 
-	const parsedEntries = unknownArraySchema.safeParse(entries);
-	if (!parsedEntries.success) {
-		emitDebug(options, `branch entries: ${formatZodError(parsedEntries.error)}`);
+	const parsedMessages = unknownArraySchema.safeParse(messages);
+	if (!parsedMessages.success) {
+		emitDebug(options, `messages: ${formatZodError(parsedMessages.error)}`);
 		return "";
 	}
 
-	for (const [index, rawEntry] of parsedEntries.data.entries()) {
-		const baseEntry = branchEntryBaseSchema.safeParse(rawEntry);
-		if (!baseEntry.success) {
+	for (const [index, rawMessage] of parsedMessages.data.entries()) {
+		const parsedMessage = conversationMessageSchema.safeParse(rawMessage);
+		if (!parsedMessage.success) {
 			emitDebug(
 				options,
-				`branch[${index}]: invalid entry (${formatZodError(baseEntry.error)}) value=${previewValue(rawEntry)}`,
+				`messages[${index}]: malformed message (${formatZodError(parsedMessage.error)}) value=${previewValue(rawMessage)}`,
 			);
 			continue;
 		}
 
-		if (baseEntry.data.type !== "message") continue;
-
-		const parsedMessageEntry = branchMessageEntrySchema.safeParse(rawEntry);
-		if (!parsedMessageEntry.success) {
-			emitDebug(
-				options,
-				`branch[${index}]: malformed message entry (${formatZodError(parsedMessageEntry.error)}) value=${previewValue(rawEntry)}`,
-			);
-			continue;
-		}
-
-		const { role, content } = parsedMessageEntry.data.message;
+		const { role, content } = parsedMessage.data;
 		if (role !== "user" && role !== "assistant") continue;
 
 		const text = extractTextPartsFromContent(
 			content,
-			`branch[${index}].message.content`,
+			`messages[${index}].content`,
 			knownSessionNonTextBlockTypes,
 			options,
 		)
