@@ -101,7 +101,7 @@ pnpm install
 pnpm check
 ```
 
-Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm format`. Vitest includes unit, snapshot, and Pi runtime integration tests backed by `@gaodes/pi-test-harness`. The `@codethread/*-test` aliases intentionally stay on Pi SDK 0.86.1 to exercise the harness compatibility covered by this feature, while the shipped runtime dependencies may advance independently. A pnpm patch in `patches/` adapts harness 1.0.3 to `pi-ai/compat`, `session.modelRuntime` authentication, and `agent.streamFunction` playbook injection. Keep the aliases and patch aligned when upgrading the tested SDK; remove the patch when the upstream harness supports these APIs.
+Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm format`. Vitest includes unit, snapshot, and Pi runtime integration tests backed by a patched `@gaodes/pi-test-harness`. The patch updates harness 1.0.3 for `pi-ai/compat`, `session.modelRuntime` authentication, and `agent.streamFunction` playbook injection. Integration tests therefore resolve the same supported Pi SDK versions as the runtime dependencies. Remove the patch when the upstream harness supports these APIs.
 
 Running Pi from this checkout loads the package through `.pi/settings.json`. The project-local `.pi/extensions/pi-internals/` helper reports Pi runtime, source, settings, and extension paths when debugging the repository itself.
 

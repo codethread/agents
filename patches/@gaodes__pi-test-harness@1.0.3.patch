@@ -32,7 +32,7 @@ index 7658bdc9eb92a5033bb4cf2029602b8e0f8607ee..dd94a189a2775527a7dea4a72a36e278
 -            origModelRegistry.isUsingOAuth = () => false;
 -        }
 -    }
-+    // Bypass auth through the public Pi 0.86 model runtime.
++    // Bypass auth through the public Pi model runtime.
 +    session.modelRuntime.getAuth = async () => ({ auth: { apiKey: "test-key" } });
 +    session.modelRuntime.hasConfiguredAuth = () => true;
 +    session.modelRuntime.isUsingOAuth = () => false;
@@ -83,7 +83,7 @@ index 830fae2dbe7123426672a46a497360d173f01ef2..f44e4093f4c506f95e30e77e99275cff
 -			origModelRegistry.isUsingOAuth = () => false;
 -		}
 -	}
-+	// Bypass auth through the public Pi 0.86 model runtime.
++	// Bypass auth through the public Pi model runtime.
 +	session.modelRuntime.getAuth = async () => ({ auth: { apiKey: "test-key" } });
 +	session.modelRuntime.hasConfiguredAuth = () => true;
 +	session.modelRuntime.isUsingOAuth = () => false;
