@@ -107,9 +107,12 @@ async function summarizeTranscript(
 
 async function generateTldr(ctx: ExtensionContext): Promise<TldrResult | undefined> {
 	const transcriptParseNotes: string[] = [];
-	const transcript = buildConversationTranscript(ctx.sessionManager.getBranch(), {
-		onDebug: (message) => transcriptParseNotes.push(message),
-	});
+	const transcript = buildConversationTranscript(
+		ctx.sessionManager.buildSessionProjection().messages,
+		{
+			onDebug: (message) => transcriptParseNotes.push(message),
+		},
+	);
 	if (transcriptParseNotes.length > 0) {
 		notify(
 			ctx,
@@ -136,9 +139,12 @@ async function runDebugFlags(
 ) {
 	try {
 		const transcriptParseNotes: string[] = [];
-		const transcript = buildConversationTranscript(ctx.sessionManager.getBranch(), {
-			onDebug: (message) => transcriptParseNotes.push(message),
-		});
+		const transcript = buildConversationTranscript(
+			ctx.sessionManager.buildSessionProjection().messages,
+			{
+				onDebug: (message) => transcriptParseNotes.push(message),
+			},
+		);
 		if (transcriptParseNotes.length > 0) {
 			process.stderr.write(
 				`TL;DR transcript parse notes: ${formatDebugNotes(transcriptParseNotes, 6)}\n`,

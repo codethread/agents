@@ -2,7 +2,7 @@
 
 > Generate a catch-up summary of the current session.
 
-Use `/tldr` when returning to a session and needing a quick recap. It reads the conversation, strips tool calls and thinking blocks, sends the transcript to a small model, and shows the summary in the shared hidden debug-message UI. The summary is **not** added to the agent's context unless you explicitly send it.
+Use `/tldr` when returning to a session and needing a quick recap. It reads the canonical model context, including the latest branch-local context replacements and omissions, strips tool calls and thinking blocks, sends the transcript to a small model, and shows the summary in the shared hidden debug-message UI. The summary is **not** added to the agent's context unless you explicitly send it.
 
 In the UI:
 
