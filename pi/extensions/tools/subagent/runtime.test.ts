@@ -131,29 +131,60 @@ describe("getPiInvocation", () => {
 
 describe("runSingleAgent timeout", () => {
 	it.each([
-		["the default", undefined, 270],
-		["an explicit override", 12, 12],
-	])("enforces %s across the whole call", async (_label, timeout, expectedSeconds) => {
+		["the default", undefined, 180, "3 minutes"],
+		["an explicit override", 12, 12, "12 seconds"],
+	])(
+		"enforces %s across the whole call",
+		async (_label, timeout, expectedSeconds, expectedDuration) => {
+			vi.useFakeTimers();
+			const proc = mockHangingSpawn();
+			const resultPromise = runSingleAgent(
+				[testAgent()],
+				{ ...request, timeout },
+				undefined,
+				undefined,
+			);
+
+			await vi.advanceTimersByTimeAsync(expectedSeconds * 1000 - 1);
+			expect(proc.kill).not.toHaveBeenCalled();
+			await vi.advanceTimersByTimeAsync(1);
+
+			const result = await resultPromise;
+			expect(proc.kill).toHaveBeenCalledWith("SIGTERM");
+			const timeoutMessage = `Subagent "scout" timed out after ${expectedDuration}. This run was not persisted, so it cannot be resumed.`;
+			expect(result.exitCode).toBe(1);
+			expect(result.errorMessage).toBe(timeoutMessage);
+			expect(result.stderr).toBe(timeoutMessage);
+			expect(spawnMock).toHaveBeenCalledTimes(1);
+		},
+	);
+
+	it("explains how to resume a persisted session after timeout", async () => {
+		const fakeHome = makeTempDir("subagent-timeout-home-");
+		process.env.HOME = fakeHome;
+		process.env.USERPROFILE = fakeHome;
 		vi.useFakeTimers();
-		const proc = mockHangingSpawn();
+		mockHangingSpawn();
 		const resultPromise = runSingleAgent(
 			[testAgent()],
-			{ ...request, timeout },
+			{ ...request, timeout: 1 },
 			undefined,
 			undefined,
+			undefined,
+			{
+				sessionFile: "/tmp/parent.jsonl",
+				sessionId: "parent-session-id",
+				cwd: request.cwd,
+			},
 		);
 
-		await vi.advanceTimersByTimeAsync(expectedSeconds * 1000 - 1);
-		expect(proc.kill).not.toHaveBeenCalled();
-		await vi.advanceTimersByTimeAsync(1);
-
+		await vi.advanceTimersByTimeAsync(1000);
 		const result = await resultPromise;
-		expect(proc.kill).toHaveBeenCalledWith("SIGTERM");
-		const timeoutMessage = `Subagent timed out after ${expectedSeconds} seconds.`;
-		expect(result.exitCode).toBe(1);
-		expect(result.errorMessage).toBe(timeoutMessage);
-		expect(result.stderr).toBe(timeoutMessage);
-		expect(spawnMock).toHaveBeenCalledTimes(1);
+
+		expect(result.sessionId).toBeTruthy();
+		expect(result.errorMessage).toBe(
+			`Subagent "scout" timed out after 1 second. Its session was preserved and can be resumed with resume: "${result.sessionId}".`,
+		);
 	});
 });
 

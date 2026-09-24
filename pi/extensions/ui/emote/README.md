@@ -4,6 +4,7 @@ Vendored from `pi-emote` and adapted for this package layout.
 
 Animated avatar widget above the editor. It reacts to session state: startup, idle, thinking, talking, read/write/tool calls, failures, and compaction.
 
+The extension only initializes terminal graphics for interactive UI sessions. Headless and `--print` sessions do not create or clean up Kitty images, so structured stdout remains machine-readable through process exit.
 The avatar is **hidden at the start of every session** — the same state `/emote off` leaves it in. The status rows the widget renders (path, model, context/cost, session) stay visible; run `/emote` to toggle the avatar on for the current session.
 
 ## Local defaults
