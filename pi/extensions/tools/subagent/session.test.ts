@@ -1,7 +1,14 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
+import type * as PiSdk from "@earendil-works/pi-coding-agent";
+
+vi.mock("@earendil-works/pi-coding-agent", async (importOriginal) => {
+	const sdk = await importOriginal<typeof PiSdk>();
+	return { ...sdk, withFileMutationQueue: vi.fn(sdk.withFileMutationQueue) };
+});
 import {
 	findSubagentSessionFileById,
 	getSubagentSessionPath,
@@ -295,6 +302,95 @@ describe("updateManifest", () => {
 			subagents: [entry],
 		});
 	});
+});
+
+describe("manifest queue identity", () => {
+	it.each([
+		{
+			file: "manifest.json",
+			write: (dir: string, id: string) =>
+				updateManifest(
+					dir,
+					{ sessionFile: "parent.jsonl", sessionId: "parent" },
+					"/repo",
+					makeEntry({ id }),
+				),
+		},
+		{
+			file: "swarm-manifest.json",
+			write: (dir: string, id: string) =>
+				updateSwarmManifest(
+					dir,
+					{ sessionFile: "parent.jsonl", sessionId: "parent" },
+					"/repo",
+					makeSwarmEntry({ id }),
+				),
+		},
+	])(
+		"keeps $file on one queue across creation through a directory symlink",
+		async ({ file, write }) => {
+			const root = makeTempDir("manifest-symlink-");
+			const dir = path.join(root, "real");
+			const link = path.join(root, "link");
+			fs.mkdirSync(dir);
+			fs.symlinkSync(dir, link, "dir");
+			expect(fs.existsSync(path.join(link, file))).toBe(false);
+
+			const sdk = await vi.importActual<typeof PiSdk>("@earendil-works/pi-coding-agent");
+			let firstWritten!: () => void;
+			const written = new Promise<void>((resolve) => {
+				firstWritten = resolve;
+			});
+			let releaseFirst!: () => void;
+			const held = new Promise<void>((resolve) => {
+				releaseFirst = resolve;
+			});
+			let secondRegistered!: () => void;
+			const registered = new Promise<void>((resolve) => {
+				secondRegistered = resolve;
+			});
+			let calls = 0;
+			let secondEntered = false;
+			vi.mocked(withFileMutationQueue).mockImplementation((filePath, mutation) => {
+				const first = ++calls === 1;
+				const pending = sdk.withFileMutationQueue(filePath, async () => {
+					if (!first) secondEntered = true;
+					const result = await mutation();
+					if (first) {
+						// File creation is visible before the first queued operation settles.
+						firstWritten();
+						await held;
+					}
+					return result;
+				});
+				if (!first) secondRegistered();
+				return pending;
+			});
+
+			const first = write(link, "first");
+			await written;
+			const second = write(link, "second");
+			try {
+				await registered;
+				// The SDK serializes registrations even for unrelated files. This fence
+				// lets the second registration finish without releasing the first writer.
+				await sdk.withFileMutationQueue(path.join(root, "registration-fence"), async () => {});
+				expect(secondEntered).toBe(false);
+			} finally {
+				releaseFirst();
+				await Promise.all([first, second]);
+				vi.mocked(withFileMutationQueue).mockImplementation(sdk.withFileMutationQueue);
+			}
+			const manifest = readManifest(path.join(dir, file)) as {
+				subagents?: ManifestEntry[];
+				swarms?: SwarmManifestEntry[];
+			};
+			expect((manifest.subagents ?? manifest.swarms)?.map((entry) => entry.id)).toEqual([
+				"first",
+				"second",
+			]);
+		},
+	);
 });
 
 describe("getSubagentManifestEntryById", () => {

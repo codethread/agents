@@ -15,6 +15,14 @@ type TldrResult = {
 	model: Model<any>;
 };
 
+type SessionProjectionManager = ExtensionContext["sessionManager"] & {
+	buildSessionProjection(): { messages: readonly unknown[] };
+};
+
+function getSessionMessages(ctx: ExtensionContext): readonly unknown[] {
+	return (ctx.sessionManager as SessionProjectionManager).buildSessionProjection().messages;
+}
+
 function getErrorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
@@ -107,12 +115,9 @@ async function summarizeTranscript(
 
 async function generateTldr(ctx: ExtensionContext): Promise<TldrResult | undefined> {
 	const transcriptParseNotes: string[] = [];
-	const transcript = buildConversationTranscript(
-		ctx.sessionManager.buildSessionProjection().messages,
-		{
-			onDebug: (message) => transcriptParseNotes.push(message),
-		},
-	);
+	const transcript = buildConversationTranscript(getSessionMessages(ctx), {
+		onDebug: (message) => transcriptParseNotes.push(message),
+	});
 	if (transcriptParseNotes.length > 0) {
 		notify(
 			ctx,
@@ -139,12 +144,9 @@ async function runDebugFlags(
 ) {
 	try {
 		const transcriptParseNotes: string[] = [];
-		const transcript = buildConversationTranscript(
-			ctx.sessionManager.buildSessionProjection().messages,
-			{
-				onDebug: (message) => transcriptParseNotes.push(message),
-			},
-		);
+		const transcript = buildConversationTranscript(getSessionMessages(ctx), {
+			onDebug: (message) => transcriptParseNotes.push(message),
+		});
 		if (transcriptParseNotes.length > 0) {
 			process.stderr.write(
 				`TL;DR transcript parse notes: ${formatDebugNotes(transcriptParseNotes, 6)}\n`,

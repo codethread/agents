@@ -44,13 +44,13 @@ async function createTldrSession(options?: {
 		});
 	}
 
-	const modelRegistry = (t.session as any).modelRegistry;
-	modelRegistry.hasConfiguredAuth = vi.fn(() => true);
-	modelRegistry.getAvailable = vi.fn(() => options?.availableModels ?? [TLDR_MODEL]);
-	modelRegistry.getApiKeyAndHeaders = vi
-		.fn()
-		.mockResolvedValue(options?.authResult ?? { ok: true, apiKey: "test-key" });
-	modelRegistry.complete = completeSpy;
+	const modelRuntime = t.session.modelRuntime;
+	vi.spyOn(modelRuntime, "getAvailableSnapshot").mockReturnValue(
+		(options?.availableModels ?? [TLDR_MODEL]) as ReturnType<
+			typeof modelRuntime.getAvailableSnapshot
+		>,
+	);
+	vi.spyOn(modelRuntime, "complete").mockImplementation(completeSpy);
 
 	return t;
 }
