@@ -37,17 +37,10 @@ type SessionJsonEntry = {
 	type: string;
 	id?: string;
 	parentId?: string | null;
-	message?: { role?: string };
 };
 
-export function findLatestAssistantEntryId(entries: readonly unknown[]): string | undefined {
-	for (const entry of [...entries].reverse()) {
-		const candidate = entry as SessionJsonEntry;
-		if (candidate.type === "message" && candidate.message?.role === "assistant" && candidate.id) {
-			return candidate.id;
-		}
-	}
-	return undefined;
+export function findActiveBranchLeafId(entries: readonly unknown[]): string | undefined {
+	return (entries.at(-1) as SessionJsonEntry | undefined)?.id;
 }
 
 export async function createPrunedSessionFile(
@@ -232,7 +225,7 @@ export default function forkOffExtension(pi: ExtensionAPI) {
 	let activeForkBaseEntryId: string | undefined;
 
 	pi.on("before_agent_start", (_event, ctx) => {
-		activeForkBaseEntryId = findLatestAssistantEntryId(ctx.sessionManager.getBranch());
+		activeForkBaseEntryId = findActiveBranchLeafId(ctx.sessionManager.getBranch());
 	});
 
 	pi.on("agent_end", () => {
@@ -247,13 +240,10 @@ export default function forkOffExtension(pi: ExtensionAPI) {
 			if (queued) {
 				forkBaseEntryId = activeForkBaseEntryId;
 				if (!forkBaseEntryId) {
-					ctx.ui.notify(
-						"/fork-off could not find a stable assistant message to fork from yet",
-						"error",
-					);
+					ctx.ui.notify("/fork-off could not find stable session state to fork from yet", "error");
 					return;
 				}
-				ctx.ui.notify("/fork-off opening from the last stable assistant message", "info");
+				ctx.ui.notify("/fork-off opening from the last stable session state", "info");
 			}
 
 			if (!queued) await ctx.waitForIdle();
