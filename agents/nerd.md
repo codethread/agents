@@ -33,7 +33,7 @@ If the user asks about a GitHub repository, your job is to identify and return t
 The caller should:
 
 1. take the repo URL you found
-2. clone or vendor the repo itself in its own workspace
+2. clone or vendor the repo itself in its own workspace (`clone --help`)
 3. delegate a `scout` to explore that local vendored clone
 
 Stay focused on web research, documentation, blog posts, release notes, and finding the right upstream repository to inspect.
