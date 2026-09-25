@@ -16,7 +16,6 @@ export type PromptContextFile = NonNullable<BuildSystemPromptOptions["contextFil
 export type PromptInput = {
 	persona: string;
 	millstrandIdentityInstruction?: string;
-	managedGuidance?: string;
 	cwd: string;
 	currentDate: string;
 	selectedTools: string[];
@@ -193,7 +192,6 @@ export function buildSystemPrompt(
 
 	return joinSections([
 		input.persona,
-		input.managedGuidance,
 		renderSection(
 			"Millstrand identity",
 			"",

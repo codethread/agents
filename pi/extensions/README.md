@@ -43,9 +43,9 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 
 ## System prompt
 
-| Extension                                    | Summary                                                                                                                  |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| [`system-prompt`](./system-prompt/README.md) | Prompt owner: consumes Harnesses-owned Millstrand identity data and chooses how to render identity and managed guidance. |
+| Extension                                    | Summary                                                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [`system-prompt`](./system-prompt/README.md) | Owns the system prompt, renders rules and canonical Millstrand identity, and publishes identity status. |
 
 ## Messaging
 

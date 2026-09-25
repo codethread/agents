@@ -12,9 +12,9 @@ patchedDependencies:
 importers:
   .:
     dependencies:
-      "@codethread/harnesses":
-        specifier: github:codethread/harnesses.spool#c140d7c80484854e406f0b57933b7ddfce6734b0
-        version: https://codeload.github.com/codethread/harnesses.spool/tar.gz/c140d7c80484854e406f0b57933b7ddfce6734b0(@earendil-works/pi-coding-agent@0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6))
+      "@millhouse/harnesses":
+        specifier: https://github.com/codethread/millhouse.spool.git#f13312133daf46e57d510fc0ea289850373264c6&path:/spools/harnesses
+        version: https://codeload.github.com/codethread/millhouse.spool/tar.gz/f13312133daf46e57d510fc0ea289850373264c6#path:/spools/harnesses(@earendil-works/pi-coding-agent@0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6))
       "@earendil-works/pi-ai":
         specifier: 0.87.1
         version: 0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
@@ -267,10 +267,11 @@ packages:
       }
     engines: { node: ">=6.9.0" }
 
-  "@codethread/harnesses@https://codeload.github.com/codethread/harnesses.spool/tar.gz/c140d7c80484854e406f0b57933b7ddfce6734b0":
+  "@millhouse/harnesses@https://codeload.github.com/codethread/millhouse.spool/tar.gz/f13312133daf46e57d510fc0ea289850373264c6#path:/spools/harnesses":
     resolution:
       {
-        tarball: https://codeload.github.com/codethread/harnesses.spool/tar.gz/c140d7c80484854e406f0b57933b7ddfce6734b0,
+        path: /spools/harnesses,
+        tarball: https://codeload.github.com/codethread/millhouse.spool/tar.gz/f13312133daf46e57d510fc0ea289850373264c6,
       }
     version: 0.1.0
     peerDependencies:
@@ -3706,7 +3707,7 @@ snapshots:
 
   "@babel/runtime@7.29.2": {}
 
-  "@codethread/harnesses@https://codeload.github.com/codethread/harnesses.spool/tar.gz/c140d7c80484854e406f0b57933b7ddfce6734b0(@earendil-works/pi-coding-agent@0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6))":
+  "@millhouse/harnesses@https://codeload.github.com/codethread/millhouse.spool/tar.gz/f13312133daf46e57d510fc0ea289850373264c6#path:/spools/harnesses(@earendil-works/pi-coding-agent@0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6))":
     dependencies:
       "@earendil-works/pi-coding-agent": 0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
 

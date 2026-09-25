@@ -1,4 +1,12 @@
-import { createMillstrandIdentityLifecycle } from "@codethread/harnesses/pi/millstrand-identity";
+import {
+	DEBUG_MILLSTRAND_IDENTITY_FLAG,
+	getNativeIdentityInputs,
+	nativeIdentityModel,
+	resolveNativeIdentity,
+	type NativeIdentityState,
+	MILLSTRAND_IDENTITY_CONTEXT_EVENT,
+	formatNativeIdentityState,
+} from "@millhouse/harnesses/pi/millstrand-identity";
 import type {
 	BuildSystemPromptOptions,
 	ExtensionAPI,
@@ -6,16 +14,6 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { showDebugMessage } from "../components/debug-message/index.js";
 import { discoverProjectRules, getUnconditionalRules } from "../shared/project-rules.js";
-import { formatNativeIdentityState, type NativeIdentityState } from "./native-identity.js";
-import {
-	acknowledgeManagedGuidance,
-	DEBUG_MANAGED_GUIDANCE_FLAG,
-	failManagedGuidance,
-	formatManagedGuidanceDebug,
-	renderManagedGuidance,
-	type ManagedGuidanceBundle,
-	type ManagedPiSelection,
-} from "./managed-guidance.js";
 import {
 	DEFAULT_PERSONA,
 	buildSystemPrompt,
@@ -112,15 +110,56 @@ function groupToolGuidelines(
 }
 
 export default function systemPromptExtension(pi: ExtensionAPI) {
-	const identityLifecycle = createMillstrandIdentityLifecycle(pi);
-	identityLifecycle.registerFlags();
+	let nativeIdentityState: NativeIdentityState = { status: "pending" };
+	let managedSessionId: string | undefined;
+	pi.registerFlag(DEBUG_MILLSTRAND_IDENTITY_FLAG, {
+		description: "Print optional Millstrand identity state and diagnostics, then exit",
+		type: "boolean",
+		default: false,
+	});
+
+	async function loadIdentity(ctx: ExtensionContext) {
+		const nativeSessionId = ctx.sessionManager.getSessionId();
+		const previous = nativeIdentityState.status === "bound" ? nativeIdentityState : null;
+		nativeIdentityState = { status: "pending" };
+		pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, null);
+		try {
+			const resolved = await resolveNativeIdentity(pi.exec, {
+				cwd: ctx.cwd,
+				nativeSessionId,
+				parentSessionFile: ctx.sessionManager.getHeader?.()?.parentSession,
+				model: nativeIdentityModel(ctx),
+				thinkingLevel: ctx.thinkingLevel,
+				signal: ctx.signal,
+				inputs: () => {
+					const inputs = getNativeIdentityInputs(pi);
+					if (inputs.runId && !managedSessionId) managedSessionId = nativeSessionId;
+					if (managedSessionId && managedSessionId !== nativeSessionId) inputs.runId = undefined;
+					if (previous && previous.nativeSessionId !== nativeSessionId) {
+						inputs.parentIdentity = previous.identity;
+					}
+					return inputs;
+				},
+			});
+			nativeIdentityState = resolved
+				? { status: "bound", ...resolved }
+				: { status: "suppressed", reason: "outside a Millstrand project", nativeSessionId };
+		} catch (error) {
+			// Identity is optional. Retain diagnostics for /debug-millstrand-identity,
+			// but leave the prompt, UI and child attribution unbound and Pi usable.
+			nativeIdentityState = {
+				status: "error",
+				nativeSessionId,
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+		if (nativeIdentityState.status === "bound") {
+			pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, nativeIdentityState);
+		}
+	}
 	let printPromptOnNextTurn = false;
 	let dynamicPrompt: string | null = null;
 	let lastMaterializedPrompt: string | null = null;
-	let nativeIdentityState: NativeIdentityState = { status: "pending" };
-	let managedSelection: ManagedPiSelection = { kind: "unmanaged" };
-	let managedBundle: ManagedGuidanceBundle | null = null;
-	let managedError: string | undefined;
 	const toolPromptMetadata = new Map<string, ToolPromptMetadata>();
 	const registerTool = pi.registerTool.bind(pi);
 	pi.registerTool = ((definition: ToolDefinition) => {
@@ -129,11 +168,6 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		});
 		registerTool(definition);
 	}) as ExtensionAPI["registerTool"];
-
-	const publishManagedFailure = (message: string) => {
-		managedError = message;
-		identityLifecycle.reportGuidanceFailure(message);
-	};
 
 	pi.registerFlag(DEBUG_PROMPT_FLAG, {
 		description:
@@ -144,11 +178,6 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 	pi.registerFlag(DEBUG_TOOLS_FLAG, {
 		description:
 			"Print registered tool prompt contributions and model-facing schemas, optionally filtered by a comma-separated list",
-		type: "boolean",
-		default: false,
-	});
-	pi.registerFlag(DEBUG_MANAGED_GUIDANCE_FLAG, {
-		description: "Validate and print managed native-v1 guidance handoff, then exit",
 		type: "boolean",
 		default: false,
 	});
@@ -200,17 +229,16 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	pi.on("input", () => identityLifecycle.input());
-	pi.on("before_provider_request", (event, ctx) =>
-		identityLifecycle.beforeProviderRequest(event, ctx),
-	);
-	pi.on("session_shutdown", () => identityLifecycle.sessionShutdown());
+	pi.on("session_shutdown", (_event, ctx) => {
+		pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, null);
+		if (ctx.hasUI) ctx.ui.setStatus("millstrand-identity", undefined);
+	});
 
 	pi.on("session_start", async (_event, ctx) => {
 		printPromptOnNextTurn = false;
 		dynamicPrompt = null;
 		lastMaterializedPrompt = null;
-		managedError = undefined;
+		if (ctx.hasUI) ctx.ui.setStatus("millstrand-identity", undefined);
 
 		const wantsToolsDebug = pi.getFlag(DEBUG_TOOLS_FLAG) === true;
 		if (wantsToolsDebug) {
@@ -244,214 +272,62 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			templateOverrides = parsedOverrides.overrides;
 		}
 
-		const nativeSessionId = ctx.sessionManager.getSessionId();
-		const identityPromise = identityLifecycle.sessionStart(ctx);
-		const dynamicPromptPromise = renderDynamicPrompt(
-			{
-				cwd: ctx.cwd,
-				hasUI: ctx.hasUI,
-				model: ctx.model,
-				tools: pi.getActiveTools(),
-			},
-			templateOverrides,
-		).then(
-			(value) => ({ status: "fulfilled" as const, value }),
-			(reason: unknown) => ({ status: "rejected" as const, reason }),
-		);
-
-		await identityPromise;
-		nativeIdentityState = identityLifecycle.identityState;
-		managedSelection = identityLifecycle.guidanceContext.selection;
-		managedBundle = identityLifecycle.guidanceContext.bundle;
-		const dynamicPromptResult = await dynamicPromptPromise;
-		if (dynamicPromptResult.status === "rejected") {
-			if (managedSelection.kind === "native-v1") {
-				const message =
-					dynamicPromptResult.reason instanceof Error
-						? dynamicPromptResult.reason.message
-						: String(dynamicPromptResult.reason);
-				publishManagedFailure(message);
-				try {
-					await failManagedGuidance(
-						managedSelection,
-						nativeSessionId,
-						"rendering",
-						"dynamic-prompt-failed",
-						message,
-						undefined,
-						process.env,
-						ctx.signal,
-					);
-				} catch (failureError) {
-					const failureMessage =
-						failureError instanceof Error ? failureError.message : String(failureError);
-					publishManagedFailure(`${message}; failure receipt was not recorded: ${failureMessage}`);
-				}
-				throw new Error(managedError);
-			}
-			throw dynamicPromptResult.reason;
+		const [, renderedPrompt] = await Promise.all([
+			loadIdentity(ctx),
+			renderDynamicPrompt(
+				{
+					cwd: ctx.cwd,
+					hasUI: ctx.hasUI,
+					model: ctx.model,
+					tools: pi.getActiveTools(),
+				},
+				templateOverrides,
+			),
+		]);
+		dynamicPrompt = renderedPrompt;
+		if (pi.getFlag(DEBUG_MILLSTRAND_IDENTITY_FLAG) === true) {
+			process.stdout.write(`${formatNativeIdentityState(nativeIdentityState, ctx.cwd)}\n`);
+			process.exit(0);
 		}
-		dynamicPrompt = dynamicPromptResult.value;
+		const identity = nativeIdentityState;
+		if (ctx.hasUI && identity.status === "bound") {
+			ctx.ui.setStatus("millstrand-identity", identity.identity);
+		}
 		if (!wantsPromptDebug) return;
 		printPromptOnNextTurn = true;
 		notify(ctx, "Debug prompt mode: send a message to materialize the prompt.", "info");
 	});
 
 	pi.on("before_agent_start", async (event: BeforeAgentStartEvent, ctx) => {
-		const nativeSelection = managedSelection.kind === "native-v1" ? managedSelection : null;
-		const nativeSessionId = nativeSelection ? ctx.sessionManager.getSessionId() : "";
-		let options: OwnedSystemPromptOptions;
-		try {
-			options = getOwnedSystemPromptOptions(event);
-		} catch (error) {
-			if (nativeSelection) {
-				const message = error instanceof Error ? error.message : String(error);
-				publishManagedFailure(message);
-				try {
-					await failManagedGuidance(
-						nativeSelection,
-						nativeSessionId,
-						"validation",
-						"system-prompt-options-invalid",
-						message,
-						undefined,
-						process.env,
-						ctx.signal,
-					);
-				} catch (failureError) {
-					const failureMessage =
-						failureError instanceof Error ? failureError.message : String(failureError);
-					publishManagedFailure(`${message}; failure receipt was not recorded: ${failureMessage}`);
-				}
-				throw new Error(managedError);
-			}
-			throw error;
-		}
-		if (nativeSelection && (options.customPrompt?.trim() || options.appendSystemPrompt?.trim())) {
-			const message = "native-v1 received a competing Pi system-prompt option";
-			publishManagedFailure(message);
-			await failManagedGuidance(
-				nativeSelection,
-				nativeSessionId,
-				"validation",
-				"competing-prompt-option",
-				message,
-				undefined,
-				process.env,
-				ctx.signal,
-			);
-			throw new Error(message);
-		}
-		let projectRules: Awaited<ReturnType<typeof discoverProjectRules>>;
-		let claudeLocalContextFiles: Awaited<ReturnType<typeof loadClaudeLocalContextFiles>>;
-		try {
-			[projectRules, claudeLocalContextFiles] = await Promise.all([
-				discoverProjectRules(options.cwd, pi.exec, ctx.signal),
-				loadClaudeLocalContextFiles(options.cwd),
-			]);
-		} catch (error) {
-			if (nativeSelection) {
-				const message = error instanceof Error ? error.message : String(error);
-				publishManagedFailure(message);
-				await failManagedGuidance(
-					nativeSelection,
-					nativeSessionId,
-					"rendering",
-					"local-context-failed",
-					message,
-					undefined,
-					process.env,
-					ctx.signal,
-				);
-			}
-			throw error;
-		}
+		const options = getOwnedSystemPromptOptions(event);
+		const [projectRules, claudeLocalContextFiles] = await Promise.all([
+			discoverProjectRules(options.cwd, pi.exec, ctx.signal),
+			loadClaudeLocalContextFiles(options.cwd),
+		]);
 		for (const warning of projectRules.warnings) {
 			notify(ctx, `[project-rules] ${warning}`, "warning");
 		}
 
-		let systemPrompt: string;
-		try {
-			let managedGuidance: string | undefined;
-			if (nativeSelection) {
-				if (!managedBundle)
-					throw new Error("native-v1 guidance was not fetched for this lifecycle.");
-				managedGuidance = renderManagedGuidance(managedBundle);
-			}
-			systemPrompt = buildSystemPrompt({
-				persona: options.customPrompt?.trim() || DEFAULT_PERSONA,
-				managedGuidance,
-				millstrandIdentityInstruction:
-					nativeIdentityState.status === "bound" ? nativeIdentityState.instruction : undefined,
-				cwd: options.cwd,
-				currentDate: new Date().toISOString().slice(0, 10),
-				selectedTools: options.selectedTools,
-				toolSnippets: options.toolSnippets,
-				promptGuidelines: options.promptGuidelines,
-				toolGuidelines: groupToolGuidelines(
-					options.selectedTools,
-					options.promptGuidelines,
-					toolPromptMetadata,
-				),
-				contextFiles: [...(options.contextFiles ?? []), ...claudeLocalContextFiles],
-				skills: options.skills ?? [],
-				appendSystemPrompt: options.appendSystemPrompt,
-				dynamicPrompt,
-				projectRules: getUnconditionalRules(projectRules.rules),
-			});
-		} catch (error) {
-			if (nativeSelection) {
-				const message = error instanceof Error ? error.message : String(error);
-				publishManagedFailure(message);
-				await failManagedGuidance(
-					nativeSelection,
-					nativeSessionId,
-					"rendering",
-					"rendering-failed",
-					message,
-					undefined,
-					process.env,
-					ctx.signal,
-				);
-			}
-			throw error;
-		}
-		if (nativeSelection) {
-			try {
-				await acknowledgeManagedGuidance(
-					nativeSelection,
-					nativeSessionId,
-					undefined,
-					process.env,
-					ctx.signal,
-				);
-			} catch (error) {
-				const message = error instanceof Error ? error.message : String(error);
-				publishManagedFailure(message);
-				try {
-					await failManagedGuidance(
-						nativeSelection,
-						nativeSessionId,
-						"handoff",
-						"acknowledgement-failed",
-						message,
-						undefined,
-						process.env,
-						ctx.signal,
-					);
-				} catch (failureError) {
-					const failureMessage =
-						failureError instanceof Error ? failureError.message : String(failureError);
-					publishManagedFailure(`${message}; failure receipt was not recorded: ${failureMessage}`);
-				}
-				throw new Error(managedError);
-			}
-			if (pi.getFlag(DEBUG_MANAGED_GUIDANCE_FLAG) === true) {
-				process.stdout.write(`${formatManagedGuidanceDebug(managedSelection, managedBundle)}\n`);
-				process.stdout.write(`${systemPrompt}\n`);
-				process.exit(0);
-			}
-		}
+		const identity = nativeIdentityState;
+		const systemPrompt = buildSystemPrompt({
+			persona: options.customPrompt?.trim() || DEFAULT_PERSONA,
+			millstrandIdentityInstruction: identity.status === "bound" ? identity.instruction : undefined,
+			cwd: options.cwd,
+			currentDate: new Date().toISOString().slice(0, 10),
+			selectedTools: options.selectedTools,
+			toolSnippets: options.toolSnippets,
+			promptGuidelines: options.promptGuidelines,
+			toolGuidelines: groupToolGuidelines(
+				options.selectedTools,
+				options.promptGuidelines,
+				toolPromptMetadata,
+			),
+			contextFiles: [...(options.contextFiles ?? []), ...claudeLocalContextFiles],
+			skills: options.skills ?? [],
+			appendSystemPrompt: options.appendSystemPrompt,
+			dynamicPrompt,
+			projectRules: getUnconditionalRules(projectRules.rules),
+		});
 		return { systemPrompt };
 	});
 

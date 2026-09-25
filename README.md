@@ -109,9 +109,6 @@ Changing prompt-layer context or switching models/providers can reduce provider 
 
 ## Millstrand identity dependency
 
-Native Codex/Pi identity data and the disabled managed-guidance adapters are
-owned by the Harnesses repository. This package consumes
-`@codethread/harnesses/pi/millstrand-identity`; its prompt, statusline, emote,
-and subagent extensions decide how to render or propagate the published data.
-The Harnesses package also owns Codex hook installation, conformance fixtures,
-and `scripts/managed-guidance-preflight.mjs`.
+Native identity registration lives in [`millhouse.spool/spools/harnesses`](https://github.com/codethread/millhouse.spool/tree/main/spools/harnesses), consumed as a commit-pinned `@millhouse/harnesses` dependency. The prompt extension renders the canonical identity instruction and publishes its name through Pi's status API. Subagents retain parent attribution but resolve their own identities and workspaces.
+
+There is no managed-guidance protocol in this package. Identity needs a running Weaver supporting `strand agent native-startup`; installing the JavaScript dependency does not update it. Identity is optional: unavailable or invalid Millstrand workspaces never block Pi or emit startup errors. Use `/debug-millstrand-identity` to inspect lookup diagnostics. See [identity lifecycle and debug commands](pi/extensions/system-prompt/README.md#identity-lifecycle).
