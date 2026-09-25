@@ -589,8 +589,8 @@ describe("child inherited resources", () => {
 			expect(options.env).toMatchObject({
 				PI_SUBAGENT: "1",
 				MILLSTRAND_PI_PARENT_IDENTITY: "native-parent",
-				MILLSTRAND_PI_WORKSPACE: "/disposable/world",
 			});
+			expect(options.env.MILLSTRAND_PI_WORKSPACE).toBeUndefined();
 			expect(options.env.MILLSTRAND_AGENT_ID).toBeUndefined();
 			expect(options.env.MILLSTRAND_RUN_ID).toBeUndefined();
 			expect(options.env.MILLSTRAND_BOOTSTRAP_V1).toBeUndefined();

@@ -76,7 +76,7 @@ def --wrapped pi [
 	--agent: string                           # [EXT] Inherit discovered agent config by name (prompt/model/tools/mcpServers, unless overridden)
 	--debug-mcp: string                       # [EXT] Validate agent MCP frontmatter and adapter runtime registration, print the report, and exit
 	--debug-prompt                            # [EXT] Print effective system prompt and exit (optional JSON override arg)
-	--debug-managed-guidance                  # [EXT] Validate/print managed native-v1 guidance handoff and exit before a model request
+	--debug-millstrand-identity                # [EXT] Print native Millstrand session identity and exit
 	--debug-tools                             # [EXT] Print tool prompt/schema report (optional comma-separated positional selector)
 	--debug-tldr                              # [EXT] Print current session TL;DR and exit
 	--debug-tldr-transcript                   # [EXT] Print transcript used by /tldr and exit
@@ -133,7 +133,7 @@ def --wrapped pi [
 	if $agent != null { $pi_args = ($pi_args | append ["--agent" $agent]) }
 	if $debug_mcp != null { $pi_args = ($pi_args | append ["--debug-mcp" $debug_mcp]) }
 	if $debug_prompt { $pi_args = ($pi_args | append "--debug-prompt") }
-	if $debug_managed_guidance { $pi_args = ($pi_args | append "--debug-managed-guidance") }
+	if $debug_millstrand_identity { $pi_args = ($pi_args | append "--debug-millstrand-identity") }
 	if $debug_tools { $pi_args = ($pi_args | append "--debug-tools") }
 	if $debug_tldr { $pi_args = ($pi_args | append "--debug-tldr") }
 	if $debug_tldr_transcript { $pi_args = ($pi_args | append "--debug-tldr-transcript") }

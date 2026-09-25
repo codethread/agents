@@ -1,6 +1,6 @@
 (require '[millstrand.api.current.alpha :as current]
          '[millstrand.api.runtime.alpha :as runtime]
-         '[ct.spools.codethread.bootstrap :as codethread])
+         '[millhouse.config.bootstrap :as config])
 
 (def runtime (current/runtime))
 
@@ -12,13 +12,13 @@
 ;; Register shared identity, Workflow, Harnesses, aliases, and reviewers before
 ;; any consumer modules. The bootstrap deliberately leaves the executor off
 ;; until all workspace-owned modules have reconciled.
-(codethread/register! runtime)
+(config/register! runtime)
 
 ;; Keep the workspace-level Workflow providers an explicit consumer choice; no
 ;; provider, alias, reviewer, or executor definitions are copied here.
-(runtime/module! runtime :millhouse/spools-workflow-providers
-                 {:ns 'millhouse.spools.workflow.spool
-                  :after [:millhouse/spools-workflow]
+(runtime/module! runtime :millhouse/workflow-providers
+                 {:ns 'millhouse.workflow.spool
+                  :after [:millhouse/workflow]
                   :required? true})
 
 ;; Keep the workspace-owned help election and module behavior unchanged.
@@ -28,7 +28,7 @@
 
 ;; The shared bootstrap owns the sole :agent executor. It must be registered
 ;; last so restored ready gates see all consumer modules during its first scan.
-(codethread/register-executor!
- runtime [:millhouse/spools-workflow-providers
-          :millhouse/spools-kanban
+(config/register-executor!
+ runtime [:millhouse/workflow-providers
+          :millhouse/kanban
           :module-me-help])

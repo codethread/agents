@@ -4,9 +4,7 @@
 
 This directory is intentionally flat:
 
-- `index.ts` — prompt/UI composition around Harnesses-owned identity data
-- `native-identity.ts` — compatibility re-export of Harnesses identity state formatting
-- `managed-guidance.ts` — compatibility re-export of Harnesses managed handoff APIs
+- `index.ts` — prompt composition and Millstrand lifecycle wiring
 - `prompt-builder.ts` — pure system-prompt rendering helpers
 - `templates.ts` — `agent.njk` discovery/rendering plus `--debug-prompt` override parsing
 - `tool-report.ts` — `--debug-tools` selector parsing and report rendering
@@ -15,18 +13,16 @@ This directory is intentionally flat:
 
 The extension replaces Pi's generated prompt during `before_agent_start` using structured `systemPromptOptions` for the renderer persona, tool metadata, skills, context files, append text, date, and cwd. It also loads `CLAUDE.local.md` from the cwd and each ancestor, ordered from the filesystem root toward the cwd, and appends those files after Pi's discovered `AGENTS.md`/`CLAUDE.md` context files.
 
-The Harnesses package owns every `session_start` identity lookup and publishes plain identity, state, and managed-guidance data. This extension composes that lifecycle into its existing entrypoint, then chooses to render the canonical instruction once as `<system-reminder type="millstrand-identity">` in the owned prompt. Other consumers independently use the same data for statusline, emote, subagent, or debug presentation.
+At startup this extension calls the [Harnesses package](https://github.com/codethread/millhouse.spool/tree/main/spools/harnesses)'s native identity resolver. This extension renders its canonical instruction once as `<system-reminder type="millstrand-identity">` and publishes the friendly name with Pi's `ui.setStatus`. The statusline reads that status directly; emote has no identity-specific wiring.
 
-Lifecycle data is published over Pi's shared `pi.events` bus rather than module state because Pi loads extensions through isolated jiti instances with `moduleCache: false`. Each lifecycle first publishes an unbound reset, then the newly resolved identity and explicit workspace; shutdown publishes another reset.
-
-The native data contract and managed adapter implementation are documented and tested in the Harnesses repository under `plugins/millstrand-identity/`. This package depends on that implementation rather than owning a second copy.
+Identity registration, workspace discovery, and child environment scoping belong to Harnesses. This extension owns the optional-identity policy: failed lookup must not prevent using Pi. This repo does not fetch, render, or acknowledge managed-guidance bundles. Task and policy appends use Pi's ordinary prompt options.
 
 It also renders Nunjucks rule templates into the owned prompt:
 
 1. global template: `<PI_CODING_AGENT_DIR>/agent.njk`
 2. nearest project template: `.pi/agent.njk` walking upward from cwd
 
-Templates are discovered, read, and rendered once at session startup, alongside Pi's other prompt resources. Rendering runs concurrently with identity startup, but template rejection is handled immediately and surfaced through the session lifecycle rather than escaping as an unhandled process rejection. `/reload` starts the lifecycle again, so template edits take effect after a reload or a new session rather than on the next turn. Identity resolution also replays on reload; Millhouse recovers the same binding instead of relying on an injection sentinel.
+Templates are discovered, read, and rendered once at session startup, alongside Pi's other prompt resources. Templates and identity lookup run together through `Promise.all`. Template failures still surface; identity failures are retained only for debug inspection. `/reload` starts the lifecycle again, so template edits take effect after a reload or a new session rather than on the next turn. Identity resolution also replays on reload; Millhouse recovers the same binding instead of relying on an injection sentinel.
 
 If both exist, both are rendered as separate XML blocks: global inside `<system-reminder type="rules">`, project inside `<system-reminder type="project-rules">`.
 
@@ -58,26 +54,23 @@ Prefer precise file-edit tools over shell redirection.
 {% endif %}
 ```
 
-## Identity routing and failure
+## Identity lifecycle
 
-- Normal unmanaged startup needs no Millstrand identity, run, or reservation environment variables. Strand discovers a workspace from `--cwd`.
-- `--millstrand-workspace <dir>` selects an explicit workspace. A relative value is resolved once against the parent session cwd, then the resulting absolute route is used for parent startup and passed unchanged to child and grandchild sessions through private child metadata. It is not reinterpreted against a delegated child's cwd or inherited as managed ownership.
-- `--millstrand-identity <name>` asserts an existing identity already bound to this exact Pi session. It cannot invent, attach, or move a friendly name; Millhouse rejects unknown or conflicting values before writing.
-- A process with `MILLSTRAND_RUN_ID` but no `MILLSTRAND_MANAGED_GUIDANCE` document is treated as a legacy managed launch. Native resolution is suppressed, so its existing append-system-prompt transport remains authoritative.
-- The exact closed legacy guidance document also suppresses native identity. Unknown, malformed, duplicate-key, partial, or oversized guidance never falls through to unmanaged identity.
-- Explicit `native-v1` requires the matching managed bootstrap, run/attempt/invocation/provider/native-session/capability/bundle fences, and a strict bundle from the versioned `agent startup` attachment operation. Identity is rendered first, every frozen append position is preserved in order, and one deterministic current-run footer closes one managed reminder block.
-- Every startup/resume/reload lifecycle fetches again; every effective prompt reconstructs the managed block and performs a fenced adapter-handoff acknowledgement immediately before return. There is no permanent sentinel. Startup, validation, rendering, and handoff errors submit a fenced failure receipt and mark the lifecycle blocked, except that a cwd/workspace route-fence mismatch blocks without sending a receipt through rejected route data. Because Pi reports extension-handler exceptions and continues its runner, the lifecycle failure is reported and blocked with the receipt and custody behavior described above, while Pi host ordering does not provide an atomic guarantee that all managed context was received before any model call. It does not mint identity, retry, fall back to legacy, truncate, or add a second prompt owner.
-- `MILLSTRAND_MANAGED_BOOTSTRAP`, `MILLSTRAND_MANAGED_GUIDANCE`, and existing ownership/bootstrap hints are removed from delegated child environments. `PI_SUBAGENT=1` cannot consume root guidance ownership.
-- Strand, workspace, Weaver, conflict, and response-schema failures are reported visibly. Unmanaged Pi remains usable but unbound, and no identity block is rendered. The extension never guesses a name, retries, creates a workspace, or starts infrastructure.
+- Harnesses discovers the canonical Git project's `.millstrand` workspace, including linked worktrees. Outside a Millstrand project, it does nothing.
+- Each startup, resume, reload, or fork resolves the actual native session through `strand agent native-startup`. Same-session resolution recovers the identity; a new session gets its own. Managed roots supply only `MILLSTRAND_RUN_ID` for run correlation.
+- Identity is optional. A missing or invalid workspace, unavailable Weaver, or failed registration leaves Pi usable without an identity block or status name. Normal startup emits no identity error or warning. Diagnostics remain available through `/debug-millstrand-identity` and its CLI flag. The resolver has a bounded subprocess timeout and does not retry or start infrastructure.
+- Delegated children receive only parent attribution, not the parent's run or workspace. See [subagent identity](../tools/subagent/README.md#native-child-identity).
+- Startup and shutdown clear the UI status, so a previous session's name cannot remain displayed.
+
+Identity resolution needs a running Weaver exposing `agent native-startup`; check with `strand help agent native-startup`. If it is unavailable, Pi continues without identity. Installing the dependency does not update a running Weaver. The former identity/workspace override flags and managed-guidance debug flag are removed.
 
 ## Debug surfaces
 
 - `--debug-prompt` — print the next materialized effective system prompt and exit; send a message manually (for example with `--print ping`); accepts optional JSON template-var overrides
 - `/debug-prompt` — show the last materialized effective system prompt in the UI; if no message has been sent yet, it warns the user to send one first
 - `--debug-tools [tool,...]` — print all registered tools, or selected tools, with active status, their approximate system-prompt contribution, and provider-neutral model definition; exits before a model request
-- `--debug-millstrand-identity` — resolve and print the unmanaged native session binding/status as JSON, then exit before a model request
-- `/debug-millstrand-identity` — show the current unmanaged binding/status in the standard hidden debug panel
-- `--debug-managed-guidance` — on an already fenced native-v1 fixture, fetch, render, acknowledge, print the evidence and effective prompt, then exit before a model request
+- `--debug-millstrand-identity` — print the optional native binding/status and any lookup diagnostic as JSON, then exit before a model request
+- `/debug-millstrand-identity` — show the current binding/status in the standard hidden debug panel
 
 Example:
 

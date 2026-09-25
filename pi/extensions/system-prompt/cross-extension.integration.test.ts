@@ -1,17 +1,26 @@
+import { execFileSync } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, delimiter, join, resolve } from "node:path";
 import { createEventBus, discoverAndLoadExtensions } from "@earendil-works/pi-coding-agent";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const originalEnvironment = { ...process.env };
+const inheritedGitEnvironmentNames = Object.keys(process.env).filter((name) =>
+	name.startsWith("GIT_"),
+);
 
 async function writeExecutable(path: string, source: string): Promise<void> {
 	await writeFile(path, source);
 	await chmod(path, 0o755);
 }
 
+beforeEach(() => {
+	for (const name of inheritedGitEnvironmentNames) vi.stubEnv(name, undefined);
+});
+
 afterEach(() => {
+	vi.unstubAllEnvs();
 	for (const name of Object.keys(process.env)) {
 		if (!(name in originalEnvironment)) delete process.env[name];
 	}
@@ -19,22 +28,26 @@ afterEach(() => {
 });
 
 describe("Millstrand identity across separately loaded extensions", () => {
-	it("keeps one absolute workspace across parent, child, and grandchild cwd changes", async () => {
+	it("shares session identity with child spawns while each project resolves its own workspace", async () => {
 		const root = await mkdtemp(join(tmpdir(), "pi-millstrand-loader-"));
 		try {
 			const parentCwd = join(root, "parent");
 			const childCwd = join(root, "child");
 			const grandchildCwd = join(root, "grandchild");
-			const workspace = join(parentCwd, "world");
+			const workspace = join(parentCwd, ".millstrand");
+			const childWorkspace = join(childCwd, ".millstrand");
+			const grandchildWorkspace = join(grandchildCwd, ".millstrand");
 			const bin = join(root, "bin");
 			const childEnvironmentLog = join(root, "child-environments.tsv");
 			const strandInvocationLog = join(root, "strand-invocations.tsv");
 			await mkdir(join(root, ".pi", "agents"), { recursive: true });
 			await Promise.all(
-				[parentCwd, childCwd, grandchildCwd, workspace, bin].map((path) =>
+				[workspace, childWorkspace, grandchildWorkspace, bin].map((path) =>
 					mkdir(path, { recursive: true }),
 				),
 			);
+			for (const cwd of [parentCwd, childCwd, grandchildCwd])
+				execFileSync("git", ["init", "--quiet", cwd]);
 			const parentProcessCwd = await realpath(parentCwd);
 			const childProcessCwd = await realpath(childCwd);
 			const grandchildProcessCwd = await realpath(grandchildCwd);
@@ -44,22 +57,14 @@ describe("Millstrand identity across separately loaded extensions", () => {
 			);
 			await writeExecutable(
 				join(bin, "strand"),
-				`#!/bin/sh
-workspace=""
-parent=""
-next=""
-session=""
-for argument in "$@"; do
-  if [ "$next" = "workspace" ]; then workspace="$argument"; next="";
-  elif [ "$next" = "parent" ]; then parent="$argument"; next="";
-  elif [ "$argument" = "--workspace" ]; then next="workspace";
-  elif [ "$argument" = "--parent-identity" ]; then next="parent";
-  fi
-  session="$argument"
-done
-identity="\${session}-identity"
-printf '%s\\t%s\\t%s\\t%s\\n' "$PWD" "$workspace" "$parent" "$session" >> "$STRAND_INVOCATION_LOG"
-printf '{"operation":"identity startup","identity":"%s","strand-id":"test-strand","result":"minted","instruction":"Use %s for identity-bearing operations."}\\n' "$identity" "$identity"
+				`#!/usr/bin/env node
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+const flag = name => args.includes(name) ? args[args.indexOf(name) + 1] : "";
+const session = args[args.indexOf("native-startup") + 2];
+const identity = session + "-identity";
+fs.appendFileSync(process.env.STRAND_INVOCATION_LOG, [process.cwd(), flag("--workspace"), flag("--parent-identity"), session].join("\\t") + "\\n");
+console.log(JSON.stringify({ operation: "agent native-startup", identity, "strand-id": "test-strand", "run-id": "test-run", result: "minted", instruction: "Use " + identity + " for identity-bearing operations." }));
 `,
 			);
 			await writeExecutable(
@@ -165,7 +170,6 @@ printf '{"type":"message_end","message":{"role":"assistant","content":[{"type":"
 					?.tools.get("subagent")?.definition;
 
 			const parent = await loadPair(parentCwd);
-			parent.loaded.runtime.flagValues.set("millstrand-workspace", "./world");
 			let parentSessionId = "startup-session";
 			const parentContext = makeContext(parentCwd, () => parentSessionId);
 			const parentSubagentExtension = parent.loaded.extensions.find((extension) =>
@@ -187,8 +191,15 @@ printf '{"type":"message_end","message":{"role":"assistant","content":[{"type":"
 				),
 			).rejects.toThrow("belongs to native session stale-session, not replacement-session");
 
-			for (const reason of ["startup", "reload", "resume", "new", "fork"] as const) {
-				parentSessionId = `${reason}-session`;
+			const lifecycles = [
+				["startup", "parent-session", "ancestor-parent"],
+				["reload", "parent-session", "ancestor-parent"],
+				["resume", "parent-session", "ancestor-parent"],
+				["new", "new-session", "parent-session-identity"],
+				["fork", "fork-session", "new-session-identity"],
+			] as const;
+			for (const [reason, session] of lifecycles) {
+				parentSessionId = session;
 				await start(parent, reason, parentContext);
 				const systemPrompt = await materializePrompt(parent, parentContext);
 				expect(systemPrompt.match(/<system-reminder type="millstrand-identity">/g)).toHaveLength(1);
@@ -237,15 +248,15 @@ printf '{"type":"message_end","message":{"role":"assistant","content":[{"type":"
 				.split("\n")
 				.map((line) => line.split("\t"));
 			expect(childEnvironments).toEqual([
-				...["startup", "reload", "resume", "new", "fork"].map((reason) => [
+				...lifecycles.map(([, session]) => [
 					childProcessCwd,
-					`${reason}-session-identity`,
-					workspace,
+					`${session}-identity`,
+					"",
 					"",
 					"",
 					"1",
 				]),
-				[grandchildProcessCwd, "child-session-identity", workspace, "", "", "1"],
+				[grandchildProcessCwd, "child-session-identity", "", "", "", "1"],
 			]);
 
 			const strandInvocations = (await readFile(strandInvocationLog, "utf8"))
@@ -253,14 +264,24 @@ printf '{"type":"message_end","message":{"role":"assistant","content":[{"type":"
 				.split("\n")
 				.map((line) => line.split("\t"));
 			expect(strandInvocations).toEqual([
-				...["startup", "reload", "resume", "new", "fork"].map((reason) => [
+				...lifecycles.map(([, session, parentIdentity]) => [
 					parentProcessCwd,
-					workspace,
-					"ancestor-parent",
-					`${reason}-session`,
+					join(parentProcessCwd, ".millstrand"),
+					parentIdentity,
+					session,
 				]),
-				[childProcessCwd, workspace, "fork-session-identity", "child-session"],
-				[grandchildProcessCwd, workspace, "child-session-identity", "grandchild-session"],
+				[
+					childProcessCwd,
+					join(childProcessCwd, ".millstrand"),
+					"fork-session-identity",
+					"child-session",
+				],
+				[
+					grandchildProcessCwd,
+					join(grandchildProcessCwd, ".millstrand"),
+					"child-session-identity",
+					"grandchild-session",
+				],
 			]);
 		} finally {
 			await rm(root, { recursive: true, force: true });
