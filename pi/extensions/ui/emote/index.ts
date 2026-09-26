@@ -2,11 +2,6 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import {
-	MILLSTRAND_IDENTITY_CONTEXT_EVENT,
-	parseMillstrandIdentityContext,
-	type ActiveMillstrandIdentity,
-} from "../../shared/millstrand-identity.js";
 import type { EmoteState, ResolvedRenderer } from "./types.js";
 import type { Renderer } from "./renderer.js";
 import { log, setDebug } from "./log.js";
@@ -138,7 +133,6 @@ export default function (pi: ExtensionAPI) {
 	let currentEmoteSet = "default";
 	let ctxRef: any = null;
 	let footerDataRef: any = null;
-	let millstrandIdentity: ActiveMillstrandIdentity | null = null;
 	let widgetActive = false;
 	let uiSessionActive = false;
 	let visibilityOverride: EmoteVisibilityOverride = null;
@@ -178,7 +172,6 @@ export default function (pi: ExtensionAPI) {
 				getCurrentEmoteSet: () => currentEmoteSet,
 				getFooterData: () => footerDataRef,
 				getImageVisible: () => visibilityOverride !== false && lastResolved.protocol !== "none",
-				getMillstrandIdentity: () => millstrandIdentity,
 				placement: widgetPlacement,
 			}),
 			{ placement: widgetPlacement },
@@ -334,11 +327,6 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	// --- Events ---
-
-	pi.events.on(MILLSTRAND_IDENTITY_CONTEXT_EVENT, (value) => {
-		millstrandIdentity = parseMillstrandIdentityContext(value);
-		remountWidgetIfActive();
-	});
 
 	pi.on("session_start", async (_event, ctx) => {
 		initializeSession(ctx);

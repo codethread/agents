@@ -63,7 +63,6 @@ export interface FooterRenderDeps {
 export type StatuslineItemRenderDeps = Omit<FooterRenderDeps, "width"> & {
 	width?: number;
 	debug?: boolean;
-	millstrandIdentity?: string;
 };
 
 export function isLongCacheRetentionEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -135,7 +134,6 @@ export function renderStatuslineItems({
 	theme,
 	width = Number.POSITIVE_INFINITY,
 	debug = false,
-	millstrandIdentity,
 }: StatuslineItemRenderDeps): string[] {
 	const extensionStatuses = footerData.getExtensionStatuses();
 	let pwd = shortenHome(ctx.cwd);
@@ -189,7 +187,7 @@ export function renderStatuslineItems({
 	});
 
 	const ellipsis = theme.fg("dim", "...");
-	const agentIdentity = getAgentIdentity(millstrandIdentity);
+	const agentIdentity = sanitizeStatusText(extensionStatuses.get("millstrand-identity") ?? "");
 	const pathItem = theme.fg("dim", pwd);
 	const agentItem = agentIdentity ? theme.fg("accent", agentIdentity) : null;
 	const costItem = theme.fg("dim", costDisplay);
@@ -224,7 +222,8 @@ export function renderStatuslineItems({
 	}
 
 	const visibleExtensionStatuses = Array.from(extensionStatuses.entries()).filter(
-		([key]) => key !== "timeline-timestamps" && key !== "provider-override",
+		([key]) =>
+			key !== "timeline-timestamps" && key !== "provider-override" && key !== "millstrand-identity",
 	);
 	items.push(
 		...visibleExtensionStatuses
@@ -314,7 +313,7 @@ export function renderStatuslineLines({
 		includeProvider: footerData.getAvailableProviderCount() > 1 || providerMarker !== undefined,
 	});
 
-	const agentIdentity = getAgentIdentity();
+	const agentIdentity = sanitizeStatusText(extensionStatuses.get("millstrand-identity") ?? "");
 	const topItems = [
 		theme.fg("dim", pwd),
 		agentIdentity ? theme.fg("accent", agentIdentity) : null,
@@ -330,7 +329,8 @@ export function renderStatuslineLines({
 	];
 
 	const visibleExtensionStatuses = Array.from(extensionStatuses.entries()).filter(
-		([key]) => key !== "timeline-timestamps" && key !== "provider-override",
+		([key]) =>
+			key !== "timeline-timestamps" && key !== "provider-override" && key !== "millstrand-identity",
 	);
 	if (visibleExtensionStatuses.length > 0) {
 		const sortedStatuses = visibleExtensionStatuses
@@ -357,14 +357,6 @@ export function formatSessionLabel(
 	if (name) return name;
 	if (id) return `session ${id}`;
 	return null;
-}
-
-function getAgentIdentity(
-	nativeIdentity?: string,
-	env: NodeJS.ProcessEnv = process.env,
-): string | null {
-	const identity = sanitizeStatusText(nativeIdentity ?? env.MILLSTRAND_AGENT_ID ?? "");
-	return identity || null;
 }
 
 export default function (pi: ExtensionAPI) {

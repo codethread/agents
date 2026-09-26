@@ -6,7 +6,7 @@ import { isContextOverflow } from "@earendil-works/pi-ai";
 import {
 	buildMillstrandChildEnvironment,
 	type ActiveMillstrandIdentity,
-} from "../../shared/millstrand-identity.js";
+} from "@millhouse/harnesses/pi/millstrand-identity/context";
 import {
 	getAgentRuntimeSettings,
 	getFirstValidAgentModelCandidate,

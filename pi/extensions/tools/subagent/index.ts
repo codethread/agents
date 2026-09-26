@@ -40,7 +40,7 @@ import {
 	MILLSTRAND_IDENTITY_CONTEXT_EVENT,
 	parseMillstrandIdentityContext,
 	type ActiveMillstrandIdentity,
-} from "../../shared/millstrand-identity.js";
+} from "@millhouse/harnesses/pi/millstrand-identity/context";
 import { describeMcpServer } from "./mcp.js";
 import { disposeMcpRegistrations, setupAgentMcpServers } from "./mcp-runtime.js";
 import {

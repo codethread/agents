@@ -109,9 +109,6 @@ Pi-compatible headless options:
   --list-models [search]        List SDK models
   --print, -p                   Accepted for Pi command compatibility; implied
   --debug-pies                  Print daemon status without starting an agent
-
-All discovered non-UI extensions run in print mode. Pi's process-exit helper is
-omitted because terminating one request must not terminate the shared daemon.
 `;
 
 function expandPath(value: string, cwd: string): string {

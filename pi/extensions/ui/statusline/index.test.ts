@@ -1,8 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatSessionLabel, isLongCacheRetentionEnabled, renderStatuslineItems } from "./index.js";
 
 const ORIGINAL_CACHE_RETENTION = process.env.PI_CACHE_RETENTION;
-const ORIGINAL_AGENT_ID = process.env.MILLSTRAND_AGENT_ID;
 
 describe("formatSessionLabel", () => {
 	it("shows the session id next to the name", () => {
@@ -23,21 +22,12 @@ describe("formatSessionLabel", () => {
 });
 
 describe("renderStatuslineItems", () => {
-	beforeEach(() => {
-		delete process.env.MILLSTRAND_AGENT_ID;
-	});
-
 	afterEach(() => {
 		vi.useRealTimers();
 		if (ORIGINAL_CACHE_RETENTION === undefined) {
 			delete process.env.PI_CACHE_RETENTION;
 		} else {
 			process.env.PI_CACHE_RETENTION = ORIGINAL_CACHE_RETENTION;
-		}
-		if (ORIGINAL_AGENT_ID === undefined) {
-			delete process.env.MILLSTRAND_AGENT_ID;
-		} else {
-			process.env.MILLSTRAND_AGENT_ID = ORIGINAL_AGENT_ID;
 		}
 	});
 
@@ -50,7 +40,11 @@ describe("renderStatuslineItems", () => {
 	it("returns atomic status items for flex layout consumers", () => {
 		const footerData = {
 			getGitBranch: () => "main",
-			getExtensionStatuses: () => new Map([["worker", "busy\nnow"]]),
+			getExtensionStatuses: () =>
+				new Map([
+					["worker", "busy\nnow"],
+					["millstrand-identity", "merry-swift-moose"],
+				]),
 			getAvailableProviderCount: () => 2,
 		};
 		const ctx = {
@@ -74,7 +68,6 @@ describe("renderStatuslineItems", () => {
 
 		const previous = process.env.PI_CACHE_RETENTION;
 		delete process.env.PI_CACHE_RETENTION;
-		process.env.MILLSTRAND_AGENT_ID = "merry-swift-moose";
 		try {
 			const thinItems = renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 });
 			expect(thinItems.slice(0, 3)).toEqual([
@@ -87,16 +80,6 @@ describe("renderStatuslineItems", () => {
 			expect(thinItems[3]).toHaveLength(80);
 			expect(thinItems[4]).toBe("busy now");
 			expect(theme.fg).toHaveBeenCalledWith("accent", "merry-swift-moose");
-
-			const nativeIdentityItems = renderStatuslineItems({
-				ctx,
-				pi,
-				footerData,
-				theme,
-				width: 80,
-				millstrandIdentity: "crisp-kind-ibis",
-			});
-			expect(nativeIdentityItems[1]).toBe("crisp-kind-ibis");
 
 			const wideItems = renderStatuslineItems({ ctx, pi, footerData, theme, width: 120 });
 			expect(wideItems).toHaveLength(3);

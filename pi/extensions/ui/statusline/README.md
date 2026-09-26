@@ -24,7 +24,7 @@ The stats row shows current/max context tokens, the latest cache-hit timestamp w
 
 Inside the provider parentheses, `sub` indicates subscription authentication and `L` indicates `PI_CACHE_RETENTION=long`.
 
-Working directory, git branch, session name/ID, Millstrand identity, active model, and provider are shown according to available width. Native Pi identities come from the shared session identity event; legacy managed sessions continue to use `MILLSTRAND_AGENT_ID`.
+Working directory, git branch, session name/ID, Millstrand identity, active model, and provider are shown according to available width. The prompt extension publishes the native identity under Pi's `millstrand-identity` status key. The statusline displays it once beside the model, without an environment fallback or custom identity event consumer.
 
 ## Debug
 

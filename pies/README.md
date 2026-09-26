@@ -122,10 +122,7 @@ A supervisor that sends `SIGTERM` and then force-kills after a fixed grace perio
 
 Pies uses Pi's `SettingsManager` and resource loader for global settings, trusted project settings, packages, extensions, prompts, skills, themes, context files, models, and provider credentials.
 
-Pies always excludes:
-
-- `print-mode-exit`, because one request must not terminate the shared daemon;
-- `pi-nvim`, because it owns interactive sockets and process-global listeners.
+Pies always excludes `pi-nvim` because it owns interactive sockets and process-global listeners.
 
 Add path-substring exclusions in global `~/.pi/agent/settings.json` or trusted project `.pi/settings.json`:
 

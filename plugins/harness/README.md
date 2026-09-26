@@ -16,8 +16,7 @@ Session and harness affordances for Claude Code, Pi, and Codex: session introspe
 
 ## Codex startup identity
 
-The Millstrand identity hook moved to the Harnesses repository's focused
-`millstrand-identity` plugin. Install that Codex marketplace separately when
+The Millstrand identity hook lives in the [Harnesses spool](https://github.com/codethread/millhouse.spool/tree/main/spools/harnesses)'s focused `millstrand-identity` plugin. Install that Codex marketplace separately when
 native session identity is required. This plugin retains only observational
 dialogue capture.
 

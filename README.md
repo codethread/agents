@@ -36,7 +36,7 @@ The package includes:
 - project structure and dialogue-capture context;
 - built-in tool replacements and the `subagent` orchestration tool;
 - prompt history, status, timeline, theme, and other optional UI extensions;
-- provider, project-rule, and print-mode helpers.
+- provider and project-rule helpers.
 
 See [the extension index](pi/extensions/README.md) and [subagent documentation](pi/extensions/tools/subagent/README.md) for configuration details.
 

@@ -1,4 +1,4 @@
-const DAEMON_INCOMPATIBLE_EXTENSION_PATTERNS = ["/cli/print-mode-exit/", "/pi-nvim/"];
+const DAEMON_INCOMPATIBLE_EXTENSION_PATTERNS = ["/pi-nvim/"];
 
 export interface ExtensionSettings {
 	pies?: {

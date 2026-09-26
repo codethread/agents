@@ -6,14 +6,10 @@ import {
 } from "./extensions.ts";
 
 describe("filterDaemonIncompatibleExtensions", () => {
-	it("keeps headless extensions and removes process-exit and interactive helpers", () => {
+	it("keeps headless extensions and removes interactive helpers", () => {
 		const subagent = {
 			path: "/repo/pi/extensions/tools/subagent/index.ts",
 			tools: new Map([["subagent", {}]]),
-		};
-		const printModeExit = {
-			path: "/repo/pi/extensions/cli/print-mode-exit/index.ts",
-			tools: new Map(),
 		};
 		const piNvim = {
 			path: "/home/user/.pi/agent/packages/pi-nvim/extension.ts",
@@ -23,7 +19,7 @@ describe("filterDaemonIncompatibleExtensions", () => {
 			path: "/repo/pi/extensions/tools/web-access/index.ts",
 			tools: new Map([["web_search", {}]]),
 		};
-		const base = { extensions: [subagent, printModeExit, piNvim, other], errors: [] };
+		const base = { extensions: [subagent, piNvim, other], errors: [] };
 
 		expect(filterDaemonIncompatibleExtensions(base)).toEqual({
 			extensions: [subagent, other],
