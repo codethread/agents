@@ -80,8 +80,6 @@ def --wrapped pi [
 	--debug-tools                             # [EXT] Print tool prompt/schema report (optional comma-separated positional selector)
 	--debug-tldr                              # [EXT] Print current session TL;DR and exit
 	--debug-tldr-transcript                   # [EXT] Print transcript used by /tldr and exit
-	--debug-last-message                      # [EXT] Print /last-message editor body and exit
-	--debug-last-message-all                  # [EXT] Print /last-message all editor body and exit
 	--debug-prompt-history                    # [EXT] Print prompt-history diagnostics while recording and recalling prompts
 	--debug-scrollback-editor                 # [EXT] Print scrollback editor configuration and exit
 	--debug-tmux-title                        # [EXT] Print tmux window-title generation details
@@ -137,8 +135,6 @@ def --wrapped pi [
 	if $debug_tools { $pi_args = ($pi_args | append "--debug-tools") }
 	if $debug_tldr { $pi_args = ($pi_args | append "--debug-tldr") }
 	if $debug_tldr_transcript { $pi_args = ($pi_args | append "--debug-tldr-transcript") }
-	if $debug_last_message { $pi_args = ($pi_args | append "--debug-last-message") }
-	if $debug_last_message_all { $pi_args = ($pi_args | append "--debug-last-message-all") }
 	if $debug_prompt_history { $pi_args = ($pi_args | append "--debug-prompt-history") }
 	if $debug_scrollback_editor { $pi_args = ($pi_args | append "--debug-scrollback-editor") }
 	if $debug_tmux_title { $pi_args = ($pi_args | append "--debug-tmux-title") }
