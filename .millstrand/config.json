@@ -1,4 +1,5 @@
 {
 	"configFormat": "alpha",
-	"autoStart": true
+	"autoStart": true,
+	"name": "agents"
 }
