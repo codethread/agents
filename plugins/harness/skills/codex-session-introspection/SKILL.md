@@ -12,6 +12,50 @@ description: >
 
 Operational notes and a small jq cookbook for inspecting Codex session history.
 
+## Version-first workflow
+
+Always run `codex --version` first and record the installed version. Then locate
+the session using the guidance below.
+
+For raw rollouts, inspect `session_meta.payload.cli_version`. The desktop app
+can use a different version from the shell CLI.
+
+```text
+Run version command -> locate session -> inspect version evidence
+  |-- writer version identified -> read its reference
+  `-- no writer version identified -> assume the latest reference applies
+```
+
+Read the selected reference before parsing schema-dependent fields or using its
+queries. If the writer version is absent or ambiguous, assume the **latest
+reference** below works; do not infer a release from timestamps. Keep session
+files read-only.
+
+For an unlisted installed or writer version, inspect representative records and
+available source/types/docs for that version against the latest reference. If
+queries fail or shapes differ, investigate the actual records before interpreting
+an empty result as missing activity.
+
+- If the covered schemas are unchanged, add the exact version to the table with
+  **No change** and link directly to the existing comprehensive reference.
+- If schemas differ, create `references/<version>.md`. Copy all still-applicable
+  schema details, caveats, and queries from the previous reference, then update
+  the differences. Each reference must stand alone; do not create delta-only
+  files or chains of references to older versions.
+- Record the verification evidence and its scope in the reference or table;
+  do not claim compatibility from a version number alone. Update the table and
+  latest-reference marker when applicable. Preserve references for older sessions.
+- Make these updates in the source skills under
+  `~/dev/projects/agents/plugins/harness/skills/codex-session-introspection/`,
+  not an installed plugin cache. Follow that repository’s instructions, validate
+  the changes, and **commit the updated skill, reference, and related docs in the
+  agents repository** as part of the introspection work.
+
+| Harness version      | Schema reference                                    | No change                                            |
+| -------------------- | --------------------------------------------------- | ---------------------------------------------------- |
+| `0.156.1`            | [0.156.1](references/0.156.1.md) — latest reference | Baseline                                             |
+| `0.155.0-alpha.16.4` | [0.156.1](references/0.156.1.md)                    | Yes — covered rollout fields match local app records |
+
 ## Prefer the stable dialogue log
 
 Codex sessions run with this repo's `harness` plugin enabled write a
@@ -38,22 +82,9 @@ ${CODEX_HOME:-$HOME/.config/codex}/sessions/YYYY/MM/DD/rollout-*.jsonl
 | -------------- | ------------------------------------------------------ | ------------------------------------------ |
 | `DLG_DIR`      | `${XDG_STATE_HOME:-$HOME/.local/state}/codex-dialogue` | Stable harness dialogue logs               |
 | `DLG`          | `DLG_DIR/<session-id>.jsonl`                           | One JSONL file per Codex session id        |
-| `CODEX_HOME`   | `${CODEX_HOME:-$HOME/.config/codex}`                   | Codex config/state root                    |
-| `RAW_SESSIONS` | `${CODEX_HOME}/sessions`                               | Raw rollout JSONL fallback                 |
+| `CODEX_ROOT`   | `${CODEX_HOME:-$HOME/.config/codex}`                   | Codex config/state root                    |
+| `RAW_SESSIONS` | `CODEX_ROOT/sessions`                                  | Raw rollout JSONL fallback                 |
 | `DEBUG_LOG`    | `DLG_DIR/debug/raw.jsonl`                              | Raw hook payloads when debug capture is on |
-
-## Ground rules
-
-- Never modify dialogue logs or raw session files.
-- The dialogue log is append-only JSONL: one JSON object per line.
-- `event` is one of `session_start`, `prompt`, `reply`, or `file`.
-- `prompt` records contain the submitted user text in `.text`.
-- `reply` records contain final assistant text in `.text` only when Codex
-  includes final assistant text in the `Stop` hook payload.
-- `file` records are emitted from `PostToolUse`; shell commands have `.command`
-  and usually `file_path: null`.
-- There is no Codex `SessionEnd` hook in the current capture script.
-- Raw rollout files are Codex-internal protocol logs; their schema can drift.
 
 ## Finding sessions
 
@@ -83,52 +114,6 @@ jq -r 'select(.event=="prompt" and (.text | ascii_downcase | contains("text from
 If `CODEX_SESSION_ID` is not set, locate the session by cwd or message text.
 That is usually more reliable than guessing from timestamps.
 
-## Conversation extraction
-
-```bash
-# User prompts only.
-jq -r 'select(.event=="prompt") | "## prompt (\(.ts))\n\(.text)\n"' "$DLG"
-
-# Assistant final replies only.
-jq -r 'select(.event=="reply") | "## reply (\(.ts))\n\(.text)\n"' "$DLG"
-
-# Q&A transcript. If several reply records exist for one prompt_id, keep the last.
-jq -sr 'map(select(.agent_id==null)) |
-  (map(select(.event=="reply")) | group_by(.prompt_id) | map(.[-1])) as $replies |
-  (map(select(.event=="prompt")) + $replies) | sort_by(.ts) |
-  .[] | "## \(.event) (\(.ts))\n\(.text)\n"' "$DLG"
-
-# Chronological compact transcript.
-jq -r 'select(.event=="prompt" or .event=="reply") |
-  "[\(.event)] \(.text[:200])"' "$DLG"
-```
-
-An interrupted turn can have a `prompt` with no matching `reply`; this is
-expected because `Stop` may not fire on interrupt.
-
-## Tool and file activity
-
-```bash
-# Tool/file event counts.
-jq -r 'select(.event=="file") | .tool // "unknown"' "$DLG" |
-  sort | uniq -c | sort -rn
-
-# Shell commands captured from tool events.
-jq -r 'select(.event=="file" and .command != null) |
-  "\(.ts)\t\(.command)"' "$DLG"
-
-# Files read or touched when the hook payload includes a path.
-jq -r 'select(.event=="file" and .file_path != null) |
-  "\(.tool)\t\(.file_path)"' "$DLG" | sort -u
-
-# Events grouped by prompt id for one turn.
-PID=<prompt-id>
-jq -r --arg pid "$PID" 'select(.prompt_id==$pid) |
-  if .event=="file" then "[file] \(.tool) \(.file_path // .command // "")"
-  else "[\(.event)] \(.text // "")"
-  end' "$DLG"
-```
-
 ## Debugging capture
 
 ```bash
@@ -142,46 +127,17 @@ jq -c '.' "${XDG_STATE_HOME:-$HOME/.local/state}/codex-dialogue/debug/raw.jsonl"
 Debug payloads are useful when a field is missing from the stable log. The hook
 intentionally drops unsupported fields instead of blocking Codex.
 
-## Raw Codex rollout fallback
+## Finding raw rollouts
 
-Prefer the dialogue log above. Use raw rollout files only for questions the
-dialogue log cannot answer, or for sessions that ran without the `harness` plugin's Codex hooks.
+Use raw rollouts for sessions without dialogue capture or questions the stable
+log cannot answer. This repo uses `~/.config/codex`; honor `CODEX_HOME` when set.
 
 ```bash
-CODEX_HOME="${CODEX_HOME:-$HOME/.config/codex}"
-
-# Recent raw sessions.
-find "$CODEX_HOME/sessions" -type f -name 'rollout-*.jsonl' -print |
+CODEX_ROOT="${CODEX_HOME:-$HOME/.config/codex}"
+rg --files "$CODEX_ROOT/sessions" | rg 'rollout-.*\.jsonl$' |
   xargs ls -t 2>/dev/null | head -10
-
-# Find raw session by message text.
-rg -il --fixed-strings 'text from the message' "$CODEX_HOME/sessions" |
+rg -il --fixed-strings 'text from the message' "$CODEX_ROOT/sessions" |
   xargs ls -t 2>/dev/null | head -1
-
-# Basic raw session summary.
 RAW=<path-from-above>
-jq -sr '{
-  session_id: (map(select(.type=="session_meta"))[0].payload.session_id),
-  cwd: (map(select(.type=="session_meta"))[0].payload.cwd),
-  entries: length,
-  user_messages: [ .[] | select(.type=="event_msg" and .payload.type=="user_message") ] | length,
-  assistant_messages: [ .[] | select(.type=="event_msg" and .payload.type=="agent_message") ] | length
-}' "$RAW"
-
-# Raw user messages.
-jq -r 'select(.type=="event_msg" and .payload.type=="user_message") |
-  "\(.timestamp)  \(.payload.message)"' "$RAW"
-
-# Raw assistant messages visible in the UI.
-jq -r 'select(.type=="event_msg" and .payload.type=="agent_message") |
-  "\(.timestamp)  \(.payload.message)"' "$RAW"
-
-# Raw function/tool call names.
-jq -r 'select(.type=="response_item" and .payload.type=="function_call") |
-  .payload.name' "$RAW" | sort | uniq -c | sort -rn
+jq -r 'select(.type=="session_meta") | .payload.cli_version' "$RAW"
 ```
-
-Raw rollout files include internal protocol records (`response_item`, `event_msg`,
-reasoning blobs, tool call outputs, token counts, and session metadata). Re-check
-the shape with `jq -r '.type' "$RAW" | sort | uniq -c` before writing new raw
-parsers.

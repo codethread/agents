@@ -14,6 +14,22 @@ Session and harness affordances for Claude Code, Pi, and Codex: session introspe
 - `.codex-plugin/hooks/` — Codex dialogue-capture hooks (below)
 - `hooks-reference.md` — vendored copy of the official Claude Code hooks reference
 
+## Versioned session introspection
+
+Each introspection skill starts with `codex --version`, `claude --version`, or
+`pi --version`, then routes schema details and queries through a terse version
+table. Session metadata takes precedence when it identifies the writer version;
+otherwise assume the latest reference applies. Pi’s header format version is
+separate from its release version.
+
+For an unlisted version, verify the covered schema against actual records and
+matching source/types/docs. Add a no-change row pointing directly to an existing
+reference when compatible. When it differs, create a comprehensive version
+reference containing both retained and changed details, update the table, and
+commit the skill/reference changes in this agents repository. Keep directory
+lookup and debugging guidance in the main skills. The shared dialogue schema
+below is owned by this plugin independently of harness release versions.
+
 ## Codex startup identity
 
 The Millstrand identity hook lives in the [Harnesses spool](https://github.com/codethread/millhouse.spool/tree/main/spools/harnesses)'s focused `millstrand-identity` plugin. Install that Codex marketplace separately when
