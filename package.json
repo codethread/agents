@@ -89,7 +89,7 @@
 		"*": "prettier --write --ignore-unknown"
 	},
 	"dependencies": {
-		"@millhouse/harnesses": "https://github.com/codethread/millhouse.spool.git#f13312133daf46e57d510fc0ea289850373264c6&path:/spools/harnesses",
+		"@millhouse/harnesses": "https://github.com/codethread/millhouse.spool.git#9c406b1e6ba87cdda3dddde526e0e59c020a8562&path:/spools/harnesses",
 		"@earendil-works/pi-ai": "0.87.1",
 		"@earendil-works/pi-coding-agent": "0.87.1",
 		"@mozilla/readability": "^0.6.0",

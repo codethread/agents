@@ -12,15 +12,15 @@ patchedDependencies:
 importers:
   .:
     dependencies:
-      "@millhouse/harnesses":
-        specifier: https://github.com/codethread/millhouse.spool.git#f13312133daf46e57d510fc0ea289850373264c6&path:/spools/harnesses
-        version: https://codeload.github.com/codethread/millhouse.spool/tar.gz/f13312133daf46e57d510fc0ea289850373264c6#path:/spools/harnesses(@earendil-works/pi-coding-agent@0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6))
       "@earendil-works/pi-ai":
         specifier: 0.87.1
         version: 0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
       "@earendil-works/pi-coding-agent":
         specifier: 0.87.1
         version: 0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
+      "@millhouse/harnesses":
+        specifier: https://github.com/codethread/millhouse.spool.git#9c406b1e6ba87cdda3dddde526e0e59c020a8562&path:/spools/harnesses
+        version: https://codeload.github.com/codethread/millhouse.spool/tar.gz/9c406b1e6ba87cdda3dddde526e0e59c020a8562#path:/spools/harnesses(@earendil-works/pi-coding-agent@0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6))
       "@mozilla/readability":
         specifier: ^0.6.0
         version: 0.6.0
@@ -266,16 +266,6 @@ packages:
         integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==,
       }
     engines: { node: ">=6.9.0" }
-
-  "@millhouse/harnesses@https://codeload.github.com/codethread/millhouse.spool/tar.gz/f13312133daf46e57d510fc0ea289850373264c6#path:/spools/harnesses":
-    resolution:
-      {
-        path: /spools/harnesses,
-        tarball: https://codeload.github.com/codethread/millhouse.spool/tar.gz/f13312133daf46e57d510fc0ea289850373264c6,
-      }
-    version: 0.1.0
-    peerDependencies:
-      "@earendil-works/pi-coding-agent": "*"
 
   "@earendil-works/chord@0.87.1":
     resolution:
@@ -702,6 +692,16 @@ packages:
       {
         integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==,
       }
+
+  "@millhouse/harnesses@https://codeload.github.com/codethread/millhouse.spool/tar.gz/9c406b1e6ba87cdda3dddde526e0e59c020a8562#path:/spools/harnesses":
+    resolution:
+      {
+        path: /spools/harnesses,
+        tarball: https://codeload.github.com/codethread/millhouse.spool/tar.gz/9c406b1e6ba87cdda3dddde526e0e59c020a8562,
+      }
+    version: 0.1.0
+    peerDependencies:
+      "@earendil-works/pi-coding-agent": "*"
 
   "@mixmark-io/domino@2.2.0":
     resolution:
@@ -3707,10 +3707,6 @@ snapshots:
 
   "@babel/runtime@7.29.2": {}
 
-  "@millhouse/harnesses@https://codeload.github.com/codethread/millhouse.spool/tar.gz/f13312133daf46e57d510fc0ea289850373264c6#path:/spools/harnesses(@earendil-works/pi-coding-agent@0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6))":
-    dependencies:
-      "@earendil-works/pi-coding-agent": 0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
-
   "@earendil-works/chord@0.87.1":
     dependencies:
       esbuild: 0.28.2
@@ -3967,6 +3963,10 @@ snapshots:
   "@humanwhocodes/retry@0.4.3": {}
 
   "@jridgewell/sourcemap-codec@1.5.5": {}
+
+  "@millhouse/harnesses@https://codeload.github.com/codethread/millhouse.spool/tar.gz/9c406b1e6ba87cdda3dddde526e0e59c020a8562#path:/spools/harnesses(@earendil-works/pi-coding-agent@0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6))":
+    dependencies:
+      "@earendil-works/pi-coding-agent": 0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
 
   "@mixmark-io/domino@2.2.0": {}
 
