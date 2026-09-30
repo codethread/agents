@@ -1,3 +1,13 @@
 {
-	"packages": ["-~/dev/projects/agents", "+.."]
+	"packages": [
+		"..",
+		{
+			"source": "~/dev/projects/agents",
+			"extensions": [],
+			"skills": [],
+			"prompts": [],
+			"themes": []
+		}
+	],
+	"theme": "rose-pine-dawn/rose-pine-moon"
 }

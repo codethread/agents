@@ -37,10 +37,25 @@ The package includes:
 - a package-owned, tool-aware system prompt with global/project `agent.njk` rules;
 - project structure and dialogue-capture context;
 - built-in tool replacements and the `subagent` orchestration tool;
-- prompt history, status, timeline, theme, and other optional UI extensions;
+- prompt history, status, timeline, and other optional UI extensions;
 - provider and project-rule helpers.
 
 See [the extension index](pi/extensions/README.md) and [subagent documentation](pi/extensions/tools/subagent/README.md) for configuration details.
+
+## Rosé Pine themes
+
+The package includes the custom Dawn and Moon palettes. Use Pi's native automatic
+selection by setting this in `~/.pi/agent/settings.json` or `.pi/settings.json`:
+
+```json
+{
+	"theme": "rose-pine-dawn/rose-pine-moon"
+}
+```
+
+The light theme comes first. Pi switches palettes when the terminal reports an
+appearance change; the shared `color-theme` sentinel is no longer used. This
+checkout selects the pair in its project settings, without changing global settings.
 
 ## Run concurrent headless agents with Pies
 
