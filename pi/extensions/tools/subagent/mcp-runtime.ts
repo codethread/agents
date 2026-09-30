@@ -1,59 +1,50 @@
-/** Registers agent-local MCP definitions with the installed pi-mcp-adapter. */
+/** Registers agent-local MCP definitions with Pi's built-in MCP runtime. */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { AgentConfig } from "./agents.js";
-import type { McpServerConfig } from "./mcp.js";
 
-const MCP_RUNTIME_REGISTER_EVENT = "pi-mcp-adapter:runtime-register:v1";
-
-interface McpServerRegistration {
-	dispose(): Promise<void>;
-}
-
-interface RuntimeRegistrationRequest {
-	version: 1;
-	name: string;
-	definition: Omit<McpServerConfig, "name">;
-	result?: { ok: true; registration: McpServerRegistration } | { ok: false; error: Error };
-}
+type McpApi = Pick<
+	ExtensionAPI,
+	"registerMcpServer" | "unregisterMcpServer" | "getMcpServers" | "getAllTools"
+>;
 
 export interface AgentMcpSetupResult {
 	toolNames: string[];
-	registrations: McpServerRegistration[];
+	registrations: string[];
 }
 
-export async function setupAgentMcpServers(
-	pi: ExtensionAPI,
-	agent: AgentConfig,
-): Promise<AgentMcpSetupResult> {
+export function setupAgentMcpServers(pi: McpApi, agent: AgentConfig): AgentMcpSetupResult {
 	const servers = agent.mcpServers ?? [];
 	if (servers.length === 0) return { toolNames: [], registrations: [] };
-
-	const registrations: McpServerRegistration[] = [];
-	try {
-		for (const { name, ...definition } of servers) {
-			const request: RuntimeRegistrationRequest = { version: 1, name, definition };
-			pi.events.emit(MCP_RUNTIME_REGISTER_EVENT, request);
-			if (!request.result) {
-				throw new Error(
-					`Agent "${agent.name}" declares MCP server "${name}", but pi-mcp-adapter is not installed`,
-				);
-			}
-			if (!request.result.ok) throw request.result.error;
-			registrations.push(request.result.registration);
-		}
-	} catch (error) {
-		await disposeMcpRegistrations(registrations);
-		throw error;
+	if (!pi.getAllTools().some((tool) => tool.name === "codemode")) {
+		throw new Error(
+			`Agent "${agent.name}" declares MCP servers, but Pi's codemode tool is not loaded. Enable builtin:codemode and builtin:mcp.`,
+		);
 	}
 
-	// Runtime registrations are intentionally proxy-only. Expose the adapter's
-	// compact single-call and scripting surfaces rather than every MCP tool.
-	return { toolNames: ["mcp", "mcpScript"], registrations };
+	const existingNames = new Set(pi.getMcpServers().map((server) => server.name));
+	for (const { name } of servers) {
+		if (existingNames.has(name)) {
+			throw new Error(`Agent "${agent.name}" MCP server "${name}" is already registered`);
+		}
+	}
+
+	const registrations: string[] = [];
+	try {
+		for (const { name, ...definition } of servers) {
+			pi.registerMcpServer(name, { ...definition, exposure: "codemode" });
+			registrations.push(name);
+		}
+	} catch (error) {
+		disposeMcpRegistrations(pi, registrations);
+		throw error;
+	}
+	return { toolNames: ["codemode"], registrations };
 }
 
-export async function disposeMcpRegistrations(
-	registrations: McpServerRegistration[],
-): Promise<void> {
-	await Promise.all(registrations.map((registration) => registration.dispose()));
+export function disposeMcpRegistrations(
+	pi: Pick<ExtensionAPI, "unregisterMcpServer">,
+	registrations: string[],
+): void {
+	for (const name of registrations) pi.unregisterMcpServer(name);
 }

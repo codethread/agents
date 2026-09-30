@@ -4,11 +4,11 @@ import { describeMcpServer, parseMcpServers } from "./mcp.js";
 const parse = (value: unknown) => parseMcpServers(value, "nerd", "/tmp/nerd.md");
 
 describe("parseMcpServers", () => {
-	it("parses adapter-compatible stdio and remote definitions", () => {
+	it("parses Pi-native stdio and remote definitions", () => {
 		expect(
 			parse([
 				{ context7: { command: "bunx", args: ["-y", "@upstash/context7-mcp"] } },
-				{ docs: { type: "sse", url: "https://example.com/mcp", headers: { X: "y" } } },
+				{ docs: { type: "streamable-http", url: "https://example.com/mcp", headers: { X: "y" } } },
 			]).servers,
 		).toEqual([
 			{ name: "context7", command: "bunx", args: ["-y", "@upstash/context7-mcp"] },
@@ -16,7 +16,7 @@ describe("parseMcpServers", () => {
 				name: "docs",
 				url: "https://example.com/mcp",
 				headers: { X: "y" },
-				httpTransport: "sse",
+				type: "http",
 			},
 		]);
 	});
@@ -31,6 +31,10 @@ describe("parseMcpServers", () => {
 		[[{ server: { command: "x", args: "bad" } }], "list of strings"],
 		[[{ server: { command: "x", unknown: true } }], "unknown key"],
 		[[{ server: { type: "grpc", url: "https://example.com" } }], "unsupported type"],
+		[[{ server: { type: "sse", url: "https://example.com" } }], "legacy SSE transport"],
+		[[{ "bad.name": { command: "x" } }], "invalid server name"],
+		[[{ server: { type: "http", command: "x" } }], "unsupported type"],
+		[[{ server: { command: "x", cwd: 1 } }], "cwd must be a string"],
 	])("rejects malformed frontmatter", (value, message) => {
 		const result = parse(value);
 		expect(result.servers).toEqual([]);

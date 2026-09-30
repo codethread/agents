@@ -1521,7 +1521,7 @@ describe("discoverAgents mcpServers", () => {
 			{
 				name: "atlassian",
 				url: "https://mcp.atlassian.com/v1/mcp",
-				httpTransport: "streamable-http",
+				type: "http",
 			},
 			{
 				name: "context7",

@@ -8,6 +8,9 @@ import {
 	createAgentSessionFromServices,
 	createAgentSessionRuntime,
 	createAgentSessionServices,
+	createCodemodeExtension,
+	createMcpExtension,
+	createToolSearchExtension,
 	getAgentDir,
 	hasTrustRequiringProjectResources,
 	ProjectTrustStore,
@@ -120,7 +123,9 @@ function expandPath(value: string, cwd: string): string {
 
 function resolveCliPaths(cwd: string, values: string[] | undefined): string[] | undefined {
 	return values?.map((value) =>
-		value.startsWith("npm:") || value.startsWith("git:") ? value : expandPath(value, cwd),
+		value.startsWith("npm:") || value.startsWith("git:") || value.startsWith("builtin:")
+			? value
+			: expandPath(value, cwd),
 	);
 }
 
@@ -429,6 +434,21 @@ export async function runPiRequest(request: RunRequest, io: RequestIo): Promise<
 			modelRuntimeSignal: AbortSignal.timeout(15_000),
 			extensionFlagValues: parsed.unknownFlags,
 			resourceLoaderOptions: {
+				extensionFactories: [
+					{
+						name: "codemode",
+						factory: createCodemodeExtension(),
+						builtin: true,
+						replaceable: true,
+					},
+					{
+						name: "tool-search",
+						factory: createToolSearchExtension(),
+						builtin: true,
+						replaceable: true,
+					},
+					{ name: "mcp", factory: createMcpExtension(), builtin: true, replaceable: true },
+				],
 				additionalExtensionPaths: resolvedPaths.extensions,
 				additionalSkillPaths: resolvedPaths.skills,
 				additionalPromptTemplatePaths: resolvedPaths.prompts,

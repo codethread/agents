@@ -205,7 +205,7 @@ export default function (pi: ExtensionAPI) {
 	let selectedAgentName: string | undefined;
 	let millstrandIdentityContext: ActiveMillstrandIdentity | null = null;
 	let agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
-	let activeMcpRegistrations: { dispose(): Promise<void> }[] = [];
+	let activeMcpRegistrations: string[] = [];
 
 	pi.events.on(MILLSTRAND_IDENTITY_CONTEXT_EVENT, (value) => {
 		millstrandIdentityContext = parseMillstrandIdentityContext(value);
@@ -280,7 +280,7 @@ export default function (pi: ExtensionAPI) {
 
 		const mcpSetup = agentFlagCliOverrides.hasToolsOverride
 			? { toolNames: [], registrations: [] }
-			: await setupAgentMcpServers(pi, selected.agent);
+			: setupAgentMcpServers(pi, selected.agent);
 		activeMcpRegistrations = mcpSetup.registrations;
 
 		const inheritedActiveTools = getAgentActiveTools(inherited.tools, pi.getAllTools());
@@ -322,31 +322,31 @@ export default function (pi: ExtensionAPI) {
 
 	pi.registerFlag(DEBUG_MCP_FLAG, {
 		description:
-			"Validate a discovered agent's MCP frontmatter and adapter runtime registration, print the report, and exit",
+			"Validate a discovered agent's MCP frontmatter and native runtime registration, print the report, and exit",
 		type: "string",
 	});
 
-	const runMcpRegistrationReport = async (agentName: string, cwd: string): Promise<string> => {
+	const runMcpRegistrationReport = (agentName: string, cwd: string): string => {
 		const discovery = discoverAgents(cwd);
 		const agent = findAgentByName(discovery.agents, agentName);
 		if (!agent) {
 			return `Unknown agent "${agentName}". Available agents: ${getAvailableAgentsText(discovery.agents)}`;
 		}
 		if (agent.mcpServersError) return agent.mcpServersError;
-		const setup = await setupAgentMcpServers(pi, agent);
-		await disposeMcpRegistrations(setup.registrations);
+		const setup = setupAgentMcpServers(pi, agent);
+		disposeMcpRegistrations(pi, setup.registrations);
 		const servers = agent.mcpServers ?? [];
 		if (servers.length === 0) return `Agent "${agent.name}" declares no MCP servers.`;
 		return [
-			`MCP adapter registration for agent "${agent.name}":`,
+			`Native MCP registration for agent "${agent.name}" (codemode exposure):`,
 			...servers.map((server) => `- ${server.name}: registered (${describeMcpServer(server)})`),
 		].join("\n");
 	};
 
-	pi.on("session_shutdown", async () => {
+	pi.on("session_shutdown", () => {
 		const registrations = activeMcpRegistrations;
 		activeMcpRegistrations = [];
-		await disposeMcpRegistrations(registrations);
+		disposeMcpRegistrations(pi, registrations);
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
@@ -355,9 +355,10 @@ export default function (pi: ExtensionAPI) {
 		const debugMcpFlag = pi.getFlag(DEBUG_MCP_FLAG);
 		const debugMcpAgent = typeof debugMcpFlag === "string" ? debugMcpFlag.trim() : undefined;
 		if (debugMcpAgent) {
-			const report = await runMcpRegistrationReport(debugMcpAgent, ctx.cwd);
+			const report = runMcpRegistrationReport(debugMcpAgent, ctx.cwd);
 			process.stdout.write(`${report}\n`);
-			process.exit(0);
+			ctx.shutdown();
+			return;
 		}
 		const agentFlag = pi.getFlag("agent");
 		selectedAgentName = typeof agentFlag === "string" ? agentFlag.trim() : undefined;
@@ -441,7 +442,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.registerCommand("debug-mcp", {
 		description:
-			"Validate an agent's MCP frontmatter and adapter runtime registration (usage: /debug-mcp <agent>)",
+			"Validate an agent's MCP frontmatter and native runtime registration (usage: /debug-mcp <agent>)",
 		handler: async (args, ctx) => {
 			const agentName = args.trim();
 			if (!agentName) {
@@ -459,7 +460,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			if (ctx.hasUI) ctx.ui.notify(`Registering MCP servers for "${agentName}"...`, "info");
-			const report = await runMcpRegistrationReport(agentName, ctx.cwd);
+			const report = runMcpRegistrationReport(agentName, ctx.cwd);
 
 			if (!ctx.hasUI) {
 				process.stdout.write(`${report}\n`);

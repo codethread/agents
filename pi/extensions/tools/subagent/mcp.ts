@@ -1,23 +1,23 @@
 /**
- * Parses agent-local MCP frontmatter into pi-mcp-adapter server definitions.
- *
- * The subagent extension owns only this compatibility boundary. Connections,
- * authentication, discovery, calls, output guarding, and shutdown are delegated
- * to pi-mcp-adapter through its runtime-registration event.
+ * Parses agent-local MCP frontmatter into Pi-native server definitions.
+ * Connections, authentication, tool discovery and execution belong to Pi's
+ * built-in MCP extension.
  */
 
 export interface McpRemoteServerConfig {
 	name: string;
 	url: string;
 	headers?: Record<string, string>;
-	httpTransport?: "streamable-http" | "sse";
+	type?: "http";
 }
 
 export interface McpStdioServerConfig {
 	name: string;
 	command: string;
+	type?: "stdio";
 	args?: string[];
 	env?: Record<string, string>;
+	cwd?: string;
 }
 
 export type McpServerConfig = McpRemoteServerConfig | McpStdioServerConfig;
@@ -78,18 +78,26 @@ function parseServerEntry(entry: unknown): McpServerConfig {
 		throw new Error(`each mcpServers entry must have exactly one server-name key`);
 	}
 	const name = keys[0]!.trim();
-	if (!name) throw new Error("server name must be a non-empty string");
+	if (!/^[A-Za-z0-9_-]+$/.test(name)) {
+		throw new Error(`invalid server name "${name}"; use letters, digits, "_" and "-"`);
+	}
 	const config = entry[keys[0]!];
 	if (!isRecord(config)) throw new Error(`server "${name}" config must be a map of settings`);
 
 	const hasCommand = "command" in config;
-	const hasRemote = "url" in config || "type" in config;
+	const hasRemote = "url" in config;
 	if (hasCommand && hasRemote) {
 		throw new Error(`server "${name}" mixes stdio and remote fields; use one transport`);
 	}
 
 	if (hasCommand) {
-		assertNoUnknownKeys(name, config, new Set(["command", "args", "env"]));
+		assertNoUnknownKeys(name, config, new Set(["command", "type", "args", "env", "cwd"]));
+		if (config.type !== undefined && config.type !== "stdio") {
+			throw new Error(`server "${name}" has unsupported type "${config.type}" for stdio`);
+		}
+		if (config.cwd !== undefined && typeof config.cwd !== "string") {
+			throw new Error(`server "${name}" cwd must be a string`);
+		}
 		if (typeof config.command !== "string" || !config.command.trim()) {
 			throw new Error(`server "${name}" requires a non-empty "command"`);
 		}
@@ -98,8 +106,10 @@ function parseServerEntry(entry: unknown): McpServerConfig {
 		return {
 			name,
 			command: config.command.trim(),
+			...(config.type === "stdio" ? { type: "stdio" } : {}),
 			...(args ? { args } : {}),
 			...(env ? { env } : {}),
+			...(config.cwd !== undefined ? { cwd: config.cwd as string } : {}),
 		};
 	}
 
@@ -118,24 +128,20 @@ function parseServerEntry(entry: unknown): McpServerConfig {
 		throw new Error(`server "${name}" url "${url}" must use http or https`);
 	}
 
-	let httpTransport: "streamable-http" | "sse" | undefined;
-	if (config.type !== undefined) {
-		if (typeof config.type !== "string") throw new Error(`server "${name}" type must be a string`);
-		const type = config.type.trim().toLowerCase();
-		if (["http", "streamable-http", "streamable_http", "streamablehttp"].includes(type)) {
-			httpTransport = "streamable-http";
-		} else if (type === "sse") {
-			httpTransport = "sse";
-		} else {
-			throw new Error(`server "${name}" has unsupported type "${config.type}"`);
-		}
+	if (config.type === "sse") {
+		throw new Error(
+			`server "${name}": legacy SSE transport is not supported; use the streamable HTTP URL`,
+		);
+	}
+	if (config.type !== undefined && config.type !== "http" && config.type !== "streamable-http") {
+		throw new Error(`server "${name}" has unsupported type "${config.type}"`);
 	}
 	const headers = parseStringRecord(name, config.headers, "headers");
 	return {
 		name,
 		url,
 		...(headers ? { headers } : {}),
-		...(httpTransport ? { httpTransport } : {}),
+		...(config.type !== undefined ? { type: "http" as const } : {}),
 	};
 }
 
@@ -170,5 +176,5 @@ export function parseMcpServers(
 export function describeMcpServer(server: McpServerConfig): string {
 	return "command" in server
 		? `stdio: ${[server.command, ...(server.args ?? [])].join(" ")}`
-		: `${server.httpTransport ?? "http"}: ${server.url}`;
+		: `${server.type ?? "http"}: ${server.url}`;
 }
