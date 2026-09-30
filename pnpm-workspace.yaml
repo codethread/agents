@@ -1,2 +1,5 @@
+packages:
+  - pies
+
 patchedDependencies:
   "@gaodes/pi-test-harness@1.0.3": patches/@gaodes__pi-test-harness@1.0.3.patch

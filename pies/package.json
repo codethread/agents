@@ -1,0 +1,35 @@
+{
+	"name": "@codethread/pies",
+	"version": "0.1.0",
+	"description": "Persistent Pi SDK daemon, headless CLI, and pi compatibility shim",
+	"type": "module",
+	"engines": {
+		"node": ">=24"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"bin": {
+		"pi": "./dist/pi-shim.js",
+		"pies": "./dist/cli.js"
+	},
+	"scripts": {
+		"start": "node --experimental-strip-types ./cli.ts",
+		"daemon": "node --experimental-strip-types ./daemon.ts",
+		"link:pi": "mkdir -p \"$HOME/.local/bin\" && ln -sfn \"$PWD/pi-shim.ts\" \"$HOME/.local/bin/pi\" && ln -sfn \"$PWD/cli.ts\" \"$HOME/.local/bin/pies\"",
+		"build": "tsc -p tsconfig.build.json",
+		"prepack": "pnpm build"
+	},
+	"dependencies": {
+		"@earendil-works/pi-agent-core": "0.99.1",
+		"@earendil-works/pi-ai": "0.99.1",
+		"@earendil-works/pi-coding-agent": "0.99.1",
+		"which": "6.0.1"
+	},
+	"devDependencies": {
+		"@types/node": "^24.0.0",
+		"@types/which": "^3.0.4",
+		"typescript": "^5.8.3"
+	}
+}

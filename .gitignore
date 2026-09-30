@@ -1,4 +1,5 @@
 .DS_Store
 node_modules/
+pies/dist/
 .pi/bench-matrix.json
 .millstrand/.cpcache/

@@ -7,7 +7,7 @@ Never stop the mill; only the user may stop it.
 - Lint: `pnpm lint` (eslint)
 - Test: `pnpm test` (vitest run)
 - Typecheck: `pnpm typecheck` (tsc)
-- Verify all checks: `pnpm check` when work complete, runs `lint` -> `typecheck` -> `test` -> `format` (via prettier).
+- Verify all checks: `pnpm check` when work complete, runs `lint` -> `typecheck` -> `build` -> `test` -> `format` (via prettier).
 - When building extensions:
   - always add `--debug-*` flags to allow you to verify results, see ./pi/extensions/system-prompt/index.ts as an example
   - extensions exposing `/debug-*` commands should use `./pi/extensions/components/debug-message/index.ts` for hidden debug output so the UI stays consistent (`Ctrl+G` open in editor, `Ctrl+Enter` send to agent)

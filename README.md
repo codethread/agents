@@ -28,6 +28,8 @@ Or install from GitHub:
 pi install git:github.com/codethread/agents
 ```
 
+The root package contains Pi resources only; it does not install Pies or its CLI bins. Pies is the separate `@codethread/pies` workspace package under `pies/`.
+
 Pi reads the package resources declared in `package.json#pi`. Local package roots also contribute their direct `agents/` directory to the subagent catalog. A consumer project can override those definitions from its nearest `.pi/agents/` directory or add catalogs with repeatable `--agents-dir <path>` flags.
 
 The package includes:
@@ -101,9 +103,9 @@ pnpm install
 pnpm check
 ```
 
-Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm format`. Vitest includes unit, snapshot, and Pi runtime integration tests backed by a patched `@gaodes/pi-test-harness`. The patch updates harness 1.0.3 for `pi-ai/compat`, `session.modelRuntime` authentication, and `agent.streamFunction` playbook injection. Integration tests therefore resolve the same supported Pi SDK versions as the runtime dependencies. Remove the patch when the upstream harness supports these APIs.
+Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`, and `pnpm format`. The complete check also builds the standalone Pies distribution before testing. Vitest includes unit, snapshot, and Pi runtime integration tests backed by a patched `@gaodes/pi-test-harness`. The patch updates harness 1.0.3 for `pi-ai/compat`, `session.modelRuntime` authentication, and `agent.streamFunction` playbook injection. Integration tests and the Pies workspace resolve Pi SDK 0.99.1. Remove the patch when the upstream harness supports these APIs.
 
-Pi host modules are wildcard peer dependencies, not runtime dependencies of the extension package. Pinned development copies support local typechecking and tests; Pi supplies the running extensions' SDK modules through its loader. Run `pnpm install` before using Pies from this checkout, which currently imports those development copies directly.
+Pi host modules are wildcard peer dependencies, not runtime dependencies of the extension package. Pinned development copies support local typechecking and tests; Pi supplies the running extensions' SDK modules through its loader. The independent `@codethread/pies` package owns its pinned runtime SDK dependencies and CLI bins; root wrappers launch its source entrypoints without changing the working directory.
 
 Running Pi from this checkout loads the package through `.pi/settings.json`. The project-local `.pi/extensions/pi-internals/` helper reports Pi runtime, source, settings, and extension paths when debugging the repository itself.
 

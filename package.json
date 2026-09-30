@@ -11,28 +11,24 @@
 		"pi-agent"
 	],
 	"files": [
-		"pies",
 		"agents",
 		"pi/extensions",
 		"pi/themes",
 		"plugins",
 		"pnpm-lock.yaml"
 	],
-	"bin": {
-		"pi": "./pies/pi-shim.ts",
-		"pies": "./pies/cli.ts"
-	},
 	"packageManager": "pnpm@10.33.0",
 	"scripts": {
 		"format": "prettier --write .",
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
 		"typecheck": "tsc --noEmit",
+		"build": "pnpm --filter @codethread/pies build",
 		"test": "vitest run",
 		"pies": "node --experimental-strip-types ./pies/cli.ts",
 		"pies:daemon": "node --experimental-strip-types ./pies/daemon.ts",
-		"link:pi": "mkdir -p \"$HOME/.local/bin\" && ln -sfn \"$PWD/pies/pi-shim.ts\" \"$HOME/.local/bin/pi\" && ln -sfn \"$PWD/pies/cli.ts\" \"$HOME/.local/bin/pies\"",
-		"check": "pnpm lint && pnpm typecheck && pnpm test && pnpm format",
+		"link:pi": "pnpm --filter @codethread/pies link:pi",
+		"check": "pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm format",
 		"verify": "pnpm check",
 		"prepare": "husky"
 	},
@@ -67,10 +63,10 @@
 		"@sinclair/typebox": "*"
 	},
 	"devDependencies": {
-		"@earendil-works/pi-agent-core": "0.87.1",
-		"@earendil-works/pi-ai": "0.87.1",
-		"@earendil-works/pi-coding-agent": "0.87.1",
-		"@earendil-works/pi-tui": "0.87.1",
+		"@earendil-works/pi-agent-core": "0.99.1",
+		"@earendil-works/pi-ai": "0.99.1",
+		"@earendil-works/pi-coding-agent": "0.99.1",
+		"@earendil-works/pi-tui": "0.99.1",
 		"@eslint/js": "^9.25.1",
 		"@gaodes/pi-test-harness": "^1.0.3",
 		"@types/minimist": "^1.2.5",
@@ -100,7 +96,6 @@
 		"ms": "^2.1.3",
 		"nunjucks": "^3.2.4",
 		"turndown": "^7.2.4",
-		"which": "6.0.1",
 		"zod": "^4.3.6"
 	},
 	"volta": {

@@ -1,5 +1,7 @@
 # Pies
 
+`@codethread/pies` is an independent pnpm workspace package with its own Pi SDK runtime dependencies and `pi`/`pies` bins. Installing the root Pi extension package does not install Pies.
+
 Pies is an experimental, working headless frontend for the Pi SDK. It keeps one Node daemon alive and creates an independent Pi runtime for each CLI request, avoiding the cost of loading the SDK and extension graph in a new process for every agent.
 
 Use it when you run several concurrent `pi --print` jobs and want Pi-compatible output without several full Node processes.
@@ -23,7 +25,18 @@ The link command exposes:
 - `~/.local/bin/pies` → `pies/cli.ts`;
 - `~/.local/bin/pi` → `pies/pi-shim.ts`.
 
-Both TypeScript entrypoints use `#!/usr/bin/env -S node --experimental-strip-types`. You can run the client without linking as `pnpm pies ...`.
+Both TypeScript entrypoints use `#!/usr/bin/env -S node --experimental-strip-types`. You can run the client without linking as `pnpm pies ...`. The root wrappers launch this workspace's source entrypoints while preserving the repository working directory. Package scripts run from `pies/`.
+
+To install Pies independently of the checkout, create and install its tarball:
+
+```nu
+pnpm --filter @codethread/pies pack --pack-destination /tmp
+pnpm add --global /tmp/codethread-pies-0.1.0.tgz
+```
+
+Packing runs `pnpm build` and includes compiled JavaScript in `dist/`, not tests or benchmarks. Installed bins run that JavaScript: Node cannot strip TypeScript under `node_modules`. Checkout scripts and local links still use source TypeScript.
+
+The package installs its own SDK dependencies; unlike Pi extensions, standalone Node imports do not use the host extension loader.
 
 Verify the paths and start the daemon:
 
@@ -180,7 +193,7 @@ The fitted marginal footprint was about 184.7 MiB per separate Pi process versus
 
 ## Current limitations
 
-- This implementation targets Pi SDK `0.86.1` and Node 24.
+- This implementation targets Pi SDK `0.99.1` and Node 24.
 - `--resume` needs Pi's interactive selector; use `--session <path|id>` instead.
 - `--mode rpc` and `--export` are not implemented.
 - Image `@file` arguments skip Pi's automatic resize pass.

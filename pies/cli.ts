@@ -2,7 +2,7 @@
 
 import { closeSync, mkdirSync, openSync } from "node:fs";
 import { createConnection, type Socket } from "node:net";
-import { dirname } from "node:path";
+import { dirname, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
@@ -99,7 +99,7 @@ function delay(milliseconds: number): Promise<void> {
 
 async function startDaemon(socketPath: string): Promise<string> {
 	mkdirSync(dirname(socketPath), { recursive: true, mode: 0o700 });
-	const daemonPath = fileURLToPath(new URL("./daemon.ts", import.meta.url));
+	const daemonPath = fileURLToPath(new URL(`./daemon${extname(clientPath)}`, import.meta.url));
 	const logPath = `${socketPath}.log`;
 	const log = openSync(logPath, "a", 0o600);
 	try {
