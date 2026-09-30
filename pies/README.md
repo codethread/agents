@@ -135,6 +135,8 @@ A supervisor that sends `SIGTERM` and then force-kills after a fixed grace perio
 
 Pies uses Pi's `SettingsManager` and resource loader for global settings, trusted project settings, packages, extensions, prompts, skills, themes, context files, models, and provider credentials.
 
+SDK sessions do not automatically load native MCP tools, so Pies supplies `builtin:mcp`, `builtin:codemode`, and `builtin:tool-search` factories. They follow Pi's normal settings and `--no-extensions` filtering; explicitly load one with `-e builtin:<name>`. Agent-local MCP registrations and `/mcp` work through these built-ins, without `pi-mcp-adapter`.
+
 Pies always excludes `pi-nvim` because it owns interactive sockets and process-global listeners.
 
 Add path-substring exclusions in global `~/.pi/agent/settings.json` or trusted project `.pi/settings.json`:

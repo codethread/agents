@@ -40,7 +40,7 @@ The package includes:
 - prompt history, status, timeline, and other optional UI extensions;
 - provider and project-rule helpers.
 
-See [the extension index](pi/extensions/README.md) and [subagent documentation](pi/extensions/tools/subagent/README.md) for configuration details.
+Agent-local MCP servers require Pi 0.99+ with its built-in `mcp` and `codemode` extensions enabled. They use native registration and compact codemode access, not `pi-mcp-adapter`. See [the extension index](pi/extensions/README.md) and [subagent documentation](pi/extensions/tools/subagent/README.md) for configuration details.
 
 ## Rosé Pine themes
 

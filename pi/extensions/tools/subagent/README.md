@@ -61,7 +61,7 @@ You are a specialist in [whatever]...
 | `disallowedTools` |          | Optional denylist using the same syntax and mapping as `tools`; removed from the final allowlist                                                                                                                                                                                                                                                                                   |
 | `model`           |          | Optional model policy. Omit to inherit the parent/default model. Use a non-empty string, `{ id, when? }`, or a non-empty ordered list of strings/objects. Claude aliases (`sonnet`, `haiku`, etc.) map through the compatibility settings; append `:low` etc. for thinking level                                                                                                   |
 | `effort`          |          | Optional Claude Code effort hint mapped to Pi thinking (`low`, `medium`, `high`, `xhigh`, `max` by default) and applied when the model does not already include a thinking suffix                                                                                                                                                                                                  |
-| `mcpServers`      |          | Optional Claude Code-style list registered with `pi-mcp-adapter`. The agent accesses them through `mcp` or `mcpScript`. See [MCP servers](#mcp-servers)                                                                                                                                                                                                                            |
+| `mcpServers`      |          | Optional Claude Code-style list registered with Pi's built-in MCP support. The agent accesses them through `codemode`. See [MCP servers](#mcp-servers)                                                                                                                                                                                                                             |
 
 Canonical Pi tool names: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`, `subagent`. Claude Code compatibility settings are created automatically at `~/.pi/agent/extensions/pi-subagent/settings.json`; edit that file to change tool/model/effort mappings. A `null`-mapped Claude tool is ignored. Other names are treated as custom/extension tools, so use the extension's exact registered tool name (for example, `pi-internals`).
 
@@ -99,26 +99,26 @@ mcpServers:
         - "@upstash/context7-mcp"
 ```
 
-Remote HTTP/SSE definitions accept `type`, `url`, and optional string `headers`. Local stdio definitions accept `command`, optional string-array `args`, and optional string-map `env`. Malformed definitions are recorded during discovery and fail when that agent is selected.
+Remote definitions accept `type: http` or `streamable-http`, `url`, and optional string `headers`. Legacy `type: sse` is rejected; use the server's streamable HTTP endpoint. Stdio definitions accept `command`, optional `type: stdio`, string-array `args`, string-map `env`, and string `cwd`. Server names use letters, digits, `_`, and `-`. Malformed definitions are recorded during discovery and fail when that agent is selected.
 
-MCP transport and tool execution are provided by [`pi-mcp-adapter`](https://github.com/nicobailon/pi-mcp-adapter), which must be installed separately. On agent startup this extension parses the frontmatter and registers each definition through the adapter's versioned runtime-registration event. The adapter then owns lazy connection, authentication, approval, metadata caching, output guarding, and cleanup.
+Pi 0.99+ owns connections, OAuth, discovery, tool execution, output guarding, and cleanup. This extension uses `pi.registerMcpServer()` at agent startup and `pi.unregisterMcpServer()` at shutdown. Enable the built-in `mcp` and `codemode` extensions; remove any extension such as `pi-mcp-adapter` that replaces `/mcp`. Pies supplies these built-ins to its SDK resource loader too.
 
-Runtime-registered servers are proxy-only. Agents that declare `mcpServers` automatically receive the adapter's `mcp` and `mcpScript` tools in addition to their configured tool allowlist. Agent prompts should discover and invoke server tools through `mcp`; use `mcpScript` for multi-call loops, filtering, or chaining. They should not refer to direct `mcp__<server>__<tool>` names.
+Agent-local servers use `codemode` exposure: their individual tools stay out of the model's declarations, and the agent receives `codemode` alongside its configured tools. Scripts discover tools with `await searchTools(query, { namespace: "mcp__<server>" })`, inspect them with `await describeTool(name)`, and invoke `tools.mcp__<server>__<tool>(args)`. Return only relevant results; ordinary JavaScript supports filtering, chaining, and parallel calls. `tool_search` is also available when explicitly enabled, for loading individual tools into the model's declarations.
 
-Explicit CLI tool overrides (`--tools` / `--no-tools`) remain authoritative and skip MCP registration. Duplicate names against the adapter's effective config fail closed. Registrations are session-scoped and disposed during shutdown; they are never written to MCP config files.
+Explicit CLI tool overrides (`--tools` / `--no-tools`) remain authoritative and skip agent-local MCP registration. Duplicate extension registrations fail without overwriting existing servers. A server in global `~/.pi/agent/mcp.json` or trusted project `.pi/mcp.json` takes precedence over an agent-local registration with the same name; `/mcp` shows the override. Registrations are session-scoped and never written to configuration files.
 
 > **Trust note.** A local stdio server can execute the declared command when first used. Only adopt or delegate to agents whose MCP definitions you trust.
 
 ### Debug registration
 
-Verify that an agent's frontmatter parses and that the installed adapter accepts each runtime registration, without connecting the lazy servers:
+Verify frontmatter parsing and native registration, then dispose the temporary registrations. This report does not test live connectivity:
 
 ```text
 pi --debug-mcp nerd
 /debug-mcp nerd
 ```
 
-The debug command deliberately tests the integration boundary rather than duplicating the adapter's connection and tool-list tests. Use `/mcp`, `mcp({ server: "<name>" })`, or `mcp({ connect: "<name>" })` for adapter status and live connection diagnostics.
+Use `/mcp` for session connection status and `/mcp reconnect <name>` to reconnect. `pi mcp list` checks file-configured servers only, not agent-local registrations. A debug report for an already registered server fails rather than replacing the active agent's definition.
 
 ---
 
@@ -271,4 +271,4 @@ Shows discovered agent + swarm inventory in a hidden debug panel, including effe
 /debug-mcp <agent>
 ```
 
-Connects the named agent's MCP servers and reports the discovered tools or the connection error in a hidden debug panel (`--debug-mcp <agent>` does the same headlessly and exits). Run `/debug-mcp` with no argument to list agents that declare `mcpServers`.
+Validates the named agent's MCP frontmatter and native registrations in a hidden debug panel (`--debug-mcp <agent>` does the same headlessly and exits). Run `/debug-mcp` with no argument to list agents that declare `mcpServers`.
