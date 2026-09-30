@@ -12,12 +12,6 @@ patchedDependencies:
 importers:
   .:
     dependencies:
-      "@earendil-works/pi-ai":
-        specifier: 0.87.1
-        version: 0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
-      "@earendil-works/pi-coding-agent":
-        specifier: 0.87.1
-        version: 0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
       "@millhouse/harnesses":
         specifier: https://github.com/codethread/millhouse.spool.git#8c4cb5629f1c259e61eed38061b9cb94140863ae&path:/spools/harnesses
         version: https://codeload.github.com/codethread/millhouse.spool/tar.gz/8c4cb5629f1c259e61eed38061b9cb94140863ae#path:/spools/harnesses(@earendil-works/pi-coding-agent@0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6))
@@ -53,6 +47,12 @@ importers:
         version: 4.3.6
     devDependencies:
       "@earendil-works/pi-agent-core":
+        specifier: 0.87.1
+        version: 0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
+      "@earendil-works/pi-ai":
+        specifier: 0.87.1
+        version: 0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
+      "@earendil-works/pi-coding-agent":
         specifier: 0.87.1
         version: 0.87.1(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.21.3)(zod@4.3.6)
       "@earendil-works/pi-tui":
