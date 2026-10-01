@@ -51,9 +51,10 @@ an empty result as missing activity.
   the changes, and **commit the updated skill, reference, and related docs in the
   agents repository** as part of the introspection work.
 
-| Harness version | Schema reference                                  | No change |
-| --------------- | ------------------------------------------------- | --------- |
-| `0.87.1`        | [0.87.1](references/0.87.1.md) — latest reference | Baseline  |
+| Harness version | Schema reference                                  | No change                                    |
+| --------------- | ------------------------------------------------- | -------------------------------------------- |
+| `0.99.1`        | [0.99.1](references/0.99.1.md) — latest reference | Changed — message fields; no new entry types |
+| `0.87.1`        | [0.87.1](references/0.87.1.md)                    | Baseline                                     |
 
 ## Prefer the stable dialogue log for dialogue
 
