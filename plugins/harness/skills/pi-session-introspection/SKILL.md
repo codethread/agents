@@ -53,6 +53,7 @@ an empty result as missing activity.
 
 | Harness version | Schema reference                                  | No change                                    |
 | --------------- | ------------------------------------------------- | -------------------------------------------- |
+| `1.0.0`         | [0.99.1](references/0.99.1.md)                    | No change — verified 2026-10-02              |
 | `0.99.1`        | [0.99.1](references/0.99.1.md) — latest reference | Changed — message fields; no new entry types |
 | `0.87.1`        | [0.87.1](references/0.87.1.md)                    | Baseline                                     |
 
