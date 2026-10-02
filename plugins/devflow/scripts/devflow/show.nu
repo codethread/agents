@@ -4,39 +4,41 @@ use helpers.nu *
 
 # Render a feature task queue or tasks/index.yml as a readable terminal DAG.
 #
-# Requires `graph-easy` on PATH. The Nix dev profile provides it via Graph::Easy.
-# Use --dot to print Graphviz DOT without requiring graph-easy.
+# Requires `mermaid-ascii` on PATH (mise global tool).
+# Use --mermaid to print Mermaid source without requiring mermaid-ascii.
 export def main [
   input: string@complete-features           # Feature name, active feature folder, or tasks/index.yml path
-  --format: string = "boxart"              # graph-easy output format: boxart or ascii
+  --format: string = "boxart"              # mermaid-ascii output: boxart or ascii
   --wrap: int = 0                           # Maximum label line width; 0 infers from terminal width
   --direction: string = "auto"              # auto, LR, or TB
   --padding: int = 16                       # Columns to reserve when inferring wrap/direction
-  --dot                                      # Print DOT instead of rendering
+  --mermaid                                  # Print Mermaid instead of rendering
 ] {
   let task_index = (resolve-task-index $input)
   let items = (task-items $task_index)
   validate-task-index $items
-  validate-graph-easy-format $format
+  validate-render-format $format
   let effective_direction = (effective-direction $direction $padding)
   let effective_wrap = (effective-wrap $wrap $items $effective_direction $padding)
+  let mermaid_direction = if $effective_direction == "TB" { "TD" } else { $effective_direction }
 
-  let dot_text = (tasks-to-dot $items $effective_wrap $effective_direction)
+  let mermaid_text = (tasks-to-mermaid $items $effective_wrap $mermaid_direction)
 
-  if $dot {
-    print $dot_text
+  if $mermaid {
+    print $mermaid_text
     return
   }
 
-  let dot_file = (mktemp --tmpdir --suffix .dot devflow-tasks.XXXXXX)
-  $dot_text | save --force $dot_file
-
-  if not (is-graph-easy-available) {
-    print $dot_text
-    error make { msg: "graph-easy not found on PATH. Install the Nix dev profile that includes Graph::Easy, or re-run with --dot to print DOT only." }
+  if not (is-mermaid-ascii-available) {
+    print $mermaid_text
+    error make { msg: "mermaid-ascii not found on PATH. Install the mise mermaid-ascii tool, or re-run with --mermaid to print Mermaid only." }
   }
 
-  ^graph-easy $dot_file --as $format
+  if $format == "ascii" {
+    $mermaid_text | ^mermaid-ascii --ascii
+  } else {
+    $mermaid_text | ^mermaid-ascii
+  }
 }
 
 def resolve-task-index [input: string] {
@@ -88,7 +90,7 @@ def effective-wrap [requested: int, items: table, direction: string, padding: in
   [$floor_applied 24] | math min
 }
 
-def tasks-to-dot [items: table, wrap: int, direction: string] {
+def tasks-to-mermaid [items: table, wrap: int, direction: string] {
   if $wrap < 8 {
     error make { msg: "--wrap must be at least 8" }
   }
@@ -98,8 +100,9 @@ def tasks-to-dot [items: table, wrap: int, direction: string] {
     | sort-by id
     | each {|task|
       let id = (task-id $task.id)
-      let label = (dot-label $task $wrap)
-      $"  \"($id)\" [label = \"($label)\"];"
+      let node = (mermaid-node-id $id)
+      let label = (mermaid-label $task $wrap)
+      $"  ($node)[\"($label)\"]"
     }
     | str join "\n"
   )
@@ -108,11 +111,11 @@ def tasks-to-dot [items: table, wrap: int, direction: string] {
     $items
     | sort-by id
     | each {|task|
-      let to = (task-id $task.id)
+      let to = (mermaid-node-id (task-id $task.id))
       ($task.blocked_by? | default [])
       | each {|blocked_id|
-        let from = (task-id $blocked_id)
-        $"  \"($from)\" -> \"($to)\";"
+        let from = (mermaid-node-id (task-id $blocked_id))
+        $"  ($from) --> ($to)"
       }
     }
     | flatten
@@ -121,14 +124,25 @@ def tasks-to-dot [items: table, wrap: int, direction: string] {
 
   let body = if $edge_lines == "" { $node_lines } else { [$node_lines $edge_lines] | str join "\n\n" }
 
-  $"digraph devflow_tasks {\n  rankdir = ($direction);\n  node [shape = box];\n\n($body)\n}\n"
+  $"graph ($direction)\n($body)\n"
 }
 
-def dot-label [task: record, wrap: int] {
+def mermaid-label [task: record, wrap: int] {
   let header = $"(task-id $task.id) ($task.status)"
   let desc = ($task.description | str trim | wrap-words $wrap)
-  let label = ([$header] | append $desc | str join "\\n")
-  $label | dot-escape-label
+  ([$header] | append $desc | str join "<br>" | mermaid-escape-label)
+}
+
+def mermaid-node-id [id: string] {
+  let sanitized = ($id | str replace --all --regex "[^A-Za-z0-9_]" "_")
+  let first = ($sanitized | str substring 0..<1)
+  if $sanitized == "" {
+    "n"
+  } else if $first in ["0" "1" "2" "3" "4" "5" "6" "7" "8" "9"] {
+    $"n($sanitized)"
+  } else {
+    $sanitized
+  }
 }
 
 def wrap-words [width: int]: string -> list<string> {
@@ -148,18 +162,19 @@ def wrap-words [width: int]: string -> list<string> {
   if $result.current == "" { $result.lines } else { $result.lines | append $result.current }
 }
 
-def dot-escape-label []: string -> string {
+def mermaid-escape-label []: string -> string {
   $in
-  | str replace --all "\\" "\\\\"
-  | str replace --all "\"" "\\\""
+  | str replace --all "#" " "
+  | str replace --all "\"" "'"
+  | str replace --all "]" ")"
 }
 
-def validate-graph-easy-format [format: string] {
+def validate-render-format [format: string] {
   if $format not-in ["boxart" "ascii"] {
     error make { msg: "--format must be boxart or ascii" }
   }
 }
 
-def is-graph-easy-available [] {
-  (which graph-easy | length) > 0
+def is-mermaid-ascii-available [] {
+  (which mermaid-ascii | length) > 0
 }
