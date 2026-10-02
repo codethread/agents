@@ -62,7 +62,8 @@ const InteractiveShellParams = Type.Object({
 	),
 	persist: Type.Optional(
 		Type.Boolean({
-			description: "Keep the shell running after the Pi session shuts down. Defaults to false.",
+			description:
+				"Use the user's shared default tmux server and keep the shell after Pi exits. Otherwise private to this agent and auto-cleaned on exit. Defaults to false.",
 			default: false,
 		}),
 	),
@@ -93,7 +94,9 @@ function fail(message: string, details: InteractiveShellDetails) {
 }
 
 function formatShell(record: ShellRecord): string {
-	const persistence = record.persist ? "persistent" : "session-scoped";
+	const persistence = record.persist
+		? "persistent / shared default server"
+		: "private / auto-cleaned";
 	return `${record.id} — ${record.name} — ${record.shell} — ${persistence}`;
 }
 
@@ -213,9 +216,9 @@ async function openShellPicker(
 	ctx: ExtensionCommandContext,
 	exec: ExtensionAPI["exec"],
 ): Promise<void> {
-	const shells = await manager.list();
+	const shells = (await manager.list()).filter((shell) => shell.persist);
 	if (shells.length === 0) {
-		ctx.ui.notify("No interactive shells running", "info");
+		ctx.ui.notify("No shared interactive shells running (spawn with persist: true)", "info");
 		return;
 	}
 	if (!process.env.TMUX?.trim()) {
@@ -226,9 +229,13 @@ async function openShellPicker(
 	const selected = await pickShell(ctx, shells);
 	if (!selected) return;
 
-	const result = await exec("tmux", ["switch-client", "-t", selected.sessionName], {
-		timeout: 5000,
-	});
+	const result = await exec(
+		"tmux",
+		["-L", "default", "switch-client", "-t", `=${selected.sessionName}`],
+		{
+			timeout: 5000,
+		},
+	);
 	if (result.code !== 0) {
 		const message =
 			result.stderr.trim() || result.stdout.trim() || `tmux exited with code ${result.code}`;
@@ -249,6 +256,7 @@ async function runDebugInteractiveShell(
 	}
 	const output = await manager.tail(shell.id, DEFAULT_TAIL_LINES, signal);
 	await manager.kill(shell.id, signal);
+	await manager.shutdown();
 
 	const payload = {
 		shell,
@@ -268,7 +276,8 @@ export default function interactiveShell(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("shells", {
-		description: "Pick and jump to an active interactive_shell tmux session",
+		description:
+			"Pick and jump to a persistent interactive_shell on the shared default tmux server",
 		handler: async (_args, ctx) => {
 			try {
 				await openShellPicker(manager, ctx, (command, args, options) =>
@@ -293,17 +302,18 @@ export default function interactiveShell(pi: ExtensionAPI) {
 	});
 
 	pi.on("session_shutdown", async () => {
-		await manager.killNonPersistent();
+		await manager.shutdown();
 	});
 
 	pi.registerTool({
 		name: "interactive_shell",
 		label: "Interactive Shell",
 		description:
-			"Spawn and control interactive shell tmux sessions. Supports creating a shell, sending input, tailing output, listing spawned shells, and killing a shell.",
+			"Spawn and control tmux shells private to this agent. Only persist: true uses the user's shared default server and survives agent exit. Supports spawn, send, tail, list, and kill.",
 		promptGuidelines: [
 			"Favour default `bash` tool, especially when you need to await the response",
-			"Only use interactive_shell for genunine tty requirements (TUIs, REPLs) or when requiring a persisted terminal you can pass by reference to other agents.",
+			"Only use interactive_shell for genuine TTY requirements (TUIs, REPLs) or a terminal that needs later interaction.",
+			"Shells are private to this agent and cleaned up on exit, even after a crash. Do not expect the user or other agents to see them; use persist: true to share on tmux's default server and leave cleanup to the caller.",
 			"Use interactive_shell action=spawn with a short friendly name to create a shell first, then action=send to type commands into it.",
 			"Never call interactive_shell send, tail, or kill in the same tool-call batch as spawn; wait for the spawn result and shell id first.",
 			"When creating multiple shells, spawn them one at a time; each shell is created in its own tmux session.",

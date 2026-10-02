@@ -1,10 +1,13 @@
 import { execFile } from "node:child_process";
+import { PrivateTmuxServer, type PrivateServer } from "./private-server.js";
 
 export type ShellChoice = "user" | "bash" | "zsh";
 
 export interface ShellRecord {
 	id: string;
 	paneId: string;
+	/** "default" for shared shells, otherwise the private socket path. */
+	server: string;
 	sessionName: string;
 	name: string;
 	cwd: string;
@@ -63,18 +66,30 @@ export class TmuxCommandRunner implements CommandRunner {
 	}
 }
 
+export function tmuxServerArgs(server: string): string[] {
+	// -N prevents an in-flight command from recreating a private server during cleanup.
+	return server === "default" ? ["-L", "default"] : ["-N", "-S", server];
+}
+
 export class InteractiveShellManager {
 	private readonly runner: CommandRunner;
 	private readonly userShell: string | undefined;
+	private readonly privateServer: PrivateServer;
 	private readonly shells = new Map<string, ShellRecord>();
 	private latestId: string | undefined;
 	private spawnQueue: Promise<void> = Promise.resolve();
 	private sendQueue: Promise<void> = Promise.resolve();
 	private nextSession = 1;
+	private closed = false;
 
-	constructor(runner: CommandRunner, userShell = process.env.SHELL) {
+	constructor(
+		runner: CommandRunner,
+		userShell = process.env.SHELL,
+		privateServer: PrivateServer = new PrivateTmuxServer(),
+	) {
 		this.runner = runner;
 		this.userShell = userShell;
+		this.privateServer = privateServer;
 	}
 
 	async spawn(options: SpawnOptions): Promise<ShellRecord> {
@@ -86,11 +101,13 @@ export class InteractiveShellManager {
 
 		await previousSpawn;
 		try {
+			if (this.closed) throw new Error("interactive shell manager is shut down");
 			await this.list(options.signal);
 			const displayName = this.normalizeName(options.name);
 			const sessionName = this.buildSessionName(displayName);
-			this.nextSession++;
-			if (await this.isSessionLive(sessionName, options.signal)) {
+			const sequence = this.nextSession++;
+			const server = options.persist ? "default" : await this.privateServer.getSocketPath();
+			if (await this.isSessionLive(server, sessionName, options.signal)) {
 				throw this.sessionAlreadyActiveError(displayName, sessionName);
 			}
 			const shellChoice = options.shell ?? "user";
@@ -100,7 +117,8 @@ export class InteractiveShellManager {
 
 			let result: CommandResult;
 			try {
-				result = await this.runner.run(
+				result = await this.run(
+					server,
 					this.buildNewSessionArgs(sessionName, options.cwd, shellChoice, shell),
 					{
 						cwd: options.cwd,
@@ -108,21 +126,22 @@ export class InteractiveShellManager {
 					},
 				);
 			} catch (error) {
-				if (await this.isSessionLive(sessionName, options.signal)) {
+				if (await this.isSessionLive(server, sessionName, options.signal)) {
 					throw this.sessionAlreadyActiveError(displayName, sessionName);
 				}
 				throw error;
 			}
 			const paneId = result.stdout.trim().split(/\s+/)[0];
 			if (!paneId) throw new Error("interactive shell did not return a pane id");
-			if (!(await this.isPaneLive(paneId, options.signal))) {
+			if (!(await this.isPaneLive(server, paneId, options.signal))) {
 				throw new Error("interactive shell pane was not live after spawn");
 			}
-			await this.prepareNewPane(paneId, options.signal);
+			await this.prepareNewPane(server, paneId, options.signal);
 
 			const record: ShellRecord = {
-				id: paneId,
+				id: `shell-${sequence}`,
 				paneId,
+				server,
 				sessionName,
 				name: displayName,
 				cwd: options.cwd,
@@ -142,7 +161,7 @@ export class InteractiveShellManager {
 
 	async list(signal?: AbortSignal): Promise<ShellRecord[]> {
 		for (const record of [...this.shells.values()]) {
-			const live = await this.isPaneLive(record.paneId, signal);
+			const live = await this.isPaneLive(record.server, record.paneId, signal);
 			if (!live) this.shells.delete(record.id);
 		}
 		this.refreshLatestId();
@@ -171,10 +190,10 @@ export class InteractiveShellManager {
 				throw new Error("send requires text, submit, or both");
 			}
 			if (hasText) {
-				await this.sendText(target.paneId, params.text!, params.signal);
+				await this.sendText(target.server, target.paneId, params.text!, params.signal);
 			}
 			if (shouldSubmit) {
-				await this.runner.run(["send-keys", "-t", target.paneId, "Enter"], {
+				await this.run(target.server, ["send-keys", "-t", target.paneId, "Enter"], {
 					signal: params.signal,
 				});
 			}
@@ -190,7 +209,8 @@ export class InteractiveShellManager {
 			throw new Error("lines must be a positive integer");
 		}
 		const target = await this.resolveTarget(shellId, signal);
-		const result = await this.runner.run(
+		const result = await this.run(
+			target.server,
 			["capture-pane", "-J", "-t", target.paneId, "-p", "-S", `-${lines}`],
 			{ signal },
 		);
@@ -200,58 +220,51 @@ export class InteractiveShellManager {
 
 	async kill(shellId: string | undefined, signal?: AbortSignal): Promise<ShellRecord> {
 		const target = await this.resolveTarget(shellId, signal);
-		await this.runner.run(["kill-session", "-t", target.sessionName], { signal });
+		await this.run(target.server, ["kill-session", "-t", `=${target.sessionName}`], { signal });
 		this.shells.delete(target.id);
 		this.refreshLatestId();
 		return target;
 	}
 
-	async killNonPersistent(): Promise<ShellRecord[]> {
-		const killed: ShellRecord[] = [];
-		const errors: unknown[] = [];
-
-		for (const record of [...this.shells.values()]) {
-			if (record.persist) continue;
-			if (!(await this.isPaneLive(record.paneId, undefined))) {
-				this.shells.delete(record.id);
-				continue;
-			}
-			try {
-				await this.runner.run(["kill-session", "-t", record.sessionName]);
-				this.shells.delete(record.id);
-				killed.push(record);
-			} catch (error) {
-				errors.push(error);
-			}
+	async shutdown(): Promise<void> {
+		this.closed = true;
+		await this.spawnQueue;
+		await this.privateServer.dispose();
+		for (const record of this.shells.values()) {
+			if (!record.persist) this.shells.delete(record.id);
 		}
 		this.refreshLatestId();
+	}
 
-		if (errors.length > 0) {
-			throw new AggregateError(errors, "failed to stop non-persistent interactive shells");
-		}
-		return killed;
+	private run(server: string, args: string[], options?: RunOptions): Promise<CommandResult> {
+		return this.runner.run([...tmuxServerArgs(server), ...args], options);
 	}
 
 	private async sendText(
+		server: string,
 		paneId: string,
 		text: string,
 		signal: AbortSignal | undefined,
 	): Promise<void> {
 		if (!text.includes("\n") && !text.includes("\r")) {
-			await this.runner.run(["send-keys", "-t", paneId, "-l", "--", text], { signal });
+			await this.run(server, ["send-keys", "-t", paneId, "-l", "--", text], { signal });
 			return;
 		}
 
 		const bufferName = `pi-interactive-shell-${process.pid}-${Date.now()}`;
-		await this.runner.run(["load-buffer", "-b", bufferName, "-"], { signal, stdin: text });
-		await this.runner.run(["paste-buffer", "-b", bufferName, "-d", "-r", "-t", paneId], {
+		await this.run(server, ["load-buffer", "-b", bufferName, "-"], { signal, stdin: text });
+		await this.run(server, ["paste-buffer", "-b", bufferName, "-d", "-r", "-t", paneId], {
 			signal,
 		});
 	}
 
-	private async prepareNewPane(paneId: string, signal: AbortSignal | undefined): Promise<void> {
-		await this.runner.run(["send-keys", "-t", paneId, "C-u"], { signal });
-		await this.runner.run(["clear-history", "-t", paneId], { signal });
+	private async prepareNewPane(
+		server: string,
+		paneId: string,
+		signal: AbortSignal | undefined,
+	): Promise<void> {
+		await this.run(server, ["send-keys", "-t", paneId, "C-u"], { signal });
+		await this.run(server, ["clear-history", "-t", paneId], { signal });
 	}
 
 	private buildNewSessionArgs(
@@ -301,9 +314,13 @@ export class InteractiveShellManager {
 		return target;
 	}
 
-	private async isPaneLive(paneId: string, signal: AbortSignal | undefined): Promise<boolean> {
+	private async isPaneLive(
+		server: string,
+		paneId: string,
+		signal: AbortSignal | undefined,
+	): Promise<boolean> {
 		try {
-			const result = await this.runner.run(["display-message", "-p", "-t", paneId, "#{pane_id}"], {
+			const result = await this.run(server, ["display-message", "-p", "-t", paneId, "#{pane_id}"], {
 				signal,
 			});
 			return result.stdout.trim() === paneId;
@@ -313,11 +330,12 @@ export class InteractiveShellManager {
 	}
 
 	private async isSessionLive(
+		server: string,
 		sessionName: string,
 		signal: AbortSignal | undefined,
 	): Promise<boolean> {
 		try {
-			await this.runner.run(["has-session", "-t", `=${sessionName}`], { signal });
+			await this.run(server, ["has-session", "-t", `=${sessionName}`], { signal });
 			return true;
 		} catch {
 			return false;

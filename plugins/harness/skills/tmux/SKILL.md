@@ -13,6 +13,11 @@ description: >
 Use tmux for durable terminal work: dev servers, file watchers, REPLs, or long-running
 commands whose output you need to inspect later.
 
+When using Pi's `interactive_shell`, shells are private to the agent and cleaned up
+on exit, even after a crash. Do not expect the user to see them. Only `persist: true`
+uses the user's shared `default` tmux server and survives exit; clean up those shells
+explicitly. Bare `tmux` commands below do not target the tool's private server.
+
 ## Variables
 
 | Variable       | Value                      | Notes                                     |

@@ -1,34 +1,40 @@
 # `interactive-shell`
 
-> Spawn and control interactive shell tmux sessions.
+> Spawn and control tmux shells private to each agent; use `persist: true` to share with the user.
 
-Provides the `interactive_shell` tool for persistent PTYs: TUIs, REPLs, dev servers, watch processes, or any shell that needs later input/output inspection. Each spawned shell runs in its own detached tmux session.
+Provides the `interactive_shell` tool for TUIs, REPLs, and terminal work that needs later input/output inspection. Each shell runs in its own detached tmux session.
+
+## Visibility and lifetime
+
+- **Default (`persist: false`):** each extension runtime gets its own private tmux server. Shells survive between replies but are not on the user's server. Do not expect the user or other agents to see them.
+- **`persist: true`:** uses the user's shared `default` tmux server explicitly, regardless of the server hosting Pi. These shells remain after Pi exits; the caller must clean them up.
+
+Private servers are created lazily, without loading tmux configuration. Shell startup configuration still follows the `shell` option below. Concurrent agents, including runtimes within one Pies process, have separate servers and can reuse session names.
+
+On `session_shutdown` (exit, session switch, or reload), the extension stops its entire private server and removes its socket and temporary directory. A detached supervisor watches the agent's IPC connection and performs the same cleanup after an abrupt process exit, including `SIGTERM` and `SIGKILL`. Cleanup does not depend on an in-process exit hook or polling a PID. Private commands cannot restart a server during teardown. Interrupting a response without exiting Pi leaves its shells running.
+
+The supervisor owns only the private server and its `/tmp/pi-shell-*` directory; it never stops the shared `default` server. Cleanup is not guaranteed if the supervisor itself is forcibly killed or the machine loses power. Persistent sessions outlive Pi's in-memory registry and must be managed with tmux directly after exit or reload.
 
 ## Tool actions
 
 ```json
-{
-	"action": "spawn",
-	"name": "dev server",
-	"shell": "bash",
-	"persist": true
-}
+{ "action": "spawn", "name": "repl", "shell": "bash" }
 ```
 
-Starts a new empty shell in a detached tmux session. `shell` accepts `user`, `bash`, or `zsh` and defaults to `user`, which uses `$SHELL` with the user's normal configuration. The focused `bash` and `zsh` choices start without user configuration (`bash --noprofile --norc` and `zsh -f`).
+Starts an empty shell on the agent's private server. Set `persist: true` when the user needs access or the shell must outlive the agent.
 
-`persist` defaults to `false`. Session-scoped shells survive between replies and are stopped on `session_shutdown`: when Pi exits, or when the session's extension runtime is replaced by a session switch or reload. Interrupting a response without exiting Pi does not stop them. Set `persist: true` to keep a shell running after shutdown. Persistent tmux sessions outlive Pi's in-memory registry, so after Pi exits or reloads they must be managed with tmux directly.
+`shell` accepts `user`, `bash`, or `zsh` and defaults to `user`, which uses `$SHELL` with the user's normal configuration. The focused `bash` and `zsh` choices start without user configuration (`bash --noprofile --norc` and `zsh -f`).
 
-`name` is optional, must be 80 characters or fewer, and is shown in `/shells` and `list`. The tmux session is named `pi--<name>`, with the name normalized to a lowercase tmux-safe slug. Spawn fails if that tmux session is already active, so choose a unique name or stop the existing session first. Spawn returns the `shellId`/pane id, friendly name, tmux session name, selected shell, and persistence state.
+`name` is optional, must be 80 characters or fewer, and appears in `list` (and `/shells` for persistent shells). The tmux session is named `pi--<name>`, normalized to a lowercase tmux-safe slug. Spawn fails if that name is already active on the selected server. Spawn returns an opaque shell id, pane id, server (`default` or a private socket path), session name, shell choice, and persistence state. Use the opaque shell id for subsequent tool calls; tmux pane ids can collide across servers.
 
 ```json
-{ "action": "send", "shellId": "%12", "text": "npm run dev", "submit": true }
+{ "action": "send", "shellId": "shell-1", "text": "python3", "submit": true }
 ```
 
-Types literal text into the shell. Multiline text is pasted into the shell. `submit: true` presses Enter after the text; it can also be used by itself.
+Types literal text into the shell. Multiline text is pasted. `submit: true` presses Enter after the text; it can also be used by itself.
 
 ```json
-{ "action": "tail", "shellId": "%12", "lines": 100 }
+{ "action": "tail", "shellId": "shell-1", "lines": 100 }
 ```
 
 Captures recent output. `lines` defaults to 100.
@@ -37,13 +43,13 @@ Captures recent output. `lines` defaults to 100.
 { "action": "list" }
 ```
 
-Lists live shells created by this extension instance with their ids, shell choice, and persistence state.
+Lists live shells created by this extension instance, both private and persistent.
 
 ```json
-{ "action": "kill", "shellId": "%12" }
+{ "action": "kill", "shellId": "shell-1" }
 ```
 
-Stops one shell. If `shellId` is omitted for `send`, `tail`, or `kill`, the latest live shell is used.
+Stops one shell on its owning server. If `shellId` is omitted for `send`, `tail`, or `kill`, the latest live shell is used.
 
 ## Slash command
 
@@ -51,12 +57,12 @@ Stops one shell. If `shellId` is omitted for `send`, `tail`, or `kill`, the late
 /shells
 ```
 
-Opens a fuzzy picker of active shells created by this Pi session, showing each shell's friendly name, pane id, and cwd. Selecting a shell switches the current tmux client to that shell's tmux session.
+Opens a fuzzy picker of this runtime's **persistent** shells, showing each shell's friendly name, shell id, and cwd. Selecting one switches the current tmux client on the shared `default` server to that session. Requires Pi to be running in a client on that server. Private shells are excluded; use the tool's `tail` action to inspect them.
 
 ## Debug flag
 
-```sh
+```nu
 pi --debug-interactive-shell 'printf READY; sleep 1' -p ping
 ```
 
-Runs the same spawn → send → tail → kill path directly and prints JSON, without waiting for an agent tool call.
+Runs the private spawn → send → tail → kill → shutdown path directly and prints JSON, without waiting for an agent tool call. The result includes the private socket path, whose directory should no longer exist after completion.
