@@ -16,36 +16,6 @@ function shortenHome(path: string): string {
 	return path;
 }
 
-function renderTimelineTimestampItems(
-	ctx: ExtensionContext,
-	theme: { fg(color: string, text: string): string },
-	width: number,
-): string[] {
-	return ctx.sessionManager
-		.getBranch()
-		.filter(
-			(entry) => entry.type === "custom" && entry.customType === "timeline-timestamps-tool-call",
-		)
-		.slice(-3)
-		.map(
-			(entry) =>
-				entry as {
-					timestamp: string | number | Date;
-					data?: { toolName?: string; preview?: string };
-				},
-		)
-		.map((entry) => {
-			const timestamp = new Date(entry.timestamp);
-			const formatted = timestamp.toLocaleTimeString("en-GB", { hour12: false });
-			const toolName = entry.data?.toolName?.trim() || "tool";
-			const preview = entry.data?.preview?.trim();
-			const text = preview
-				? `${theme.fg("dim", "- ")}${theme.fg("accent", toolName)}${theme.fg("dim", `: ${formatted} | `)}${theme.fg("muted", preview)}`
-				: `${theme.fg("dim", "- ")}${theme.fg("accent", toolName)}${theme.fg("dim", `: ${formatted}`)}`;
-			return truncateToWidth(text, width, theme.fg("dim", "..."));
-		});
-}
-
 export interface FooterRenderDeps {
 	ctx: ExtensionContext;
 	pi: ExtensionAPI;
@@ -222,18 +192,13 @@ export function renderStatuslineItems({
 	}
 
 	const visibleExtensionStatuses = Array.from(extensionStatuses.entries()).filter(
-		([key]) =>
-			key !== "timeline-timestamps" && key !== "provider-override" && key !== "millstrand-identity",
+		([key]) => key !== "provider-override" && key !== "millstrand-identity",
 	);
 	items.push(
 		...visibleExtensionStatuses
 			.sort(([a], [b]) => a.localeCompare(b))
 			.map(([, text]) => sanitizeStatusText(text)),
 	);
-
-	if (extensionStatuses.has("timeline-timestamps")) {
-		items.push(...renderTimelineTimestampItems(ctx, theme, width));
-	}
 
 	if (debug) {
 		items.push(
@@ -329,8 +294,7 @@ export function renderStatuslineLines({
 	];
 
 	const visibleExtensionStatuses = Array.from(extensionStatuses.entries()).filter(
-		([key]) =>
-			key !== "timeline-timestamps" && key !== "provider-override" && key !== "millstrand-identity",
+		([key]) => key !== "provider-override" && key !== "millstrand-identity",
 	);
 	if (visibleExtensionStatuses.length > 0) {
 		const sortedStatuses = visibleExtensionStatuses
@@ -338,10 +302,6 @@ export function renderStatuslineLines({
 			.map(([, text]) => sanitizeStatusText(text));
 		const statusLine = sortedStatuses.join(" ");
 		lines.push(truncateToWidth(statusLine, width, theme.fg("dim", "...")));
-	}
-
-	if (extensionStatuses.has("timeline-timestamps")) {
-		lines.push(...renderTimelineTimestampItems(ctx, theme, width));
 	}
 
 	return lines;

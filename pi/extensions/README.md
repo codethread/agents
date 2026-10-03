@@ -25,10 +25,9 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 
 ## UI
 
-| Extension                                                   | Summary                                          |
-| ----------------------------------------------------------- | ------------------------------------------------ |
-| [`statusline`](./ui/statusline/README.md)                   | Persistent status bar — transparent to the user. |
-| [`timeline-timestamps`](./ui/timeline-timestamps/README.md) | Show recent tool-call timestamps in the footer.  |
+| Extension                                 | Summary                                          |
+| ----------------------------------------- | ------------------------------------------------ |
+| [`statusline`](./ui/statusline/README.md) | Persistent status bar — transparent to the user. |
 
 ## CLI
 

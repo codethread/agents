@@ -37,7 +37,7 @@ The package includes:
 - a package-owned, tool-aware system prompt with global/project `agent.njk` rules;
 - project structure and dialogue-capture context;
 - built-in tool replacements and the `subagent` orchestration tool;
-- prompt history, status, timeline, and other optional UI extensions;
+- prompt history, status, and other optional UI extensions;
 - provider and project-rule helpers.
 
 Agent-local MCP servers require Pi 0.99+ with its built-in `mcp` and `codemode` extensions enabled. They use native registration and compact codemode access, not `pi-mcp-adapter`. See [the extension index](pi/extensions/README.md) and [subagent documentation](pi/extensions/tools/subagent/README.md) for configuration details.
