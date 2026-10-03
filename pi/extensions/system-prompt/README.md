@@ -13,7 +13,7 @@ This directory is intentionally flat:
 
 The extension replaces Pi's generated prompt during `before_agent_start` using structured `systemPromptOptions` for the renderer persona, tool metadata, skills, context files, append text, date, and cwd. It also loads `CLAUDE.local.md` from the cwd and each ancestor, ordered from the filesystem root toward the cwd, and appends those files after Pi's discovered `AGENTS.md`/`CLAUDE.md` context files.
 
-At startup this extension calls the [Harnesses package](https://github.com/codethread/millhouse.spool/tree/main/spools/harnesses)'s native identity resolver. This extension renders its canonical instruction once as `<system-reminder type="millstrand-identity">` and publishes the friendly name with Pi's `ui.setStatus`. The statusline reads that status directly; emote has no identity-specific wiring.
+At startup this extension calls the [Harnesses package](https://github.com/codethread/millhouse.spool/tree/main/spools/harnesses)'s native identity resolver. This extension renders its canonical instruction once as `<system-reminder type="millstrand-identity">` and publishes the friendly name with Pi's `ui.setStatus`. The statusline reads that status directly.
 
 Identity registration, workspace discovery, and child environment scoping belong to Harnesses. This extension owns the optional-identity policy: failed lookup must not prevent using Pi. This repo does not fetch, render, or acknowledge managed-guidance bundles. Task and policy appends use Pi's ordinary prompt options.
 
