@@ -1,7 +1,100 @@
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { formatSessionLabel, isLongCacheRetentionEnabled, renderStatuslineItems } from "./index.js";
+import statuslineExtension, {
+	formatSessionLabel,
+	isLongCacheRetentionEnabled,
+	renderStatuslineItems,
+} from "./index.js";
 
 const ORIGINAL_CACHE_RETENTION = process.env.PI_CACHE_RETENTION;
+
+describe("statusline extension", () => {
+	it.each([false, true])("renders its own responsive footer (debug=%s)", (debug) => {
+		const handlers = new Map<string, (event: any, ctx: any) => void>();
+		const pi = {
+			on: (event: string, handler: (event: any, ctx: any) => void) => handlers.set(event, handler),
+			registerFlag: vi.fn(),
+			getFlag: () => debug,
+			getThinkingLevel: () => "off",
+		} as any;
+		statuslineExtension(pi);
+
+		const ctx = {
+			mode: "tui",
+			cwd: "/repo",
+			model: { id: "gpt-test", reasoning: false, contextWindow: 10000 },
+			modelRegistry: { isUsingOAuth: () => false },
+			getContextUsage: () => ({ tokens: 2500, percent: 25, contextWindow: 10000 }),
+			sessionManager: {
+				getSessionName: () => "work",
+				getSessionId: () => "abc",
+				getBranch: () => [],
+			},
+			ui: { setFooter: vi.fn() },
+		} as any;
+		handlers.get("session_start")!({ reason: "startup" }, ctx);
+		const requestRender = vi.fn();
+		const unsubscribe = vi.fn();
+		const statuses = new Map([
+			["millstrand-identity", "amber-kind-lynx"],
+			["worker", `\x1b[32m${"忙".repeat(100)}\x1b[0m`],
+		]);
+		const footerData = {
+			getGitBranch: () => "main",
+			getExtensionStatuses: () => statuses,
+			getAvailableProviderCount: () => 1,
+			onBranchChange: vi.fn<(callback: () => void) => () => void>(() => unsubscribe),
+		};
+		const theme = { fg: (_color: string, text: string) => text };
+		const footer = ctx.ui.setFooter.mock.calls[0][0]({ requestRender }, theme, footerData);
+
+		for (const width of [120, 80, 20]) {
+			const lines = footer.render(width);
+			expect(lines.length).toBeGreaterThan(0);
+			expect(lines.every((line: string) => visibleWidth(line) <= width)).toBe(true);
+			if (width >= 80) {
+				expect(lines.join("\n")).toContain("/repo (main)");
+				expect(lines.join("\n")).toContain("amber-kind-lynx");
+				expect(lines.join("\n")).toContain("gpt-test");
+				expect(lines.join("\n")).toContain("2.5k/10k $0.000");
+				expect(lines.join("\n")).toContain("work (abc)");
+			}
+			expect(lines).toHaveLength((width >= 100 ? 3 : 5) + Number(debug));
+			if (debug && width >= 80) {
+				expect(lines.at(-1)).toBe(
+					`statusline ${width >= 100 ? "wide" : "thin"} width=${width} rows=${lines.length - 1}`,
+				);
+			}
+		}
+
+		statuses.set("worker", "ready");
+		expect(footer.render(80)).toContain("ready");
+		footerData.onBranchChange.mock.calls[0][0]();
+		expect(requestRender).toHaveBeenCalledOnce();
+		footer.dispose();
+		expect(unsubscribe).toHaveBeenCalledOnce();
+
+		const nextCtx = { ...ctx, cwd: "/other-repo", ui: { setFooter: vi.fn() } };
+		handlers.get("session_start")!({ reason: "new" }, nextCtx);
+		const nextFooter = nextCtx.ui.setFooter.mock.calls[0][0]({ requestRender }, theme, footerData);
+		expect(nextFooter.render(80)[0]).toBe("/other-repo (main)");
+		expect(pi.registerFlag).toHaveBeenCalledWith(
+			"debug-statusline",
+			expect.objectContaining({ type: "boolean", default: false }),
+		);
+	});
+
+	it.each(["print", "json", "rpc"])("does not install a terminal footer in %s mode", (mode) => {
+		const handlers = new Map<string, (event: any, ctx: any) => void>();
+		statuslineExtension({
+			on: (event: string, handler: (event: any, ctx: any) => void) => handlers.set(event, handler),
+			registerFlag: vi.fn(),
+		} as any);
+		const setFooter = vi.fn();
+		handlers.get("session_start")!({}, { mode, ui: { setFooter } });
+		expect(setFooter).not.toHaveBeenCalled();
+	});
+});
 
 describe("formatSessionLabel", () => {
 	it("shows the session id next to the name", () => {

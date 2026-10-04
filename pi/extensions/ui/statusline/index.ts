@@ -320,19 +320,27 @@ export function formatSessionLabel(
 }
 
 export default function (pi: ExtensionAPI) {
-	const installFooter = (ctx: ExtensionContext) => {
-		ctx.ui.setFooter((_tui, _theme, _footerData) => ({
+	pi.registerFlag("debug-statusline", {
+		description: "Show statusline layout diagnostics in the footer",
+		type: "boolean",
+		default: false,
+	});
+
+	pi.on("session_start", (_event, ctx) => {
+		if (ctx.mode !== "tui") return;
+		ctx.ui.setFooter((tui, theme, footerData) => ({
+			dispose: footerData.onBranchChange(() => tui.requestRender()),
 			invalidate() {},
-			render(): string[] {
-				return [];
+			render(width: number): string[] {
+				return renderStatuslineItems({
+					ctx,
+					pi,
+					footerData,
+					theme,
+					width,
+					debug: pi.getFlag("debug-statusline") === true,
+				}).map((line) => truncateToWidth(line, width, theme.fg("dim", "...")));
 			},
 		}));
-	};
-
-	pi.on("session_start", (_event, ctx) => installFooter(ctx));
-	(
-		pi as ExtensionAPI & {
-			on(event: "session_switch", handler: (_event: unknown, ctx: ExtensionContext) => void): void;
-		}
-	).on("session_switch", (_event, ctx) => installFooter(ctx));
+	});
 }

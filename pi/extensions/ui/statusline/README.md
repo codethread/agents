@@ -2,7 +2,7 @@
 
 > Persistent status bar — transparent to the user.
 
-Renders a responsive footer at the bottom of the TUI.
+Renders a responsive footer at the bottom of the TUI, independently of any avatar or emote widget. The footer is installed at startup and on session changes, and refreshes when the git branch changes. Non-interactive modes do not install it.
 
 At widths of 100 columns or more, core details use two balanced rows:
 
@@ -20,7 +20,7 @@ model • high (provider sub L)
 14k/128k [14:32] $0.000                         session-id
 ```
 
-The stats row shows current/max context tokens, the latest cache-hit timestamp when available, and cumulative session cost. Context usage is warning-colored above 70% and error-colored above 90%.
+The stats row shows current/max context tokens, the latest cache-hit timestamp when available, and cumulative session cost. Context usage is warning-colored above 70% and error-colored above 90%. Other extension statuses appear on separate rows; all rows are truncated to the terminal width.
 
 Inside the provider parentheses, `sub` indicates subscription authentication and `L` indicates `PI_CACHE_RETENTION=long`.
 
