@@ -1,12 +1,36 @@
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import statuslineExtension, {
+	type StatuslineItemRenderDeps,
 	formatSessionLabel,
 	isLongCacheRetentionEnabled,
 	renderStatuslineItems,
 } from "./index.js";
 
 const ORIGINAL_CACHE_RETENTION = process.env.PI_CACHE_RETENTION;
+
+function renderDeps(): StatuslineItemRenderDeps {
+	return {
+		ctx: {
+			cwd: "/repo",
+			model: { id: "gpt-test", reasoning: false, contextWindow: 10000 },
+			modelRegistry: { isUsingOAuth: () => false },
+			getContextUsage: () => ({ tokens: 2500, percent: 25, contextWindow: 10000 }),
+			sessionManager: {
+				getSessionName: () => "work",
+				getSessionId: () => "abc",
+				getBranch: () => [],
+			},
+		} as any,
+		pi: { getThinkingLevel: () => "off" } as any,
+		footerData: {
+			getGitBranch: () => null,
+			getExtensionStatuses: () => new Map(),
+			getAvailableProviderCount: () => 1,
+		},
+		theme: { fg: (_color, text) => text },
+	};
+}
 
 describe("statusline extension", () => {
 	it.each([false, true])("renders its own responsive footer (debug=%s)", (debug) => {
@@ -130,7 +154,7 @@ describe("renderStatuslineItems", () => {
 		expect(isLongCacheRetentionEnabled({})).toBe(false);
 	});
 
-	it("returns atomic status items for flex layout consumers", () => {
+	it("renders responsive rows with identity, provider markers and extension statuses", () => {
 		const footerData = {
 			getGitBranch: () => "main",
 			getExtensionStatuses: () =>
@@ -195,6 +219,56 @@ describe("renderStatuslineItems", () => {
 				process.env.PI_CACHE_RETENTION = previous;
 			}
 		}
+	});
+
+	it.each([
+		{ width: 99, cwd: "/repo", rowCount: 3 },
+		{ width: 100, cwd: "/repo", rowCount: 2 },
+		{ width: 100, cwd: `${"忙".repeat(45)}/`, rowCount: 2 },
+		{ width: 100, cwd: `${"忙".repeat(45)}/x`, rowCount: 3 },
+	])("uses $rowCount rows at width $width for $cwd", ({ width, cwd, rowCount }) => {
+		const deps = renderDeps();
+		deps.ctx.cwd = cwd;
+		deps.theme.fg = (_color, text) => `\x1b[32m${text}\x1b[0m`;
+		const rows = renderStatuslineItems({ ...deps, width });
+		expect(rows).toHaveLength(rowCount);
+		expect(rows.every((row) => visibleWidth(row) <= width)).toBe(true);
+	});
+
+	it.each([
+		[25, "2.5k/10k $0.000"],
+		[26, "2.5k/10k $0.000 work (abc)"],
+		[27, "2.5k/10k $0.000  work (abc)"],
+	])("includes the session only when it fits at width %i", (width, expected) => {
+		const rows = renderStatuslineItems({ ...renderDeps(), width });
+		expect(rows.at(-1)).toBe(expected);
+	});
+
+	it.each([
+		[70, "dim"],
+		[71, "warning"],
+		[90, "warning"],
+		[91, "error"],
+	])("colors %i percent context usage as %s", (percent, color) => {
+		const deps = renderDeps();
+		deps.ctx.getContextUsage = () => ({ tokens: 2500, percent, contextWindow: 10000 });
+		deps.theme.fg = (name, text) => `<${name}>${text}</${name}>`;
+		expect(renderStatuslineItems({ ...deps, width: 80 }).at(-1)).toContain(
+			`<${color}>2.5k/10k</${color}>`,
+		);
+	});
+
+	it("keeps override in the cost row and sorts and sanitizes other statuses", () => {
+		const deps = renderDeps();
+		deps.footerData.getExtensionStatuses = () =>
+			new Map([
+				["z-worker", " busy\n now "],
+				["provider-override", "hidden"],
+				["a-worker", "ready\tsoon"],
+			]);
+		const rows = renderStatuslineItems({ ...deps, width: 80 });
+		expect(rows[2]).toContain("$0.000 (override)");
+		expect(rows.slice(3)).toEqual(["ready soon", "busy now"]);
 	});
 
 	it("shows only the latest cache-hit timestamp", () => {

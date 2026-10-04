@@ -1,5 +1,9 @@
-import type { AssistantMessage } from "@earendil-works/pi-ai";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionAPI,
+	ExtensionContext,
+	ReadonlyFooterDataProvider,
+	Theme,
+} from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { formatCost, formatModelDisplay, formatTokens } from "./usage-format.js";
 
@@ -16,24 +20,14 @@ function shortenHome(path: string): string {
 	return path;
 }
 
-export interface FooterRenderDeps {
+export interface StatuslineItemRenderDeps {
 	ctx: ExtensionContext;
 	pi: ExtensionAPI;
-	footerData: {
-		getGitBranch(): string | null;
-		getExtensionStatuses(): ReadonlyMap<string, string>;
-		getAvailableProviderCount(): number;
-	};
-	theme: {
-		fg(color: string, text: string): string;
-	};
-	width: number;
-}
-
-export type StatuslineItemRenderDeps = Omit<FooterRenderDeps, "width"> & {
+	footerData: Omit<ReadonlyFooterDataProvider, "onBranchChange">;
+	theme: Pick<Theme, "fg">;
 	width?: number;
 	debug?: boolean;
-};
+}
 
 export function isLongCacheRetentionEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
 	return env.PI_CACHE_RETENTION === "long";
@@ -45,22 +39,6 @@ function formatCacheTime(timestamp: string | number | Date): string {
 		minute: "2-digit",
 		hour12: false,
 	});
-}
-
-function getCacheStatusDisplay(
-	entries: ReturnType<ExtensionContext["sessionManager"]["getBranch"]>,
-): string | null {
-	for (let index = entries.length - 1; index >= 0; index--) {
-		const entry = entries[index];
-		if (entry.type !== "message" || entry.message.role !== "assistant") continue;
-		const assistant = entry.message as AssistantMessage;
-		if (assistant.usage.cacheRead > 0) return `[${formatCacheTime(entry.timestamp)}]`;
-	}
-	return null;
-}
-
-function formatCostLine(costDisplay: string, cacheStatusDisplay: string | null): string {
-	return [cacheStatusDisplay, costDisplay].filter(Boolean).join(" ");
 }
 
 function formatStatuslineContext(contextTokens: number | null, contextWindow: number): string {
@@ -86,12 +64,11 @@ function renderBalancedRow(items: string[], width: number, ellipsis: string): st
 
 	const availableGapWidth = width - totalItemWidth;
 	const baseGap = Math.floor(availableGapWidth / gapCount);
-	let remainder = availableGapWidth - baseGap * gapCount;
+	const remainder = availableGapWidth % gapCount;
 	return items
 		.map((item, index) => {
 			if (index === items.length - 1) return item;
-			const gapWidth = baseGap + (remainder > 0 ? 1 : 0);
-			remainder--;
+			const gapWidth = baseGap + (index < remainder ? 1 : 0);
 			return `${item}${" ".repeat(gapWidth)}`;
 		})
 		.join("");
@@ -112,19 +89,15 @@ export function renderStatuslineItems({
 
 	const sessionLabel = formatSessionLabel(
 		ctx.sessionManager.getSessionName(),
-		typeof (ctx.sessionManager as { getSessionId?: () => string | undefined }).getSessionId ===
-			"function"
-			? (ctx.sessionManager as { getSessionId: () => string | undefined }).getSessionId()
-			: undefined,
+		ctx.sessionManager.getSessionId(),
 	);
 
-	const branchEntries = ctx.sessionManager.getBranch();
 	let totalCost = 0;
-	for (const entry of branchEntries) {
-		if (entry.type === "message" && entry.message.role === "assistant") {
-			const assistant = entry.message as AssistantMessage;
-			totalCost += assistant.usage.cost.total;
-		}
+	let cacheTimestamp: string | undefined;
+	for (const entry of ctx.sessionManager.getBranch()) {
+		if (entry.type !== "message" || entry.message.role !== "assistant") continue;
+		totalCost += entry.message.usage.cost.total;
+		if (entry.message.usage.cacheRead > 0) cacheTimestamp = entry.timestamp;
 	}
 
 	const contextUsage = ctx.getContextUsage();
@@ -135,15 +108,11 @@ export function renderStatuslineItems({
 
 	const contextDisplay = formatStatuslineContext(contextTokens, contextWindow);
 	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
-	const cacheStatusDisplay = getCacheStatusDisplay(branchEntries);
-	const costDisplay = `${formatCostLine(formatCost(totalCost, false, 3), cacheStatusDisplay)}${overrideDisplay}`;
-
-	let styledContextDisplay = theme.fg("dim", contextDisplay);
-	if (contextPercentValue > 90) {
-		styledContextDisplay = theme.fg("error", contextDisplay);
-	} else if (contextPercentValue > 70) {
-		styledContextDisplay = theme.fg("warning", contextDisplay);
-	}
+	const cacheDisplay = cacheTimestamp === undefined ? "" : `[${formatCacheTime(cacheTimestamp)}] `;
+	const costDisplay = `${cacheDisplay}${formatCost(totalCost)}${overrideDisplay}`;
+	const contextColor =
+		contextPercentValue > 90 ? "error" : contextPercentValue > 70 ? "warning" : "dim";
+	const styledContextDisplay = theme.fg(contextColor, contextDisplay);
 
 	const providerMarker = formatProviderMarker(usingSubscription);
 	const modelDisplay = formatModelDisplay({
@@ -166,36 +135,20 @@ export function renderStatuslineItems({
 	const minimumTopWidth =
 		topItems.reduce((sum, item) => sum + visibleWidth(item), 0) + topItems.length - 1;
 	const useWideLayout = width >= WIDE_LAYOUT_MIN_WIDTH && minimumTopWidth <= width;
-	let items: string[];
-	if (useWideLayout) {
-		const bottomItems = [`${styledContextDisplay} ${costItem}`];
-		const sessionItem = sessionLabel && theme.fg("dim", sessionLabel);
-		if (sessionItem && visibleWidth(bottomItems[0]) + 1 + visibleWidth(sessionItem) <= width) {
-			bottomItems.push(sessionItem);
-		}
-		items = [
-			renderBalancedRow(topItems, width, ellipsis),
-			renderBalancedRow(bottomItems, width, ellipsis),
-		];
-	} else {
-		const bottomItems = [`${styledContextDisplay} ${costItem}`];
-		const sessionItem = sessionLabel && theme.fg("dim", sessionLabel);
-		if (sessionItem && visibleWidth(bottomItems[0]) + 1 + visibleWidth(sessionItem) <= width) {
-			bottomItems.push(sessionItem);
-		}
-		items = [
-			truncateToWidth(pathItem, width, ellipsis),
-			...(agentItem ? [truncateToWidth(agentItem, width, ellipsis)] : []),
-			truncateToWidth(modelItem, width, ellipsis),
-			renderBalancedRow(bottomItems, width, ellipsis),
-		];
-	}
+	const items = useWideLayout
+		? [renderBalancedRow(topItems, width, ellipsis)]
+		: topItems.map((item) => truncateToWidth(item, width, ellipsis));
 
-	const visibleExtensionStatuses = Array.from(extensionStatuses.entries()).filter(
-		([key]) => key !== "provider-override" && key !== "millstrand-identity",
-	);
+	const bottomItems = [`${styledContextDisplay} ${costItem}`];
+	const sessionItem = sessionLabel && theme.fg("dim", sessionLabel);
+	if (sessionItem && visibleWidth(bottomItems[0]) + 1 + visibleWidth(sessionItem) <= width) {
+		bottomItems.push(sessionItem);
+	}
+	items.push(renderBalancedRow(bottomItems, width, ellipsis));
+
 	items.push(
-		...visibleExtensionStatuses
+		...Array.from(extensionStatuses)
+			.filter(([key]) => key !== "provider-override" && key !== "millstrand-identity")
 			.sort(([a], [b]) => a.localeCompare(b))
 			.map(([, text]) => sanitizeStatusText(text)),
 	);
@@ -210,101 +163,6 @@ export function renderStatuslineItems({
 	}
 
 	return items;
-}
-
-export function renderStatuslineLines({
-	ctx,
-	pi,
-	footerData,
-	theme,
-	width,
-}: FooterRenderDeps): string[] {
-	const extensionStatuses = footerData.getExtensionStatuses();
-	let pwd = shortenHome(ctx.cwd);
-	const branch = footerData.getGitBranch();
-	if (branch) pwd = `${pwd} (${branch})`;
-
-	const sessionLabel = formatSessionLabel(
-		ctx.sessionManager.getSessionName(),
-		typeof (ctx.sessionManager as { getSessionId?: () => string | undefined }).getSessionId ===
-			"function"
-			? (ctx.sessionManager as { getSessionId: () => string | undefined }).getSessionId()
-			: undefined,
-	);
-
-	const branchEntries = ctx.sessionManager.getBranch();
-	let totalCost = 0;
-	for (const entry of branchEntries) {
-		if (entry.type === "message" && entry.message.role === "assistant") {
-			const assistant = entry.message as AssistantMessage;
-			totalCost += assistant.usage.cost.total;
-		}
-	}
-
-	const contextUsage = ctx.getContextUsage();
-	const contextWindow = contextUsage?.contextWindow ?? ctx.model?.contextWindow ?? 0;
-	const contextTokens = contextUsage?.tokens ?? null;
-	const contextPercentValue = contextUsage?.percent ?? 0;
-	const usingSubscription = ctx.model ? ctx.modelRegistry.isUsingOAuth(ctx.model) : false;
-
-	const contextDisplay = formatStatuslineContext(contextTokens, contextWindow);
-	const overrideDisplay = extensionStatuses.has("provider-override") ? " (override)" : "";
-	const cacheStatusDisplay = getCacheStatusDisplay(branchEntries);
-	const costDisplay = `${formatCostLine(formatCost(totalCost, false, 3), cacheStatusDisplay)}${overrideDisplay}`;
-
-	let styledContextDisplay = theme.fg("dim", contextDisplay);
-	if (contextPercentValue > 90) {
-		styledContextDisplay = theme.fg("error", contextDisplay);
-	} else if (contextPercentValue > 70) {
-		styledContextDisplay = theme.fg("warning", contextDisplay);
-	}
-
-	const leftParts = [styledContextDisplay, theme.fg("dim", costDisplay)];
-	let leftSide = leftParts.join(" ");
-	let leftSideWidth = visibleWidth(leftSide);
-	if (leftSideWidth > width) {
-		leftSide = truncateToWidth(leftSide, width, theme.fg("dim", "..."));
-		leftSideWidth = visibleWidth(leftSide);
-	}
-
-	const providerMarker = formatProviderMarker(usingSubscription);
-	const modelDisplay = formatModelDisplay({
-		provider: ctx.model?.provider,
-		providerMarker,
-		providerPosition: "after",
-		model: ctx.model?.id,
-		thinkingLevel: pi.getThinkingLevel(),
-		reasoning: ctx.model?.reasoning,
-		includeProvider: footerData.getAvailableProviderCount() > 1 || providerMarker !== undefined,
-	});
-
-	const agentIdentity = sanitizeStatusText(extensionStatuses.get("millstrand-identity") ?? "");
-	const topItems = [
-		theme.fg("dim", pwd),
-		agentIdentity ? theme.fg("accent", agentIdentity) : null,
-		theme.fg("dim", modelDisplay),
-	].filter((item): item is string => Boolean(item));
-	const bottomItems = [
-		leftSide,
-		width >= WIDE_LAYOUT_MIN_WIDTH && sessionLabel ? theme.fg("dim", sessionLabel) : null,
-	].filter((item): item is string => Boolean(item));
-	const lines = [
-		renderBalancedRow(topItems, width, theme.fg("dim", "...")),
-		renderBalancedRow(bottomItems, width, theme.fg("dim", "...")),
-	];
-
-	const visibleExtensionStatuses = Array.from(extensionStatuses.entries()).filter(
-		([key]) => key !== "provider-override" && key !== "millstrand-identity",
-	);
-	if (visibleExtensionStatuses.length > 0) {
-		const sortedStatuses = visibleExtensionStatuses
-			.sort(([a], [b]) => a.localeCompare(b))
-			.map(([, text]) => sanitizeStatusText(text));
-		const statusLine = sortedStatuses.join(" ");
-		lines.push(truncateToWidth(statusLine, width, theme.fg("dim", "...")));
-	}
-
-	return lines;
 }
 
 export function formatSessionLabel(
