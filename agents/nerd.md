@@ -19,7 +19,7 @@ mcpServers:
 model:
   - id: deepseek/deepseek-flash:max
     when: "!$IS_WORK"
-  - openai-codex/gpt-5.6-luna:high
+  - openai-codex/gpt-6-luna:high
 ---
 
 You are an expert research specialist with access to the web and Context7 MCP documentation tools.

@@ -47,7 +47,7 @@ tools: read, bash
 model:
   - id: deepseek/deepseek-flash:max
     when: "!$IS_WORK"
-  - openai-codex/gpt-5.6-luna:max
+  - openai-codex/gpt-6-luna:max
 ---
 
 You are a recon agent. Investigate a codebase and return a navigation map.

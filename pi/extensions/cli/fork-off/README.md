@@ -21,7 +21,7 @@ With no arguments, `/fork-off` opens a fuzzy model selector containing every aut
 Preferred models (shown first):
 
 - `openai-codex/gpt-5.6-tera`
-- `openai-codex/gpt-5.6-luna`
+- `openai-codex/gpt-6-luna`
 - `anthropic/claude-sonnet-4-6`
 - `anthropic/claude-opus-4-8`
 

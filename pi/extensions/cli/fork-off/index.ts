@@ -82,7 +82,7 @@ export async function createPrunedSessionFile(
 
 const MODEL_CHOICES = [
 	"openai-codex/gpt-5.6-tera",
-	"openai-codex/gpt-5.6-luna",
+	"openai-codex/gpt-6-luna",
 	"anthropic/claude-sonnet-4-6",
 	"anthropic/claude-opus-4-8",
 ] as const;

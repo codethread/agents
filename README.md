@@ -64,7 +64,7 @@ Pies keeps the Pi SDK and extension graph in one persistent Node process while e
 ```bash
 pnpm link:pi
 
-pi --model openai/gpt-5.6-luna --print "Summarise this repository"
+pi --model openai/gpt-6-luna --print "Summarise this repository"
 pi --agent worker --print "Run the checks and fix failures"
 pies daemon status
 ```

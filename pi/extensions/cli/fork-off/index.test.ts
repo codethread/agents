@@ -15,7 +15,7 @@ describe("fork-off model ordering", () => {
 			{ provider: "anthropic", id: "claude-sonnet-4-6" },
 			{ provider: "openai-codex", id: "gpt-5.4" },
 			{ provider: "other", id: "other-model" },
-			{ provider: "openai-codex", id: "gpt-5.6-luna" },
+			{ provider: "openai-codex", id: "gpt-6-luna" },
 			{ provider: "openai-codex", id: "gpt-5.6-tera" },
 		] as const;
 
@@ -27,7 +27,7 @@ describe("fork-off model ordering", () => {
 		expect(orderedModels.map((model) => `${model.provider}/${model.id}`)).toEqual([
 			"openai-codex/gpt-5.4",
 			"openai-codex/gpt-5.6-tera",
-			"openai-codex/gpt-5.6-luna",
+			"openai-codex/gpt-6-luna",
 			"anthropic/claude-sonnet-4-6",
 			"custom/custom-model",
 			"other/other-model",

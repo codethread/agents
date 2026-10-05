@@ -68,7 +68,7 @@ The real executable is discovered with `which` and cached at `${XDG_CACHE_HOME:-
 
 ```bash
 # Routed through the daemon by the pi shim.
-pi --model=openai/gpt-5.6-luna --print "Reply exactly: pong"
+pi --model=openai/gpt-6-luna --print "Reply exactly: pong"
 
 # Real interactive Pi with the caller's TTY.
 pi
@@ -191,7 +191,7 @@ For agents that inspected this codebase, produced a 250–400 word summary, and 
 |                25 |            4666.4 MiB |               722.6 MiB |     84.5% |
 |                30 |            5606.6 MiB |               813.2 MiB |     85.5% |
 
-The fitted marginal footprint was about 184.7 MiB per separate Pi process versus 18.7 MiB per Pies agent. These measurements include the thin clients and tool subprocesses in the complete Pies total and were collected on macOS with Pi 0.84.2, SDK 0.84.4, and `openai/gpt-5.6-luna`.
+The fitted marginal footprint was about 184.7 MiB per separate Pi process versus 18.7 MiB per Pies agent. These measurements include the thin clients and tool subprocesses in the complete Pies total and were collected on macOS with Pi 0.84.2, SDK 0.84.4, and `openai/gpt-6-luna`.
 
 ## Current limitations
 
