@@ -1037,7 +1037,8 @@ export function validateAgentModelPolicy(
 				validCandidateCount++;
 			}
 		} catch (error) {
-			invalidReasons.push(error instanceof Error ? error.message : String(error));
+			const reason = error instanceof Error ? error.message : String(error);
+			return [`Invalid model policy for agent "${agent.name}" at ${agent.filePath}: ${reason}`];
 		}
 	}
 
@@ -1061,13 +1062,9 @@ export function getValidAgentModelCandidates(
 	if (!agent.modelCandidates) return undefined;
 	const validCandidates: AgentModelCandidate[] = [];
 	for (const candidate of agent.modelCandidates) {
-		try {
-			const { model } = resolveAgentModelCandidate(candidate.id, modelRegistry);
-			if (!modelRegistry.hasConfiguredAuth || modelRegistry.hasConfiguredAuth(model)) {
-				validCandidates.push(candidate);
-			}
-		} catch {
-			// Startup/runtime validation reports traceable policy errors; selection only needs valid candidates.
+		const { model } = resolveAgentModelCandidate(candidate.id, modelRegistry);
+		if (!modelRegistry.hasConfiguredAuth || modelRegistry.hasConfiguredAuth(model)) {
+			validCandidates.push(candidate);
 		}
 	}
 	return validCandidates;

@@ -181,7 +181,7 @@ Other `when` strings are cwd path globs with home expansion, matched using Node'
 
 Accepted entries are normalized into `modelCandidates` in declaration order, with duplicate model IDs removed after parsing while preserving the first occurrence. The first candidate is also exposed as `model` so existing runtime-setting helpers keep their single-string behavior until later slices consume the full chain.
 
-Malformed declared policy does not abort the whole discovery snapshot. Instead, the affected agent carries a `modelPolicyError` with a clear reason. Invalid cases include empty model lists, unsupported env expressions, unknown object keys, missing or blank `id`, and policies that leave no candidates after gating.
+Malformed declared policy does not abort the whole discovery snapshot. Instead, the affected agent carries a `modelPolicyError` with a clear reason. Invalid cases include empty model lists, unsupported env expressions, unknown object keys, missing or blank `id`, and policies that leave no candidates after gating. Registry validation rejects every unknown or ambiguous candidate ID remaining after gating, even when another candidate is valid; invalid IDs never fall through to a fallback.
 
 Discovery does not rewrite aliases such as `sonnet` or `haiku`; model strings are passed through for Pi model resolution later.
 

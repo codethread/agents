@@ -18,7 +18,7 @@ Subagent model selection should be Pi-native, explicit, and environment-aware. A
 - **SPEC-004.B2:** Let `model` be omitted so the agent inherits the parent/default Pi model.
 - **SPEC-004.B3:** Let `model` be a string, an ordered list of strings, an object, or an ordered list of objects.
 - **SPEC-004.B4:** Support simple environment gates and cwd path globs on model candidates.
-- **SPEC-004.B5:** Fail loudly when declared model policy is malformed or produces no valid candidates.
+- **SPEC-004.B5:** Fail loudly when declared model policy is malformed, contains an invalid ID after gating, or produces no authenticated candidates.
 - **SPEC-004.B6:** Validate declared candidates against Pi's normal model registry/resolution semantics.
 - **SPEC-004.B7:** Let delegated subagent execution retry transient provider failures and advance through ordered candidates transparently to the calling agent.
 - **SPEC-004.B8:** Preserve human/debug/session metadata about attempted candidates without exposing operational churn in the agent-visible response.
@@ -53,8 +53,8 @@ Subagent model selection should be Pi-native, explicit, and environment-aware. A
 - **SPEC-004.D6 Decision:** Environment truthiness treats missing, empty, `false`, `0`, `no`, and `off` as false.
   - **Rationale:** This keeps `when: "!$IS_WORK"` ergonomic in shells such as Nushell where env vars are commonly set to a string value like `false` instead of being unset.
 
-- **SPEC-004.D7 Decision:** Candidate strings use Pi's normal model matching semantics.
-  - **Rationale:** The subagent extension should not maintain a parallel model naming layer. If Pi accepts a model string, the subagent config can use it; if Pi cannot resolve it, config validation should report that clearly.
+- **SPEC-004.D7 Decision:** Every candidate ID remaining after gating must resolve unambiguously in Pi's active model registry. Any invalid ID is a configuration error, even when another candidate is valid.
+  - **Rationale:** A typo must fail visibly rather than silently switch providers through a fallback candidate.
 
 - **SPEC-004.D8 Decision:** Remove custom model alias rewrites from the subagent config layer.
   - **Rationale:** Alias policy belongs in Pi's model system, not in this extension. Extension-local rewrites make behavior harder to predict and debug.
@@ -125,8 +125,8 @@ Discovery normalizes all present shapes into an ordered internal candidate list.
 4. Evaluate each candidate's optional `when` against `process.env` or the agent's cwd.
 5. Drop candidates whose `when` evaluates false.
 6. Deduplicate remaining candidates by resolved candidate identity, preserving first occurrence.
-7. Validate remaining candidates against Pi model resolution/availability where the extension has registry access.
-8. If `model` was present and no valid candidates remain, startup/direct-mode validation reports a traceable model-policy error with agent name, file path, and reason.
+7. Validate every remaining candidate ID against Pi's active model registry where the extension has registry access. Unknown or ambiguous IDs fail; they are never discarded in favour of another candidate.
+8. If any ID is invalid, or `model` was present and no authenticated candidates remain, startup/direct-mode validation reports a traceable model-policy error with agent name, file path, and reason.
 9. Store normalized candidates or the per-agent model-policy error on `AgentConfig` for startup validation, runtime target-scoped validation, and debug surfaces.
 
 ### SPEC-004.P9 Delegated runtime flow

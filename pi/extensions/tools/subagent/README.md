@@ -93,7 +93,7 @@ model:
   - deepseek/deepseek-flash:max
 ```
 
-Invalid declared model policy fails startup instead of silently inheriting a model. Declared candidates are checked against Pi's active model registry; if no candidate is valid for the current runtime, startup fails with the agent name and source path.
+Invalid declared model policy fails startup instead of silently inheriting a model. After `when` filtering, every candidate ID must resolve unambiguously in Pi's active model registry. An unknown or ambiguous ID fails with the agent name and source path even if another candidate is valid; it is never skipped to a fallback. Provider-qualified IDs must be exact, for example `anthropic/claude-haiku-4-5`, not `anthropic/haiku`. Candidates without configured auth may be skipped; if none have auth, startup fails.
 
 ---
 

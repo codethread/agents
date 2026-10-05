@@ -179,11 +179,11 @@ describe("runtime model policy validation", () => {
 		expect(result?.stderr).toContain("/tmp/broken.md");
 	});
 
-	it("represents invalid swarm members as member-level failures", () => {
+	it("rejects an invalid swarm member ID even with a valid fallback", () => {
 		const invalidMember = {
 			...makeAgent("invalid-member", "project"),
 			model: "missing/model:high",
-			modelCandidates: [{ id: "missing/model:high" }],
+			modelCandidates: [{ id: "missing/model:high" }, { id: "openai/gpt-5.4-mini:low" }],
 		};
 
 		const result = createRuntimeModelPolicyFailureResult(
@@ -194,7 +194,7 @@ describe("runtime model policy validation", () => {
 
 		expect(result).toMatchObject({ agent: "invalid-member", exitCode: 1 });
 		expect(result?.stderr).toContain("Subagent invalid-member failed");
-		expect(result?.stderr).toContain("no valid model candidates");
+		expect(result?.stderr).toContain('candidate "missing/model" is not available');
 	});
 
 	it("keeps mixed-validity swarm results as partial success", () => {

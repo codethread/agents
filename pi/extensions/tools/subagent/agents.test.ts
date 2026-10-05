@@ -554,6 +554,28 @@ describe("model policy validation", () => {
 		expect(errors[2]).toContain("has no configured API key/auth");
 	});
 
+	it.each(["first", "last"])(
+		"rejects an invalid %s candidate even when another candidate is valid",
+		(position) => {
+			const candidates = [{ id: "anthropic/haiku" }, { id: "openai/gpt-5.4-mini:low" }];
+			if (position === "last") candidates.reverse();
+			const agent = makeAgentConfig({
+				name: "scout",
+				model: candidates[0].id,
+				modelCandidates: candidates,
+			});
+
+			const errors = validateAgentModelPolicies([agent], modelRegistry);
+			expect(errors).toHaveLength(1);
+			expect(errors[0]).toContain('agent "scout"');
+			expect(errors[0]).toContain("/tmp/scout.md");
+			expect(errors[0]).toContain('candidate "anthropic/haiku" is not available');
+			expect(() =>
+				getInheritedAgentRuntimeSettings(agent, parseAgentFlagCliOverrides([]), modelRegistry),
+			).toThrow('candidate "anthropic/haiku" is not available');
+		},
+	);
+
 	it("resolves unique bare model ids through the same registry path used by direct mode", () => {
 		expect(resolveAgentModelCandidate("gpt-5.4-mini:low", modelRegistry)).toMatchObject({
 			model: { provider: "openai", id: "gpt-5.4-mini" },
@@ -561,12 +583,12 @@ describe("model policy validation", () => {
 		});
 	});
 
-	it("uses first valid declared candidate and candidate-local thinking unless CLI overrides", () => {
+	it("uses first authenticated candidate and candidate-local thinking unless CLI overrides", () => {
 		const agent = makeAgentConfig({
 			name: "selector",
-			model: "missing/model:high",
+			model: "openai/no-auth:high",
 			modelCandidates: [
-				{ id: "missing/model:high" },
+				{ id: "openai/no-auth:high" },
 				{ id: "openai/gpt-5.4-mini:low" },
 				{ id: "openai/gpt-5.4:high" },
 			],

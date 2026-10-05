@@ -368,38 +368,24 @@ describe("runSingleAgent model chain", () => {
 		expect(spawnMock.mock.calls[1]?.[1]).toContain("provider/ok");
 	});
 
-	it("skips candidates known invalid by the active model registry", async () => {
-		spawnMock.mockReset();
-		mockSpawnResult({
-			code: 0,
-			stdoutLines: [
+	it("fails before spawning when the registry rejects a candidate ID", async () => {
+		mockSpawnResult({ code: 0 });
+		await expect(
+			runSingleAgent(
+				[testAgent([{ id: "provider/missing" }, { id: "provider/ok" }])],
+				request,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
 				{
-					type: "message_end",
-					message: { role: "assistant", content: [{ type: "text", text: "ok" }] },
+					find: (provider, model) =>
+						provider === "provider" && model === "ok" ? { provider, id: model } : undefined,
+					hasConfiguredAuth: () => true,
 				},
-			],
-		});
-
-		const result = await runSingleAgent(
-			[testAgent([{ id: "provider/missing" }, { id: "provider/ok" }])],
-			request,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{
-				find: (provider, model) =>
-					provider === "provider" && model === "ok" ? { provider, id: model } : undefined,
-				hasConfiguredAuth: () => true,
-			},
-		);
-
-		expect(result.exitCode).toBe(0);
-		expect(spawnMock).toHaveBeenCalledTimes(1);
-		expect(spawnMock.mock.calls[0]?.[1]).toContain("provider/ok");
-		expect(result.attempts).toEqual([
-			{ attemptedModel: "provider/ok", attempt: 1, success: true, exitCode: 0 },
-		]);
+			),
+		).rejects.toThrow('candidate "provider/missing" is not available');
+		expect(spawnMock).not.toHaveBeenCalled();
 	});
 
 	it("persists model-chain attempts in the subagent manifest", async () => {
