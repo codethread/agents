@@ -3,20 +3,15 @@
 
 def model-completions [] {
 	[
-		"anthropic/claude-haiku-4-5"
-		"anthropic/claude-opus-4-6"
-		"anthropic/claude-sonnet-4-6"
+		"anthropic/claude-sonnet-5-5"
+		"anthropic/claude-opus-5-5"
 
 		"deepseek/deepseek-flash"
 		"deepseek/deepseek-pro"
 
-		"openai/gpt-5.4-nano"
-
-		"openai-codex/gpt-5.4"
-		"openai-codex/gpt-5.4-mini"
 		"openai-codex/gpt-6-luna"
-		"openai-codex/gpt-5.6-terra"
-		"openai-codex/gpt-5.6-sol"
+		"openai-codex/gpt-6-terra"
+		"openai-codex/gpt-6-sol"
 		"openai-codex/gpt-6-astra"
 	]
 }

@@ -140,7 +140,7 @@ Mirrors Pi's `pi/extensions/ui/tmux-window-title` for Claude Code: after the fir
 ${XDG_STATE_HOME:-$HOME/.local/state}/claude-window-title/<session_id>.done
 ```
 
-so later prompts (and resume/reload) no-op. It captures the current tmux window id up front — so switching windows before the async worker returns can't retarget the rename — then detaches `hooks/window-title-apply.sh`, which asks a small child `claude` (`claude-haiku-4-5-20251001`) for a terse 1–4 word label, kebab-cases it, and applies it via `tmux rename-window` (or an OSC title escape to `/dev/tty` when not in tmux). If the child model is unavailable it falls back to the first few words of the prompt.
+so later prompts (and resume/reload) no-op. It captures the current tmux window id up front — so switching windows before the async worker returns can't retarget the rename — then detaches `hooks/window-title-apply.sh`, which asks a small child `claude` (`claude-sonnet-5-5-20251001`) for a terse 1–4 word label, kebab-cases it, and applies it via `tmux rename-window` (or an OSC title escape to `/dev/tty` when not in tmux). If the child model is unavailable it falls back to the first few words of the prompt.
 
 The sentinel is claimed synchronously and the model call is detached, so prompt submission is never delayed. The worker sets `HARNESS_WINDOW_TITLE_CHILD=1` on the child; `window-title.sh` and `capture.sh` both short-circuit on that flag, so the throwaway child session neither recurses nor pollutes the dialogue log.
 

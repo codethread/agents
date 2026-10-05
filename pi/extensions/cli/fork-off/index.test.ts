@@ -36,7 +36,7 @@ describe("fork-off model ordering", () => {
 
 	it("does not duplicate the current model when it is preferred", () => {
 		const availableModels = [
-			{ provider: "anthropic", id: "claude-haiku-4-5" },
+			{ provider: "anthropic", id: "claude-sonnet-5-5" },
 			{ provider: "openai", id: "gpt-5.4-nano" },
 		] as const;
 

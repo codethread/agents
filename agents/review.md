@@ -7,7 +7,10 @@ description: >
 meta: replacement for codex review
 hidden: true
 tools: read, grep, find, ls
-model: openai-codex/gpt-5.6-terra:medium
+model:
+  - id: anthropic/claude-sonnet-5-5:xhigh
+    when: "~/pb/**"
+  - deepseek/deepseek-flash:max
 ---
 
 You are a code review agent.

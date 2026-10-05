@@ -90,7 +90,7 @@ pi --agent review --print "Review the current changes"
 ```
 
 Agent model policies live in their Markdown frontmatter. Explicit `--model`, `--thinking`, and `--tools` flags override inherited agent settings.
-Scout uses DeepSeek V4 Flash with `max` thinking; see the [Luna/Flash benchmark](agents/benchmarks/README.md) for measured speed, usage, and lookup trade-offs.
+Scout uses its configured work model for projects under `~/pb/`, and DeepSeek V4 Flash with `max` thinking elsewhere. See the [Luna/Flash benchmark](agents/benchmarks/README.md) for measured speed, usage, and lookup trade-offs.
 
 ## Install the Codex plugins
 

@@ -45,9 +45,9 @@ meta: >
   - Nano didn't follow the output structure, but worth considering for future if costs go up
 tools: read, bash
 model:
-  - id: deepseek/deepseek-flash:max
-    when: "!$IS_WORK"
-  - openai-codex/gpt-6-luna:max
+  - id: anthropic/claude-sonnet-5-5:low
+    when: "~/pb/**"
+  - deepseek/deepseek-flash:max
 ---
 
 You are a recon agent. Investigate a codebase and return a navigation map.

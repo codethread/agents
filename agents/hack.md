@@ -34,9 +34,9 @@ meta: >
   together so discovery stays high-signal and shell execution stays contained.
 tools: bash, read, edit, write
 model:
-  - id: deepseek/deepseek-flash:max
-    when: "!$IS_WORK"
-  - openai-codex/gpt-5.6-terra:max
+  - id: anthropic/claude-sonnet-5-5:high
+    when: "~/pb/**"
+  - deepseek/deepseek-flash:max
 ---
 
 You are a shell specialist. Solve terminal-heavy tasks in a focused isolated context and return concise, actionable findings.

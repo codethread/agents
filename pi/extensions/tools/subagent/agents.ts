@@ -128,7 +128,7 @@ const DEFAULT_COMPAT_SETTINGS: CompatSettings = {
 			Skill: null,
 		},
 		models: {
-			// haiku: "anthropic/claude-haiku-4-5",
+			// haiku: "anthropic/claude-sonnet-5-5",
 			haiku: "openai-codex/gpt-6-luna:high",
 			sonnet: "openai-codex/gpt-5.6-terra:medium",
 			opus: "openai-codex/gpt-5.6-sol:low",
