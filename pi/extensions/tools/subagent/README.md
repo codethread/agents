@@ -82,7 +82,18 @@ model:
   - openai/gpt-5.4-mini:low
 ```
 
-Supported `when` expressions are `$VAR`, `!$VAR`, `$VAR == "value"`, and `$VAR != 'value'`. Env vars are truthy when present and not one of `false`, `0`, `no`, or `off` (case-insensitive); empty or missing vars are false. Invalid declared model policy fails startup instead of silently inheriting a model. Declared candidates are checked against Pi's active model registry; if no candidate is valid for the current runtime, startup fails with the agent name and source path.
+A `when` string starting with `$` or `!$` is an env expression: `$VAR`, `!$VAR`, `$VAR == "value"`, or `$VAR != 'value'`. Env vars are truthy when present and not one of `false`, `0`, `no`, or `off` (case-insensitive); empty or missing vars are false.
+
+Other `when` strings are path globs matched against the agent's cwd using Node's `path.matchesGlob`, with `~` expanded to the home directory. Delegated runs use the tool call's `cwd`; direct `--agent` runs use the session cwd. For example, prefer Luna for projects under `~/pb/`, otherwise Flash:
+
+```yaml
+model:
+  - id: openai-codex/gpt-6-luna:high
+    when: "~/pb/**"
+  - deepseek/deepseek-flash:max
+```
+
+Invalid declared model policy fails startup instead of silently inheriting a model. Declared candidates are checked against Pi's active model registry; if no candidate is valid for the current runtime, startup fails with the agent name and source path.
 
 ---
 

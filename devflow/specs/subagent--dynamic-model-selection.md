@@ -3,7 +3,7 @@
 **Document ID:** `SPEC-004`
 
 **Status:** Implemented
-**Last Updated:** 2026-05-22
+**Last Updated:** 2026-10-05
 **Configuration identification:** `SPEC-004` prefixes section and point identifiers in this document. Existing human-readable numbering is preserved for migration traceability.
 
 ## SPEC-004.P1 1. Overview
@@ -17,7 +17,7 @@ Subagent model selection should be Pi-native, explicit, and environment-aware. A
 - **SPEC-004.B1:** Keep one public config surface: `model`.
 - **SPEC-004.B2:** Let `model` be omitted so the agent inherits the parent/default Pi model.
 - **SPEC-004.B3:** Let `model` be a string, an ordered list of strings, an object, or an ordered list of objects.
-- **SPEC-004.B4:** Support simple environment gates on model candidates using a safe expression subset.
+- **SPEC-004.B4:** Support simple environment gates and cwd path globs on model candidates.
 - **SPEC-004.B5:** Fail loudly when declared model policy is malformed or produces no valid candidates.
 - **SPEC-004.B6:** Validate declared candidates against Pi's normal model registry/resolution semantics.
 - **SPEC-004.B7:** Let delegated subagent execution retry transient provider failures and advance through ordered candidates transparently to the calling agent.
@@ -47,8 +47,8 @@ Subagent model selection should be Pi-native, explicit, and environment-aware. A
 - **SPEC-004.D4 Decision:** `when` is evaluated by a tiny in-repo parser, not `bash -c` and not a broad npm expression dependency.
   - **Rationale:** Agent markdown can come from project directories. Evaluating it as shell during Pi startup would be code execution. Existing npm expression libraries are either too broad or do not match the desired `$VAR` syntax closely enough.
 
-- **SPEC-004.D5 Decision:** The first `when` grammar supports only `$VAR`, `!$VAR`, `$VAR == "value"`, and `$VAR != "value"`, with single- or double-quoted string literals.
-  - **Rationale:** This is enough for profile/work-machine gates while avoiding precedence and mini-language design questions.
+- **SPEC-004.D5 Decision:** `when` strings starting with `$` or `!$` support `$VAR`, `!$VAR`, `$VAR == "value"`, and `$VAR != "value"`, with single- or double-quoted string literals. Other strings are cwd path globs with home expansion, matched using Node's `path.matchesGlob`.
+  - **Rationale:** Simple env gates and directory routing avoid precedence and mini-language design questions.
 
 - **SPEC-004.D6 Decision:** Environment truthiness treats missing, empty, `false`, `0`, `no`, and `off` as false.
   - **Rationale:** This keeps `when: "!$IS_WORK"` ergonomic in shells such as Nushell where env vars are commonly set to a string value like `false` instead of being unset.
@@ -122,7 +122,7 @@ Discovery normalizes all present shapes into an ordered internal candidate list.
 1. Parse agent markdown frontmatter.
 2. Parse `model` at the config boundary into raw candidate entries.
 3. Validate object keys and required string fields.
-4. Evaluate each candidate's optional `when` expression against `process.env`.
+4. Evaluate each candidate's optional `when` against `process.env` or the agent's cwd.
 5. Drop candidates whose `when` evaluates false.
 6. Deduplicate remaining candidates by resolved candidate identity, preserving first occurrence.
 7. Validate remaining candidates against Pi model resolution/availability where the extension has registry access.
@@ -186,10 +186,10 @@ Do not store full child transcripts in attempt metadata; child sessions already 
 
 Object contract:
 
-| Key    | Required | Meaning                                                    |
-| ------ | -------- | ---------------------------------------------------------- |
-| `id`   | Yes      | Pi model string, optionally with a Pi thinking suffix      |
-| `when` | No       | Safe environment expression controlling candidate validity |
+| Key    | Required | Meaning                                                           |
+| ------ | -------- | ----------------------------------------------------------------- |
+| `id`   | Yes      | Pi model string, optionally with a Pi thinking suffix             |
+| `when` | No       | Environment expression or cwd glob controlling candidate validity |
 
 Unknown object keys fail loudly.
 
@@ -204,7 +204,9 @@ Supported expressions:
 | `$VAR == "value"` | true when raw env value exactly equals value |
 | `$VAR != "value"` | true when raw env value does not equal value |
 
-Single-quoted values are also valid. Env var names must match `[A-Za-z_][A-Za-z0-9_]*`. Truthiness treats missing, empty, `false`, `0`, `no`, and `off` as false; false-like checks are case-insensitive. Surrounding expression whitespace is ignored; equality comparisons use raw env values without trimming. Empty or unsupported expressions fail loudly.
+Single-quoted values are also valid. Strings starting with `$` or `!$` use the env grammar above. Env var names must match `[A-Za-z_][A-Za-z0-9_]*`. Truthiness treats missing, empty, `false`, `0`, `no`, and `off` as false; false-like checks are case-insensitive. Surrounding expression whitespace is ignored; equality comparisons use raw env values without trimming. Empty strings or unsupported env expressions fail loudly.
+
+Other strings are path globs matched against the agent's cwd using Node's `path.matchesGlob`, with `~` expanded to the home directory. `when: "~/pb/**"` includes a candidate for projects under `~/pb/`. Delegation uses the tool call's `cwd`; direct mode uses the session cwd.
 
 ### SPEC-004.P15 Direct `--agent` contract
 

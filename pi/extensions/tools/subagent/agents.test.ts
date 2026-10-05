@@ -892,6 +892,49 @@ Mixed body.
 		expect(byName.get("omitted-model")?.modelCandidates).toBeUndefined();
 	});
 
+	it.each([
+		["pb/project", true],
+		["pb/project/src", true],
+		["pb-other/project", false],
+		["dev/project", false],
+	])("gates models with ~/pb/** against cwd %s", (relativeCwd, matches) => {
+		const root = makeTempDir("subagent-model-policy-glob-");
+		const home = path.join(root, "home");
+		const packageAgentsDir = path.join(root, "package-agents");
+		writeRawAgent(
+			packageAgentsDir,
+			"scout.md",
+			`---
+name: scout
+description: Recon agent
+model:
+  - id: openai-codex/gpt-6-luna:high
+    when: "~/pb/**"
+  - deepseek/deepseek-flash:max
+---
+Scout body.
+`,
+		);
+
+		const discovery = discoverAgents(path.join(home, relativeCwd), {
+			packageAgentsDir,
+			userAgentsDir: path.join(root, "user-agents"),
+			projectAgentsDir: null,
+			packageSwarmsDir: null,
+			settingsPath: null,
+			agentDir: path.join(root, "agent-dir"),
+			env: { HOME: home },
+		});
+		const candidates = [
+			...(matches ? [{ id: "openai-codex/gpt-6-luna:high" }] : []),
+			{ id: "deepseek/deepseek-flash:max" },
+		];
+		expect(findAgentByName(discovery.agents, "scout")).toMatchObject({
+			model: candidates[0].id,
+			modelCandidates: candidates,
+		});
+	});
+
 	it("treats false-like env values as false without trimming comparison values", () => {
 		const root = makeTempDir("subagent-model-policy-env-");
 		const packageAgentsDir = path.join(root, "package-agents");

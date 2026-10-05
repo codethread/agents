@@ -3,7 +3,7 @@
 **Document ID:** `SPEC-003`
 
 **Status:** Implemented
-**Last Updated:** 2026-06-11
+**Last Updated:** 2026-10-05
 **Configuration identification:** `SPEC-003` prefixes section and point identifiers in this document. Existing human-readable numbering is preserved for migration traceability.
 
 ## SPEC-003.P1 1. Overview
@@ -111,7 +111,7 @@ Agent and swarm discovery live inside the `pi/extensions/tools/subagent/` module
 ### SPEC-003.P7 Discovery pipeline
 
 1. `discoverAgents(cwd)` derives bundled, user, and project defaults plus any normalized CLI `--agents-dir` roots.
-2. Each discovered directory is loaded through `loadAgentsFromDir(dir, source, env)`.
+2. Each discovered directory is loaded through `loadAgentsFromDir(dir, source, cwd, env)`.
 3. Each markdown file is parsed with `parseFrontmatter(...)`.
 4. Required frontmatter fields plus optional runtime visibility metadata are projected into `AgentConfig`, while the markdown body becomes `systemPrompt`.
 5. `normalizeTools(...)` maps the optional `tools` list into Pi tool names.
@@ -168,7 +168,7 @@ This keeps Pi-facing behavior simple while preserving source visibility for huma
 
 The public model field remains `model`. Omitted `model` means the agent inherits the parent/default Pi model and produces no candidates. Present `model` may be a non-empty string, an object with `id` and optional `when`, or a non-empty list of strings and/or objects.
 
-Discovery accepts only the v1 `when` grammar:
+A `when` string starting with `$` or `!$` uses the env grammar:
 
 - **SPEC-003.B69:** `$VAR`
 - **SPEC-003.B70:** `!$VAR`
@@ -177,9 +177,11 @@ Discovery accepts only the v1 `when` grammar:
 
 Environment variable names must match `[A-Za-z_][A-Za-z0-9_]*`. Truthiness treats missing, empty, `false`, `0`, `no`, and `off` as false; false-like checks are case-insensitive. Surrounding expression whitespace is ignored, while equality comparisons use raw environment values without trimming.
 
+Other `when` strings are cwd path globs with home expansion, matched using Node's `path.matchesGlob`. Delegation uses the requested agent cwd; direct mode uses the session cwd.
+
 Accepted entries are normalized into `modelCandidates` in declaration order, with duplicate model IDs removed after parsing while preserving the first occurrence. The first candidate is also exposed as `model` so existing runtime-setting helpers keep their single-string behavior until later slices consume the full chain.
 
-Malformed declared policy does not abort the whole discovery snapshot. Instead, the affected agent carries a `modelPolicyError` with a clear reason. Invalid cases include empty model lists, unsupported `when` expressions, unknown object keys, missing or blank `id`, and policies that leave no candidates after gating.
+Malformed declared policy does not abort the whole discovery snapshot. Instead, the affected agent carries a `modelPolicyError` with a clear reason. Invalid cases include empty model lists, unsupported env expressions, unknown object keys, missing or blank `id`, and policies that leave no candidates after gating.
 
 Discovery does not rewrite aliases such as `sonnet` or `haiku`; model strings are passed through for Pi model resolution later.
 

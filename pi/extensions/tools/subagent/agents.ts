@@ -313,9 +313,16 @@ function isTruthyEnvValue(value: string | undefined): boolean {
 	return !new Set(["false", "0", "no", "off"]).has(value.toLowerCase());
 }
 
-function evaluateWhenExpression(expression: string, env: NodeJS.ProcessEnv = process.env): boolean {
+function evaluateWhenExpression(
+	expression: string,
+	cwd: string,
+	env: NodeJS.ProcessEnv = process.env,
+): boolean {
 	const trimmed = expression.trim();
 	if (!trimmed) throw new Error("empty when expression");
+	if (!/^!?\$/.test(trimmed)) {
+		return path.matchesGlob(cwd, expandShellPath(trimmed, env));
+	}
 
 	const truthyMatch = trimmed.match(/^(!?)\$([A-Za-z_][A-Za-z0-9_]*)$/);
 	if (truthyMatch) {
@@ -342,6 +349,7 @@ function parseModelPolicy(
 	value: unknown,
 	agentName: string,
 	filePath: string,
+	cwd: string,
 	env: NodeJS.ProcessEnv = process.env,
 	compatSettings: CompatSettings = DEFAULT_COMPAT_SETTINGS,
 	effort?: unknown,
@@ -355,7 +363,7 @@ function parseModelPolicy(
 		const candidates: AgentModelCandidate[] = [];
 		const seen = new Set<string>();
 		for (const entry of entries) {
-			const candidate = parseModelCandidate(entry, env, compatSettings, effort);
+			const candidate = parseModelCandidate(entry, cwd, env, compatSettings, effort);
 			if (!candidate) continue;
 			if (seen.has(candidate.id)) continue;
 			seen.add(candidate.id);
@@ -393,6 +401,7 @@ function mapModelId(modelId: string, compatSettings: CompatSettings): string {
 
 function parseModelCandidate(
 	entry: unknown,
+	cwd: string,
 	env: NodeJS.ProcessEnv,
 	compatSettings: CompatSettings,
 	effort: unknown,
@@ -417,7 +426,7 @@ function parseModelCandidate(
 	if (raw.when !== undefined && typeof raw.when !== "string") {
 		throw new Error("model object when must be a string");
 	}
-	if (raw.when !== undefined && !evaluateWhenExpression(raw.when, env)) return null;
+	if (raw.when !== undefined && !evaluateWhenExpression(raw.when, cwd, env)) return null;
 	return { id: applyEffort(mapModelId(raw.id, compatSettings), effort, compatSettings) };
 }
 
@@ -465,6 +474,7 @@ function parseSwarmMembers(value: unknown): string[] | null {
 function loadAgentsFromDir(
 	dir: string,
 	source: AgentDiscoverySource,
+	cwd: string,
 	env: NodeJS.ProcessEnv,
 	compatSettings: CompatSettings,
 ): AgentConfig[] {
@@ -502,6 +512,7 @@ function loadAgentsFromDir(
 			frontmatter.model,
 			name,
 			filePath,
+			cwd,
 			env,
 			compatSettings,
 			frontmatter.effort,
@@ -536,6 +547,7 @@ function isDirectory(p: string): boolean {
 function loadAgentsFromSwarmsDir(
 	dir: string,
 	source: AgentDiscoverySource,
+	cwd: string,
 	env: NodeJS.ProcessEnv,
 	compatSettings: CompatSettings,
 ): AgentConfig[] {
@@ -551,7 +563,7 @@ function loadAgentsFromSwarmsDir(
 
 	for (const entry of entries) {
 		if (!entry.isDirectory()) continue;
-		agents.push(...loadAgentsFromDir(path.join(dir, entry.name), source, env, compatSettings));
+		agents.push(...loadAgentsFromDir(path.join(dir, entry.name), source, cwd, env, compatSettings));
 	}
 
 	return agents;
@@ -791,35 +803,38 @@ export function discoverAgents(
 
 	const packageAgents = [
 		...(packageAgentsDir
-			? loadAgentsFromDir(packageAgentsDir, "package", env, compatSettings)
+			? loadAgentsFromDir(packageAgentsDir, "package", cwd, env, compatSettings)
 			: []),
 		...(packageSwarmsDir
-			? loadAgentsFromSwarmsDir(packageSwarmsDir, "package", env, compatSettings)
+			? loadAgentsFromSwarmsDir(packageSwarmsDir, "package", cwd, env, compatSettings)
 			: []),
 	];
 	const packageSwarms = packageSwarmsDir ? loadSwarmsFromDir(packageSwarmsDir, "package") : [];
 
 	const userAgents = [
-		...loadAgentsFromDir(userAgentsDir, "user", env, compatSettings),
-		...(userSwarmsDir ? loadAgentsFromSwarmsDir(userSwarmsDir, "user", env, compatSettings) : []),
+		...loadAgentsFromDir(userAgentsDir, "user", cwd, env, compatSettings),
+		...(userSwarmsDir
+			? loadAgentsFromSwarmsDir(userSwarmsDir, "user", cwd, env, compatSettings)
+			: []),
 	];
 	const userSwarms = userSwarmsDir ? loadSwarmsFromDir(userSwarmsDir, "user") : [];
 
 	const projectAgents = [
 		...(projectAgentsDir
-			? loadAgentsFromDir(projectAgentsDir, "project", env, compatSettings)
+			? loadAgentsFromDir(projectAgentsDir, "project", cwd, env, compatSettings)
 			: []),
 		...(projectSwarmsDir
-			? loadAgentsFromSwarmsDir(projectSwarmsDir, "project", env, compatSettings)
+			? loadAgentsFromSwarmsDir(projectSwarmsDir, "project", cwd, env, compatSettings)
 			: []),
 	];
 	const projectSwarms = projectSwarmsDir ? loadSwarmsFromDir(projectSwarmsDir, "project") : [];
 
 	const extensionAgents = extensionAgentRoots.flatMap((root) => [
-		...loadAgentsFromDir(root, "extension", env, compatSettings),
+		...loadAgentsFromDir(root, "extension", cwd, env, compatSettings),
 		...loadAgentsFromSwarmsDir(
 			path.join(path.dirname(root), "swarms"),
 			"extension",
+			cwd,
 			env,
 			compatSettings,
 		),
@@ -829,8 +844,8 @@ export function discoverAgents(
 	);
 
 	const flagAgents = agentsDirRoots.flatMap((root) => [
-		...loadAgentsFromDir(path.join(root, "agents"), "flag", env, compatSettings),
-		...loadAgentsFromSwarmsDir(path.join(root, "swarms"), "flag", env, compatSettings),
+		...loadAgentsFromDir(path.join(root, "agents"), "flag", cwd, env, compatSettings),
+		...loadAgentsFromSwarmsDir(path.join(root, "swarms"), "flag", cwd, env, compatSettings),
 	]);
 	const flagSwarms = agentsDirRoots.flatMap((root) =>
 		loadSwarmsFromDir(path.join(root, "swarms"), "flag"),
