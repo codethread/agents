@@ -1,0 +1,5 @@
+[tasks.default]
+run = '''
+pnpm install --frozen-lockfile
+pnpm run link:pi
+'''
