@@ -77,7 +77,7 @@ def --wrapped pi [
 	--debug-tldr-transcript                   # [EXT] Print transcript used by /tldr and exit
 	--debug-prompt-history                    # [EXT] Print prompt-history diagnostics while recording and recalling prompts
 	--debug-scrollback-editor                 # [EXT] Print scrollback editor configuration and exit
-	--debug-tmux-title                        # [EXT] Print tmux window-title generation details
+	--debug-tmux-title                        # [EXT] Print tmux window-title generation and settled-marker updates
 	--debug-statusline                        # [EXT] Show statusline layout diagnostics
 	--debug-interactive-shell: string         # [EXT] Run interactive_shell spawn/send/tail/kill directly (optional command)
 	--debug-web-access: string                # [EXT] Run web access debug command: search <query> or fetch <url>

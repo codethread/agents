@@ -245,10 +245,30 @@ export default function tmuxWindowTitleExtension(pi: ExtensionAPI) {
 	let activeTitle: string | null = null;
 	let activeChild: ChildProcess | null = null;
 	let tmuxWindowId: string | null = null;
+	let settled = false;
+	let titleUpdate = Promise.resolve();
 
 	async function debugLog(ctx: ExtensionContext, message: string) {
 		if (pi.getFlag("debug-tmux-title") !== true) return;
 		notify(ctx, `tmux-window-title: ${message}`);
+	}
+
+	function refreshTitle(ctx: ExtensionContext): Promise<void> {
+		// Serialize tmux writes so a slow title generation cannot overwrite a newer status.
+		titleUpdate = titleUpdate
+			.then(async () => {
+				const title = `${settled ? "● " : ""}${activeTitle ?? "pi"}`;
+				await applyWindowTitle(pi, ctx, title, tmuxWindowId ?? undefined);
+				await debugLog(ctx, `applied ${JSON.stringify(title)} settled=${settled}`);
+			})
+			.catch((error) => {
+				notify(
+					ctx,
+					`tmux-window-title: failed to update title: ${getErrorMessage(error)}`,
+					"warning",
+				);
+			});
+		return titleUpdate;
 	}
 
 	async function generateAndApplyTitle(ctx: ExtensionContext, firstUserMessage: string) {
@@ -294,13 +314,13 @@ export default function tmuxWindowTitleExtension(pi: ExtensionAPI) {
 		}
 
 		const normalizedTitle = normalizeWindowTitle(result.rawTitle, { fallback: "pi" });
-		await applyWindowTitle(pi, ctx, normalizedTitle, tmuxWindowId ?? undefined);
+		activeTitle = normalizedTitle;
+		await refreshTitle(ctx);
 		pi.appendEntry(TITLE_ENTRY_TYPE, {
 			title: normalizedTitle,
 			rawTitle: result.rawTitle,
 			model: formatModelFlag(preferred.model, preferred.thinkingLevel),
 		});
-		activeTitle = normalizedTitle;
 		state = "done";
 		await debugLog(
 			ctx,
@@ -323,13 +343,14 @@ export default function tmuxWindowTitleExtension(pi: ExtensionAPI) {
 	}
 
 	pi.registerFlag("debug-tmux-title", {
-		description: "Print tmux window-title generation details when the first title is derived",
+		description: "Print tmux window-title generation and settled-marker updates",
 		type: "boolean",
 		default: false,
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
 		state = "idle";
+		settled = false;
 		activeChild = null;
 		tmuxWindowId = null;
 		activeTitle = getPersistedTitle(ctx) ?? null;
@@ -357,17 +378,8 @@ export default function tmuxWindowTitleExtension(pi: ExtensionAPI) {
 
 		if (activeTitle) {
 			state = "done";
-			try {
-				await applyWindowTitle(pi, ctx, activeTitle, tmuxWindowId ?? undefined);
-				await debugLog(ctx, `restored ${activeTitle}`);
-			} catch (error) {
-				notify(
-					ctx,
-					`tmux-window-title: failed to restore title: ${getErrorMessage(error)}`,
-					"warning",
-				);
-				await debugLog(ctx, `restore failed: ${getErrorMessage(error)}`);
-			}
+			await refreshTitle(ctx);
+			await debugLog(ctx, `restored ${activeTitle}`);
 			return;
 		}
 
@@ -379,8 +391,22 @@ export default function tmuxWindowTitleExtension(pi: ExtensionAPI) {
 		maybeQueueTitleGeneration(ctx);
 	});
 
-	pi.on("session_shutdown", async () => {
-		if (!activeChild || activeChild.killed) return;
-		activeChild.kill("SIGTERM");
+	pi.on("agent_start", async (_event, ctx) => {
+		if (!settled) return;
+		settled = false;
+		await refreshTitle(ctx);
+	});
+
+	pi.on("agent_settled", async (_event, ctx) => {
+		settled = true;
+		await refreshTitle(ctx);
+	});
+
+	pi.on("session_shutdown", async (_event, ctx) => {
+		if (activeChild && !activeChild.killed) activeChild.kill("SIGTERM");
+		if (settled) {
+			settled = false;
+			await refreshTitle(ctx);
+		}
 	});
 }

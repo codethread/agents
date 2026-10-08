@@ -63,7 +63,7 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 | [`prompt-history`](./ui/prompt-history/README.md)       | Recall prior submitted prompts for the current repo or globally, with `Ctrl+R` fuzzy picking through `fzf-tmux`; `Up` stays on Pi's built-in editor history. |
 | [`scrollback-editor`](./ui/scrollback-editor/README.md) | Edit condensed session scrollback and the current prompt in a dedicated `Ctrl+G` Neovim instance.                                                            |
 | [`tldr`](./ui/tldr/README.md)                           | Generate a catch-up summary of the current session.                                                                                                          |
-| [`tmux-window-title`](./ui/tmux-window-title/README.md) | Set the current tmux window title from the first user message.                                                                                               |
+| [`tmux-window-title`](./ui/tmux-window-title/README.md) | Name the tmux window from the first user message and mark settled agents with `●`.                                                                           |
 
 ## Internal shared code
 
