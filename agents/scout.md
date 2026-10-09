@@ -45,7 +45,7 @@ meta: >
   - Nano didn't follow the output structure, but worth considering for future if costs go up
 tools: read, bash
 model:
-  - id: anthropic/claude-sonnet-5-5:low
+  - id: anthropic/claude-haiku-5-5:high
     when: "~/pb/**"
   - deepseek/deepseek-flash:max
 ---

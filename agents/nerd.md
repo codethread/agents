@@ -17,7 +17,7 @@ mcpServers:
         - "-y"
         - "@upstash/context7-mcp"
 model:
-  - id: anthropic/claude-sonnet-5-5:low
+  - id: anthropic/claude-haiku-5-5:xhigh
     when: "~/pb/**"
   - deepseek/deepseek-flash:max
 ---
