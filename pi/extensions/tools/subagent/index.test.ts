@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AgentConfig, SwarmConfig } from "./agents.js";
 import type { TaskRequest } from "./types.js";
-import {
+import subagentExtension, {
+	subagentsEnabled,
 	createMissingSwarmMemberResult,
 	createRuntimeModelPolicyFailureResult,
 	findSwarmMemberResumeState,
@@ -242,5 +243,45 @@ describe("formatUnknownTargetError", () => {
 		expect(error).toBe(
 			'Unknown subagent target "ghost". Available agents: scout (package), review (user). Available swarms: panel (user).',
 		);
+	});
+});
+
+describe("project delegation setting", () => {
+	it("defaults to enabled and rejects malformed settings", () => {
+		expect(subagentsEnabled({})).toBe(true);
+		expect(subagentsEnabled({ subagents: true })).toBe(true);
+		expect(subagentsEnabled({ subagents: false })).toBe(false);
+		expect(() => subagentsEnabled({ subagents: "false" })).toThrow("must be a boolean");
+	});
+
+	it("disables the tool and catalog and blocks calls even after reactivation", async () => {
+		const handlers = new Map<string, (event: any, ctx: any) => any>();
+		let tool: any;
+		let activeTools = ["read", "subagent"];
+		const pi = {
+			events: { on: vi.fn() },
+			on: (name: string, handler: any) => handlers.set(name, handler),
+			registerFlag: vi.fn(),
+			registerCommand: vi.fn(),
+			registerTool: (definition: any) => {
+				tool = definition;
+			},
+			getSettings: () => ({ subagents: false }),
+			getFlag: () => undefined,
+			getActiveTools: () => activeTools,
+			setActiveTools: (tools: string[]) => {
+				activeTools = tools;
+			},
+		};
+		subagentExtension(pi as any);
+		const ctx = { cwd: "/unused", sessionManager: { getSessionId: () => "parent" } };
+		await handlers.get("session_start")!({}, ctx);
+		expect(activeTools).toEqual(["read"]);
+		activeTools.push("subagent");
+		expect(handlers.get("before_agent_start")!({ systemPrompt: "base" }, ctx)).toBeUndefined();
+		expect(activeTools).toEqual(["read"]);
+		await expect(
+			tool.execute("id", { cwd: "/elsewhere", agent: "scout" }, undefined, undefined, ctx),
+		).rejects.toThrow("delegation is disabled");
 	});
 });

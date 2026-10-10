@@ -8,6 +8,25 @@ When the `subagent` tool is active, discovered agents and swarms are injected in
 
 Agents are discovered from `agents/` directories, while swarms are discovered from `swarms/` directories; these are separate discovery roots in the same working tree. When a custom user agents directory is supplied programmatically, the default user swarms directory is resolved as its sibling `swarms/` directory so isolated test or embedded catalogs do not accidentally load the real user swarm catalog.
 
+### Disable delegation for a project
+
+Set this in the project's `.pi/settings.json`, then start a new session or reload:
+
+```json
+{
+	"subagents": false
+}
+```
+
+Delegation defaults to enabled. Pi merges global and project settings, so a project
+can also override a global default with `true`. Disabled delegation removes the
+active `subagent` tool and its catalog, and rejects calls even if another extension
+reactivates the tool. This covers both agents and swarms. Direct `--agent` mode
+still works, but cannot delegate when this setting is false.
+
+Use `pi --debug-subagents` to print the effective setting without calling a model,
+or `/debug-agents` to inspect it alongside the catalog.
+
 ### Native child identity
 
 A Pi subagent resolves its own Millstrand identity from its actual native session ID and its own project's workspace. The Harnesses package builds its environment, stripping inherited run, identity, workspace, and bootstrap ownership.

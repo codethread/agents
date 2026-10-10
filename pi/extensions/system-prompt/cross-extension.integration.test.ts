@@ -101,6 +101,7 @@ printf '{"type":"message_end","message":{"role":"assistant","content":[{"type":"
 				expect(loaded.extensions).toHaveLength(2);
 				Object.assign(loaded.runtime, {
 					getActiveTools: () => ["subagent"],
+					getSettings: () => ({}),
 					getAllTools: () => [],
 					getThinkingLevel: () => "low",
 				});

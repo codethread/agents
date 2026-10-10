@@ -115,6 +115,13 @@ export function insertToolingPrompt(systemPrompt: string, promptAddon: string): 
 	return `${systemPrompt.slice(0, harnessEndIndex)}\n\n${promptAddon}${systemPrompt.slice(harnessEndIndex)}`;
 }
 
+export function subagentsEnabled(settings: { subagents?: unknown }): boolean {
+	if (settings.subagents !== undefined && typeof settings.subagents !== "boolean") {
+		throw new Error('The "subagents" setting must be a boolean.');
+	}
+	return settings.subagents !== false;
+}
+
 export function isSubagentToolEnabled(activeTools: readonly string[]): boolean {
 	return activeTools.includes("subagent");
 }
@@ -202,6 +209,12 @@ export function hasAllSwarmMembersFailed(results: SingleResult[]): boolean {
 
 const DEBUG_MCP_FLAG = "debug-mcp";
 export default function (pi: ExtensionAPI) {
+	const delegationEnabled = () => subagentsEnabled(pi.getSettings() as { subagents?: unknown });
+	const enforceDelegationSetting = () => {
+		if (!delegationEnabled()) {
+			pi.setActiveTools(pi.getActiveTools().filter((name) => name !== "subagent"));
+		}
+	};
 	let selectedAgentName: string | undefined;
 	let millstrandIdentityContext: ActiveMillstrandIdentity | null = null;
 	let agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
@@ -320,6 +333,11 @@ export default function (pi: ExtensionAPI) {
 		type: "string",
 	});
 
+	pi.registerFlag("debug-subagents", {
+		description: "Print effective subagent delegation setting and exit",
+		type: "boolean",
+	});
+
 	pi.registerFlag(DEBUG_MCP_FLAG, {
 		description:
 			"Validate a discovered agent's MCP frontmatter and native runtime registration, print the report, and exit",
@@ -350,6 +368,14 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
+		enforceDelegationSetting();
+		if (pi.getFlag("debug-subagents")) {
+			process.stdout.write(
+				`Subagent delegation: ${delegationEnabled() ? "enabled" : "disabled"}\n`,
+			);
+			ctx.shutdown();
+			return;
+		}
 		currentMillstrandIdentity(ctx);
 		agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
 		const debugMcpFlag = pi.getFlag(DEBUG_MCP_FLAG);
@@ -362,6 +388,7 @@ export default function (pi: ExtensionAPI) {
 		}
 		const agentFlag = pi.getFlag("agent");
 		selectedAgentName = typeof agentFlag === "string" ? agentFlag.trim() : undefined;
+		if (!delegationEnabled() && !selectedAgentName) return;
 		const discovery = discoverAgents(ctx.cwd);
 		const isSubagentChild = process.env.PI_SUBAGENT === "1";
 		if (!selectedAgentName) {
@@ -377,11 +404,19 @@ export default function (pi: ExtensionAPI) {
 				ctx,
 			);
 		}
-		validateStartupModelPolicies(discovery, ctx, selectedAgentName, isSubagentChild);
+		validateStartupModelPolicies(
+			discovery,
+			ctx,
+			selectedAgentName,
+			isSubagentChild || !delegationEnabled(),
+		);
 		await applySelectedAgentSettings(ctx, { agent: agent!, discovery });
+		enforceDelegationSetting();
 	});
 
 	pi.on("before_agent_start", (event, ctx) => {
+		enforceDelegationSetting();
+		if (!delegationEnabled() && !selectedAgentName) return;
 		const selected = requireSelectedAgent(ctx);
 		const discovery = selected?.discovery ?? discoverAgents(ctx.cwd);
 		const promptAddon = isSubagentToolEnabled(pi.getActiveTools())
@@ -399,6 +434,7 @@ export default function (pi: ExtensionAPI) {
 		handler: async (_args, ctx) => {
 			const discovery = discoverAgents(ctx.cwd);
 			const sections = [
+				`Subagent delegation: ${delegationEnabled() ? "enabled" : "disabled"}`,
 				formatDebugSection("Available agents:", discovery.agents),
 				formatDebugSwarmSection("Available swarms:", discovery.swarms),
 				[
@@ -495,6 +531,9 @@ export default function (pi: ExtensionAPI) {
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
 			const millstrandIdentity = currentMillstrandIdentity(ctx);
+			if (!delegationEnabled()) {
+				throw new Error('Subagent delegation is disabled by the "subagents" setting.');
+			}
 			const discovery = discoverAgents(params.cwd);
 			const agents = discovery.agents;
 			const parentSessionFile = ctx.sessionManager.getSessionFile();

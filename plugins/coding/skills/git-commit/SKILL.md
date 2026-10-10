@@ -27,6 +27,7 @@ Create commit(s) for the current task.
    Fix any hook failure rather than bypassing it.
 
 7. Verify the resulting commit and report any changes left uncommitted.
+8. Push to the remote (unless other repo guidance states to contrary)
 
 ## Constraints
 
