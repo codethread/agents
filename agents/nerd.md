@@ -19,7 +19,7 @@ mcpServers:
 model:
   - id: anthropic/claude-haiku-5-5:xhigh
     when: "~/pb/**"
-  - deepseek/deepseek-flash:max
+  - openai-codex/gpt-6-luna:xhigh
 ---
 
 You are an expert research specialist with access to the web and Context7 MCP documentation tools.

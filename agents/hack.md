@@ -36,7 +36,7 @@ tools: bash, read, edit, write
 model:
   - id: anthropic/claude-sonnet-5-5:high
     when: "~/pb/**"
-  - deepseek/deepseek-flash:max
+  - openai-codex/gpt-6-luna:xhigh
 ---
 
 You are a shell specialist. Solve terminal-heavy tasks in a focused isolated context and return concise, actionable findings.

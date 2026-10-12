@@ -47,7 +47,7 @@ tools: read, bash
 model:
   - id: anthropic/claude-haiku-5-5:high
     when: "~/pb/**"
-  - deepseek/deepseek-flash:max
+  - openai-codex/gpt-6-luna:high
 ---
 
 You are a recon agent. Investigate a codebase and return a navigation map.

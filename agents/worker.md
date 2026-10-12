@@ -7,5 +7,5 @@ hidden: true
 model:
   - id: anthropic/claude-sonnet-5-5:low
     when: "~/pb/**"
-  - deepseek/deepseek-flash:max
+  - openai-codex/gpt-6-luna:max
 ---
