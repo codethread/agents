@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createTestSession, says, type TestSession, when } from "@gaodes/pi-test-harness";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import projectStructureExtension from "../messaging/project-structure/index.js";
 import systemPromptExtension from "./index.js";
 
@@ -64,6 +65,42 @@ afterEach(() => {
 });
 
 describe("system-prompt harness integration", () => {
+	it.each(["before", "after"])(
+		"preserves contributed sections loaded %s the renderer",
+		async (order) => {
+			const cwd = makeTempDir();
+			process.env.PI_CODING_AGENT_DIR = makeTempDir();
+			let identity = "jade-rich-guan";
+			const scentExtension = (pi: ExtensionAPI) => {
+				pi.on("before_agent_start", (event) => {
+					event.systemPromptOptions.sections.scent = `Your Hive identity is ${identity}.`;
+				});
+			};
+			const extensions =
+				order === "before"
+					? [scentExtension, systemPromptExtension]
+					: [systemPromptExtension, scentExtension];
+			t = await createTestSession({
+				cwd,
+				systemPrompt: CUSTOM_SYSTEM_PROMPT,
+				extensionFactories: [...extensions, capturePromptsExtension],
+			});
+
+			await t.run(when("first", [says("ok")]));
+			identity = "fresh-session-identity";
+			await t.run(when("second", [says("ok")]));
+
+			const prompts = getMessagesWithPrefix(t, "SYSTEM_PROMPT:");
+			expect(prompts).toHaveLength(2);
+			for (const [index, name] of ["jade-rich-guan", "fresh-session-identity"].entries()) {
+				expect(prompts[index]).toContain(`<scent>\nYour Hive identity is ${name}.\n</scent>`);
+				expect(prompts[index].match(/Your Hive identity is/g)).toHaveLength(1);
+				expect(prompts[index]).toContain('<system-reminder type="harness">');
+			}
+			expect(prompts[1]).not.toContain("jade-rich-guan");
+		},
+	);
+
 	it("assembles system-prompt sections and sends project structure as a message", async () => {
 		const cwd = makeTempDir();
 		const agentDir = makeTempDir();
@@ -92,7 +129,8 @@ describe("system-prompt harness integration", () => {
 			'<system-reminder type="project-rules">\nUse issue labels in this repo.\n</system-reminder>',
 		);
 		expect(systemPrompt).not.toContain('<system-reminder type="project-structure">');
-		expect(systemPrompt).toContain("Keep local instructions last.");
+		expect(systemPrompt.match(/Keep local instructions last\./g)).toHaveLength(1);
+		expect(systemPrompt).not.toContain("Project-specific instructions and guidelines:");
 		expect(systemPrompt.indexOf("Use pnpm.")).toBeLessThan(
 			systemPrompt.indexOf("Keep local instructions last."),
 		);

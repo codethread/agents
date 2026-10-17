@@ -136,34 +136,29 @@ printf '{"type":"message_end","message":{"role":"assistant","content":[{"type":"
 				}
 			};
 			const materializePrompt = async (pair: Pair, context: Context) => {
-				let systemPrompt = "base prompt";
+				const options = {
+					customPrompt: "base prompt",
+					cwd: context.cwd,
+					selectedTools: ["subagent"],
+					toolSnippets: {},
+					promptGuidelines: [],
+					sections: {} as Record<string, string>,
+				};
 				for (const extension of pair.loaded.extensions) {
 					for (const handler of extension.handlers.get("before_agent_start") ?? []) {
 						const result = await handler(
 							{
 								type: "before_agent_start",
 								prompt: "test",
-								systemPrompt,
-								systemPromptOptions: {
-									cwd: context.cwd,
-									selectedTools: ["subagent"],
-									toolSnippets: {},
-									promptGuidelines: [],
-								},
+								systemPrompt: options.customPrompt,
+								systemPromptOptions: options,
 							},
 							context as never,
 						);
-						if (
-							typeof result === "object" &&
-							result !== null &&
-							"systemPrompt" in result &&
-							typeof result.systemPrompt === "string"
-						) {
-							systemPrompt = result.systemPrompt;
-						}
+						expect(result).toBeUndefined();
 					}
 				}
-				return systemPrompt;
+				return [options.customPrompt, ...Object.values(options.sections)].join("\n\n");
 			};
 			const getSubagentTool = (pair: Pair) =>
 				pair.loaded.extensions

@@ -175,8 +175,15 @@ export function renderSkills(skills: PromptSkill[]): string | null {
 
 export function buildSystemPrompt(
 	input: PromptInput,
-	{ wrapReminder }: PromptBuilderDependencies = { wrapReminder: wrapSystemReminder },
+	dependencies?: PromptBuilderDependencies,
 ): string {
+	return joinSections(Object.values(buildSystemPromptSections(input, dependencies)));
+}
+
+export function buildSystemPromptSections(
+	input: PromptInput,
+	{ wrapReminder }: PromptBuilderDependencies = { wrapReminder: wrapSystemReminder },
+): Record<string, string> {
 	const harness = wrapReminder(
 		"harness",
 		[
@@ -190,17 +197,17 @@ export function buildSystemPrompt(
 		].join("\n"),
 	);
 
-	return joinSections([
-		input.persona,
-		renderSection(
+	const sections = {
+		preamble: input.persona,
+		millstrand_identity: renderSection(
 			"Millstrand identity",
 			"",
 			input.millstrandIdentityInstruction
 				? wrapReminder("millstrand-identity", input.millstrandIdentityInstruction)
 				: null,
 		),
-		renderSection("Operating harness", "", harness),
-		renderSection(
+		tools: renderSection("Operating harness", "", harness),
+		rules: renderSection(
 			"Operating rules",
 			"",
 			joinSections([
@@ -209,9 +216,9 @@ export function buildSystemPrompt(
 				renderProjectRulesReminder(input.projectRules ?? []),
 			]),
 		),
-		renderContextFiles(input.contextFiles, wrapReminder),
-		renderSkills(input.skills),
-		renderSection(
+		project_context: renderContextFiles(input.contextFiles, wrapReminder),
+		skills: renderSkills(input.skills),
+		cwd: renderSection(
 			"Session metadata",
 			"",
 			wrapReminder(
@@ -221,6 +228,11 @@ export function buildSystemPrompt(
 				),
 			),
 		),
-		renderSection("Additional system instructions", "", input.appendSystemPrompt),
-	]);
+		addendum: renderSection("Additional system instructions", "", input.appendSystemPrompt),
+	};
+	return Object.fromEntries(
+		Object.entries(sections).filter((entry): entry is [string, string] =>
+			Boolean(entry[1]?.trim()),
+		),
+	);
 }

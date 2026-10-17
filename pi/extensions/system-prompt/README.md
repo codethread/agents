@@ -11,7 +11,9 @@ This directory is intentionally flat:
 
 ## Behavior
 
-The extension replaces Pi's generated prompt during `before_agent_start` using structured `systemPromptOptions` for the renderer persona, tool metadata, skills, context files, append text, date, and cwd. It also loads `CLAUDE.local.md` from the cwd and each ancestor, ordered from the filesystem root toward the cwd, and appends those files after Pi's discovered `AGENTS.md`/`CLAUDE.md` context files.
+The extension renders its persona and named prompt sections during `before_agent_start` through Pi's structured `systemPromptOptions`, rather than returning a full `systemPrompt` replacement. It owns the tool metadata, rules, skills, context files, append text, date, and cwd sections while preserving additional sections contributed by other extensions, such as Hive Scent's `scent`, regardless of load order. Pi wraps named sections in XML tags and can publish their changes as transcript deltas. An extension that returns a full `systemPrompt` replacement bypasses this composition and must preserve contributions itself.
+
+It also loads `CLAUDE.local.md` from the cwd and each ancestor, ordered from the filesystem root toward the cwd, and appends those files after Pi's discovered `AGENTS.md`/`CLAUDE.md` context files.
 
 At startup this extension calls the [Harnesses package](https://github.com/codethread/millhouse.spool/tree/main/spools/harnesses)'s native identity resolver. This extension renders its canonical instruction once as `<system-reminder type="millstrand-identity">` and publishes the friendly name with Pi's `ui.setStatus`. The statusline reads that status directly.
 

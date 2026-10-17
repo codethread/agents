@@ -16,7 +16,7 @@ import { showDebugMessage } from "../components/debug-message/index.js";
 import { discoverProjectRules, getUnconditionalRules } from "../shared/project-rules.js";
 import {
 	DEFAULT_PERSONA,
-	buildSystemPrompt,
+	buildSystemPromptSections,
 	loadClaudeLocalContextFiles,
 } from "./prompt-builder.js";
 import { parseDebugPromptOverrides, renderDynamicPrompt, type TemplateVars } from "./templates.js";
@@ -44,12 +44,14 @@ type OwnedSystemPromptOptions = Partial<BuildSystemPromptOptions> & {
 	selectedTools: string[];
 	toolSnippets: Record<string, string>;
 	promptGuidelines: string[];
+	sections: Record<string, string>;
 };
 
 function getOwnedSystemPromptOptions(event: BeforeAgentStartEvent): OwnedSystemPromptOptions {
 	const options = event.systemPromptOptions;
 	if (!options)
 		throw new Error("Pi did not provide systemPromptOptions for owned prompt rendering.");
+	if (!options.sections) throw new Error("Pi did not provide systemPromptOptions.sections.");
 	if (!options.cwd) throw new Error("Pi did not provide systemPromptOptions.cwd.");
 	if (!options.selectedTools)
 		throw new Error("Pi did not provide systemPromptOptions.selectedTools.");
@@ -309,7 +311,7 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		}
 
 		const identity = nativeIdentityState;
-		const systemPrompt = buildSystemPrompt({
+		const { preamble, ...sections } = buildSystemPromptSections({
 			persona: options.customPrompt?.trim() || DEFAULT_PERSONA,
 			millstrandIdentityInstruction: identity.status === "bound" ? identity.instruction : undefined,
 			cwd: options.cwd,
@@ -328,7 +330,8 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			dynamicPrompt,
 			projectRules: getUnconditionalRules(projectRules.rules),
 		});
-		return { systemPrompt };
+		options.customPrompt = preamble;
+		Object.assign(options.sections, sections);
 	});
 
 	pi.on("agent_start", (_event, ctx) => {

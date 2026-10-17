@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PromptInput } from "./prompt-builder.js";
 
 const mocks = vi.hoisted(() => ({
-	buildPrompt: vi.fn((_input: PromptInput) => "<owned prompt />"),
+	buildPrompt: vi.fn((_input: PromptInput) => ({
+		preamble: "Default persona",
+		tools: "<owned prompt />",
+	})),
 	loadClaudeLocalContextFiles: vi.fn(async () => []),
 	renderDynamicPrompt: vi.fn(async () => "<dynamic />"),
 	showDebugMessage: vi.fn(async (..._args: any[]) => {}),
@@ -19,7 +22,7 @@ vi.mock("../components/debug-message/index.js", () => ({
 }));
 vi.mock("./prompt-builder.js", () => ({
 	DEFAULT_PERSONA: "Default persona",
-	buildSystemPrompt: mocks.buildPrompt,
+	buildSystemPromptSections: mocks.buildPrompt,
 	loadClaudeLocalContextFiles: mocks.loadClaudeLocalContextFiles,
 }));
 vi.mock("./templates.js", () => ({
@@ -55,20 +58,26 @@ function setup(flags: string[] = []) {
 	return { pi, ctx, handlers, commands };
 }
 
-const event = {
-	systemPrompt: "base prompt",
-	systemPromptOptions: {
-		cwd: "/repo",
-		selectedTools: ["bash", "edit"],
-		toolSnippets: { bash: "Run shell commands", edit: "Edit files" },
-		promptGuidelines: ["Use edit for precise changes."],
-		contextFiles: [{ path: "/repo/AGENTS.md", content: "rules" }],
-		skills: [],
-		appendSystemPrompt: "ordinary launch guidance",
-	},
-};
+function promptEvent() {
+	return {
+		systemPrompt: "base prompt",
+		systemPromptOptions: {
+			cwd: "/repo",
+			selectedTools: ["bash", "edit"],
+			toolSnippets: { bash: "Run shell commands", edit: "Edit files" },
+			promptGuidelines: ["Use edit for precise changes."],
+			contextFiles: [{ path: "/repo/AGENTS.md", content: "rules" }],
+			skills: [],
+			appendSystemPrompt: "ordinary launch guidance",
+			sections: {} as Record<string, string>,
+		},
+	};
+}
+
+let event = promptEvent();
 
 beforeEach(() => {
+	event = promptEvent();
 	vi.clearAllMocks();
 	mocks.renderDynamicPrompt.mockResolvedValue("<dynamic />");
 	mocks.resolveNativeIdentity.mockImplementation(async (_exec, options) => ({
@@ -85,12 +94,13 @@ describe("system-prompt extension", () => {
 	it("renders the canonical identity alongside ordinary prompt sections and publishes UI status", async () => {
 		const { ctx, handlers } = setup();
 		await handlers.get("session_start")!({}, ctx);
-		expect(await handlers.get("before_agent_start")!(event, ctx)).toEqual({
-			systemPrompt: "<owned prompt />",
-		});
+		expect(await handlers.get("before_agent_start")!(event, ctx)).toBeUndefined();
+		expect(event.systemPromptOptions.sections.tools).toBe("<owned prompt />");
 		expect(mocks.buildPrompt).toHaveBeenCalledWith(
 			expect.objectContaining({
-				...event.systemPromptOptions,
+				cwd: "/repo",
+				contextFiles: event.systemPromptOptions.contextFiles,
+				appendSystemPrompt: "ordinary launch guidance",
 				dynamicPrompt: "<dynamic />",
 				millstrandIdentityInstruction: "Your Millstrand identity is warm-silver-lemur.",
 			}),
