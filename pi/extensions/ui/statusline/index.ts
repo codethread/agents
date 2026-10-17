@@ -53,6 +53,7 @@ function formatProviderMarker(usingSubscription: boolean): string | undefined {
 }
 
 const WIDE_LAYOUT_MIN_WIDTH = 100;
+const IDENTITY_STATUS_KEYS = ["millstrand-identity", "scent-identity"];
 
 function renderBalancedRow(items: string[], width: number, ellipsis: string): string {
 	if (!Number.isFinite(width)) return items.join("   ");
@@ -126,12 +127,15 @@ export function renderStatuslineItems({
 	});
 
 	const ellipsis = theme.fg("dim", "...");
-	const agentIdentity = sanitizeStatusText(extensionStatuses.get("millstrand-identity") ?? "");
+	const identityItems = IDENTITY_STATUS_KEYS.map((key) =>
+		sanitizeStatusText(extensionStatuses.get(key) ?? ""),
+	)
+		.filter(Boolean)
+		.map((identity) => theme.fg("accent", identity));
 	const pathItem = theme.fg("dim", pwd);
-	const agentItem = agentIdentity ? theme.fg("accent", agentIdentity) : null;
 	const costItem = theme.fg("dim", costDisplay);
 	const modelItem = theme.fg("dim", modelDisplay);
-	const topItems = [pathItem, agentItem, modelItem].filter((item): item is string => Boolean(item));
+	const topItems = [pathItem, ...identityItems, modelItem];
 	const minimumTopWidth =
 		topItems.reduce((sum, item) => sum + visibleWidth(item), 0) + topItems.length - 1;
 	const useWideLayout = width >= WIDE_LAYOUT_MIN_WIDTH && minimumTopWidth <= width;
@@ -148,7 +152,7 @@ export function renderStatuslineItems({
 
 	items.push(
 		...Array.from(extensionStatuses)
-			.filter(([key]) => key !== "provider-override" && key !== "millstrand-identity")
+			.filter(([key]) => key !== "provider-override" && !IDENTITY_STATUS_KEYS.includes(key))
 			.sort(([a], [b]) => a.localeCompare(b))
 			.map(([, text]) => sanitizeStatusText(text)),
 	);

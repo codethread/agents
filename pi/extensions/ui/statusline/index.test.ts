@@ -222,6 +222,29 @@ describe("renderStatuslineItems", () => {
 	});
 
 	it.each([
+		{ width: 80, millstrand: false },
+		{ width: 120, millstrand: false },
+		{ width: 80, millstrand: true },
+		{ width: 120, millstrand: true },
+	])("shows Scent once at width $width (Millstrand=$millstrand)", ({ width, millstrand }) => {
+		const deps = renderDeps();
+		const statuses = new Map([["scent-identity", "jade-rich-guan"]]);
+		if (millstrand) statuses.set("millstrand-identity", "amber-kind-lynx");
+		deps.footerData.getExtensionStatuses = () => statuses;
+		deps.theme.fg = vi.fn((_color, text) => text);
+
+		const rows = renderStatuslineItems({ ...deps, width });
+		expect(rows).toHaveLength(width >= 100 ? 2 : millstrand ? 5 : 4);
+		expect(rows.join("\n").match(/jade-rich-guan/g)).toHaveLength(1);
+		expect(deps.theme.fg).toHaveBeenCalledWith("accent", "jade-rich-guan");
+		if (millstrand) expect(rows.join("\n").match(/amber-kind-lynx/g)).toHaveLength(1);
+		expect(rows.every((row) => visibleWidth(row) <= width)).toBe(true);
+
+		statuses.delete("scent-identity");
+		expect(renderStatuslineItems({ ...deps, width }).join("\n")).not.toContain("jade-rich-guan");
+	});
+
+	it.each([
 		{ width: 99, cwd: "/repo", rowCount: 3 },
 		{ width: 100, cwd: "/repo", rowCount: 2 },
 		{ width: 100, cwd: `${"忙".repeat(45)}/`, rowCount: 2 },
