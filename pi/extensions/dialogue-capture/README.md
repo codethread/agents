@@ -22,6 +22,7 @@ Envelope fields match the Claude schema, including `model` (`provider/id`) and `
 ## Divergences from the Claude capture
 
 - `prompt` text is captured after skill/template expansion (Pi has no pre-expansion prompt event that fires in all modes); Claude logs the raw submission.
+- Runs started by custom extension messages produce no `prompt` record. Their replies and file touches have `prompt_id: null`, rather than inheriting the preceding user prompt's ID.
 - Extension `/commands` never reach the agent, so they produce no `prompt` record.
 - Subagent file touches live in the subagent's own log file, not the parent's.
 
@@ -35,3 +36,4 @@ Envelope fields match the Claude schema, including `model` (`provider/id`) and `
 - `index.ts` — extension entrypoint; event wiring, JSONL writes, debug flag/command
 - `capture.ts` — schema types and pure record-building/report helpers
 - `capture.test.ts` — unit tests for the helpers
+- `index.test.ts` — event-wiring regression tests for user/custom run correlation

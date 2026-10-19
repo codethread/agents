@@ -30,7 +30,6 @@ import {
 
 const DEBUG_FLAG = "debug-dialogue-capture";
 
-type BeforeAgentStartEvent = { prompt: string };
 type AgentEndEvent = { messages: Array<{ role?: string; content?: unknown }> };
 type ToolResultEvent = { toolName: string; input: Record<string, unknown>; isError: boolean };
 type SessionShutdownEvent = { reason?: string };
@@ -104,7 +103,9 @@ export default function dialogueCaptureExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	pi.on("before_agent_start", (event: BeforeAgentStartEvent, ctx) => {
+	pi.on("before_agent_start", (event, ctx) => {
+		promptId = null;
+		if (event.messageType !== "user") return;
 		promptId = randomUUID();
 		write(ctx, "prompt", { text: event.prompt });
 	});

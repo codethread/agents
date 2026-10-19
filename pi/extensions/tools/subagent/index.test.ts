@@ -278,7 +278,12 @@ describe("project delegation setting", () => {
 		await handlers.get("session_start")!({}, ctx);
 		expect(activeTools).toEqual(["read"]);
 		activeTools.push("subagent");
-		expect(handlers.get("before_agent_start")!({ systemPrompt: "base" }, ctx)).toBeUndefined();
+		expect(
+			handlers.get("before_agent_start")!(
+				{ messageType: "user", prompt: "test", systemPrompt: "base" },
+				ctx,
+			),
+		).toBeUndefined();
 		expect(activeTools).toEqual(["read"]);
 		await expect(
 			tool.execute("id", { cwd: "/elsewhere", agent: "scout" }, undefined, undefined, ctx),

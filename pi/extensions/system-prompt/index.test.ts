@@ -60,6 +60,9 @@ function setup(flags: string[] = []) {
 
 function promptEvent() {
 	return {
+		type: "before_agent_start",
+		messageType: "user",
+		prompt: "test",
 		systemPrompt: "base prompt",
 		systemPromptOptions: {
 			cwd: "/repo",
@@ -91,25 +94,37 @@ beforeEach(() => {
 });
 
 describe("system-prompt extension", () => {
-	it("renders the canonical identity alongside ordinary prompt sections and publishes UI status", async () => {
-		const { ctx, handlers } = setup();
-		await handlers.get("session_start")!({}, ctx);
-		expect(await handlers.get("before_agent_start")!(event, ctx)).toBeUndefined();
-		expect(event.systemPromptOptions.sections.tools).toBe("<owned prompt />");
-		expect(mocks.buildPrompt).toHaveBeenCalledWith(
-			expect.objectContaining({
-				cwd: "/repo",
-				contextFiles: event.systemPromptOptions.contextFiles,
-				appendSystemPrompt: "ordinary launch guidance",
-				dynamicPrompt: "<dynamic />",
-				millstrandIdentityInstruction: "Your Millstrand identity is warm-silver-lemur.",
-			}),
-		);
-		expect(ctx.ui.setStatus.mock.calls).toEqual([
-			["millstrand-identity", undefined],
-			["millstrand-identity", "warm-silver-lemur"],
-		]);
-	});
+	it.each(["user", "custom"] as const)(
+		"renders the canonical identity and publishes UI status for %s runs",
+		async (messageType) => {
+			const { ctx, handlers } = setup();
+			await handlers.get("session_start")!({}, ctx);
+			const { prompt: _prompt, ...sharedEvent } = event;
+			const startingEvent =
+				messageType === "user"
+					? event
+					: {
+							...sharedEvent,
+							messageType,
+							message: { customType: "continue", content: "Continue work", display: false },
+						};
+			expect(await handlers.get("before_agent_start")!(startingEvent, ctx)).toBeUndefined();
+			expect(startingEvent.systemPromptOptions.sections.tools).toBe("<owned prompt />");
+			expect(mocks.buildPrompt).toHaveBeenCalledWith(
+				expect.objectContaining({
+					cwd: "/repo",
+					contextFiles: event.systemPromptOptions.contextFiles,
+					appendSystemPrompt: "ordinary launch guidance",
+					dynamicPrompt: "<dynamic />",
+					millstrandIdentityInstruction: "Your Millstrand identity is warm-silver-lemur.",
+				}),
+			);
+			expect(ctx.ui.setStatus.mock.calls).toEqual([
+				["millstrand-identity", undefined],
+				["millstrand-identity", "warm-silver-lemur"],
+			]);
+		},
+	);
 
 	it("reads current lifecycle state instead of retaining a previous session's identity", async () => {
 		const { ctx, handlers } = setup();

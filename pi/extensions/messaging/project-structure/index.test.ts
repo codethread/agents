@@ -36,7 +36,10 @@ describe("project-structure messaging extension", () => {
 
 		const ctx = createCtx();
 		await handlers.get("session_start")?.({}, ctx);
-		const result = await handlers.get("before_agent_start")?.({ systemPrompt: "Base prompt" }, ctx);
+		const result = await handlers.get("before_agent_start")?.(
+			{ messageType: "user", prompt: "test", systemPrompt: "Base prompt" },
+			ctx,
+		);
 
 		expect(registerMessageRenderer).toHaveBeenCalledWith("project-structure", expect.any(Function));
 		expect(result).toMatchInlineSnapshot(`
@@ -83,11 +86,12 @@ describe("project-structure messaging extension", () => {
 		const ctx = createCtx(branch);
 		await handlers.get("session_start")?.({}, ctx);
 
-		await expect(handlers.get("before_agent_start")?.({}, ctx)).resolves.toBeDefined();
-		await expect(handlers.get("before_agent_start")?.({}, ctx)).resolves.toBeUndefined();
+		const event = { messageType: "user", prompt: "test" };
+		await expect(handlers.get("before_agent_start")?.(event, ctx)).resolves.toBeDefined();
+		await expect(handlers.get("before_agent_start")?.(event, ctx)).resolves.toBeUndefined();
 
 		tree = "/repo\n|-- package.json\n`-- src\n    `-- index.ts\n";
 		branch.push({ type: "message" });
-		await expect(handlers.get("before_agent_start")?.({}, ctx)).resolves.toBeUndefined();
+		await expect(handlers.get("before_agent_start")?.(event, ctx)).resolves.toBeUndefined();
 	});
 });

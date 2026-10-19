@@ -36,7 +36,7 @@ pnpm add --global /tmp/codethread-pies-0.1.0.tgz
 
 Packing runs `pnpm build` and includes compiled JavaScript in `dist/`, not tests or benchmarks. Installed bins run that JavaScript: Node cannot strip TypeScript under `node_modules`. Checkout scripts and local links still use source TypeScript.
 
-The package installs its own SDK dependencies; unlike Pi extensions, standalone Node imports do not use the host extension loader.
+The package installs its own Pi SDK 1.2.0 dependencies, matching the root development SDK pins; unlike Pi extensions, standalone Node imports do not use the host extension loader. Upgrade both sets of pins together.
 
 Verify the paths and start the daemon:
 
@@ -195,7 +195,7 @@ The fitted marginal footprint was about 184.7 MiB per separate Pi process versus
 
 ## Current limitations
 
-- This implementation targets Pi SDK `0.99.1` and Node 24.
+- This implementation targets Pi SDK `1.2.0` and Node 24.
 - `--resume` needs Pi's interactive selector; use `--session <path|id>` instead.
 - `--mode rpc` and `--export` are not implemented.
 - Image `@file` arguments skip Pi's automatic resize pass.

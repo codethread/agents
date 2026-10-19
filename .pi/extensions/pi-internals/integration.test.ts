@@ -35,6 +35,7 @@ function getMessagesWithPrefix(session: TestSession, prefix: string): string[] {
 
 function capturePromptsExtension(pi: any) {
 	pi.on("before_agent_start", (event: any, ctx: any) => {
+		if (event.messageType !== "user") return;
 		ctx.ui.notify(`PROMPT:${event.prompt}`, "info");
 	});
 }

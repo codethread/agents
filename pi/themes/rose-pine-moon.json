@@ -1,4 +1,5 @@
 {
+	"$schema": "https://pi.dev/schemas/theme.schema.json",
 	"name": "rose-pine-moon",
 	"vars": {
 		"base": "#232136",

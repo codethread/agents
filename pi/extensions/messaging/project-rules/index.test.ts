@@ -63,7 +63,7 @@ async function beforeAgentStart(
 	ctx: any,
 	prompt: string,
 ) {
-	return handlers.get("before_agent_start")?.({ prompt }, ctx);
+	return handlers.get("before_agent_start")?.({ messageType: "user", prompt }, ctx);
 }
 
 async function readPath(
@@ -158,6 +158,47 @@ paths:
 
 		const second = await beforeAgentStart(handlers, ctx, "Inspect @src/b.ts");
 		expect(second).toBeUndefined();
+	});
+
+	it("refreshes unconditional rules on custom runs without consuming prompt-scoped rules", async () => {
+		const root = makeRoot();
+		const rulePath = write(root, ".agents/rules/general.md", "# General rules v1\n");
+		write(
+			root,
+			".agents/rules/typescript.md",
+			'---\npaths:\n  - "src/**/*.ts"\n---\n\n# TypeScript rules\n',
+		);
+		const { ctx, handlers } = setupExtension(root);
+		await startSession(handlers, ctx);
+		await beforeAgentStart(handlers, ctx, "Start work");
+		write(root, ".agents/rules/general.md", "# General rules v2\n");
+		bumpMtime(rulePath);
+
+		const result = await handlers.get("before_agent_start")?.(
+			{
+				messageType: "custom",
+				message: { customType: "continue", content: "Inspect @src/a.ts", display: false },
+			},
+			ctx,
+		);
+		expect(result).toEqual(
+			expect.objectContaining({
+				message: expect.objectContaining({
+					content: expect.stringContaining("# General rules v2"),
+					details: { rulePaths: [".agents/rules/general.md"], triggeredBy: [] },
+				}),
+			}),
+		);
+		expect(await beforeAgentStart(handlers, ctx, "Inspect @src/a.ts")).toEqual(
+			expect.objectContaining({
+				message: expect.objectContaining({
+					details: {
+						rulePaths: [".agents/rules/typescript.md"],
+						triggeredBy: ["src/a.ts"],
+					},
+				}),
+			}),
+		);
 	});
 
 	it("sends only unseen prompt-triggered rules when seen and unseen matches overlap", async () => {

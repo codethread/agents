@@ -22,9 +22,9 @@
 		"prepack": "pnpm build"
 	},
 	"dependencies": {
-		"@earendil-works/pi-agent-core": "0.99.1",
-		"@earendil-works/pi-ai": "0.99.1",
-		"@earendil-works/pi-coding-agent": "0.99.1",
+		"@earendil-works/pi-agent-core": "1.2.0",
+		"@earendil-works/pi-ai": "1.2.0",
+		"@earendil-works/pi-coding-agent": "1.2.0",
 		"which": "6.0.1"
 	},
 	"devDependencies": {

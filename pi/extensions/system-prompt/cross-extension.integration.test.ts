@@ -149,6 +149,7 @@ printf '{"type":"message_end","message":{"role":"assistant","content":[{"type":"
 						const result = await handler(
 							{
 								type: "before_agent_start",
+								messageType: "user",
 								prompt: "test",
 								systemPrompt: options.customPrompt,
 								systemPromptOptions: options,
