@@ -15,6 +15,8 @@ An installable toolkit for Pi, Codex, and Claude Code. It ships Pi extensions an
 
 ## Install the Pi package
 
+Use Pi 1.2.0 or newer; the extensions rely on its user/custom startup events.
+
 From a local checkout:
 
 ```bash
@@ -40,7 +42,7 @@ The package includes:
 - prompt history, status, and other optional UI extensions;
 - provider and project-rule helpers.
 
-Agent-local MCP servers require Pi 0.99+ with its built-in `mcp` and `codemode` extensions enabled. They use native registration and compact codemode access, not `pi-mcp-adapter`. See [the extension index](pi/extensions/README.md) and [subagent documentation](pi/extensions/tools/subagent/README.md) for configuration details.
+Agent-local MCP servers require Pi's built-in `mcp` and `codemode` extensions enabled. They use native registration and compact codemode access, not `pi-mcp-adapter`. See [the extension index](pi/extensions/README.md) and [subagent documentation](pi/extensions/tools/subagent/README.md) for configuration details.
 
 ## Rosé Pine themes
 
@@ -120,7 +122,7 @@ pnpm install
 pnpm check
 ```
 
-Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`, and `pnpm format`. The complete check also builds the standalone Pies distribution before testing. Vitest includes unit, snapshot, and Pi runtime integration tests backed by a patched `@gaodes/pi-test-harness`. The patch updates harness 1.0.3 for `pi-ai/compat`, `session.modelRuntime` authentication, and `agent.streamFunction` playbook injection. Integration tests and the Pies workspace resolve Pi SDK 0.99.1. Remove the patch when the upstream harness supports these APIs.
+Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`, and `pnpm format`. The complete check also builds the standalone Pies distribution before testing. Vitest includes unit, snapshot, and Pi runtime integration tests backed by a patched `@gaodes/pi-test-harness`. The patch updates harness 1.0.3 for `pi-ai/compat`, `session.modelRuntime` authentication, and `agent.streamFunction` playbook injection. Integration tests and the Pies workspace resolve Pi SDK 1.2.0. Keep root development and Pies runtime SDK pins aligned when upgrading Pi. Remove the patch when the upstream harness supports these APIs.
 
 Pi host modules are wildcard peer dependencies, not runtime dependencies of the extension package. Pinned development copies support local typechecking and tests; Pi supplies the running extensions' SDK modules through its loader. The independent `@codethread/pies` package owns its pinned runtime SDK dependencies and CLI bins; root wrappers launch its source entrypoints without changing the working directory.
 

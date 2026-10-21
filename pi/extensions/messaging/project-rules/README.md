@@ -7,7 +7,7 @@ Loads project-local rule files from:
 
 `.agents/rules/<same/nested/file.md>` overrides `.claude/rules/<same/nested/file.md>`.
 
-Rules without `paths` frontmatter are added to the system prompt by the system-prompt extension. Rules with `paths` frontmatter are sent as visible custom messages when matching files are mentioned in the user prompt or read with the `read` tool. The visible notice names the injected rule file path inline for one rule, or as a bullet list for multiple rules.
+Rules without `paths` frontmatter are added to the system prompt by the system-prompt extension. Changed unconditional rules are refreshed on both user- and custom-message runs. Rules with `paths` frontmatter are sent as visible custom messages when matching files are mentioned in the user prompt or read with the `read` tool; custom run starters do not trigger prompt-path matching. The visible notice names the injected rule file path inline for one rule, or as a bullet list for multiple rules.
 
 Path-scoped rules are deduped for the current session by effective rule version, not by triggering file path. Once an unchanged scoped rule has been sent, later matching files do not resend it until the rule changes, an `.agents/rules/<same-relative-path>.md` override becomes effective, or the session resets.
 

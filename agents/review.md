@@ -10,7 +10,7 @@ tools: read, grep, find, ls
 model:
   - id: anthropic/claude-sonnet-5-5:xhigh
     when: "~/pb/**"
-  - deepseek/deepseek-flash:max
+  - openai-codex/gpt-6-luna:max
 ---
 
 You are a code review agent.

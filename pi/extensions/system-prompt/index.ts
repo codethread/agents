@@ -8,6 +8,7 @@ import {
 	formatNativeIdentityState,
 } from "@millhouse/harnesses/pi/millstrand-identity";
 import type {
+	BeforeAgentStartEvent,
 	BuildSystemPromptOptions,
 	ExtensionAPI,
 	ExtensionContext,
@@ -28,11 +29,6 @@ const DEBUG_TOOLS_FLAG = "debug-tools";
 type ToolDefinition = Parameters<ExtensionAPI["registerTool"]>[0];
 type ToolPromptMetadata = {
 	promptGuidelines: string[];
-};
-
-type BeforeAgentStartEvent = {
-	systemPrompt: string;
-	systemPromptOptions?: Partial<BuildSystemPromptOptions>;
 };
 
 function trimOuterEmptyLines(text: string): string {

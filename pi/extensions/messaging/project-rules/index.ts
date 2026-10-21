@@ -1,4 +1,9 @@
-import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
+import type {
+	BeforeAgentStartEvent,
+	ExtensionAPI,
+	ExtensionContext,
+	Theme,
+} from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import {
 	discoverProjectRules,
@@ -18,7 +23,6 @@ type RuleMessageDetails = {
 	triggeredBy: string[];
 };
 
-type BeforeAgentStartEvent = { prompt: string };
 type ToolResultEvent = {
 	toolName: string;
 	input: Record<string, unknown>;
@@ -125,9 +129,12 @@ export default function projectRulesMessagingExtension(pi: ExtensionAPI) {
 		baselineInitialized = true;
 		messages.push(buildMessage(changedUnconditional, []));
 
-		const promptPaths = extractPromptPaths(event.prompt)
-			.map((filePath) => normalizeProjectPath(filePath, ctx.cwd, discovery.projectRoot))
-			.filter((filePath): filePath is string => Boolean(filePath));
+		const promptPaths =
+			event.messageType === "user"
+				? extractPromptPaths(event.prompt)
+						.map((filePath) => normalizeProjectPath(filePath, ctx.cwd, discovery.projectRoot))
+						.filter((filePath): filePath is string => Boolean(filePath))
+				: [];
 		const scopedRules = matchingRules(discovery.rules, promptPaths).filter(
 			(rule) => !sentScoped.has(scopedRuleKey(rule)),
 		);
