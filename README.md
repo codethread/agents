@@ -111,6 +111,8 @@ Codex does not directly run Pi extensions or Pi agent definitions. Those capabil
 
 ## Development
 
+Skill intent and design rationale live in [`docs/skills/`](docs/skills/), one document per skill. Read the matching document before changing a skill and maintain it alongside intentional changes in behavior.
+
 Use Node 24 and pnpm. The complete check formats only after lint, typechecking, and tests succeed:
 
 ```bash

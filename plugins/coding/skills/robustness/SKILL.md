@@ -5,11 +5,6 @@ description: |
   TRIGGER when: handling review comments about edge cases, failure modes,
   fallback behavior, graceful degradation, retries, validation, or error handling.
   SKIP when: making a purely happy-path change with no new failure behavior.
-metadata:
-  intent: >-
-    LLMs reach for production-grade error handling even when the task is
-    "hello world". This skill is the decision procedure for when to stop,
-    when to escalate, and when to handle failure explicitly.
 ---
 
 # Writing robust enough code

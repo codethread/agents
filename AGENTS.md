@@ -20,6 +20,8 @@ Never stop the mill; only the user may stop it.
 
 ## writing prompts / skills
 
+Keep skill intent and design rationale in `docs/skills/<skill-name>.md`, one file per skill. Before changing a skill, read its intent document and preserve that intent; update the document when intent deliberately changes. Create the document when adding a skill or when changing a skill that has none. Keep maintainer metadata out of `SKILL.md`; operational guidance belongs in the skill itself.
+
 Always write prompts and skills as literal messages the agent will receive. The agent cannot tell whether text came from a user typing, a slash prompt, or a script.
 
 Keep prompts self-contained, or reference only things the receiving agent definitely has access to.

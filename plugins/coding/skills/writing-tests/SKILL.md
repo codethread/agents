@@ -9,15 +9,13 @@ description: |
   exactly what to test (specific cases, assertions, or boundaries named).
   SKIP only when: the user has spelled out the test cases to write, or editing an
   existing test that already follows a clear local pattern (mirror the pattern instead).
-metadata:
-  intent: >-
-    Help agents add fewer, better tests. Suitable for ordinary application code;
-    not sufficient guidance for mission-critical health, finance, or safety systems.
 ---
 
 # Writing tests
 
 Use this skill to decide whether to author tests, what kind to write, and when to ask instead of inventing a fragile harness.
+
+This guidance is for ordinary application code; it is not sufficient for mission-critical health, finance, or safety systems.
 
 ## Knowledge
 

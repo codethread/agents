@@ -4,9 +4,6 @@ description: >
   Entry point for the devflow workspace lifecycle. Load this first when the user asks to run a devflow stage,
   create or inspect devflow artifacts, decide what stage comes next, generate RFC/spec/plan/tasks, run a feature
   through AFK work, or finish/archive a feature.
-metadata:
-  intent: >-
-    provide the cheap workflow state machine and delegate stage details to focused reference files
 ---
 
 # Devflow lifecycle
