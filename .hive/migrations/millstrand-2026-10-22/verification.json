@@ -1,0 +1,119 @@
+{
+  "source": {
+    "cards": 18,
+    "tasks": 37,
+    "nonemptyBodies": 46,
+    "parentLinks": 37,
+    "blockingLinks": 7
+  },
+  "rehearsal": {
+    "apply": {
+      "status": "applied",
+      "created": 55,
+      "updated": 0,
+      "deleted": 0,
+      "conflicted": 0,
+      "skipped_equal": 0,
+      "relations_after": {
+        "labels": 59,
+        "dependencies": 44,
+        "comments": 0
+      },
+      "postcommit_failures": []
+    },
+    "repeat": {
+      "status": "no_changes",
+      "created": 0,
+      "updated": 0,
+      "deleted": 0,
+      "conflicted": 0,
+      "skipped_equal": 55,
+      "relations_after": {
+        "labels": 59,
+        "dependencies": 44,
+        "comments": 0
+      },
+      "postcommit_failures": []
+    }
+  },
+  "production": {
+    "state": "imported-and-verified",
+    "date": "2026-10-23",
+    "importedWorkRecords": 55,
+    "byteExactNonemptyBodies": 46,
+    "parentLinks": 37,
+    "blockingLinks": 7,
+    "freshCaptureUnchanged": true,
+    "receipts": {
+      "applied": {
+        "status": "applied",
+        "created": 55,
+        "updated": 0,
+        "deleted": 0,
+        "conflicted": 0,
+        "skipped_equal": 0,
+        "postcommit_failures": []
+      },
+      "repeated": {
+        "status": "no_changes",
+        "created": 0,
+        "updated": 0,
+        "deleted": 0,
+        "conflicted": 0,
+        "skipped_equal": 55,
+        "postcommit_failures": []
+      },
+      "canonical-merge": {
+        "status": "success",
+        "merged_issues": 55,
+        "deleted_issues": 0,
+        "conflicts": 0,
+        "resolution": "manual"
+      }
+    },
+    "trackerContractCommit": "b8647a7",
+    "initialSnapshotCommit": "a4c320e",
+    "publishedRemotely": false
+  },
+  "checks": {
+    "suite": "pnpm check",
+    "testFiles": 51,
+    "tests": 447,
+    "beeKinds": 19,
+    "workflowSchema": "do-work",
+    "piPrimer": "verified",
+    "piAlertCallback": "verified-empty-context",
+    "managedExecution": "two-successful-smokes-and-one-editorial-assignment",
+    "claudeCodexNativeDelivery": "not-verified",
+    "piShellTrackerSelection": "verified-through-mise",
+    "bvVersion": "0.25.2",
+    "completedAt": "2026-10-23",
+    "suiteExitCode": 0,
+    "currentSourceCapture": "byte-identical-to-archive",
+    "nativeReadback": "all-55-record-fields-and-44-relations-match"
+  },
+  "bv": {
+    "source": "selected-sqlite-database",
+    "commands": [
+      "--recipe _hive_work --robot-triage",
+      "--recipe _hive_work --robot-plan",
+      "--recipe _hive_work --robot-insights",
+      "--recipe _hive_system --robot-triage",
+      "--recipe _hive_workflows --robot-triage"
+    ],
+    "importedBacklog": {
+      "open": 6,
+      "blocked": 1,
+      "humanReview": "agents-ms-z0jyc"
+    },
+    "blockingCycles": false,
+    "workflows": {
+      "closed": 6
+    },
+    "system": {
+      "closedRequests": 3,
+      "openSavedCheckpoints": 3
+    },
+    "beeAttentionCount": 0
+  }
+}

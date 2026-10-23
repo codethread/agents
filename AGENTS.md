@@ -42,10 +42,17 @@ Bad:
 
 If orchestration code performs work before sending a prompt, describe the result, not the orchestrator: say "selected task" rather than "task selected by scripts/foo.nu".
 
-<!-- mill:millstrand-prime -->
+## Hive workflow
 
-## Millstrand / strand
+Use Hive for new repository work. Read `beeswax prime` and `.agents/skills/hive/SKILL.md`; installed CLI guidance owns tool procedures. Setup and migration evidence are in `.hive/README.md`.
 
-This repo uses Millstrand strands to track work. Start with `strand --help`. Run `mill prime millstrand` when building on this repo's `.millstrand/` config, or working with millstrand spools, weaver or REPL.
+The authorized migration imported and verified all 55 work records. Source captures and mapping evidence remain in `.hive/migrations/`; imported historical instructions do not grant new execution or publication authority.
 
-<!-- /mill:millstrand-prime -->
+- Run `beeswax sync` after installing the matching Hive release and trusting repository hooks. Confirm the selected tracker with `beeswax beads env --json`; preserve supplied `BEADS_DB` and `BD_ACTOR`. Without an actor, use the Scent identity delivered by onboarding rather than another worker's identity.
+- For direct shell/Pi sessions, use the setup-generated Mise environment (`mise exec -- br where --json` verifies selection; `mise exec -- pi` launches Pi). Without `BEADS_DB`, native `br` can select an unrelated home tracker. Managed bees already inherit their selected database; preserve it.
+- Accountable human owner: `ct`. Ownership is not assignment; do not assign human work without explicit instruction.
+- Use `br` for task authority, `bee` for delegation, and Honeycomb for worktrees. The configured kinds are in `.hive/bees.toml`; inspect with `bee kinds`. Repository-wide checks run through `qlock exec --lock /tmp/agent-cpu.lock -w 180 -- pnpm check`.
+- Keep `.worktrees/tracker--state` out of feature cleanup and application checks. Never merge `tracker/state` into application branches.
+- Tracker edits stay local until an explicitly authorized publication checkpoint. Commit permission alone does not authorize a push, `beeswax beads sync`, or Honeycomb's inherited push-on-finish behavior.
+- Preserve `.millstrand/` and the running mill as legacy evidence. Do not feed new work to both schedulers. Migration does not transfer old claims, agent sessions, or running workflows; package-owned Millstrand identity integration remains unchanged for consumers.
+- For another board import or reconciliation, load `.agents/skills/millstrand-to-beads/SKILL.md`.

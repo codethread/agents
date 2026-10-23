@@ -1,0 +1,217 @@
+owner = "ct"
+humans = ["ct"]
+max_retries = 0
+
+[limits]
+colony = 4
+kind = 2
+worktree = 2
+
+[formulas.pi]
+executable = "~/.pi/agent/bin/pi"
+headless = ["--print", "--mode", "json", "--approve"]
+argv = ["--model", "{{model}}", "--thinking", "{{effort}}", "{{#if system_prompt}}--append-system-prompt{{/if}}", "{{#if system_prompt}}{{system_prompt}}{{/if}}", "--", "{{prompt}}"]
+
+[formulas.pi-agent]
+executable = "~/.pi/agent/bin/pi"
+headless = ["--print", "--mode", "json", "--approve"]
+argv = ["--agent", "{{kind}}", "--model", "{{model}}", "--thinking", "{{effort}}", "{{#if system_prompt}}--append-system-prompt{{/if}}", "{{#if system_prompt}}{{system_prompt}}{{/if}}", "--", "{{prompt}}"]
+
+[formulas.pi-review]
+executable = "~/.pi/agent/bin/pi"
+headless = ["--print", "--mode", "json", "--approve"]
+argv = ["--agent", "bee-review", "--model", "{{model}}", "--thinking", "{{effort}}", "{{#if system_prompt}}--append-system-prompt{{/if}}", "{{#if system_prompt}}{{system_prompt}}{{/if}}", "--", "{{prompt}}"]
+
+[formulas.pi-nerd]
+executable = "~/.pi/agent/bin/pi"
+headless = ["--print", "--mode", "json", "--approve"]
+argv = ["--agent", "bee-nerd", "--model", "{{model}}", "--thinking", "{{effort}}", "{{#if system_prompt}}--append-system-prompt{{/if}}", "{{#if system_prompt}}{{system_prompt}}{{/if}}", "--", "{{prompt}}"]
+
+[formulas.pi-prose]
+executable = "~/.pi/agent/bin/pi"
+headless = ["--print", "--mode", "json", "--approve"]
+argv = ["--agent", "bee-prose", "--model", "{{model}}", "--thinking", "{{effort}}", "{{#if system_prompt}}--append-system-prompt{{/if}}", "{{#if system_prompt}}{{system_prompt}}{{/if}}", "--", "{{prompt}}"]
+
+[kinds.astra]
+description = "gpt-6-astra for extreme diagnosis, top-level coordination, architectural guidance, and high-stakes user-facing prose."
+harness = "pi"
+model = "openai-codex/gpt-6-astra"
+effort = "high"
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."
+
+[kinds.deepseek]
+description = "Scores: complexity 6; code-taste 7; resilience 6; ui-design X; cost 9.\nDeepSeek V4.1 Flash\n\nStrong coding model that works fast and effectively against well-scoped acceptance criteria. Very fast and cheap; favour it when work is well understood or has clear precedent.\n\nCaptured while enabled in Millstrand; this Bee has no live coupling to seat/allow-china."
+harness = "pi"
+model = "deepseek/deepseek-flash"
+effort = "max"
+allow = ["oracle", "reviewer"]
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."
+
+[kinds.grunt]
+description = "Preferred seat for mechanical, tightly scoped implementation tasks, exploration work, large file/log searching and other context heavy search tasks"
+harness = "pi"
+model = "deepseek/deepseek-flash"
+effort = "max"
+allow = ["oracle", "reviewer"]
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."
+
+[kinds.luna]
+description = "Scores: complexity 3; code-taste 4; resilience 1; ui-design 2; cost 9.\n\ngpt-5.6-luna for implementation details, scouting, and tightly scoped delegated tasks. Be explicit about success criteria."
+harness = "pi"
+model = "openai-codex/gpt-5.6-luna"
+effort = "xhigh"
+allow = ["oracle", "reviewer"]
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."
+
+[kinds.oracle]
+description = "Default seat for high-stakes guidance, diagnosis, and architecture."
+harness = "pi"
+model = "openai-codex/gpt-6-astra"
+effort = "high"
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."
+
+[kinds.reviewer]
+description = "Default seat for targeted reviews."
+harness = "pi"
+model = "openai-codex/gpt-5.6-terra"
+effort = "high"
+allow = ["grunt", "oracle"]
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."
+
+[kinds.sol]
+description = "Scores: complexity 7; code-taste 6; resilience 9; ui-design 5; coordination 8; cost 5.\n\ngpt-5.6-sol for complex implementation, hostile-environment debugging, and delegated coordination."
+harness = "pi"
+model = "openai-codex/gpt-5.6-sol"
+effort = "low"
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."
+
+[kinds.terra]
+description = "Scores: complexity 5; code-taste 5; resilience 2; ui-design 4; coordination 5; cost 7.\n\ngpt-5.6-terra high for well-defined single-concern review and validation on clean checkouts."
+harness = "pi"
+model = "openai-codex/gpt-5.6-terra"
+effort = "high"
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."
+
+[kinds.tui]
+description = "Primary interactive user seat."
+harness = "pi"
+model = "openai-codex/gpt-5.6-sol"
+effort = "low"
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."
+
+[kinds.review-docs-and-tests]
+description = "Check contract coverage in docs and tests."
+harness = "pi-review"
+model = "deepseek/deepseek-flash"
+effort = "max"
+allow = ["oracle", "reviewer"]
+system_prompt = '''For this repository, delegate through Bee rather than Pi's subagent tool.
+
+Review changed files for contract coverage. Check relevant docs for
+commands, public names, and behavior changed by the patch. Check source
+and tests for a focused proof of the promised behavior; do not demand
+tests for claims they cannot establish.
+
+Report only concrete P1/P2 omissions with repository-relative paths and
+line numbers, followed by a practical fix. Say `No findings` when the
+diff is adequate. Do not edit files or repository state.
+
+Exception: complete required Bee tracker/run reporting, but do not edit
+application files.'''
+
+[kinds.review-runtime-correctness]
+description = "Check correctness of changed Clojure runtime behavior."
+harness = "pi-review"
+model = "deepseek/deepseek-flash"
+effort = "max"
+allow = ["oracle", "reviewer"]
+system_prompt = '''For this repository, delegate through Bee rather than Pi's subagent tool.
+
+Trace changed Clojure runtime behavior through its public seam and
+adjacent paths. Look for incorrect state transitions, boundary handling,
+error behavior, resource ordering, and concurrency mistakes. Verify
+claims against the changed code rather than proposing unrelated work.
+
+Report only actionable P1/P2 defects with repository-relative paths and
+line numbers, and explain the smallest practical fix. Say `No findings`
+when the behavior is sound. Do not edit files or repository state.
+
+Exception: complete required Bee tracker/run reporting, but do not edit
+application files.'''
+
+[kinds.review-source-form]
+description = "Check Clojure readability and source prose."
+harness = "pi-review"
+model = "deepseek/deepseek-flash"
+effort = "max"
+allow = ["oracle", "reviewer"]
+system_prompt = '''For this repository, delegate through Bee rather than Pi's subagent tool.
+
+This is a judgment-focused source-form review. Prefer a clear public
+story, named steps, and prose that is easy to scan over stylistic
+nitpicks. Do not duplicate correctness or test-coverage review.
+
+Review changed Clojure source for readability and source prose, not for
+the test suite. Check that public entry points lead through named steps,
+that helpers do not hide important control flow, and that docstrings,
+comments, and long prose values follow the surrounding source style.
+
+Report only concrete P1/P2 readability defects with repository-relative
+paths and line numbers, plus a practical rewrite or restructuring. Say
+`No findings` when the changed source is clear. Do not edit files or
+repository state.
+
+Exception: complete required Bee tracker/run reporting, but do not edit
+application files.'''
+
+[kinds.worker]
+description = "General worker agent, same tools as you, use when needing to delegate large slices of known work"
+harness = "pi-agent"
+model = "openai-codex/gpt-6-luna"
+effort = "max"
+hidden = true
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."
+
+[kinds.scout]
+description = "Read-only code finder. Scout locates existing files, symbols, callers, and tests for one narrow lookup. It returns pointers for you to read, not analysis. Use it to answer \"where is X?\", not \"how should we change it?\""
+harness = "pi-agent"
+model = "openai-codex/gpt-6-luna"
+effort = "high"
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool. Complete required Bee tracker/run reporting, but do not edit application files."
+
+[kinds.fixer]
+description = "Validation-oriented agent that repairs failures and completes tightly scoped mechanical outcomes."
+harness = "pi-agent"
+model = "openai-codex/gpt-5.3-codex-spark"
+effort = "low"
+hidden = true
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."
+
+[kinds.hack]
+description = "Terminal-first investigation and automation agent for command-heavy tasks."
+harness = "pi-agent"
+model = "openai-codex/gpt-6-luna"
+effort = "xhigh"
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."
+
+[kinds.review]
+description = "Reviews completed code changes for correctness, regressions, and maintainability risks. Provide a clear brief of what changed, why, and any relevant commits or files. Returns prioritized findings only; does not modify files."
+harness = "pi-review"
+model = "openai-codex/gpt-6-luna"
+effort = "max"
+hidden = true
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool. Complete required Bee tracker/run reporting, but do not edit application files."
+
+[kinds.nerd]
+description = "Research agent for studying online material such as blogs, docs, readmes, news etc. This is not a testing agent for driving UI testing or browser automation, it is a web searcher."
+harness = "pi-nerd"
+model = "openai-codex/gpt-6-luna"
+effort = "xhigh"
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool. Complete required Bee tracker/run reporting, but do not edit application files."
+
+[kinds.prose]
+description = "Editorial agent that tightens markdown after the main agent has drafted it."
+harness = "pi-prose"
+model = "openai-codex/gpt-6-astra"
+effort = "high"
+system_prompt = "For this repository, delegate through Bee rather than Pi's subagent tool."

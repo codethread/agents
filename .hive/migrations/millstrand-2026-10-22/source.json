@@ -1,0 +1,1291 @@
+{
+  "workspace": "agents",
+  "exports": [
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [],
+      "root-id": "jzo5g",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Cross-repo source task: Codethread zxwih under 7qxp9. In an isolated worktree add exactly one line to root AGENTS.md: Never stop the mill; only the user may stop it. Canonical /Users/ct/dev/projects/agents/AGENTS.md is dirty with user work: never stash/reset/copy/overwrite it or include unrelated changes. Safe options are (1) land the isolated one-line branch independently, then perform a guarded exact insertion into canonical while retaining its whole existing byte content, or (2) if normal landing requires a clean canonical checkout, leave the reviewed pushed branch/PR and report that the user can commit their dirty work before fast-forwarding. Prefer only a guarded exact insertion into canonical; abort and report if it cannot preserve content exactly. Make no implementation edits and never stop/restart the mill. Obtain basic review, deliver normally where safe, verify both reviewed branch and active checkout, and return exact evidence so the coordinator can close zxwih.",
+            "branch": "docs/user-owned-mill-20260913",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p1",
+            "kanban/run-id": "cgv6q",
+            "kanban/type": "feature",
+            "owner": "rapid-nimble-stoat",
+            "worktree": "/Users/ct/dev/projects/agents__docs--user-owned-mill-20260913"
+          },
+          "created_at": "2026-09-13 17:37:03",
+          "id": "jzo5g",
+          "state": "closed",
+          "title": "Reserve mill shutdown for user in AGENTS",
+          "updated_at": "2026-09-13 17:42:17"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [
+        {
+          "edge_type": "depends-on",
+          "from_strand_id": "yvvk2",
+          "to_strand_id": "xn3rg"
+        }
+      ],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "de5w5",
+          "to_strand_id": "xn3rg"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "de5w5",
+          "to_strand_id": "yvvk2"
+        }
+      ],
+      "root-id": "de5w5",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Agents-owned bounded preparation source change for parent Codethread lm8um/fjp1z: update only .millstrand direct ct.spools/harnesses from 9548390ce621461ba0a289859fe9b0af963f5805 to accepted 6410da676b3b41be55a58f4abc5fe773cfc75cb9 and codethread/config from 3dcf5f051842512d444b9d111d3998f4078081f6 to accepted 6c7a22cb4311076e172470a65298a089a85b52ef. Preserve Identity b1955a96 and unrelated pins/source. Verify disposable resolved basis and aliases, exact focused diff, repository quality, required tracked review, normal shared Land/FIFO, cleanup, then hand pooled runtime pickup to lm8um. Do not enable native-v1 or touch canonical main.",
+            "branch": "chore/adopt-coordinator-protocol-pins-20260914",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p1",
+            "kanban/run-id": "s96f4",
+            "kanban/type": "feature",
+            "owner": "crisp-happy-koala",
+            "worktree": "/Users/ct/dev/projects/agents__chore--adopt-coordinator-protocol-pins-20260914"
+          },
+          "created_at": "2026-09-14 10:32:42",
+          "id": "de5w5",
+          "state": "closed",
+          "title": "Adopt accepted coordinator protocol pins",
+          "updated_at": "2026-09-14 10:47:37"
+        },
+        {
+          "attributes": {
+            "body": "Sole writer crisp-happy-koala in recorded feature worktree updates only two SHAs, verifies resolved basis and effective coordinator aliases, runs appropriate focused quality, commits and pushes exact candidate.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-14 10:32:57",
+          "id": "xn3rg",
+          "state": "closed",
+          "title": "Update pins and verify disposable basis",
+          "updated_at": "2026-09-14 10:35:53"
+        },
+        {
+          "attributes": {
+            "body": "Run required tracked exact-candidate review through shared Land, sign off only after evidence, complete FIFO merge, verify main ancestry, cleanup source worktree, and hand exact merged pin outcome to Codethread lm8um.",
+            "cleanup/result": "complete",
+            "kanban/task": "true",
+            "kind": "task",
+            "land/merged": "2a941e204cdc4ac992570fbbef601c08955788ea",
+            "land/run": "land-agents-coordinator-pins-codex-20260914",
+            "review/run": "0eooy",
+            "source/head": "22c59d9a999ae42b4c1a381d04df2dd5a4e69eb1"
+          },
+          "created_at": "2026-09-14 10:33:04",
+          "id": "yvvk2",
+          "state": "closed",
+          "title": "Review land and clean pin adoption",
+          "updated_at": "2026-09-14 10:47:37"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [
+        {
+          "edge_type": "depends-on",
+          "from_strand_id": "m51sd",
+          "to_strand_id": "kthh5"
+        },
+        {
+          "edge_type": "depends-on",
+          "from_strand_id": "ttewn",
+          "to_strand_id": "m51sd"
+        },
+        {
+          "edge_type": "depends-on",
+          "from_strand_id": "twdkl",
+          "to_strand_id": "ttewn"
+        }
+      ],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "b0gto",
+          "to_strand_id": "6hbv1"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "b0gto",
+          "to_strand_id": "kthh5"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "b0gto",
+          "to_strand_id": "m51sd"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "b0gto",
+          "to_strand_id": "ttewn"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "b0gto",
+          "to_strand_id": "twdkl"
+        }
+      ],
+      "root-id": "b0gto",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Own feature b0gto in Agents workspace /Users/ct/dev/projects/agents/.millstrand from canonical /Users/ct/dev/projects/agents. Parent fjp1z/lm8um in Codethread owns product/scope, cross-repo priority and runtime activation. Set a real goal to deliver only the prepared DAG: preserve/adopt retained source n9m9g -> 46b183189653493cc2043ca6d675084b3c311e8d and writer scu6a/coral-lucid-bison/session bf36dbb0-ad83-4b50-a992-d32e8226f761/worktree /Users/ct/dev/projects/agents__feat--native-guidance-adapters-20260914; verify source evidence/dependencies; coordinate exact candidate review without duplicating shared w2adn; drive normal Agents Land/FIFO/cleanup when the workspace-qualified Harnesses wake is acknowledged; report precise handoffs. Harnesses peer owns qfw9o and shared contract milestones w2adn -> jtyab -> a7obp in /Users/ct/dev/projects/harnesses.spool/.millstrand. First ready action: inspect n9m9g/current custody and latest peer qfw9o/w2adn notes, acknowledge receiving ownership, then keep independent verification moving. Blocked slice wake: Harnesses coordinator publishes qfw9o immutable candidate and explicitly signals w2adn sequencing. Allowed: tracked Strand workers/reviewer/Oracle within scope, exact quality/review/Land/cleanup and notes. Excluded: native-v1 production admission/activation, Notes product work, source duplication, main edits, Mill restart, untracked/native delegates, model/flag/daemon changes. Use 180s event-aware waits with 210s client and >=240s outer tool. Before planner release, write ACK here with actual identity, request/run, managed/native session/thread, public goal ID/state, canonical CWD, terminal agent-agents-coordinator-wzepr, effective Codex gpt-5.6-luna/max and frozen appended launch policy; update b0gto owner/current run to actual identity/run while preserving planner predecessor s96f4.",
+            "coordination/current-request": "agents-coordinator-wzepr-20260914",
+            "coordination/current-run": "2808e",
+            "coordination/goal-id": "01a09fb0-ef3d-7512-bd14-edb7b0de67f4",
+            "coordination/goal-state": "active",
+            "coordination/managed-session": "deb08de3-628f-4c19-b619-8912117d2fd7",
+            "coordination/native-thread": "01a09fb0-ef3d-7512-bd14-edb7b0de67f4",
+            "coordination/planner-run": "s96f4",
+            "coordination/predecessor-settled": "true",
+            "coordination/status": "superseded-handoff-accepted",
+            "coordination/successor": "eager-wise-heron",
+            "coordination/successor-run": "pk99y",
+            "coordination/successor-task": "aq2o4",
+            "coordination/terminal": "agent-agents-coordinator-wzepr",
+            "kanban/run-id": "2808e",
+            "kanban/task": "true",
+            "kind": "task",
+            "owner": "lucid-lively-stoat"
+          },
+          "created_at": "2026-09-14 10:49:57",
+          "id": "6hbv1",
+          "state": "closed",
+          "title": "Headed Luna coordinator for Agents adapter acceptance",
+          "updated_at": "2026-09-15 06:45:27"
+        },
+        {
+          "attributes": {
+            "body": "Local Agents coordination root receiving Harnesses-workspace source task n9m9g from parent Codethread lm8um/fjp1z. Canonical coordinator CWD /Users/ct/dev/projects/agents; required retained source custody remains n9m9g in /Users/ct/dev/projects/harnesses.spool/.millstrand -> branch feat/native-guidance-adapters-20260914 -> worktree /Users/ct/dev/projects/agents__feat--native-guidance-adapters-20260914 -> settled writer scu6a/coral-lucid-bison, native session bf36dbb0-ad83-4b50-a992-d32e8226f761, clean pushed candidate 46b183189653493cc2043ca6d675084b3c311e8d. Coordinate exact accepted source/review, normal Agents Land/FIFO, cleanup and precise peer handoff while Harnesses coordinator owns qfw9o and shared w2adn/jtyab/a7obp sequencing. Production native-v1 admission stays disabled. Preserve all predecessor sessions/worktrees; no duplicate source worker/review, no main edits, no Mill restart, no native delegates. Parent owns cross-lane scope/activation decisions.",
+            "branch": "coord/agents-native-guidance-20260914",
+            "coordination/cleanup": "complete",
+            "coordination/coordinator-run": "pk99y",
+            "coordination/coordinator-task": "aq2o4",
+            "coordination/coordinator-workspace": "/Users/ct/dev/projects/codethread.spool/.millstrand",
+            "coordination/current-request": "cohort-pragmatic-sol-finisher-20260915",
+            "coordination/current-run": "pk99y",
+            "coordination/goal-id": "01a09fb0-ef3d-7512-bd14-edb7b0de67f4",
+            "coordination/managed-session": "deb08de3-628f-4c19-b619-8912117d2fd7",
+            "coordination/merge-sha": "e736826cd378455c443bf657001fc766f567c6b3",
+            "coordination/native-thread": "01a09fb0-ef3d-7512-bd14-edb7b0de67f4",
+            "coordination/native-v1": "disabled",
+            "coordination/parent-decision": "codethread-x4y0z-ilmdd",
+            "coordination/planner-run": "s96f4",
+            "coordination/predecessor-run": "2808e",
+            "coordination/prepared-head": "31fb040f140abaebfce5571e6c79670e2afacd02",
+            "coordination/reviewed-candidate": "4376f8785c3c42f94b4cc6c5f2184495285a192a",
+            "coordination/shared-handoff": "acknowledged-w2adn-jtyab-a7obp",
+            "coordination/status": "accepted-landed-cleaned-handed-off",
+            "kanban/card": "true",
+            "kanban/lane": "claimed",
+            "kanban/priority": "p1",
+            "kanban/run-id": "pk99y",
+            "kanban/type": "feature",
+            "owner": "eager-wise-heron"
+          },
+          "created_at": "2026-09-14 10:49:34",
+          "id": "b0gto",
+          "state": "closed",
+          "title": "Coordinate disabled native guidance adapter acceptance",
+          "updated_at": "2026-09-15 07:35:25"
+        },
+        {
+          "attributes": {
+            "body": "External milestone task; do not dispatch source work. Inspect /Users/ct/dev/projects/harnesses.spool/.millstrand qfw9o and w2adn. Close only after the headed Harnesses coordinator explicitly acknowledges qfw9o ownership, publishes an immutable candidate, and hands the exact shared-review wake/ownership boundary to this Agents coordinator. Preserve n9m9g candidate and do not create cross-workspace edges or circular epic dependencies.",
+            "coordination/current-candidate": "ee64a0f20e587bc6a1130b554c595be7d021e904",
+            "coordination/current-review-run": "isjbo",
+            "coordination/current-review-status": "running",
+            "coordination/peer-candidate": "ee64a0f20e587bc6a1130b554c595be7d021e904",
+            "coordination/peer-review-run": "isjbo",
+            "coordination/peer-run": "ay561",
+            "coordination/status": "peer-candidate-and-workspace-wake-accepted",
+            "coordination/supplier-coordinator": "yhr0b",
+            "coordination/supplier-run": "clh1k",
+            "coordination/supplier-task": "qfw9o",
+            "coordination/supplier-workspace": "/Users/ct/dev/projects/harnesses.spool/.millstrand",
+            "coordination/wake-condition": "await-isjbo-settlement-and-verdict",
+            "coordination/wake-note": "edfi8",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-14 10:50:05",
+          "id": "kthh5",
+          "state": "closed",
+          "title": "Record Harnesses peer candidate and shared-review wake",
+          "updated_at": "2026-09-14 12:17:44"
+        },
+        {
+          "attributes": {
+            "body": "Against retained n9m9g candidate 46b183189653493cc2043ca6d675084b3c311e8d, reconcile the shared w2adn exact-candidate evidence and run only any non-duplicative Agents-specific required quality/review. Verify disabled-by-default native-v1, empty admission, Codex/Pi adapter scope, legacy/unmanaged behavior, exact accepted contract and candidate. Route material repairs only through settled same-lineage n9m9g writer custody; do not replace source ownership or self-accept.",
+            "coordination/acceptance-candidate": "4376f8785c3c42f94b4cc6c5f2184495285a192a",
+            "coordination/acceptance-quality": "full-prechange-evidence-plus-affected-repairs-preflight-13-codex-conformance-typecheck-lint-format-shell",
+            "coordination/acceptance-review": "hirdy-findings-resolved-by-dgl2z-f0i2j-plus-1lsqa-no-findings",
+            "coordination/blocker": "none",
+            "coordination/blocker-readback": "s0q7r-3hflg",
+            "coordination/candidate": "4376f8785c3c42f94b4cc6c5f2184495285a192a",
+            "coordination/coordinator-run": "pk99y",
+            "coordination/coordinator-task": "aq2o4",
+            "coordination/coordinator-workspace": "/Users/ct/dev/projects/codethread.spool/.millstrand",
+            "coordination/current-request": "cohort-pragmatic-sol-finisher-20260915",
+            "coordination/current-run": "pk99y",
+            "coordination/findings": "0mpok-P1-P2",
+            "coordination/followup-review-base": "992a39de34f12e6bb12a1725448d64a6bc6cea9d",
+            "coordination/followup-review-head": "4376f8785c3c42f94b4cc6c5f2184495285a192a",
+            "coordination/followup-review-p2": "none",
+            "coordination/followup-review-request": "cohort-agents-overlap-followup-review-20260915",
+            "coordination/followup-review-run": "1lsqa",
+            "coordination/followup-review-status": "settled-no-findings",
+            "coordination/fresh-review-required": "false",
+            "coordination/handoff-note": "c6c5s",
+            "coordination/handoff-owner": "fjp1z-lm8um",
+            "coordination/land-review-candidate": "f070569de8b6a5f7c7d333c237193ee8407c0eaa",
+            "coordination/land-review-p1": "none",
+            "coordination/land-review-p2": "resolved",
+            "coordination/land-review-run": "hirdy",
+            "coordination/oracle-run": "4me5v",
+            "coordination/oracle-settled": "true",
+            "coordination/oracle-status": "direction-complete",
+            "coordination/oracle-task": "tef48",
+            "coordination/parent-decision": "codethread-x4y0z-ilmdd",
+            "coordination/parent-decision-owner": "x4y0z",
+            "coordination/parent-decision-status": "resolved",
+            "coordination/parent-decision-wake": "doy45",
+            "coordination/predecessor-run": "2808e",
+            "coordination/repair-candidate": "149569cdc96fc3e150bed4575e966d12a5e72d2b",
+            "coordination/repair-commit": "149569cdc96fc3e150bed4575e966d12a5e72d2b",
+            "coordination/repair-partial-scope": "review5-p2s-item1-frozen",
+            "coordination/repair-predecessor": "dgl2z",
+            "coordination/repair-quality": "preflight-13-pass-typecheck-lint-prettier-diffcheck",
+            "coordination/repair-request": "cohort-agents-overlap-p2-repair-20260915",
+            "coordination/repair-result": "aity1",
+            "coordination/repair-run": "f0i2j",
+            "coordination/repair-scope": "overlapping-package-autoload-false-p2",
+            "coordination/repair-session": "bf36dbb0-ad83-4b50-a992-d32e8226f761",
+            "coordination/repair-sha": "4376f8785c3c42f94b4cc6c5f2184495285a192a",
+            "coordination/repair-status": "settled-exit0",
+            "coordination/repair-writer": "coral-lucid-bison",
+            "coordination/review-base": "149569cdc96fc3e150bed4575e966d12a5e72d2b",
+            "coordination/review-candidate": "f070569de8b6a5f7c7d333c237193ee8407c0eaa",
+            "coordination/review-candidate-pending": "149569cdc96fc3e150bed4575e966d12a5e72d2b",
+            "coordination/review-driver": "/tmp/agents-review9-driver.5vnBum",
+            "coordination/review-failed-predecessor": "ltxfm",
+            "coordination/review-request": "cohort-agents-doc-scope-review2-20260915",
+            "coordination/review-run": "t9thi",
+            "coordination/review-settled": "true",
+            "coordination/review-sha": "f070569de8b6a5f7c7d333c237193ee8407c0eaa",
+            "coordination/review-status": "settled-no-findings",
+            "coordination/review-verdict": "no-findings",
+            "coordination/source-worktree": "/Users/ct/dev/projects/agents__feat--native-guidance-adapters-20260914",
+            "coordination/status": "accepted-for-land",
+            "coordination/wake-condition": "consolidated-sol-owner-acknowledgement",
+            "kanban/run-id": "pk99y",
+            "kanban/task": "true",
+            "kind": "task",
+            "owner": "eager-wise-heron"
+          },
+          "created_at": "2026-09-14 10:50:11",
+          "id": "m51sd",
+          "state": "closed",
+          "title": "Accept exact disabled Agents adapter candidate",
+          "updated_at": "2026-09-15 07:27:47"
+        },
+        {
+          "attributes": {
+            "body": "Drive owning Agents repository shared Land with exact candidate quality and one truthful review, strict FIFO merge, merged SHA, task/card completion and cleanup of branch/worktree only after preserving needed artifacts. Keep native-v1 production admission disabled and do not claim Harnesses qfw9o/jtyab completion.",
+            "coordination/cleanup": "complete",
+            "coordination/coordinator-run": "pk99y",
+            "coordination/coordinator-task": "aq2o4",
+            "coordination/coordinator-workspace": "/Users/ct/dev/projects/codethread.spool/.millstrand",
+            "coordination/current-request": "cohort-pragmatic-sol-finisher-20260915",
+            "coordination/current-run": "pk99y",
+            "coordination/final-quality": "passed-at-31fb040f140abaebfce5571e6c79670e2afacd02",
+            "coordination/merge-sha": "e736826cd378455c443bf657001fc766f567c6b3",
+            "coordination/native-v1": "disabled",
+            "coordination/parent-decision": "codethread-x4y0z-ilmdd",
+            "coordination/pr": "8",
+            "coordination/prepared-head": "31fb040f140abaebfce5571e6c79670e2afacd02",
+            "coordination/review-p2": "6-unresolved",
+            "coordination/review-run": "hirdy",
+            "coordination/reviewed-candidate": "4376f8785c3c42f94b4cc6c5f2184495285a192a",
+            "coordination/status": "merged-cleaned",
+            "coordination/workflow": "land-b0gto-20260915-eager-wise-heron",
+            "kanban/run-id": "pk99y",
+            "kanban/task": "true",
+            "kind": "task",
+            "owner": "eager-wise-heron"
+          },
+          "created_at": "2026-09-14 10:50:16",
+          "id": "ttewn",
+          "state": "closed",
+          "title": "Land and clean accepted Agents adapter source",
+          "updated_at": "2026-09-15 07:33:35"
+        },
+        {
+          "attributes": {
+            "body": "Record exact Agents reviewed candidate, quality, PR/merge, cleanup and remaining Harnesses shared acceptance/consumer pickup. Require explicit workspace-qualified handoff acknowledgement from Harnesses coordinator/shared w2adn-jtyab-a7obp owner. This is not native-v1 activation; parent fjp1z retains production decision and end-user readiness notification.",
+            "coordination/agents-merge": "e736826cd378455c443bf657001fc766f567c6b3",
+            "coordination/coordinator-run": "pk99y",
+            "coordination/coordinator-task": "aq2o4",
+            "coordination/coordinator-workspace": "/Users/ct/dev/projects/codethread.spool/.millstrand",
+            "coordination/current-request": "cohort-pragmatic-sol-finisher-20260915",
+            "coordination/current-run": "pk99y",
+            "coordination/handoff-owner": "eager-wise-heron",
+            "coordination/native-v1": "disabled",
+            "coordination/parent-decision": "codethread-x4y0z-ilmdd",
+            "coordination/shared-acceptance-task": "w2adn",
+            "coordination/shared-land-task": "jtyab",
+            "coordination/shared-workspace": "/Users/ct/dev/projects/harnesses.spool/.millstrand",
+            "coordination/status": "handoff-acknowledged",
+            "kanban/run-id": "pk99y",
+            "kanban/task": "true",
+            "kind": "task",
+            "owner": "eager-wise-heron"
+          },
+          "created_at": "2026-09-14 10:50:22",
+          "id": "twdkl",
+          "state": "closed",
+          "title": "Hand accepted Agents source to shared contract owner",
+          "updated_at": "2026-09-15 07:34:00"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [],
+      "root-id": "7vvow",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Update only the Agents workspace .millstrand dependency basis to Codethread config 4e920fa712d059d73a2a156a46b4686f0833db67 and accepted Millhouse main 349416b3dd94b7ee0f588d7551a682879e5cda47 for identity, workflow and kanban. Preserve application code and unrelated local files. Run the repository checks relevant to workspace configuration, publish a reviewed PR, and land through shared land. After merge, the coordinator will restart the shared dev pool through supported commands under explicit user authorization and verify both Agents and Notes members.",
+            "branch": "codex/7vvow-shared-basis",
+            "kanban.label/millstrand": "true",
+            "kanban.label/operations": "true",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p1",
+            "kanban/type": "feature",
+            "owner": "golden-steady-gecko",
+            "worktree": "/Users/ct/dev/projects/agents__codex--7vvow-shared-basis"
+          },
+          "created_at": "2026-09-18 21:00:36",
+          "id": "7vvow",
+          "state": "closed",
+          "title": "Refresh the Agents Weaver identity and auto-run basis",
+          "updated_at": "2026-09-18 23:38:53"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "v0gem",
+          "to_strand_id": "2gecg"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "v0gem",
+          "to_strand_id": "cm4fz"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "v0gem",
+          "to_strand_id": "qufk3"
+        }
+      ],
+      "root-id": "v0gem",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Register /notify without model-visible messaging, arm per-session state, invoke cc-notify exactly once on agent_settled, and expose debug support per project conventions.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-19 05:27:57",
+          "id": "2gecg",
+          "state": "closed",
+          "title": "Implement one-shot notify extension",
+          "updated_at": "2026-09-19 05:33:03"
+        },
+        {
+          "attributes": {
+            "body": "Cover arming, one-shot clearing, re-arming, steering-compatible repeated command use, and cc-notify failures.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-19 05:27:57",
+          "id": "cm4fz",
+          "state": "closed",
+          "title": "Test notify lifecycle and failures",
+          "updated_at": "2026-09-19 05:33:03"
+        },
+        {
+          "attributes": {
+            "body": "Update extension docs/index and verify checks plus a fresh Pi process.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-19 05:27:57",
+          "id": "qufk3",
+          "state": "closed",
+          "title": "Document and verify notify command",
+          "updated_at": "2026-09-19 05:33:03"
+        },
+        {
+          "attributes": {
+            "body": "Add an invisible /notify UI command that arms a one-shot cc-notify alert for the next agent_settled event while preserving user steering during an active turn. Include tests, docs, and fresh-process verification.",
+            "branch": "main",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p2",
+            "kanban/type": "feature",
+            "owner": "lucid-rapid-tiger",
+            "worktree": "/Users/ct/dev/projects/agents"
+          },
+          "created_at": "2026-09-19 05:27:45",
+          "id": "v0gem",
+          "state": "closed",
+          "title": "Add one-shot settled notifications",
+          "updated_at": "2026-09-19 05:33:09"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "upn9n",
+          "to_strand_id": "o4ijw"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "upn9n",
+          "to_strand_id": "q24ie"
+        }
+      ],
+      "root-id": "upn9n",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Run checks and fresh-process debug validation.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-19 05:37:38",
+          "id": "o4ijw",
+          "state": "closed",
+          "title": "Verify immediate notification configuration",
+          "updated_at": "2026-09-19 05:38:26"
+        },
+        {
+          "attributes": {
+            "body": "Pass the verified --after 0ms CLI option, update tests and docs/debug output.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-19 05:37:38",
+          "id": "q24ie",
+          "state": "closed",
+          "title": "Request immediate cc-notify delivery",
+          "updated_at": "2026-09-19 05:38:26"
+        },
+        {
+          "attributes": {
+            "body": "Update the /notify cc-notify invocation to bypass the service default timer and request immediate delivery, after verifying the installed CLI options and server semantics.",
+            "branch": "main",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p2",
+            "kanban/type": "feature",
+            "owner": "lucid-rapid-tiger",
+            "worktree": "/Users/ct/dev/projects/agents"
+          },
+          "created_at": "2026-09-19 05:37:32",
+          "id": "upn9n",
+          "state": "closed",
+          "title": "Make settled notifications immediate",
+          "updated_at": "2026-09-19 05:38:31"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "gfuwr",
+          "to_strand_id": "ipg4o"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "gfuwr",
+          "to_strand_id": "kvd55"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "gfuwr",
+          "to_strand_id": "qt9t5"
+        }
+      ],
+      "root-id": "gfuwr",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Enrich one-shot /notify pushes with agent-ready project(branch) titles, optional custom suffixes, and the beginning of the settled assistant response as the cc-notify body. Preserve hidden command and steering behavior.",
+            "branch": "main",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p2",
+            "kanban/type": "feature",
+            "owner": "lucid-rapid-tiger",
+            "worktree": "/Users/ct/dev/projects/agents"
+          },
+          "created_at": "2026-09-19 05:43:30",
+          "id": "gfuwr",
+          "state": "closed",
+          "title": "Add rich settled notification content",
+          "updated_at": "2026-09-19 05:49:58"
+        },
+        {
+          "attributes": {
+            "body": "Capture assistant response text, derive default project(branch) suffix, accept optional /notify suffix, and send response preview to cc-notify stdin.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-19 05:44:31",
+          "id": "ipg4o",
+          "state": "closed",
+          "title": "Build notification title and response preview",
+          "updated_at": "2026-09-19 05:49:53"
+        },
+        {
+          "attributes": {
+            "body": "Update README/debug output and run full/fresh-process validation.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-19 05:44:31",
+          "id": "kvd55",
+          "state": "closed",
+          "title": "Document and verify rich notifications",
+          "updated_at": "2026-09-19 05:49:53"
+        },
+        {
+          "attributes": {
+            "body": "Cover default/custom titles, response truncation/extraction, stdin delivery, and one-shot lifecycle.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-19 05:44:31",
+          "id": "qt9t5",
+          "state": "closed",
+          "title": "Test rich notification behavior",
+          "updated_at": "2026-09-19 05:49:53"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [
+        {
+          "edge_type": "depends-on",
+          "from_strand_id": "manlf",
+          "to_strand_id": "quu1r"
+        },
+        {
+          "edge_type": "depends-on",
+          "from_strand_id": "sxbjt",
+          "to_strand_id": "manlf"
+        }
+      ],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "jdwz8",
+          "to_strand_id": "manlf"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "jdwz8",
+          "to_strand_id": "quu1r"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "jdwz8",
+          "to_strand_id": "sxbjt"
+        }
+      ],
+      "root-id": "jdwz8",
+      "strands": [
+        {
+          "attributes": {
+            "auto-run/effort": "medium",
+            "auto-run/seat": "sol",
+            "auto-run/workflow": "auto-full-land",
+            "body": "## Active Sol medium assignment\nUser instruction on 2026-09-21 supersedes the earlier rollout restrictions: \"start and restart as needed, delegate out to sol medium effort agents in the appropriate boards\"; \"we won't baby sit, just have them track through kanban cards\"; \"then we can stop once they are all moving again\". Starts of stopped scoped consumer Weavers, supported restarts/refreshes, and supported recovery of the recorded rollout delivery failures are authorized. Delegate using sol with explicit harness/effort=medium, including bounded follow-ups and finishers. Keep progress, evidence and blockers on owning Kanban cards and root o8utm. This is explicit continuation/handoff authorization for settled predecessors and supersedes earlier stop-and-wait instructions for the known rollout failures. Never bypass failing quality checks, stop Mill, use the deprecated agent-harness repo, or change unrelated human-review boundaries.\n\nUse absolute --workspace /Users/ct/dev/projects/agents/.millstrand for owning-board operations while keeping source cwd /Users/ct/dev/projects/agents__codex--rollout-jdwz8. Claim this pending feature with your actual assigned identity, branch codex/rollout-jdwz8, supplied worktree and run ID. Decompose into tasks and keep progress on this Kanban card. Use the provided isolated worktree for source changes; canonical .millstrand/deps.edn changes only by supported Land after merge. Inspect live workflow show land and prime merge-queue. Deliver quality, one independent review and FIFO Land; use Sol with explicit medium effort for any finisher or bounded delegation. These are manual tracked assignments; no auto-run delivery workflow has been created. Do not wait for the auto-run plugin to exist. Normal quality checks still apply, with disposable workspaces for config tests. User authorizes resolving bounded delivery issues and moving through merge; retain unrelated changes. Source outcome: exact Codethread 45ebeb292e11ffcd32f390788d4f85c66becb307 pins landed with evidence, required cleanup and feature completion. The root o8utm Sol medium coordinator owns activation and any shared agents/notes cohort restart after source workers/finishers settle. Do not independently restart your Weaver.\n\nRollout child of Codethread o8utm. Update only active direct codethread.spool config pin in canonical .millstrand/deps.edn to exact landed revision 45ebeb292e11ffcd32f390788d4f85c66becb307. Preserve unrelated pins, dirty unrelated files and operator overrides. Verify config loads. Deliver via quality, review, FIFO Land and merge. Do not restart Weaver; parent owns shared-host activation. External prerequisites 4c2c9/tddmw closed.",
+            "branch": "codex/rollout-jdwz8",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p2",
+            "kanban/run-id": "w32pl",
+            "kanban/type": "feature",
+            "owner": "silver-happy-heron",
+            "rollout/branch": "codex/rollout-jdwz8",
+            "rollout/effort": "medium",
+            "rollout/seat": "sol",
+            "rollout/worktree": "/Users/ct/dev/projects/agents__codex--rollout-jdwz8",
+            "worktree": "/Users/ct/dev/projects/agents__codex--rollout-jdwz8"
+          },
+          "created_at": "2026-09-21 08:28:00",
+          "id": "jdwz8",
+          "state": "closed",
+          "title": "Bump Codethread aliases to 45ebeb2",
+          "updated_at": "2026-09-21 11:19:27"
+        },
+        {
+          "attributes": {
+            "body": "Verify the exact diff, config load from a disposable workspace, and repository quality checks.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-21 11:05:00",
+          "id": "manlf",
+          "state": "closed",
+          "title": "Verify config and repository quality",
+          "updated_at": "2026-09-21 11:08:18"
+        },
+        {
+          "attributes": {
+            "body": "Change only codethread/config :git/sha in the isolated worktree to 45ebeb292e11ffcd32f390788d4f85c66becb307; preserve all other config.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-21 11:04:57",
+          "id": "quu1r",
+          "state": "closed",
+          "title": "Update Codethread config pin",
+          "updated_at": "2026-09-21 11:05:21"
+        },
+        {
+          "attributes": {
+            "body": "Commit and push, run one independent review via Land, obtain sign-off, enter FIFO merge queue, verify merge, and close the card.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-21 11:05:04",
+          "id": "sxbjt",
+          "state": "closed",
+          "title": "Review and land through FIFO",
+          "updated_at": "2026-09-21 11:18:12"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [
+        {
+          "edge_type": "depends-on",
+          "from_strand_id": "kk0rt",
+          "to_strand_id": "jlheq"
+        }
+      ],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "fywua",
+          "to_strand_id": "1e7bh"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "fywua",
+          "to_strand_id": "jlheq"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "fywua",
+          "to_strand_id": "kk0rt"
+        }
+      ],
+      "root-id": "fywua",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Wrap the repository Land full quality command with the shared flock, commit/push, validate exact HEAD through the wrapper, and obtain focused follow-up review in the existing Land lineage.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-22 13:45:12",
+          "id": "1e7bh",
+          "state": "closed",
+          "title": "Lock Land quality suite",
+          "updated_at": "2026-09-22 14:05:10"
+        },
+        {
+          "attributes": {
+            "body": "Update this repository to consume the extracted auto-run implementation without changing behavior. Producer commits are published: Millhouse 62723b7b1820c7e1723de4a2ff985b069871159e (PR codethread/millhouse.spool#50) and Codethread dc25ea43f7a271a435d62daf855a202d69a62b0c (producer PR follows). Replace ct.spools.codethread.auto-run* imports and quoted callbacks with millhouse.spools.auto-run*; retain scheduler key codethread/auto-run, schema codethread.auto-run.explain/v1, repository defaults and workflow behavior. Bump all current Millhouse and Codethread config/Ralph dependency coordinates to these exact SHAs, including corresponding test override-deps. Do not introduce auto-run to published lower library roots. Read owner AGENTS, robustness/Clojure and testing guidance. Claim this feature with your provided identity; create and close implementation/verification tasks. Use the prepared worktree, never main. Full quality suites use flock -w 180 /tmp/millstrand-test.lock; focused tests need no lock. Verify real checked-in dependency resolution and disposable workspace activation; never use live boards for tests. Do not restart or stop any Weaver or Mill or modify runtime flags. Commit, push a feature branch, create a ready PR, and drive shared land through the mandatory basic review to its agent signoff checkpoint; retain worktree and leave approval/merge to the parent coordinator for producer ordering. Record exact SHA, test evidence, PR, Land run, review result and remaining frontier on the feature. Stop on completion; no polling for parent approval. No implementation delegation, coordinator or finisher launch needed. Parent coordinates under Codethread card wabb3; durable notes on this feature are the handoff. Do not broaden scope into unrelated historical fixtures or latent failures; report evidence. Parent explicitly authorizes Sol low for this bounded bump.\n\nScope: pin-only .millstrand/deps.edn update. Do not activate auto-run or change init/config behavior. Read repository AGENTS. Notes canonical checkout has unrelated dirty .millstrand/config.json, .prettierrc, AGENTS.md, .beads/ and .millstrand/me/: preserve all. Prepare in clean worktree from committed HEAD; record dirty canonical state as an integration constraint. Both Agents and Notes share JVM pool dev; do not restart it.",
+            "branch": "codex/millhouse-auto-run",
+            "identity/by-identity": "rapid-green-yak",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p2",
+            "kanban/reporter": "rapid-green-yak",
+            "kanban/type": "feature",
+            "worktree": "/Users/ct/dev/projects/agents__codex--millhouse-auto-run"
+          },
+          "created_at": "2026-09-22 13:16:57",
+          "id": "fywua",
+          "state": "closed",
+          "title": "Align shared pins with Millhouse auto-run extraction",
+          "updated_at": "2026-09-22 15:41:12"
+        },
+        {
+          "attributes": {
+            "body": "Pin every current Millhouse dependency and Codethread config coordinate in .millstrand/deps.edn to the published extraction commits; no init/config activation changes.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-22 13:18:00",
+          "id": "jlheq",
+          "state": "closed",
+          "title": "Update shared dependency pins",
+          "updated_at": "2026-09-22 13:19:37"
+        },
+        {
+          "attributes": {
+            "body": "Verify checked-in dependency resolution, disposable workspace activation, full quality suite, and review/land handoff without touching live boards or shared JVM runtime.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-22 13:18:03",
+          "id": "kk0rt",
+          "state": "closed",
+          "title": "Verify dependency resolution and disposable activation",
+          "updated_at": "2026-09-22 13:42:42"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "5kla4",
+          "to_strand_id": "nxwct"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "5kla4",
+          "to_strand_id": "thobp"
+        }
+      ],
+      "root-id": "5kla4",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Independent source-compatibility slice for Codethread 2uihq against accepted Harnesses source a67c8bfac1b2e11e0d05e8ab8b8db577d51040f4. Audit and, only if required, update pi/extensions/system-prompt and directly related prompt/status/emote/subagent consumers so native identity data is rendered exactly once while preserving ordered ordinary/user appends. Direct observed sessions must accept no alias, actual model and explicit unknown effort; managed/external custody and parent/child correlation must stay honest. Start from fetched origin/main in an isolated wktree because canonical Agents main has a preserved user commit and is behind origin; never reset/rebase/stash/discard or push canonical main. Use the accepted package source in disposable/local dependency fixtures without installing or changing current-session plugins. Run focused prompt-owner tests and full pnpm check. If source is already compatible, return clean exact-HEAD evidence without manufacturing a change. If a change is needed, publish a reviewed PR and drive shared Land through review, then stop at signoff for independent canonical-root finishing. No runtime activation or current-session interruption.",
+            "branch": "chore/native-identity-prompt-owner-20260924",
+            "identity/by-identity": "kind-cool-crane",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p2",
+            "kanban/reporter": "kind-cool-crane",
+            "kanban/type": "feature",
+            "worktree": "/Users/ct/dev/projects/agents__chore--native-identity-prompt-owner-20260924"
+          },
+          "created_at": "2026-09-24 13:11:04",
+          "id": "5kla4",
+          "state": "closed",
+          "title": "Align the Agents prompt owner with native identity data",
+          "updated_at": "2026-09-24 13:41:15"
+        },
+        {
+          "attributes": {
+            "body": "Test current origin/main source against accepted Harnesses a67c8bf using disposable/local package input. Verify exactly one identity contribution, preserved append order, direct unknown effort/no alias, managed linkage and child isolation. Change only source assumptions proved incompatible.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-24 13:11:10",
+          "id": "nxwct",
+          "state": "closed",
+          "title": "Audit prompt-owner native identity composition",
+          "updated_at": "2026-09-24 13:41:15"
+        },
+        {
+          "attributes": {
+            "body": "Run focused tests and pnpm check. If clean, record exact origin/main/evidence and no-change outcome. If changed, commit/push PR, drive shared Land through review to signoff and return exact finisher handoff; never alter divergent canonical main.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-24 13:11:11",
+          "id": "thobp",
+          "state": "closed",
+          "title": "Verify and hand off source outcome",
+          "updated_at": "2026-09-24 13:41:15"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "xcbmf",
+          "to_strand_id": "ix806"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "xcbmf",
+          "to_strand_id": "pp5tv"
+        }
+      ],
+      "root-id": "xcbmf",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Verify resolved package exports/source, focused prompt-owner composition and pnpm check; publish PR and drive Land review to signoff, then return exact independent-finisher and canonical divergence handoff.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-24 13:11:55",
+          "id": "ix806",
+          "state": "active",
+          "title": "Verify package and prepare reviewed landing",
+          "updated_at": "2026-09-24 13:11:55"
+        },
+        {
+          "attributes": {
+            "body": "After both gates close, integrate latest origin/main into the isolated branch and change only package.json/pnpm-lock.yaml Harnesses Git SHA to the accepted final source. Preserve unrelated dependency versions and canonical divergent main.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-24 13:11:55",
+          "id": "pp5tv",
+          "state": "active",
+          "title": "Update exact Harnesses package coordinate",
+          "updated_at": "2026-09-24 13:11:55"
+        },
+        {
+          "attributes": {
+            "body": "Consumer package slice for Codethread 2uihq. After local prompt-owner source card 5kla4 and the local mirror of Harnesses od0qi are accepted, update package.json and pnpm-lock.yaml @codethread/harnesses Git coordinate to the exact final Harnesses source SHA. Start from fetched origin/main in an isolated wktree; if 5kla4 landed, integrate latest origin/main before editing. Never modify/reset/rebase the divergent canonical Agents main or discard its user commit. Do not upgrade unrelated npm dependencies. Verify lockfile integrity, exact installed package source/exports, focused prompt-owner/native identity composition and full pnpm check without installing current-session plugins. If changed, publish PR and drive shared Land through review, stopping at signoff for independent canonical-root finishing. Record exact old/new SHAs and the canonical fast-forward conflict, if any, as a final activation handoff rather than forcing it.",
+            "identity/by-identity": "kind-cool-crane",
+            "kanban/card": "true",
+            "kanban/lane": "pending",
+            "kanban/priority": "p2",
+            "kanban/reporter": "kind-cool-crane",
+            "kanban/type": "feature"
+          },
+          "created_at": "2026-09-24 13:11:48",
+          "id": "xcbmf",
+          "state": "active",
+          "title": "Pin Agents to the accepted Harnesses native package",
+          "updated_at": "2026-09-24 13:11:55"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "toz7t",
+          "to_strand_id": "v9p7a"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "toz7t",
+          "to_strand_id": "y2xkw"
+        }
+      ],
+      "root-id": "toz7t",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Final source-consumer slice for Codethread task 2uihq. After local npm package card xcbmf and a local mirror of accepted Codethread qsa4f close, update only .millstrand/deps.edn direct Millstrand batteries, Millhouse workflow/identity/kanban, Harnesses, and Codethread config coordinates to the exact accepted dependency-ordered source BOM. Start from current clean origin/main ba7b5bf or later accepted xcbmf merge in an isolated worktree; do not reset or rewrite canonical main. Keep runtime config, provider installation and activation out of scope. Resolve the workspace independently in a disposable world, run workspace/config tests and repository quality under the shared lock, then deliver through normal independent review/FIFO/finisher policy. No unrelated npm/Clojure upgrades and no downstream-head repinning cycle.",
+            "identity/by-identity": "kind-cool-crane",
+            "kanban/card": "true",
+            "kanban/lane": "pending",
+            "kanban/priority": "p2",
+            "kanban/reporter": "kind-cool-crane",
+            "kanban/type": "feature"
+          },
+          "created_at": "2026-09-24 16:23:23",
+          "id": "toz7t",
+          "state": "active",
+          "title": "Align Agents workspace with final sibling source BOM",
+          "updated_at": "2026-09-24 16:23:23"
+        },
+        {
+          "attributes": {
+            "body": "Resolve from Git/disposable workspace, run focused config tests and full quality, then reviewed FIFO delivery with exact basis/merge receipts.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-24 16:23:23",
+          "id": "v9p7a",
+          "state": "active",
+          "title": "Verify and deliver workspace consumer",
+          "updated_at": "2026-09-24 16:23:23"
+        },
+        {
+          "attributes": {
+            "body": "After xcbmf and qsa4f mirror close, integrate latest origin/main and update only maintained .millstrand direct sibling coordinates to the accepted BOM.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-24 16:23:23",
+          "id": "y2xkw",
+          "state": "active",
+          "title": "Update final workspace coordinates",
+          "updated_at": "2026-09-24 16:23:23"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "z0jyc",
+          "to_strand_id": "7tsrr"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "z0jyc",
+          "to_strand_id": "gv1wr"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "z0jyc",
+          "to_strand_id": "qrprj"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "z0jyc",
+          "to_strand_id": "yfwe8"
+        }
+      ],
+      "root-id": "z0jyc",
+      "strands": [
+        {
+          "attributes": {
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-25 06:40:06",
+          "id": "7tsrr",
+          "state": "closed",
+          "title": "Remove obsolete identity protocol and update package/UI integration",
+          "updated_at": "2026-09-25 06:49:02"
+        },
+        {
+          "attributes": {
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-25 06:55:27",
+          "id": "gv1wr",
+          "state": "closed",
+          "title": "Update Weaver dependency generation and verify live identity",
+          "updated_at": "2026-09-25 07:09:02"
+        },
+        {
+          "attributes": {
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-25 06:40:06",
+          "id": "qrprj",
+          "state": "closed",
+          "title": "Verify current identity contract and document rollout requirement",
+          "updated_at": "2026-09-25 06:49:58"
+        },
+        {
+          "attributes": {
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-25 06:55:27",
+          "id": "yfwe8",
+          "state": "closed",
+          "title": "Make identity optional and verify unavailable or invalid workspaces in tmux",
+          "updated_at": "2026-09-25 07:09:01"
+        },
+        {
+          "attributes": {
+            "body": "Remove obsolete managed-guidance machinery; keep canonical prompt identity, statusline display and child attribution. Consume maintained Harnesses package in millhouse.spool.",
+            "branch": "main",
+            "identity/by-identity": "amber-amber-beaver",
+            "kanban/card": "true",
+            "kanban/lane": "in_review",
+            "kanban/priority": "p3",
+            "kanban/reporter": "amber-amber-beaver",
+            "kanban/type": "feature"
+          },
+          "created_at": "2026-09-25 06:39:46",
+          "id": "z0jyc",
+          "state": "active",
+          "title": "Simplify Pi Millstrand identity integration",
+          "updated_at": "2026-09-25 07:09:02"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "vdqzo",
+          "to_strand_id": "61w0b"
+        }
+      ],
+      "root-id": "vdqzo",
+      "strands": [
+        {
+          "attributes": {
+            "kanban/lane": "pending",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-25 20:12:58",
+          "id": "61w0b",
+          "state": "closed",
+          "title": "Migrate consumer source and verify released v5",
+          "updated_at": "2026-09-26 05:58:50"
+        },
+        {
+          "attributes": {
+            "body": "Consumer slice of Millhouse 8cxwe. Update Clojure coordinates, namespace and module IDs and native @millhouse/harnesses plugin package/imports to released v5 SHA. Preserve preexisting uncommitted changes in canonical root. Verify native quality and disposable workspace activation.",
+            "branch": "feat/millhouse-v5",
+            "kanban.label/dependencies": "true",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p3",
+            "kanban/type": "feature",
+            "worktree": "/Users/ct/dev/projects/agents__feat--millhouse-v5"
+          },
+          "created_at": "2026-09-25 20:12:03",
+          "id": "vdqzo",
+          "state": "closed",
+          "title": "Consume Millhouse v5 unified coordinates and namespaces",
+          "updated_at": "2026-09-26 05:58:50"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "6nwdt",
+          "to_strand_id": "iuy2w"
+        }
+      ],
+      "root-id": "6nwdt",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Require version-first introspection for Codex, Claude and Pi; extract comprehensive schema references, document updates and commit.",
+            "branch": "main",
+            "identity/by-identity": "lucid-green-fox",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p3",
+            "kanban/reporter": "lucid-green-fox",
+            "kanban/type": "feature"
+          },
+          "created_at": "2026-09-27 07:48:55",
+          "id": "6nwdt",
+          "state": "closed",
+          "title": "Version harness introspection schema references",
+          "updated_at": "2026-09-27 07:54:36"
+        },
+        {
+          "attributes": {
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-09-27 07:49:21",
+          "id": "iuy2w",
+          "state": "closed",
+          "title": "Extract version references and verify documentation",
+          "updated_at": "2026-09-27 07:54:36"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "rcfn6",
+          "to_strand_id": "0rrln"
+        }
+      ],
+      "root-id": "rcfn6",
+      "strands": [
+        {
+          "attributes": {
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-10-03 23:41:18",
+          "id": "0rrln",
+          "state": "closed",
+          "title": "Remove extension and references, verify and commit",
+          "updated_at": "2026-10-03 23:45:21"
+        },
+        {
+          "attributes": {
+            "body": "Remove the timeline-timestamps extension, its statusline integration and documentation, verify, then commit only this change.",
+            "branch": "main",
+            "identity/by-identity": "young-golden-shark",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p3",
+            "kanban/reporter": "young-golden-shark",
+            "kanban/type": "feature"
+          },
+          "created_at": "2026-10-03 23:41:14",
+          "id": "rcfn6",
+          "state": "closed",
+          "title": "Remove timeline timestamps extension",
+          "updated_at": "2026-10-03 23:45:21"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "un67q",
+          "to_strand_id": "avqmm"
+        }
+      ],
+      "root-id": "un67q",
+      "strands": [
+        {
+          "attributes": {
+            "body": "Install responsive renderer directly, restore debug-statusline flag, keep rows within terminal width, validate fresh Pi and pnpm check.",
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-10-04 00:06:14",
+          "id": "avqmm",
+          "state": "closed",
+          "title": "Restore footer rendering and regression coverage",
+          "updated_at": "2026-10-04 00:10:53"
+        },
+        {
+          "attributes": {
+            "body": "User reports missing statusline after old emote extension removal. Restore responsive footer ownership, debug flag, and verify regression tests plus fresh Pi TUI.",
+            "branch": "main",
+            "identity/by-identity": "amber-kind-lynx",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p3",
+            "kanban/reporter": "amber-kind-lynx",
+            "kanban/type": "feature"
+          },
+          "created_at": "2026-10-04 00:06:07",
+          "id": "un67q",
+          "state": "closed",
+          "title": "Restore standalone Pi statusline after emote removal",
+          "updated_at": "2026-10-04 00:10:53"
+        }
+      ]
+    },
+    {
+      "depends-on-edges": [],
+      "operation": "kanban-export",
+      "parent-of-edges": [
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "u1wyx",
+          "to_strand_id": "j8h58"
+        },
+        {
+          "edge_type": "parent-of",
+          "from_strand_id": "u1wyx",
+          "to_strand_id": "qqaex"
+        }
+      ],
+      "root-id": "u1wyx",
+      "strands": [
+        {
+          "attributes": {
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-10-04 05:59:55",
+          "id": "j8h58",
+          "state": "closed",
+          "title": "Characterize layout boundaries and simplify renderer",
+          "updated_at": "2026-10-04 06:06:08"
+        },
+        {
+          "attributes": {
+            "kanban/task": "true",
+            "kind": "task"
+          },
+          "created_at": "2026-10-04 05:59:55",
+          "id": "qqaex",
+          "state": "closed",
+          "title": "Verify checks and fresh Pi statusline",
+          "updated_at": "2026-10-04 06:08:04"
+        },
+        {
+          "attributes": {
+            "body": "Pure refactor requested by user: remove dead/duplicated rendering, retain visible behavior, verify tests and fresh Pi TUI.",
+            "branch": "main",
+            "identity/by-identity": "brave-merry-bear",
+            "kanban/card": "true",
+            "kanban/outcome": "done",
+            "kanban/priority": "p3",
+            "kanban/reporter": "brave-merry-bear",
+            "kanban/type": "feature"
+          },
+          "created_at": "2026-10-04 05:59:49",
+          "id": "u1wyx",
+          "state": "closed",
+          "title": "Simplify statusline extension without behavior changes",
+          "updated_at": "2026-10-04 06:08:04"
+        }
+      ]
+    }
+  ]
+}

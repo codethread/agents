@@ -17,5 +17,11 @@
 		"forceConsistentCasingInFileNames": true,
 		"types": ["node"]
 	},
-	"include": ["pi/extensions/**/*.ts", ".pi/extensions/**/*.ts", "pies/**/*.ts"]
+	"include": [
+		"pi/extensions/**/*.ts",
+		".pi/extensions/**/*.ts",
+		"pies/**/*.ts",
+		".agents/skills/millstrand-to-beads/scripts/**/*.ts",
+		".workflows/**/*.ts"
+	]
 }

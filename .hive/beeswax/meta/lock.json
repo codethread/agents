@@ -1,0 +1,24 @@
+{
+	"format": 1,
+	"beeswaxVersion": "0.9.1",
+	"configDigest": "817831de76f395106c32bd731495a928519d02a379283895596d07bee2add0d5",
+	"hooks": {
+		".husky/pre-commit": "1317edcef69c26d6c140a013f4f69d63e744367da7b197e37d773bfc6cda54d4",
+		".husky/pre-merge-commit": "1317edcef69c26d6c140a013f4f69d63e744367da7b197e37d773bfc6cda54d4"
+	},
+	"skills": ["repository-setup", "tracker-recovery"],
+	"components": {
+		"hooks": {
+			"revision": 2
+		},
+		"mergeDriver": {
+			"revision": 1
+		},
+		"skills": {
+			"revision": 1
+		},
+		"bvRecipes": {
+			"revision": 1
+		}
+	}
+}

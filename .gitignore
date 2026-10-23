@@ -3,3 +3,4 @@ node_modules/
 pies/dist/
 .pi/bench-matrix.json
 .millstrand/.cpcache/
+.hive/migrations/**/.br-jsonl-write-*.lock

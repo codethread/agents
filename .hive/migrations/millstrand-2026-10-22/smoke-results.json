@@ -1,0 +1,186 @@
+[
+  {
+    "kind": "grunt",
+    "request": {
+      "id": "agents-jnq",
+      "taskId": "agents-8az",
+      "identity": "jade-tender-ant",
+      "role": "driver",
+      "status": "closed",
+      "closedAt": "2026-10-23T04:51:27.322298Z",
+      "closeReason": "completed",
+      "outcome": "succeeded"
+    },
+    "response": {
+      "formatVersion": 1,
+      "taskId": "agents-8az",
+      "requestId": "agents-jnq",
+      "author": "jade-tender-ant",
+      "body": "# Run agents-8az \u2014 Smoke: verify migrated work context\n\n## Onboarding context\n\n- **Scent identity:** `jade-tender-ant`\n- **Selected `BEADS_DB`:** `/Users/ct/dev/projects/agents/.worktrees/tracker--state/.beads/beads.db`\n- **Beeswax safety rule applied:** Preserve the supplied `BEADS_DB` and actor identity; never substitute another tracker or worker identity.\n\n## Scope\n\nDriver-handled stage `agents-f4w` under run `agents-8az`. The audit was read-only against the tracker. Only the run's required workflow/result/finish records were written; imported work records and application files were left unchanged.\n\n## Audit method\n\n- Capture audited: `.hive/migrations/millstrand-2026-10-22/issues.jsonl` (deterministic 55-record import).\n- Selected the audited set natively with `br list --all --deferred --label migrated:millstrand --limit 0 --format json` (55 records).\n- Read every record with `br show ID --json`, and every relation with `br dep list ID --direction down --format json`.\n- Compared `title`, `description`, `notes`, `status`, `priority`, `issue_type`, `owner`, `created_at`, `updated_at`, `closed_at`, `close_reason`, `external_ref`, `source_system`, sorted `labels`, and every dependency edge (`depends_on_id` + type). Timestamps were normalized for the capture's `.000` millisecond form.\n\n## Results\n\n| Check | Capture | Native | Mismatch |\n| --- | ---: | ---: | ---: |\n| Records | 55 | 55 | 0 |\n| Features / tasks | 18 / 37 | 18 / 37 | 0 |\n| Closed / open / blocked | 48 / 6 / 1 | 48 / 6 / 1 | 0 |\n| Non-empty descriptions | 46 | 46 | 0 |\n| Parent-child links | 37 | 37 | 0 |\n| Blocking links | 7 | 7 | 0 |\n| All compared fields/edges | 55 records | 55 records | **0** |\n\n- All 46 non-empty descriptions match byte-for-byte; the remaining 9 are empty on both sides.\n- All 44 relations are internal to the import: 37 parent-child plus 7 blocks; no external targets or omitted edges.\n- Labels match exactly: all 55 carry `migrated:millstrand`, and `agents-ms-z0jyc` additionally carries `needs-human-review`.\n- Historical state is preserved: 0 imported records have an assignee, and the 6 open plus 1 blocked records remain untouched. No historical task was claimed or resolved.\n\n## Ordinary work vs automation-owned records\n\n- The 55 audited records are **ordinary imported work**; none carries the `system` label.\n- At audit time the tracker held 65 records: the 55 imported records, 4 automation-owned `system` beads (`agents-jnq` Bee grunt, `agents-vuc` and `agents-9bc` workflow checkpoints, `agents-z8y` Bee scout), 4 Busy Bee workflow records (`agents-8az`, `agents-f4w`, `agents-wvl`, `agents-zwc`), the migration parent `agents-ada`, and the closed docs record `agents-j2m`.\n\n## Changes and completion protocol\n\n- Application files unchanged: `git status` still shows only the pre-existing `.hive/README.md` and `AGENTS.md` modifications.\n- This response is verified with `bee response get`. The stage is then completed with outcome `next` via `busybee complete agents-8az agents-f4w next`, and the driver collects to advance the run; the run's `done` state and `bee finish success` are confirmed before execution ends.\n\n## Acceptance\n\n- [x] All 55 imported records are accounted for, including 18 features and 37 tasks.\n- [x] All full descriptions and 37 parent links plus 7 internal blockers match the capture; zero mismatches.\n- [x] Authored response records the audit evidence and onboarding context; only workflow/result records were written.\n- [x] Driver completion follows this delivery: stage close with `next`, driver collection, run verified `done`, then `bee finish success`.\n",
+      "supersedes": [],
+      "id": "agents-qpb",
+      "title": "Smoke: verify migrated work context",
+      "createdAt": "2026-10-23T04:51:01.077419Z"
+    },
+    "workflow": {
+      "active": [],
+      "created": [
+        {
+          "bead": "agents-f4w",
+          "node": "do-work.work",
+          "parent": "agents-8az",
+          "path": [],
+          "request": null,
+          "visit": 1
+        }
+      ],
+      "id": "agents-8az",
+      "status": "done",
+      "kind": "show",
+      "ok": true
+    },
+    "checkpoint": {
+      "attemptId": null,
+      "attempts": 1,
+      "id": "agents-jnq",
+      "identity": "jade-tender-ant",
+      "message": "Workflow run agents-8az succeeded: Authored workflow completed and checkpoint published.; attempt 3dea47a8-6e58-4f9c-b05f-a676cec2b0bb",
+      "outcome": "completed",
+      "retryAt": null,
+      "state": "terminal",
+      "taskIds": [
+        "agents-8az"
+      ]
+    },
+    "processes": [
+      {
+        "attemptId": "3dea47a8-6e58-4f9c-b05f-a676cec2b0bb",
+        "state": "stopped"
+      }
+    ],
+    "occupiedCapacity": []
+  },
+  {
+    "kind": "scout",
+    "request": {
+      "id": "agents-z8y",
+      "taskId": "agents-zwc",
+      "identity": "fuchsia-hidden-marten",
+      "role": "driver",
+      "status": "closed",
+      "closedAt": "2026-10-23T04:49:55.312145Z",
+      "closeReason": "completed",
+      "outcome": "succeeded"
+    },
+    "response": {
+      "formatVersion": 1,
+      "taskId": "agents-zwc",
+      "requestId": "agents-z8y",
+      "author": "fuchsia-hidden-marten",
+      "body": "## Files\n\n- `.agents/skills/millstrand-to-beads/scripts/convert.ts:97` \u2014 `convert`: deterministic transformation; `status` at line 67 maps source states.\n- `.agents/skills/millstrand-to-beads/scripts/convert.test.ts:31` \u2014 body preservation and nesting/prerequisite direction assertions; line 64 status mapping assertions.\n\n## Onboarding-verification appendix\n\n- Scent identity: `fuchsia-hidden-marten`.\n- Selected `BEADS_DB`: `/Users/ct/dev/projects/agents/.worktrees/tracker--state/.beads/beads.db`.\n- Beeswax safety rule: preserve the supplied `BEADS_DB` and actor identity.\n",
+      "supersedes": [],
+      "id": "agents-j2m",
+      "title": "Migration converter and regression tests lookup",
+      "createdAt": "2026-10-23T04:49:46.396610Z"
+    },
+    "workflow": {
+      "active": [],
+      "created": [
+        {
+          "bead": "agents-wvl",
+          "node": "do-work.work",
+          "parent": "agents-zwc",
+          "path": [],
+          "request": null,
+          "visit": 1
+        }
+      ],
+      "id": "agents-zwc",
+      "status": "done",
+      "kind": "show",
+      "ok": true
+    },
+    "checkpoint": {
+      "attemptId": null,
+      "attempts": 1,
+      "id": "agents-z8y",
+      "identity": "fuchsia-hidden-marten",
+      "message": "Workflow run agents-zwc succeeded: Authored workflow completed and checkpoint published.; attempt eaa7c609-033b-4ac9-845b-2fad5c0e230c",
+      "outcome": "completed",
+      "retryAt": null,
+      "state": "terminal",
+      "taskIds": [
+        "agents-zwc"
+      ]
+    },
+    "processes": [
+      {
+        "attemptId": "eaa7c609-033b-4ac9-845b-2fad5c0e230c",
+        "state": "stopped"
+      }
+    ],
+    "occupiedCapacity": []
+  },
+  {
+    "kind": "prose",
+    "purpose": "editorial-verification",
+    "request": {
+      "id": "agents-sry",
+      "taskId": "agents-4t3",
+      "identity": "aqua-noble-bison",
+      "role": "driver",
+      "status": "closed",
+      "closedAt": "2026-10-23T05:01:14.243696Z",
+      "closeReason": "completed",
+      "outcome": "succeeded"
+    },
+    "response": {
+      "formatVersion": 1,
+      "taskId": "agents-4t3",
+      "requestId": "agents-sry",
+      "author": "aqua-noble-bison",
+      "body": "## Edited\n\n- /Users/ct/dev/projects/agents/.hive/migrations/README.md:5 \u2014 23 words removed; 0 lines removed. Tightened result/evidence prose and removed a repeated Pi-verification statement; section structure unchanged.\n- /Users/ct/dev/projects/agents/.hive/README.md:3 \u2014 17 words removed; 0 lines removed. Separated completed Colony verification from new-checkout activation guidance (+2 lines).\n- /Users/ct/dev/projects/agents/.agents/skills/millstrand-to-beads/SKILL.md:7 \u2014 17 words removed; 0 lines removed. Tightened capture, identity, and rehearsal wording without changing procedure or skill intent.\n\n## Preserved\n\nAll verified counts, request/run/response IDs, exact commands, links, mapping decisions, 11 sharp-edge candidates, and authorization boundaries remain. The documents still distinguish the completed local import and two successful smoke workflows from unrequested remote publication. The resolved stale-plan hold was not reintroduced.\n\nOnly the three assigned documents were edited. No delegation, commits, pushes, full checks, source/config/capture edits, imported-task mutations, or mill actions were performed. Existing and concurrent changes outside this scope were left untouched.\n\n## Verification\n\nRe-read all three documents in full. Scoped comparison against their pre-edit contents passed for every fenced code block, inline-code value, numeric token, and link. The mapping section is byte-for-byte unchanged; all 11 issue-candidate headings remain. Relative link targets and the linked heading resolve; converter/test paths exist; shell examples pass `bash -n`; scoped `git diff --check` passes.\n\nThis was editorial verification, not a rerun of import or runtime smoke tests. Full repository checks and formatting remain with the parent as instructed. No blockers or factual concerns found.\n",
+      "supersedes": [],
+      "id": "agents-fc2",
+      "title": "Editorial verification complete; migration evidence preserved",
+      "createdAt": "2026-10-23T05:00:53.833349Z"
+    },
+    "workflow": {
+      "active": [],
+      "created": [
+        {
+          "bead": "agents-iae",
+          "node": "do-work.work",
+          "parent": "agents-4t3",
+          "path": [],
+          "request": null,
+          "visit": 1
+        }
+      ],
+      "id": "agents-4t3",
+      "status": "done",
+      "kind": "show",
+      "ok": true
+    },
+    "checkpoint": {
+      "attemptId": null,
+      "attempts": 1,
+      "id": "agents-sry",
+      "identity": "aqua-noble-bison",
+      "message": "Workflow run agents-4t3 succeeded: Authored workflow completed and checkpoint published.; attempt 3be89716-9919-454c-ad0a-8f0a4949fa67",
+      "outcome": "completed",
+      "retryAt": null,
+      "state": "terminal",
+      "taskIds": [
+        "agents-4t3"
+      ]
+    },
+    "processes": [
+      {
+        "attemptId": "3be89716-9919-454c-ad0a-8f0a4949fa67",
+        "state": "stopped"
+      }
+    ],
+    "occupiedCapacity": []
+  }
+]
