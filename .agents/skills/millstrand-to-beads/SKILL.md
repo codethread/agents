@@ -1,5 +1,6 @@
 ---
 name: millstrand-to-beads
+disable-model-invocation: true
 description: Migrate Millstrand kanban cards and nested tasks to native Beads, preserving descriptions and hierarchy. Use for a board import, a migration dry run, or checking a previous import—not ordinary Beads task management or live agent/workflow migration.
 ---
 

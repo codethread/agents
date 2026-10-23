@@ -134,7 +134,7 @@ Changing prompt-layer context or switching models/providers can reduce provider 
 
 Repository development uses Hive for Beads task tracking, Bee delegation, and Busy Bee workflows. Follow [the local setup guide](.hive/README.md) for `beeswax sync` and Mise tracker selection; the existing pnpm install also prepares `.workflows/`. The [Bee catalog](.hive/bees/README.md) preserves the active Millstrand aliases and package agent roles.
 
-The [migration report](.hive/migrations/README.md) records card mapping, verification, and Hive setup friction. The reusable [Millstrand-to-Beads skill](.agents/skills/millstrand-to-beads/SKILL.md) includes capture/conversion scripts. Legacy Millstrand data and the running mill are preserved; new work must not be submitted to both schedulers.
+The [migration report](.hive/migrations/README.md) records card mapping, verification, and Hive setup friction. The user-invoked-only [Millstrand-to-Beads skill](.agents/skills/millstrand-to-beads/SKILL.md) includes capture/conversion scripts. Legacy Millstrand data and the running mill are preserved; new work must not be submitted to both schedulers.
 
 ## Millstrand identity dependency
 

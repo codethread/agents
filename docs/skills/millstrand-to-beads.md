@@ -4,7 +4,7 @@
 
 Make repeatable, reviewable migrations of kanban work context into native Beads without carrying over Millstrand's runtime machinery. The first consuming request prioritized descriptions and nesting over comments, agent associations, and exact lifecycle equivalence.
 
-The skill activates for migration, dry-run, and import verification work. Ordinary task pickup belongs to the Hive skill; executor/workflow migration is a separate design task.
+The skill is user-invoked only for migration, dry-run, and import verification work, using `disable-model-invocation: true` in its frontmatter and `interface.allow_implicit_invocation: false` in `agents/openai.yml`. Ordinary task pickup belongs to the Hive skill; executor/workflow migration is a separate design task.
 
 ## Design
 
