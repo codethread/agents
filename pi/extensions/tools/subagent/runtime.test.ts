@@ -6,6 +6,7 @@ import { PassThrough } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	buildSingleAgentArgs,
+	findPiBolt,
 	getInheritedResourceArgsFromArgv,
 	getPiInvocation,
 	runSingleAgent,
@@ -23,6 +24,7 @@ const originalUserProfile = process.env.USERPROFILE;
 
 afterEach(() => {
 	vi.useRealTimers();
+	vi.unstubAllEnvs();
 	spawnMock.mockReset();
 	if (originalHome === undefined) delete process.env.HOME;
 	else process.env.HOME = originalHome;
@@ -102,7 +104,84 @@ const request = {
 	cwd: process.cwd(),
 };
 
+describe("findPiBolt", () => {
+	const executableName = process.platform === "win32" ? "pi-bolt.exe" : "pi-bolt";
+
+	it("finds the first executable on PATH, including symlinks", () => {
+		const first = makeTempDir("subagent-first-bin-");
+		const second = makeTempDir("subagent-second-bin-");
+		const target = path.join(second, executableName);
+		fs.writeFileSync(target, "#!/bin/sh\n", { mode: 0o755 });
+		const link = path.join(first, executableName);
+		fs.symlinkSync(target, link);
+
+		expect(findPiBolt([first, second].join(path.delimiter))).toBe(link);
+	});
+
+	it("returns no candidate when PATH has no executable pi-bolt", () => {
+		const dir = makeTempDir("subagent-empty-bin-");
+		expect(findPiBolt(dir)).toBeUndefined();
+		expect(findPiBolt("")).toBeUndefined();
+		fs.mkdirSync(path.join(dir, executableName));
+		expect(findPiBolt(dir)).toBeUndefined();
+	});
+
+	it.skipIf(process.platform === "win32")("skips non-executable files", () => {
+		const first = makeTempDir("subagent-nonexec-bin-");
+		const second = makeTempDir("subagent-exec-bin-");
+		fs.writeFileSync(path.join(first, executableName), "not executable", { mode: 0o644 });
+		const executable = path.join(second, executableName);
+		fs.writeFileSync(executable, "#!/bin/sh\n", { mode: 0o755 });
+
+		expect(findPiBolt([first, second].join(path.delimiter))).toBe(executable);
+	});
+});
+
 describe("getPiInvocation", () => {
+	it.each([
+		{ execPath: "/usr/bin/node", currentScript: "/pi/cli.js" },
+		{ execPath: "/usr/bin/node", currentScript: "pies", piesDaemon: true },
+		{ execPath: "/usr/bin/pi", currentScript: "/$bunfs/root/pi" },
+	])("prefers pi-bolt over the current runtime ($currentScript)", (runtime) => {
+		const args = ["--mode", "json", "-p", "--agent", "scout", "Task: map things"];
+		expect(
+			getPiInvocation(args, {
+				...runtime,
+				scriptExists: () => true,
+				piBoltPath: "/local/bin/pi-bolt",
+			}),
+		).toEqual({ command: "/local/bin/pi-bolt", args });
+	});
+
+	it.each([
+		{
+			execPath: "/usr/bin/node",
+			currentScript: "/pi/cli.js",
+			scriptExists: () => true,
+			expectedCommand: "/usr/bin/node",
+			expectedPrefix: ["/pi/cli.js"],
+		},
+		{
+			execPath: "/usr/bin/pi",
+			scriptExists: () => false,
+			expectedCommand: "/usr/bin/pi",
+			expectedPrefix: [],
+		},
+		{
+			execPath: "/usr/bin/node",
+			currentScript: "/missing/cli.js",
+			scriptExists: () => false,
+			expectedCommand: "pi",
+			expectedPrefix: [],
+		},
+	])("preserves the $expectedCommand fallback without pi-bolt", (runtime) => {
+		const args = ["--mode", "json", "Task: map things"];
+		expect(getPiInvocation(args, runtime)).toEqual({
+			command: runtime.expectedCommand,
+			args: [...runtime.expectedPrefix, ...args],
+		});
+	});
+
 	it("uses the pi shim when running inside the pies daemon", () => {
 		const args = ["--mode", "json", "-p", "Task: map things"];
 
@@ -544,6 +623,23 @@ describe("runSingleAgent model chain", () => {
 });
 
 describe("child inherited resources", () => {
+	it("launches the available pi-bolt with the agent arguments", async () => {
+		const bin = makeTempDir("subagent-bolt-bin-");
+		const executable = path.join(bin, process.platform === "win32" ? "pi-bolt.exe" : "pi-bolt");
+		fs.writeFileSync(executable, "#!/bin/sh\n", { mode: 0o755 });
+		vi.stubEnv("PATH", bin);
+		mockSpawnResult({ code: 0 });
+
+		const result = await runSingleAgent([testAgent()], request, undefined, undefined);
+
+		expect(result.exitCode).toBe(0);
+		expect(spawnMock).toHaveBeenCalledWith(
+			executable,
+			expect.arrayContaining(["--agent", "scout", "Task: Map things"]),
+			expect.objectContaining({ cwd: request.cwd, shell: false }),
+		);
+	});
+
 	it("spawns with child-scoped Millstrand attribution instead of parent ownership", async () => {
 		const millstrandIdentity = {
 			identity: "native-parent",

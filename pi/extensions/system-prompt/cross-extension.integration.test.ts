@@ -67,13 +67,15 @@ fs.appendFileSync(process.env.STRAND_INVOCATION_LOG, [process.cwd(), flag("--wor
 console.log(JSON.stringify({ operation: "agent native-startup", identity, "strand-id": "test-strand", "run-id": "test-run", result: "minted", instruction: "Use " + identity + " for identity-bearing operations." }));
 `,
 			);
-			await writeExecutable(
-				join(bin, "pi"),
-				`#!/bin/sh
+			for (const command of ["pi", "pi-bolt"]) {
+				await writeExecutable(
+					join(bin, command),
+					`#!/bin/sh
 printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' "$PWD" "$MILLSTRAND_PI_PARENT_IDENTITY" "$MILLSTRAND_PI_WORKSPACE" "$MILLSTRAND_AGENT_ID" "$MILLSTRAND_RUN_ID" "$PI_SUBAGENT" >> "$CHILD_ENVIRONMENT_LOG"
 printf '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"ok"}]}}\\n'
 `,
-			);
+				);
+			}
 
 			process.env.PATH = `${bin}${delimiter}${originalEnvironment.PATH ?? ""}`;
 			process.env.PIES_DAEMON = "1";

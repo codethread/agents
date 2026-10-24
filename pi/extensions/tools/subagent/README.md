@@ -24,7 +24,7 @@ active `subagent` tool and its catalog, and rejects calls even if another extens
 reactivates the tool. This covers both agents and swarms. Direct `--agent` mode
 still works, but cannot delegate when this setting is false.
 
-Use `pi --debug-subagents` to print the effective setting without calling a model,
+Use `pi --debug-subagents` to print the effective setting and selected child invocation without calling a model,
 or `/debug-agents` to inspect it alongside the catalog.
 
 ### Native child identity
@@ -184,7 +184,7 @@ Hidden swarms (`hidden: true`) are omitted from that inventory but stay visible 
 
 ## `subagent` tool
 
-Spawns one `pi` subprocess with an isolated context window, including from Bun standalone builds without forwarding Bun's virtual `/$bunfs/...` entrypoint as prompt text. Each tool call runs one delegated target. When a discovered swarm is provided, the extension dispatches one subprocess per swarm member concurrently in the same call, then aggregates member results. Pi may dispatch multiple independent `subagent` tool calls concurrently; this extension does not batch or schedule them internally. The parent sees only the child's final message, not the full transcript.
+Spawns one isolated Pi subprocess, preferring the first executable `pi-bolt` on `PATH` (`pi-bolt.exe` on Windows). If unavailable, it preserves the existing Pi launch behavior: the `pi` shim inside Pies, otherwise the current CLI script or standalone executable, with `pi` on `PATH` as the final fallback. An installed Pi-Bolt that fails at launch or execution reports that failure; it does not trigger a retry with Pi. Bun standalone builds never forward their virtual `/$bunfs/...` entrypoint as prompt text. Each tool call runs one delegated target. When a discovered swarm is provided, the extension dispatches one subprocess per swarm member concurrently in the same call, then aggregates member results. Pi may dispatch multiple independent `subagent` tool calls concurrently; this extension does not batch or schedule them internally. The parent sees only the child's final message, not the full transcript.
 
 ```json
 {
@@ -295,7 +295,7 @@ In the Pi UI, subagent runs are labeled as `(fresh)` or `(resumed)` and show the
 /debug-agents
 ```
 
-Shows discovered agent + swarm inventory in a hidden debug panel, including effective, extension, user, and project sections, extension root inference, project swarm/agent directory paths, and member lists for each swarm. Press `Ctrl+G` to open the markdown in your external editor, or `Ctrl+Enter` to intentionally send it to the agent.
+Shows the selected child invocation and discovered agent + swarm inventory in a hidden debug panel, including effective, extension, user, and project sections, extension root inference, project swarm/agent directory paths, and member lists for each swarm. Press `Ctrl+G` to open the markdown in your external editor, or `Ctrl+Enter` to intentionally send it to the agent.
 
 ```
 /debug-mcp <agent>

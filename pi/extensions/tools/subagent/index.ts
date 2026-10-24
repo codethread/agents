@@ -1,7 +1,7 @@
 /**
  * Subagent tool - delegate one task to one specialized agent.
  *
- * Spawns a separate `pi` process for each subagent invocation,
+ * Spawns a separate Pi process (preferring `pi-bolt`) for each subagent invocation,
  * giving it an isolated context window.
  *
  * Uses JSON mode to capture structured output from subagents.
@@ -34,7 +34,7 @@ import {
 	getSubagentSessionDirForParent,
 	updateSwarmManifest,
 } from "./session.js";
-import { runSingleAgent } from "./runtime.js";
+import { getPiInvocation, runSingleAgent } from "./runtime.js";
 import { showDebugMessage } from "../../components/debug-message/index.js";
 import {
 	MILLSTRAND_IDENTITY_CONTEXT_EVENT,
@@ -321,7 +321,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerFlag("debug-subagents", {
-		description: "Print effective subagent delegation setting and exit",
+		description: "Print effective subagent delegation setting and child invocation, then exit",
 		type: "boolean",
 	});
 
@@ -358,7 +358,7 @@ export default function (pi: ExtensionAPI) {
 		enforceDelegationSetting();
 		if (pi.getFlag("debug-subagents")) {
 			process.stdout.write(
-				`Subagent delegation: ${delegationEnabled() ? "enabled" : "disabled"}\n`,
+				`Subagent delegation: ${delegationEnabled() ? "enabled" : "disabled"}\nSubagent invocation: ${JSON.stringify(getPiInvocation([]))}\n`,
 			);
 			ctx.shutdown();
 			return;
@@ -420,6 +420,7 @@ export default function (pi: ExtensionAPI) {
 			const discovery = discoverAgents(ctx.cwd);
 			const sections = [
 				`Subagent delegation: ${delegationEnabled() ? "enabled" : "disabled"}`,
+				`Subagent invocation: ${JSON.stringify(getPiInvocation([]))}`,
 				formatDebugSection("Available agents:", discovery.agents),
 				formatDebugSwarmSection("Available swarms:", discovery.swarms),
 				[

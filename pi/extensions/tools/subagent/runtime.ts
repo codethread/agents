@@ -33,6 +33,21 @@ import {
 	type TaskRequest,
 } from "./types.js";
 
+export function findPiBolt(pathValue: string | undefined = process.env.PATH): string | undefined {
+	if (!pathValue) return undefined;
+	const name = process.platform === "win32" ? "pi-bolt.exe" : "pi-bolt";
+	for (const directory of pathValue.split(path.delimiter)) {
+		const candidate = path.resolve(directory, name);
+		try {
+			fs.accessSync(candidate, fs.constants.X_OK);
+			if (fs.statSync(candidate).isFile()) return candidate;
+		} catch {
+			// Missing or non-executable PATH entries are not available runtimes.
+		}
+	}
+	return undefined;
+}
+
 export function getPiInvocation(
 	args: string[],
 	runtime: {
@@ -40,14 +55,17 @@ export function getPiInvocation(
 		currentScript?: string;
 		scriptExists(path: string): boolean;
 		piesDaemon?: boolean;
+		piBoltPath?: string;
 	} = {
 		execPath: process.execPath,
 		currentScript: process.argv[1],
 		scriptExists: fs.existsSync,
 		piesDaemon: process.env.PIES_DAEMON === "1",
+		piBoltPath: findPiBolt(),
 	},
 ): { command: string; args: string[] } {
-	const { currentScript, execPath, piesDaemon, scriptExists } = runtime;
+	const { currentScript, execPath, piesDaemon, scriptExists, piBoltPath } = runtime;
+	if (piBoltPath) return { command: piBoltPath, args };
 	if (piesDaemon) return { command: "pi", args };
 	// Bun standalone executables expose their embedded entrypoint as argv[1]. It may
 	// pass existsSync(), but forwarding it makes Pi treat /$bunfs/root/pi as a prompt.
