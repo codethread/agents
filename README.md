@@ -91,7 +91,7 @@ pi --agent scout --print "Find token validation definitions and their direct cal
 pi --agent review --print "Review the current changes"
 ```
 
-Agent model policies live in their Markdown frontmatter. Explicit `--model`, `--thinking`, and `--tools` flags override inherited agent settings.
+Agent model policies live in their Markdown frontmatter. Explicit `--model`, `--thinking`, and `--tools` flags override inherited agent settings. Fixer uses `openai-codex/gpt-6-luna` with `high` thinking.
 Scout uses its configured work model for projects under `~/pb/`, and DeepSeek V4 Flash with `max` thinking elsewhere. See the [Luna/Flash benchmark](agents/benchmarks/README.md) for measured speed, usage, and lookup trade-offs.
 
 ## Install the Codex plugins

@@ -41,11 +41,7 @@ meta: >
   - Delegating with full file contents or step-by-step implementation (main should just edit directly)
   - Using fixer for broad refactors or architecture exploration (use scout + main)
 tools: read, bash, edit, write
-# model:
-#   - id: deepseek/deepseek-flash:max
-#     when: "!$IS_WORK"
-#   - openai-codex/gpt-5.6-terra:medium
-model: openai-codex/gpt-5.3-codex-spark:low
+model: openai-codex/gpt-6-luna:high
 ---
 
 You are a fixer agent. You make failing code pass and complete narrow mechanical tasks.
