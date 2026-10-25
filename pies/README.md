@@ -191,7 +191,34 @@ For agents that inspected this codebase, produced a 250–400 word summary, and 
 |                25 |            4666.4 MiB |               722.6 MiB |     84.5% |
 |                30 |            5606.6 MiB |               813.2 MiB |     85.5% |
 
-The fitted marginal footprint was about 184.7 MiB per separate Pi process versus 18.7 MiB per Pies agent. These measurements include the thin clients and tool subprocesses in the complete Pies total and were collected on macOS with Pi 0.84.2, SDK 0.84.4, and `openai/gpt-6-luna`.
+The fitted marginal footprint was about 184.7 MiB per separate Pi process versus 18.7 MiB per Pies agent. These measurements include the thin clients and tool subprocesses in the complete Pies total and were collected on macOS with Pi 0.84.2, SDK 0.84.4, and `openai/gpt-5.6-luna`. The historical CSV model labels have been corrected from an accidental `gpt-6-luna` rename; their numeric measurements are unchanged.
+
+### Pi-Bolt follow-up (2026-10-25)
+
+A best-effort Bolt-only run reached 20 resident agents; neither Pi nor Pies was rerun. Physical footprint scaled linearly from 108.6 MiB at two agents to 1084.9 MiB at 20: **54.3 MiB per additional agent**, with an ordinary least-squares R² of 0.99993 across ten checkpoints. There was no reason to continue to 25 or 30.
+
+| Runtime, 20 code-summary agents | Physical footprint | Summed RSS |
+| ------------------------------- | -----------------: | ---------: |
+| Pi, historical                  |         3759.9 MiB | 1921.8 MiB |
+| Pies, historical                |          626.1 MiB | 1078.1 MiB |
+| Pi-Bolt                         |         1084.9 MiB | 2385.2 MiB |
+
+Bolt's physical footprint was **71.1% below historical Pi**, but **73.3% above historical Pies**. Pies retained a 42.3% footprint advantage over Bolt at 20 agents. Summed RSS did not show the same improvement: it was higher for Bolt than either historical baseline. RSS includes shared resident pages and varies with memory pressure; the two metrics should not be treated as interchangeable.
+
+Results are in [`memory-scaling-bolt-luna6.csv`](memory-scaling-bolt-luna6.csv); [`memory-scaling-bolt-luna6-run.json`](memory-scaling-bolt-luna6-run.json) records the command, prompt, environment, individual footprint samples, summary lengths and fitted trend. The run used Pi-Bolt 1.0.2 / Pi 1.4.0, darwin-arm64, JIT off, on macOS 26.5.1 with 16 GiB RAM. The requested `openai/gpt-6-luna` was routed by the installed provider-override extension to **`openai-codex/gpt-6-luna`, high thinking**, as verified in every agent's response metadata.
+
+Method and limits:
+
+- Start two agents at a time with normal extension discovery and only the `read` tool enabled. Each reads the same six Pies files and produces a 250–400 word summary; observed summaries were 316–363 words.
+- Keep completed RPC sessions resident with their in-memory transcripts. At each checkpoint from 2 through 20, wait five seconds, then take three samples two seconds apart. Report median total footprint and RSS, plus the footprint sample range.
+- Measure every agent process and all descendants with macOS `footprint` and `ps`, excluding the benchmark driver. At 20 agents this included 40 processes; helper descendants contributed 15.9 MiB of the total footprint.
+- This is one cumulative cohort, not independent repetitions or a peak-memory benchmark. Earlier agents idle longer. Historical agents were held in sleeping tools instead of idle RPC sessions; model/provider, runtime versions, extensions and code context also differ. These numbers are directional, not an isolated implementation comparison or a throughput comparison.
+
+To repeat **only Bolt**, run from the repository root with an unused output directory; this makes 20 real model requests using the locally configured credentials and extensions:
+
+```bash
+python3 pies/profile-bolt.py /tmp/pies-bolt-memory-run
+```
 
 ## Current limitations
 

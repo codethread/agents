@@ -1,0 +1,324 @@
+{
+	"command": [
+		"pi-bolt",
+		"--mode",
+		"rpc",
+		"--no-session",
+		"--model",
+		"openai/gpt-6-luna",
+		"--thinking",
+		"high",
+		"--tools",
+		"read",
+		"--approve"
+	],
+	"prompt": "This is a read-only memory benchmark, not an implementation task. Use the read tool to inspect each of these files: pies/README.md, pies/daemon.ts, pies/runner.ts, pies/request-context.ts, pies/cli.ts, pies/protocol.ts. Then give a 250\u2013400 word summary of Pies: architecture, request isolation, concurrency, CLI routing and limitations. Do not edit files, run checks, create tasks or delegate work. Finish after the summary.",
+	"cwd": "/Users/ct/dev/projects/agents",
+	"date_utc": "2026-10-25T06:12:26Z",
+	"version": "1.4.0 (Pi-Bolt 1.0.2, darwin-arm64, JIT off)",
+	"os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5.1\nBuildVersion:\t\t25F80",
+	"ram_bytes": 17179869184,
+	"git_head": "ce7be4e707f8a45d43c797a00ca152c3c8df9497",
+	"effective_model": "openai-codex/gpt-6-luna",
+	"effective_thinking": "high",
+	"sampling": "One cumulative resident RPC cohort; +2 agents per checkpoint; 5s settle delay, then 3 samples 2s apart. CSV stores medians.",
+	"fit": {
+		"slope_mib_per_agent": 54.30666666666667,
+		"intercept_mib": 0.7066666666665924,
+		"r_squared": 0.9999347980414404
+	},
+	"samples": [
+		{
+			"concurrent_agents": 2,
+			"sample": 1,
+			"timestamp": "2026-10-25T06:12:44.408Z",
+			"physical_footprint_bytes": 113854888,
+			"process_count": 4
+		},
+		{
+			"concurrent_agents": 2,
+			"sample": 2,
+			"timestamp": "2026-10-25T06:12:46.441Z",
+			"physical_footprint_bytes": 113854888,
+			"process_count": 4
+		},
+		{
+			"concurrent_agents": 2,
+			"sample": 3,
+			"timestamp": "2026-10-25T06:12:48.483Z",
+			"physical_footprint_bytes": 113854888,
+			"process_count": 4
+		},
+		{
+			"concurrent_agents": 4,
+			"sample": 1,
+			"timestamp": "2026-10-25T06:13:02.268Z",
+			"physical_footprint_bytes": 230871888,
+			"process_count": 8
+		},
+		{
+			"concurrent_agents": 4,
+			"sample": 2,
+			"timestamp": "2026-10-25T06:13:04.314Z",
+			"physical_footprint_bytes": 229380968,
+			"process_count": 8
+		},
+		{
+			"concurrent_agents": 4,
+			"sample": 3,
+			"timestamp": "2026-10-25T06:13:06.392Z",
+			"physical_footprint_bytes": 229380968,
+			"process_count": 8
+		},
+		{
+			"concurrent_agents": 6,
+			"sample": 1,
+			"timestamp": "2026-10-25T06:13:20.730Z",
+			"physical_footprint_bytes": 345054456,
+			"process_count": 12
+		},
+		{
+			"concurrent_agents": 6,
+			"sample": 2,
+			"timestamp": "2026-10-25T06:13:22.802Z",
+			"physical_footprint_bytes": 344956152,
+			"process_count": 12
+		},
+		{
+			"concurrent_agents": 6,
+			"sample": 3,
+			"timestamp": "2026-10-25T06:13:24.859Z",
+			"physical_footprint_bytes": 342891768,
+			"process_count": 12
+		},
+		{
+			"concurrent_agents": 8,
+			"sample": 1,
+			"timestamp": "2026-10-25T06:13:39.766Z",
+			"physical_footprint_bytes": 457746080,
+			"process_count": 16
+		},
+		{
+			"concurrent_agents": 8,
+			"sample": 2,
+			"timestamp": "2026-10-25T06:13:41.867Z",
+			"physical_footprint_bytes": 456992440,
+			"process_count": 16
+		},
+		{
+			"concurrent_agents": 8,
+			"sample": 3,
+			"timestamp": "2026-10-25T06:13:43.938Z",
+			"physical_footprint_bytes": 454223544,
+			"process_count": 16
+		},
+		{
+			"concurrent_agents": 10,
+			"sample": 1,
+			"timestamp": "2026-10-25T06:13:58.749Z",
+			"physical_footprint_bytes": 569716808,
+			"process_count": 20
+		},
+		{
+			"concurrent_agents": 10,
+			"sample": 2,
+			"timestamp": "2026-10-25T06:14:00.807Z",
+			"physical_footprint_bytes": 566128712,
+			"process_count": 20
+		},
+		{
+			"concurrent_agents": 10,
+			"sample": 3,
+			"timestamp": "2026-10-25T06:14:02.896Z",
+			"physical_footprint_bytes": 566095944,
+			"process_count": 20
+		},
+		{
+			"concurrent_agents": 12,
+			"sample": 1,
+			"timestamp": "2026-10-25T06:14:17.549Z",
+			"physical_footprint_bytes": 683555312,
+			"process_count": 24
+		},
+		{
+			"concurrent_agents": 12,
+			"sample": 2,
+			"timestamp": "2026-10-25T06:14:19.622Z",
+			"physical_footprint_bytes": 681736688,
+			"process_count": 24
+		},
+		{
+			"concurrent_agents": 12,
+			"sample": 3,
+			"timestamp": "2026-10-25T06:14:21.697Z",
+			"physical_footprint_bytes": 681671152,
+			"process_count": 24
+		},
+		{
+			"concurrent_agents": 14,
+			"sample": 1,
+			"timestamp": "2026-10-25T06:14:37.101Z",
+			"physical_footprint_bytes": 798229400,
+			"process_count": 28
+		},
+		{
+			"concurrent_agents": 14,
+			"sample": 2,
+			"timestamp": "2026-10-25T06:14:39.205Z",
+			"physical_footprint_bytes": 796165016,
+			"process_count": 28
+		},
+		{
+			"concurrent_agents": 14,
+			"sample": 3,
+			"timestamp": "2026-10-25T06:14:41.284Z",
+			"physical_footprint_bytes": 796132248,
+			"process_count": 28
+		},
+		{
+			"concurrent_agents": 16,
+			"sample": 1,
+			"timestamp": "2026-10-25T06:14:57.078Z",
+			"physical_footprint_bytes": 917507416,
+			"process_count": 32
+		},
+		{
+			"concurrent_agents": 16,
+			"sample": 2,
+			"timestamp": "2026-10-25T06:14:59.156Z",
+			"physical_footprint_bytes": 917376320,
+			"process_count": 32
+		},
+		{
+			"concurrent_agents": 16,
+			"sample": 3,
+			"timestamp": "2026-10-25T06:15:01.274Z",
+			"physical_footprint_bytes": 917425472,
+			"process_count": 32
+		},
+		{
+			"concurrent_agents": 18,
+			"sample": 1,
+			"timestamp": "2026-10-25T06:15:22.279Z",
+			"physical_footprint_bytes": 1027086032,
+			"process_count": 36
+		},
+		{
+			"concurrent_agents": 18,
+			"sample": 2,
+			"timestamp": "2026-10-25T06:15:24.366Z",
+			"physical_footprint_bytes": 1026987728,
+			"process_count": 36
+		},
+		{
+			"concurrent_agents": 18,
+			"sample": 3,
+			"timestamp": "2026-10-25T06:15:26.471Z",
+			"physical_footprint_bytes": 1026610896,
+			"process_count": 36
+		},
+		{
+			"concurrent_agents": 20,
+			"sample": 1,
+			"timestamp": "2026-10-25T06:15:41.711Z",
+			"physical_footprint_bytes": 1138155640,
+			"process_count": 40
+		},
+		{
+			"concurrent_agents": 20,
+			"sample": 2,
+			"timestamp": "2026-10-25T06:15:43.804Z",
+			"physical_footprint_bytes": 1137598584,
+			"process_count": 40
+		},
+		{
+			"concurrent_agents": 20,
+			"sample": 3,
+			"timestamp": "2026-10-25T06:15:45.934Z",
+			"physical_footprint_bytes": 1137582200,
+			"process_count": 40
+		}
+	],
+	"agents": [
+		{
+			"index": 1,
+			"summary_words": 328
+		},
+		{
+			"index": 2,
+			"summary_words": 334
+		},
+		{
+			"index": 3,
+			"summary_words": 334
+		},
+		{
+			"index": 4,
+			"summary_words": 347
+		},
+		{
+			"index": 5,
+			"summary_words": 334
+		},
+		{
+			"index": 6,
+			"summary_words": 340
+		},
+		{
+			"index": 7,
+			"summary_words": 338
+		},
+		{
+			"index": 8,
+			"summary_words": 321
+		},
+		{
+			"index": 9,
+			"summary_words": 329
+		},
+		{
+			"index": 10,
+			"summary_words": 363
+		},
+		{
+			"index": 11,
+			"summary_words": 325
+		},
+		{
+			"index": 12,
+			"summary_words": 327
+		},
+		{
+			"index": 13,
+			"summary_words": 354
+		},
+		{
+			"index": 14,
+			"summary_words": 335
+		},
+		{
+			"index": 15,
+			"summary_words": 316
+		},
+		{
+			"index": 16,
+			"summary_words": 339
+		},
+		{
+			"index": 17,
+			"summary_words": 330
+		},
+		{
+			"index": 18,
+			"summary_words": 343
+		},
+		{
+			"index": 19,
+			"summary_words": 344
+		},
+		{
+			"index": 20,
+			"summary_words": 326
+		}
+	]
+}
