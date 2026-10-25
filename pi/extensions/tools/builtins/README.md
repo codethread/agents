@@ -6,7 +6,7 @@ Each replacement retains Pi's provider-facing tool description. Prompt guideline
 
 ## `read`
 
-Compact file read display. File contents are hidden in the TUI (only the path is shown). Errors display simplified messages.
+Compact file read display. File contents are hidden in the TUI; the path and estimated output token count are shown. Counts use the same estimate (one token per four text characters), rounding, and color thresholds as `bash`. Image tokens are not included. Errors display simplified messages.
 
 ## `bash`
 

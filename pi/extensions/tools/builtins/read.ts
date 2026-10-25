@@ -1,9 +1,11 @@
 import { createReadTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
 
+import { estimateTokens, formatTokenCount, getTokenUsageColor } from "./token-usage.js";
+
 /**
  * Compact read renderer.
- * Keeps built-in read execution, but shows only file path in tool output.
+ * Keeps built-in read execution, but shows only file path and estimated tokens.
  */
 function mapReadError(message: string): string {
 	if (message.includes("ENOENT")) return "No such path";
@@ -22,9 +24,22 @@ export default function (pi: ExtensionAPI) {
 			return new Text(theme.fg("toolTitle", theme.bold("read ")) + theme.fg("muted", path), 0, 0);
 		},
 
-		renderResult(result, _options, theme, context) {
+		renderResult(result, { isPartial }, theme, context) {
+			if (isPartial) return new Container();
+
 			if (!context.isError) {
-				return new Container();
+				const output = result.content
+					.filter((item) => item.type === "text")
+					.map((item) => item.text)
+					.join("\n");
+				const tokens = estimateTokens(output);
+				return new Text(
+					theme.fg("dim", "[") +
+						theme.fg(getTokenUsageColor(tokens), `${formatTokenCount(tokens)} tokens`) +
+						theme.fg("dim", "]"),
+					0,
+					0,
+				);
 			}
 
 			const first = result.content?.[0];

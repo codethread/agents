@@ -2,6 +2,8 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createBashTool } from "@earendil-works/pi-coding-agent";
 import { Container, Text, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
+import { estimateTokens, formatTokenCount, getTokenUsageColor } from "./token-usage.js";
+
 const COMMAND_PREVIEW_LINES = 5;
 const ELLIPSIS = " ...";
 const WRAP_PREFIX = "  \\ ";
@@ -11,22 +13,6 @@ function formatDuration(ms: number) {
 	if (ms < 1000) return `${ms}ms`;
 	if (ms < 10_000) return `${(ms / 1000).toFixed(1)}s`;
 	return `${Math.round(ms / 1000)}s`;
-}
-
-function estimateTokens(text: string) {
-	// Bash output is usually plain text; four characters per token is a useful
-	// rough estimate without tying the extension to a model-specific tokenizer.
-	return Math.ceil(text.length / 4);
-}
-
-function formatTokenCount(tokens: number) {
-	return tokens > 1000 ? `${Math.round(tokens / 1000)}K` : `${tokens}`;
-}
-
-export function getTokenUsageColor(tokens: number): "success" | "warning" | "error" {
-	if (tokens < 500) return "success";
-	if (tokens < 1000) return "warning";
-	return "error";
 }
 
 function splitAtOperators(command: string) {

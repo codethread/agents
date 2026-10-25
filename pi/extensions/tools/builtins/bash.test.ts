@@ -6,8 +6,8 @@ import bashExtension, {
 	formatBashCommandPreview,
 	formatBashOutput,
 	formatBashOutputPreview,
-	getTokenUsageColor,
 } from "./bash.js";
+import { getTokenUsageColor } from "./token-usage.js";
 
 describe("formatBashCommandForDisplay", () => {
 	it("line breaks chained commands on && and ||", () => {
