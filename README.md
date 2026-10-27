@@ -107,7 +107,7 @@ The marketplace exposes these plugin packages:
 - `plugins/coding/` — git workflows, robustness, testing, and code cleanup;
 - `plugins/devflow/` — RFC, spec, plan, task, and iterative development workflows;
 - `plugins/harness/` — session introspection, dialogue capture, tmux, benchmarks, and rich responses;
-- `plugins/writing/` — Mermaid and reusable skill authoring guidance.
+- `plugins/writing/` — agent-context audits, agent-facing CLI design, Mermaid, and reusable skill authoring guidance.
 
 Codex does not directly run Pi extensions or Pi agent definitions. Those capabilities need Codex-native skills, hooks, MCP servers, or apps.
 
