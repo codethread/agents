@@ -16,6 +16,8 @@ Keep the detailed Show me report format behind an explicit request trigger, with
 
 Link to agent-clis for complementary CLI interface design and focused output guidance; keep context-loading analysis distinct from CLI design.
 
+Defer abstract writing guidance (context pointers, context load, the information hierarchy, pruning) to writing-for-agents. This skill stays practical: how harnesses load context and how to verify it. Avoid restating writing-for-agents principles here.
+
 ## Validation
 
 - An ordinary agent-document edit uses an existing loading map and traces the affected path without a full harness audit or loading the report reference.
