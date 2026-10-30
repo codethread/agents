@@ -30,6 +30,9 @@ commit the skill/reference changes in this agents repository. Keep directory
 lookup and debugging guidance in the main skills. The shared dialogue schema
 below is owned by this plugin independently of harness release versions.
 
+The Codex 0.165.0-alpha.1.2 reference covers the observed `final_answer` phase and
+realtime voice transcript records, including avoiding duplicated promoted speech.
+
 ## Codex startup identity
 
 The Millstrand identity hook lives in the [Harnesses spool](https://github.com/codethread/millhouse.spool/tree/main/spools/harnesses)'s focused `millstrand-identity` plugin. Install that Codex marketplace separately when

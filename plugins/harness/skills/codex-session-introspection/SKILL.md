@@ -51,10 +51,11 @@ an empty result as missing activity.
   the changes, and **commit the updated skill, reference, and related docs in the
   agents repository** as part of the introspection work.
 
-| Harness version      | Schema reference                                    | No change                                            |
-| -------------------- | --------------------------------------------------- | ---------------------------------------------------- |
-| `0.156.1`            | [0.156.1](references/0.156.1.md) — latest reference | Baseline                                             |
-| `0.155.0-alpha.16.4` | [0.156.1](references/0.156.1.md)                    | Yes — covered rollout fields match local app records |
+| Harness version      | Schema reference                                                        | No change                                                  |
+| -------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `0.165.0-alpha.1.2`  | [0.165.0-alpha.1.2](references/0.165.0-alpha.1.2.md) — latest reference | Observed final-answer phase and realtime transcript stream |
+| `0.156.1`            | [0.156.1](references/0.156.1.md)                                        | Baseline                                                   |
+| `0.155.0-alpha.16.4` | [0.156.1](references/0.156.1.md)                                        | Yes — covered rollout fields match local app records       |
 
 ## Prefer the stable dialogue log
 
@@ -70,7 +71,9 @@ documented in `../../README.md`. Prefer this log for user/assistant dialogue and
 file/tool activity. It excludes raw model protocol noise and is the format this
 repo owns.
 
-Use raw Codex rollout files only as a fallback:
+Use raw Codex rollout files for missing or malformed stable logs, or voice speech
+not captured by prompt/reply hooks. Follow the selected version reference for
+realtime segments and avoid counting promoted speech twice:
 
 ```text
 ${CODEX_HOME:-$HOME/.config/codex}/sessions/YYYY/MM/DD/rollout-*.jsonl
