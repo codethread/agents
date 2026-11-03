@@ -8,7 +8,7 @@ Session and harness affordances for Claude Code, Pi, and Codex: session introspe
 - `skills/claude-session-introspection/` — Claude Code `.jsonl` session forensics
 - `skills/codex-session-introspection/` — Codex dialogue/session forensics
 - `skills/pi-session-introspection/` — Pi session forensics
-- `skills/rich-response/` — render long-form responses as self-contained HTML
+- `skills/rich-response/` — render rich HTML responses and live browser questionnaires with Markdown answers, local/LAN/Tailscale links and a stable bookmark
 - `skills/tmux/` — durable terminal sessions for long-lived commands
 - `hooks/` — Claude Code dialogue-capture and window-title hooks (below)
 - `.codex-plugin/hooks/` — Codex dialogue-capture hooks (below)

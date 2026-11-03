@@ -7,18 +7,23 @@ description: >
   comparisons, diffs, callouts, or collapsible detail. Triggers on phrases like
   "rich response", "open this in the browser", "render as HTML", "give me a doc",
   "diagram this", or whenever the response would otherwise exceed roughly 50 lines
-  of terminal output.
+  of terminal output. For questionnaires, use only when the user explicitly requests
+  a questionnaire or alignment check.
 ---
 
 # rich-response
 
+## Choose the flow
+
+For a static rich document, follow the procedure below, publish it, and continue the conversation. Only on an explicit user request for a questionnaire or alignment check, read [Live questionnaires](questionnaires.md) and wait for the user’s Markdown answer file.
+
 ## Variables
 
-| Variable      | Value                        | Notes                                                                                       |
-| ------------- | ---------------------------- | ------------------------------------------------------------------------------------------- |
-| RENDER_CMD    | `<skill-dir>./render.sh`     | One-shot: substitute → validate → publish locally and over LAN. Body on stdin, prints path. |
-| TEMPLATE_PATH | `<skill-dir>./template.html` | Reference only — `RENDER_CMD` reads it. Read this to learn the primitives.                  |
-| OUTPUT_DIR    | `/tmp`                       | Where the rendered file lives                                                               |
+| Variable      | Value                        | Notes                                                                                                  |
+| ------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
+| RENDER_CMD    | `<skill-dir>./render.sh`     | One-shot: substitute → validate → publish locally, over LAN and Tailscale. Body on stdin, prints path. |
+| TEMPLATE_PATH | `<skill-dir>./template.html` | Reference only — `RENDER_CMD` reads it. Read this to learn the primitives.                             |
+| OUTPUT_DIR    | `/tmp`                       | Where the rendered file lives                                                                          |
 
 ## When to use
 
@@ -30,7 +35,7 @@ description: >
 ## When NOT to use
 
 - Short answers, single-paragraph explanations, single code snippets.
-- Anything the user is mid-iterating on in chat (don't break flow).
+- Ongoing chat iteration without an explicit questionnaire or alignment-check request.
 - Pure code edits — write the code, don't render a doc about the code.
 
 ## Procedures
@@ -62,9 +67,9 @@ RENDER_CMD "<title>" < /tmp/rich-response-body.html
 - Output path is derived from the title (`/tmp/rich-<slug>.html`). Reusing the same title updates the same rendered file and URLs. To override, pass it as the second arg: `RENDER_CMD "<title>" /tmp/custom.html < /tmp/rich-response-body.html`.
 - `RENDER_CMD` runs `validate.sh`, then publishes the document through `serve.sh`, then prints the chosen output path on stdout. Validation/publication output goes to stderr.
 - Publication uses an idempotent detached document server on fixed port `8765`. The first render starts it; later renders reuse it. Reusing the same title atomically updates the document at the same URLs.
-- The publishing API accepts writes from loopback only. Published documents are readable on all interfaces. Output includes both `serving locally: http://localhost:8765/documents/…` and `serving on LAN: http://<LAN-IP>:8765/documents/…`.
+- The publishing API accepts writes from loopback only. Published documents are readable on all interfaces. Output includes local and LAN document URLs, plus the exact Tailscale document and bookmark URLs when Tailscale is running, incoming connections are allowed, and the server verifies its address. It uses port `8765` directly without changing Tailscale Serve or other services; an unavailable Tailscale link is reported explicitly.
 
-After it returns, always reply with both clickable URLs: label the localhost URL for this computer and the LAN URL for other devices on the same network. Never omit either address, even if one was opened automatically. Keep the reply short and do not add a long recap — the doc IS the answer.
+After it returns, present every reported document URL as a clickable link: local for this computer, LAN for the same network, and Tailscale for a connected phone away from Wi-Fi. Also include the reported Tailscale bookmark URL for recent documents. Copy these exact URLs from the output; never guess the hostname or port. If Tailscale is unavailable, report the reason alongside the local/LAN links. Keep the reply short — the doc IS the answer.
 
 ## Knowledge
 
@@ -170,4 +175,4 @@ Prefer authored colors only when they carry meaning. If you hard-code Rose Pine 
 
 - [ ] `RENDER_CMD` exited 0 and printed the output path on stdout.
 - [ ] Both `serving locally: http://localhost:8765/documents/…` and `serving on LAN: http://<LAN-IP>:8765/documents/…` appeared on stderr.
-- [ ] Chat response is short (≤5 lines) and includes both clickable URLs.
+- [ ] Chat response is short (≤5 lines) and includes all reported document URLs and the Tailscale bookmark, or its unavailability reason.
