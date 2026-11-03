@@ -2,13 +2,15 @@
 
 Rich response lets an agent author a small semantic HTML fragment while the bundled template owns visual design, diagram/highlighting libraries, validation and local publication. Static documents retain stable URLs when rerendered. Keep the authoring surface familiar and keep dependencies out of the agent's task.
 
+Authoring instructions contain the primitives and command usage needed to publish a document; routine use should not require reading the template or CLI help. Keep rendering internals in the maintainer reference, and co-locate each authoring constraint with its step rather than repeating a final checklist.
+
 ## Live questionnaires
 
 The interactive branch is explicitly user-invoked through a request for a questionnaire or alignment check. Many questions, uncertainty or a general workshop do not trigger it; ordinary conversation and static rich documents remain the defaults appropriate to their tasks. The combined skill remains discoverable for its existing document purposes, with only a compact questionnaire trigger and routing paragraph; interaction details stay in the disclosed guide.
 
 The agent investigates first and compresses its findings into the fewest meaningful decisions, with brief context, a reason and main tradeoff for each recommendation, and a way to disagree or discuss. Recommendations are deliberately not selections; explicit submission establishes the user's answers.
 
-The same agent remains active throughout. A unique local Markdown answer path is the return contract shared by Codex, Claude Code, Pi and other command/file-capable agents. A shell process waits for the file without repeated model polling. Once the agent reads the submitted answers, it immediately acknowledges receipt before analyzing them: browser confirmation means saved, while agent acknowledgment confirms the conversation has received them. There are no session injections, proprietary callbacks, ended-session wakeups or durable handoffs.
+The same agent remains active throughout. A unique local Markdown answer path is the return contract shared by Codex, Claude Code, Pi and other command/file-capable agents. The agent executes the receipt's exact `waitCommand` rather than reconstructing script or answer paths. That shell process waits for the file without repeated model polling. Once the agent reads the submitted answers, it immediately acknowledges receipt before analyzing them: browser confirmation means saved, while agent acknowledgment confirms the conversation has received them. There are no session injections, proprietary callbacks, ended-session wakeups or durable handoffs.
 
 Questionnaires reuse the rich-response presentation and server, using ordinary fieldsets, legends, labels and native controls. A focused parser derives trusted wording and available choices from that HTML. This avoids a separate form-schema authoring language or generic form framework. Questionnaire instructions are disclosed only for the interactive branch; the main skill remains the entry point for static responses.
 

@@ -4,6 +4,8 @@ Investigate the problem first. Reduce it to the fewest decisions that change the
 
 Use this workflow while you remain active with the user. The bundled scripts use Python 3 and Bash; the return contract is a local Markdown file. Submission records answers only.
 
+Use the `render` and `wait` commands documented below directly. Their arguments, options, outputs and exit handling are included here; consult `--help` only when you need usage outside this workflow.
+
 ## Author and publish
 
 Write a body fragment to a temporary file. Use the existing rich-response primitives for context and the following semantic form convention:
@@ -56,13 +58,7 @@ If the publisher reports a different server version, run its printed `server.py 
 
 ## Wait and read
 
-Use the receipt's exact `answerPath`, never a path inferred from the title:
-
-```sh
-python3 <skill-dir>/questionnaire.py wait /tmp/rich-response-server/questionnaires/<id>/answers.md --timeout 60
-```
-
-Run this through the active agent's background/yielding shell operation. The process waits internally; there is no need for repeated model-driven file checks.
+Execute the receipt's `waitCommand` unchanged through the active agent's background/yielding shell operation. It already contains the absolute script path, this questionnaire's exact `answerPath` and a 60-second timeout. The process waits internally; there is no need for repeated model-driven file checks.
 
 ```text
 Wait returns
@@ -76,12 +72,6 @@ Wait returns
 
 After reading submitted answers, immediately acknowledge to the user that you have received and read them, before analyzing or formulating your substantive response. Then discuss disagreements or continue only work already authorized by the user.
 
-The default timeout is 60 seconds; `--timeout 0` is an immediate check. A timeout is not an answer or agreement. A completed file can also be read with `cat` and remains readable after the wait returns.
+`--timeout` accepts a finite, nonnegative number of seconds and defaults to 60; `--timeout 0` is an immediate check. A timeout is not an answer or agreement. A completed file can also be read with `cat` and remains readable after the wait returns.
 
 The answer file appears atomically after explicit Submit. It includes the title, questionnaire identity, question wording, human-readable choice labels and any free text/notes. Empty optional questions are marked. Success appears in the browser only after saving. Retrying identical answers succeeds; differing answers cannot overwrite a completed submission. Create a fresh questionnaire if the user wants to revise their answers.
-
-## Validate the interaction
-
-Use a separate synthetic questionnaire for testing. Verify browser submission, the saved Markdown, and the waiting command before publishing a fresh unanswered questionnaire for the user. Never submit the user's live form on their behalf.
-
-The server uses plain HTTP on fixed port `8765`, reachable on the LAN and directly through Tailscale. It discovers and verifies its own Tailscale address without modifying Serve, Funnel, login state or network policy. The host and phone must be connected to Tailscale, the host must allow incoming connections, and existing access rules must allow that port. If the receipt reports `shields-up`, explain the device-wide setting to the user; a successful self-probe does not override it. A successful local probe does not establish off-network phone access; verify that separately. The bookmark page lists the 20 most recently published documents, including questionnaire submission status. Anyone who can reach the service can discover those links and submit unanswered forms; use a trusted LAN/tailnet. Answers stay on disk and have no HTTP download route. Keep the originating agent active; the file does not wake an ended session. Temporary files last until local cleanup or reboot; this is not durable storage.

@@ -1,14 +1,9 @@
 ---
 name: rich-response
 description: >
-  Render a long-form or visually-structured response as a single self-contained HTML
-  file and open it in the browser, instead of printing >50 lines to the terminal.
-  Use when the response would benefit from diagrams (Mermaid or Graphviz), wide tables, side-by-side
-  comparisons, diffs, callouts, or collapsible detail. Triggers on phrases like
-  "rich response", "open this in the browser", "render as HTML", "give me a doc",
-  "diagram this", or whenever the response would otherwise exceed roughly 50 lines
-  of terminal output. For questionnaires, use only when the user explicitly requests
-  a questionnaire or alignment check.
+  Render responses as HTML and open them in the browser when requested, when they
+  exceed roughly 50 lines, or when diagrams, tables or comparisons improve readability.
+  Use live questionnaires only when the user explicitly requests a questionnaire or alignment check.
 ---
 
 # rich-response
@@ -16,14 +11,6 @@ description: >
 ## Choose the flow
 
 For a static rich document, follow the procedure below, publish it, and continue the conversation. Only on an explicit user request for a questionnaire or alignment check, read [Live questionnaires](questionnaires.md) and wait for the user’s Markdown answer file.
-
-## Variables
-
-| Variable      | Value                        | Notes                                                                                                  |
-| ------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
-| RENDER_CMD    | `<skill-dir>./render.sh`     | One-shot: substitute → validate → publish locally, over LAN and Tailscale. Body on stdin, prints path. |
-| TEMPLATE_PATH | `<skill-dir>./template.html` | Reference only — `RENDER_CMD` reads it. Read this to learn the primitives.                             |
-| OUTPUT_DIR    | `/tmp`                       | Where the rendered file lives                                                                          |
 
 ## When to use
 
@@ -40,17 +27,17 @@ For a static rich document, follow the procedure below, publish it, and continue
 
 ## Procedures
 
-Write the body fragment to a temporary source file first, then pipe that file into `RENDER_CMD`. This makes long rich responses easy to inspect and edit before rerendering. Agent never emits template boilerplate.
+In the commands below, replace `RENDER_CMD` with the absolute path to this skill's `render.sh`.
+
+Write a semantic HTML body fragment to a temporary source file, then pipe it into the renderer. Use elements such as `<table>`, `<details>` and `<blockquote>` for structure. The authoring reference below covers the available primitives; the renderer reads `template.html` unchanged and supplies the document wrapper and styling.
+
+Use a quoted heredoc (`<<'HTML'`) so the shell preserves `$variables` and backticks literally.
 
 ```bash
 cat > /tmp/rich-response-body.html <<'HTML'
 <h2>Section heading</h2>
-<p>Body content as semantic HTML using the primitives above.</p>
+<p>Body content as semantic HTML using the primitives below.</p>
 <div class="callout">Important point.</div>
-<pre class="mermaid">
-flowchart LR
-  A --> B
-</pre>
 HTML
 
 RENDER_CMD "<title>" < /tmp/rich-response-body.html
@@ -62,31 +49,18 @@ For updates, edit `/tmp/rich-response-body.html`, then rerun only:
 RENDER_CMD "<title>" < /tmp/rich-response-body.html
 ```
 
-- Always use the **quoted** heredoc delimiter `<<'HTML'` (single quotes around `HTML`) when creating the body file. Stops bash from expanding `$variables` or backticks inside the body.
-- Title is HTML-escaped automatically; body is injected as-is (write semantic HTML).
+- Title is HTML-escaped automatically; body is injected as-is.
 - Output path is derived from the title (`/tmp/rich-<slug>.html`). Reusing the same title updates the same rendered file and URLs. To override, pass it as the second arg: `RENDER_CMD "<title>" /tmp/custom.html < /tmp/rich-response-body.html`.
-- `RENDER_CMD` runs `validate.sh`, then publishes the document through `serve.sh`, then prints the chosen output path on stdout. Validation/publication output goes to stderr.
-- Publication uses an idempotent detached document server on fixed port `8765`. The first render starts it; later renders reuse it. Reusing the same title atomically updates the document at the same URLs.
-- The publishing API accepts writes from loopback only. Published documents are readable on all interfaces. Output includes local and LAN document URLs, plus the exact Tailscale document and bookmark URLs when Tailscale is running, incoming connections are allowed, and the server verifies its address. It uses port `8765` directly without changing Tailscale Serve or other services; an unavailable Tailscale link is reported explicitly.
+- The renderer validates and publishes the document, then prints its output path on stdout. Validation and publication messages go to stderr.
+- Published documents are readable on the local network and, when verified, Tailscale. Use a trusted LAN or tailnet.
 
-After it returns, present every reported document URL as a clickable link: local for this computer, LAN for the same network, and Tailscale for a connected phone away from Wi-Fi. Also include the reported Tailscale bookmark URL for recent documents. Copy these exact URLs from the output; never guess the hostname or port. If Tailscale is unavailable, report the reason alongside the local/LAN links. Keep the reply short — the doc IS the answer.
+After it returns, present every reported document URL as a clickable link, copy these exact URLs from the output. If Tailscale is unavailable, report the reason alongside the local/LAN links. Keep the reply short — the doc IS the answer.
 
-## Knowledge
-
-### The template
-
-`TEMPLATE_PATH` is a single self-contained HTML file:
-
-- OS-respecting light/dark via `prefers-color-scheme` — Dawn colors from `pi/themes/rose-pine-dawn.json` in light mode and Moon colors from `pi/themes/rose-pine-moon.json` in dark mode.
-- All CSS inlined. No external stylesheet, no build step.
-- Vanilla JS adds copy icons to `<pre>` blocks. Diagram icons copy the raw Mermaid or DOT source captured before SVG rendering.
-- Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block, and is initialized with higher-contrast Rose Pine theme variables instead of Mermaid's stock light/dark palettes. Diagrams break out to the viewport width while remaining in document flow, use a compact inline height, and provide a fullscreen overlay that isolates pointer and wheel events from the base document. Mermaid diagrams lazy-load `svg-pan-zoom@3.6.2` after rendering and provide zoom in, zoom out, fit, drag-to-pan, double-click zoom, Ctrl/Cmd-scroll zoom, and trackpad pinch zoom interactions. Plain wheel events continue to scroll the page outside fullscreen.
-- Graphviz (`@viz-js/viz`, Graphviz compiled to WebAssembly) is loaded from CDN **only if** the page contains a `<pre class="graphviz">` block. No local `dot` binary is required. After render, implicit text colors, default black/white output, default node fills/borders, and opposite Rose Pine hard-coded colors are normalized to the active page and diagram palettes for readable light/dark renders.
-- Two placeholders to fill: `{{TITLE}}` (appears twice — `<title>` and `<h1>`) and `{{BODY}}`.
+## Authoring reference
 
 ### Available primitives
 
-Write the body in plain semantic HTML. The template styles these:
+The template styles these elements:
 
 - **Headings** `<h1>`–`<h4>`, `<p>`, `<ul>`/`<ol>`, `<a>`, `<hr>`, `<blockquote>`
 - **Code** `<code>` inline; `<pre><code>…</code></pre>` block (copy button auto-added)
@@ -97,16 +71,16 @@ Write the body in plain semantic HTML. The template styles these:
 
 Utility classes added by the template:
 
-| Class                  | Purpose                                                                |
-| ---------------------- | ---------------------------------------------------------------------- |
-| `.callout`             | Info box (blue). Add `warn`, `error`, or `success`.                    |
-| `.callout-title`       | Bold callout lead-in; it adds a gap before following inline text.      |
-| `.grid-2`              | Two-column responsive grid; collapses on narrow.                       |
-| `.diff` on `<pre>`     | Use `<span class="add">…</span>` / `<span class="del">…</span>` lines  |
-| `.no-wrap` on `<pre>`  | Preserve horizontal scrolling for tree-like layouts or aligned output. |
-| `.mermaid` on `<pre>`  | Renders content as a Mermaid diagram.                                  |
-| `.graphviz` on `<pre>` | Renders DOT content as a Graphviz SVG diagram.                         |
-| `.tabs`                | Tab group. See **Tabs** below.                                         |
+| Class                  | Purpose                                                                  |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `.callout`             | Info box (blue). Add `warn`, `error`, or `success`.                      |
+| `.callout-title`       | Bold callout lead-in; it adds a gap before following inline text.        |
+| `.grid-2`              | Two-column responsive grid; collapses on narrow.                         |
+| `.diff` on `<pre>`     | Use `<span class="add">…</span>` / `<span class="del">…</span>` lines    |
+| `.no-wrap` on `<pre>`  | Switch default wrapping to horizontal scrolling for fixed-width layouts. |
+| `.mermaid` on `<pre>`  | Renders content as a Mermaid diagram.                                    |
+| `.graphviz` on `<pre>` | Renders DOT content as a Graphviz SVG diagram.                           |
+| `.tabs`                | Tab group. See **Tabs** below.                                           |
 
 ### Tabs
 
@@ -131,7 +105,7 @@ CSS-only (no JS), up to 5 panels per group. Each group needs a unique `name` on 
 
 ### Syntax highlighting
 
-Opt-in. Add `class="language-xxx"` on the `<code>` element inside a `<pre>`. The template lazy-loads highlight.js only when at least one such block exists; token colors are inline CSS variables mapped from the active Rose Pine Dawn/Moon Pi theme. Common values: `language-bash`, `language-js`, `language-ts`, `language-python`, `language-html`, `language-css`, `language-json`, `language-sql`, `language-yaml`, `language-rust`, `language-go`, `language-clojure` (also `language-clj` and `language-edn`).
+Add `class="language-xxx"` on the `<code>` element inside a `<pre>` to enable syntax highlighting. Common values: `language-bash`, `language-js`, `language-ts`, `language-python`, `language-html`, `language-css`, `language-json`, `language-sql`, `language-yaml`, `language-rust`, `language-go`, `language-clojure` (also `language-clj` and `language-edn`).
 
 ```html
 <pre><code class="language-js">
@@ -139,15 +113,15 @@ const x = await fetch('/api')
 </code></pre>
 ```
 
-Plain `<pre><code>…</code></pre>` (no language class) stays unhighlighted — useful for terminal output or non-code text. `<pre>` blocks wrap long lines by default; add `class="no-wrap"` when horizontal scrolling is better for tree-like layouts, ASCII UI mockups, or fixed-column output.
+Plain `<pre><code>…</code></pre>` stays unhighlighted — useful for terminal output or non-code text.
 
 ### Mermaid
 
-Use `<pre class="mermaid">…</pre>`. Theme follows the page's initial OS light/dark mode using higher-contrast Rose Pine-aligned Mermaid theme variables. Wide diagrams automatically break out of the prose column into a compact full-width viewer with zoom, fit, pan, and fullscreen controls; do not add custom wrappers or sizing classes. See the **mermaid** skill for syntax pitfalls — multi-space alignment, reserved IDs (`End`, `class`, etc.), label quoting. Don't HTML-entity-encode arrows inside the `<pre>` (`-->`, not `--&gt;`).
+Use `<pre class="mermaid">…</pre>` with raw Mermaid source (`-->`, not `--&gt;`). The template supplies diagram sizing, theming and viewer controls; use the `<pre>` directly without custom wrappers or sizing classes. Load the **mermaid** skill before writing Mermaid for its syntax pitfalls.
 
 ### Graphviz
 
-Use `<pre class="graphviz">…</pre>` with DOT source. The template lazy-loads `@viz-js/viz` from jsDelivr and renders directly in the browser via WebAssembly, matching the Mermaid approach: no npm install, no build step, and no dependency on `dot` in `PATH`.
+Use `<pre class="graphviz">…</pre>` with raw DOT source (`->`, not `-&gt;`). The template renders it in the browser; no local `dot` installation is needed.
 
 ```html
 <pre class="graphviz">
@@ -159,20 +133,8 @@ digraph G {
 </pre>
 ```
 
-Prefer browser-side Graphviz for rich responses. Use a local `dot -Tsvg` step only if the CDN/WASM path is unsuitable for a specific document (for example, strict offline use or needing a Graphviz feature not supported by `@viz-js/viz`). Don't HTML-entity-encode arrows inside the `<pre>` (`->`, not `-&gt;`).
+Use a local `dot -Tsvg` step only when browser rendering is unsuitable, such as strict offline use or an unsupported Graphviz feature. Prefer the template's automatic palette; author explicit colors only when they carry meaning.
 
-Prefer authored colors only when they carry meaning. If you hard-code Rose Pine Dawn/Moon colors, the template will normalize opposite-mode values to the active scheme on initial render; unrelated explicit colors are preserved.
+## Maintenance
 
-## Constraints
-
-- Never edit `TEMPLATE_PATH`. `RENDER_CMD` reads it; if it needs updating that's a separate change.
-- Never inline content that belongs in chat (a one-line answer goes in chat, not a 200-line HTML doc).
-- Do not emit the template boilerplate (`<html>`, `<head>`, `<style>`, etc.) on stdin. Only the body fragment.
-- Always use a quoted heredoc (`<<'HTML'`) — body must not be subject to bash expansion.
-- Keep the body HTML semantic — use `<table>`, `<details>`, `<blockquote>`, etc. rather than `<div>` soup.
-
-## Validation
-
-- [ ] `RENDER_CMD` exited 0 and printed the output path on stdout.
-- [ ] Both `serving locally: http://localhost:8765/documents/…` and `serving on LAN: http://<LAN-IP>:8765/documents/…` appeared on stderr.
-- [ ] Chat response is short (≤5 lines) and includes all reported document URLs and the Tailscale bookmark, or its unavailability reason.
+For changes to the template or rendering runtime, read [Maintainer reference](maintainer.md).

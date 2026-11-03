@@ -1,9 +1,12 @@
+# Rich response maintenance
+
 ## The template
 
-`TEMPLATE_PATH` is a single self-contained HTML file:
+`template.html` is the shared HTML document template:
 
 - OS-respecting light/dark via `prefers-color-scheme` — Dawn colors from `pi/themes/rose-pine-dawn.json` in light mode and Moon colors from `pi/themes/rose-pine-moon.json` in dark mode.
 - All CSS inlined. No external stylesheet, no build step.
+- Syntax highlighting lazy-loads highlight.js when a `<pre><code class="language-…">` block is present; token colors use inline CSS variables mapped to the active Rose Pine Dawn/Moon palette.
 - Vanilla JS adds copy icons to `<pre>` blocks. Mermaid and Graphviz source is captured before rendering so their icons copy the raw diagram text rather than generated SVG text.
 - Monospace `<pre>` blocks wrap by default; add `.no-wrap` on `<pre>` when horizontal scrolling is preferred for fixed-width layouts.
 - Mermaid (UMD build, `@11` tag = latest 11.x) is loaded from CDN **only if** the page contains a `<pre class="mermaid">` block, uses higher-contrast page-aligned theme variables, and renders in a compact viewport-width viewer. After Mermaid renders, the template lazy-loads pinned `svg-pan-zoom@3.6.2` to add zoom, fit, drag-to-pan, double-click, Ctrl/Cmd-scroll, and trackpad-pinch interactions. Plain wheel events continue to scroll the page outside fullscreen.
@@ -13,7 +16,7 @@
 
 ## Why an HTTP server (not `file://`)
 
-Mermaid v10+ internally lazy-loads each diagram type as a separate ES module. Under `file://`, every file has a unique security origin and those cross-origin module fetches are blocked — Mermaid errors out and the diagram never renders. `RENDER_CMD` publishes completed HTML through a persistent Python document service on port `8765`, opens the localhost URL, and prints local/LAN URLs and verified Tailscale document/bookmark URLs. The service is detached into a new process session so command runners may clean up their own process group without terminating it.
+Mermaid v10+ internally lazy-loads each diagram type as a separate ES module. Under `file://`, every file has a unique security origin and those cross-origin module fetches are blocked — Mermaid errors out and the diagram never renders. `render.sh` publishes completed HTML through a persistent Python document service on port `8765`, opens the localhost URL, and prints local/LAN URLs and verified Tailscale document/bookmark URLs. The service is detached into a new process session so command runners may clean up their own process group without terminating it.
 
 `POST /api/documents/<id>` accepts requests from `127.0.0.1` only and atomically replaces the corresponding document. `GET /documents/<id>` is available on all interfaces; `GET /` lists the 20 most recently published documents using the shared template. Questionnaire status is derived from answer-file presence; answer contents and arbitrary filesystem paths are never served. `GET /api/health` identifies the service so the idempotent launcher can distinguish an existing rich-response service from an unrelated process occupying port `8765`. Rerendering the same title updates the same URLs.
 

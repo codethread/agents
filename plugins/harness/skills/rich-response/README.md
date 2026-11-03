@@ -16,18 +16,17 @@ Supports:
 
 Ask for a “questionnaire” or “alignment check” to have your agent investigate a problem and turn it into a few clear decisions you can answer in your browser or on your phone. Questionnaires are opt-in; ordinary conversation and static documents remain the defaults. Each recommendation includes a brief reason and its main tradeoff, and starts unselected. Tap your choices and **Submit answers**; the active agent reads the saved Markdown and acknowledges receipt before considering the answers and responding.
 
-The author writes ordinary semantic HTML. The bundled runtime supplies form styling, validation, submission and a wait command. It supports single choice, multiple choice and free text without agent-specific tools, callbacks or additional packages.
+The author writes a semantic HTML body fragment; the bundled runtime supplies the document wrapper, styling, validation, submission and an exact wait command. It supports single choice, multiple choice and free text without agent-specific tools, callbacks or additional packages.
 
 Shared light/dark palettes keep secondary text, including blockquotes and recommendation badges, above 4.5:1 contrast on page and inset backgrounds. Textarea boundaries use a separate control color above 3:1; decorative borders stay subtle. Questionnaires retain native controls, associated labels, visible keyboard focus and a live submission status. Palette regression tests protect these contrast thresholds; they are not a complete accessibility audit.
 
 ```sh
 python3 questionnaire.py render "Workshop" < /tmp/workshop-body.html
-python3 questionnaire.py wait /tmp/rich-response-server/questionnaires/<id>/answers.md --timeout 60
 ```
 
-Run these commands from this directory, or use absolute script paths. Render prints a JSON receipt with the local/LAN/Tailscale document URLs, stable bookmark URLs, rendered HTML path, unique answer path and exact wait command. `tailscaleUrl` and `tailscaleHomeUrl` are null when unavailable; `tailscaleUnavailableReason` explains why. `--no-open` leaves the browser closed. Every render creates a new questionnaire, including when its title is reused.
+Run this command from this directory, or use an absolute script path. Render prints a JSON receipt with the local/LAN/Tailscale document URLs, stable bookmark URLs, rendered HTML path, unique answer path and `waitCommand`. Execute that returned command unchanged to wait for this questionnaire's answers. `tailscaleUrl` and `tailscaleHomeUrl` are null when unavailable; `tailscaleUnavailableReason` explains why. `--no-open` leaves the browser closed. Every render creates a new questionnaire, including when its title is reused.
 
-Wait prints completed Markdown and exits 0, or prints `pending` to stderr and exits 2 at the timeout (60 seconds by default). Run it again on the same answer path to continue waiting. A timeout never implies agreement. The agent must stay active during this interaction.
+Wait prints completed Markdown and exits 0, or prints `pending` to stderr and exits 2 at the timeout (60 seconds by default). Rerun the same `waitCommand` to continue waiting. A timeout never implies agreement. The agent must stay active during this interaction.
 
 Submission saves the question wording, choice labels and optional notes atomically. Browser success means the file was saved. The first submission is final: identical retries are accepted, and differing retries cannot overwrite it. Ask for a fresh questionnaire to revise answers. The server records decisions; it does not execute actions.
 
