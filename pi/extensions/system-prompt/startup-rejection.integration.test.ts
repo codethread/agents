@@ -112,6 +112,7 @@ describe("system-prompt startup rejection handling", () => {
 				stderr: failure === "down" ? "Weaver unavailable" : "invalid config.json",
 				code: failure === "invalid-response" ? 0 : 1,
 				killed: false,
+				truncated: false,
 			}));
 			runnerSession = await createTestSession({
 				cwd,

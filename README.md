@@ -15,7 +15,7 @@ An installable toolkit for Pi, Codex, and Claude Code. It ships Pi extensions an
 
 ## Install the Pi package
 
-Use Pi 1.2.0 or newer; the extensions rely on its user/custom startup events.
+Use Pi 1.5.0 or newer, matching the SDK version used for development and testing.
 
 From a local checkout:
 
@@ -122,7 +122,7 @@ pnpm install
 pnpm check
 ```
 
-Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`, and `pnpm format`. The complete check also builds the standalone Pies distribution before testing. Vitest includes unit, snapshot, and Pi runtime integration tests backed by a patched `@gaodes/pi-test-harness`. The patch updates harness 1.0.3 for `pi-ai/compat`, `session.modelRuntime` authentication, and `agent.streamFunction` playbook injection. Integration tests and the Pies workspace resolve Pi SDK 1.2.0. Keep root development and Pies runtime SDK pins aligned when upgrading Pi. Remove the patch when the upstream harness supports these APIs.
+Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`, and `pnpm format`. The complete check also builds the standalone Pies distribution before testing. Vitest includes unit, snapshot, and Pi runtime integration tests backed by a patched `@gaodes/pi-test-harness`. The patch updates harness 1.0.3 for `pi-ai/compat`, `session.modelRuntime` authentication, and `agent.streamFunction` playbook injection. Integration tests and the Pies workspace resolve Pi SDK 1.5.0. Keep root development and Pies runtime SDK pins aligned when upgrading Pi. Remove the patch when the upstream harness supports these APIs.
 
 Pi host modules are wildcard peer dependencies, not runtime dependencies of the extension package. Pinned development copies support local typechecking and tests; Pi supplies the running extensions' SDK modules through its loader. The independent `@codethread/pies` package owns its pinned runtime SDK dependencies and CLI bins; root wrappers launch its source entrypoints without changing the working directory.
 
