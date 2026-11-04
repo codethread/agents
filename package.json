@@ -48,6 +48,7 @@
 		],
 		"skills": [
 			"./plugins/writing/skills",
+			"./plugins/repo-opinions/skills",
 			"./plugins/coding/skills",
 			"./plugins/harness/skills"
 		],

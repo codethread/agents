@@ -1,0 +1,6 @@
+{
+	"name": "repo-opinions",
+	"version": "0.1.0",
+	"description": "Opinionated repository conventions for documentation.",
+	"skills": "./skills"
+}

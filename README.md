@@ -4,14 +4,14 @@ An installable toolkit for Pi, Codex, and Claude Code. It ships Pi extensions an
 
 ## What is included
 
-| Path             | Consumer feature                                                        |
-| ---------------- | ----------------------------------------------------------------------- |
-| `pi/extensions/` | Pi tools, messaging, prompt, CLI, and UI extensions                     |
-| `agents/`        | Agent definitions discovered by the subagent extension                  |
-| `pi/themes/`     | Rose Pine themes for Pi                                                 |
-| `plugins/`       | Coding, devflow, harness, and writing plugins for Codex and Claude Code |
-| `pies/`          | Persistent Pi SDK daemon, thin CLI, and `pi` compatibility shim         |
-| `.pi/`           | Project-local configuration used only while developing this repository  |
+| Path             | Consumer feature                                                                       |
+| ---------------- | -------------------------------------------------------------------------------------- |
+| `pi/extensions/` | Pi tools, messaging, prompt, CLI, and UI extensions                                    |
+| `agents/`        | Agent definitions discovered by the subagent extension                                 |
+| `pi/themes/`     | Rose Pine themes for Pi                                                                |
+| `plugins/`       | Coding, devflow, harness, repo-opinions, and writing plugins for Codex and Claude Code |
+| `pies/`          | Persistent Pi SDK daemon, thin CLI, and `pi` compatibility shim                        |
+| `.pi/`           | Project-local configuration used only while developing this repository                 |
 
 ## Install the Pi package
 
@@ -108,6 +108,7 @@ The marketplace exposes these plugin packages:
 - `plugins/devflow/` — RFC, spec, plan, task, and iterative development workflows;
 - `plugins/harness/` — session introspection, dialogue capture, tmux, benchmarks, and rich responses;
 - `plugins/writing/` — agent-context audits, agent-facing CLI design, Mermaid, and reusable skill authoring guidance.
+- `plugins/repo-opinions/` — opinionated repository documentation conventions.
 
 Codex does not directly run Pi extensions or Pi agent definitions. Those capabilities need Codex-native skills, hooks, MCP servers, or apps.
 

@@ -5,6 +5,7 @@
 		{ "name": "harness", "source": "./plugins/harness" },
 		{ "name": "coding", "source": "./plugins/coding" },
 		{ "name": "devflow", "source": "./plugins/devflow" },
-		{ "name": "writing", "source": "./plugins/writing" }
+		{ "name": "writing", "source": "./plugins/writing" },
+		{ "name": "repo-opinions", "source": "./plugins/repo-opinions" }
 	]
 }
