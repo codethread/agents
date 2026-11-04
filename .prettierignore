@@ -2,5 +2,4 @@ node_modules
 pies/dist
 .git
 .worktrees
-.hive/migrations/**/*.json
-.hive/migrations/**/*.jsonl
+.botlake/vendor

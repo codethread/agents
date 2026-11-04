@@ -3,4 +3,6 @@ node_modules/
 pies/dist/
 .pi/bench-matrix.json
 .millstrand/.cpcache/
-.hive/migrations/**/.br-jsonl-write-*.lock
+.botlake/world.db*
+.botlake/bun.lock
+.botlake/vendor/

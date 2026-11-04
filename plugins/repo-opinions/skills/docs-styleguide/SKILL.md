@@ -1,14 +1,14 @@
 ---
 name: docs-styleguide
-description: Use when writing, updating or reviewing repository documentation, including READMEs, guides, AGENTS.md, CLAUDE.md and skills. Apply Hive's audience, placement, skill-reference, workflow-diagram and repository-grounding rules.
+description: Use when writing, updating or reviewing repository documentation, including READMEs, guides, AGENTS.md, CLAUDE.md and skills. Apply audience, placement, skill-reference, workflow-diagram and repository-grounding rules.
 ---
 
 # Docs style guide
 
 ## Write for the right audience
 
-- **README.md is for users:** answer “How do I use Honeycomb?” Cover installation, usage and user-facing configuration, not agent contribution procedures.
-- **AGENTS.md is for agents:** answer “How do I contribute to the Hive project?” Put durable repository rules and contribution guidance here.
+- **README.md is for users:** answer “How do I use this project?” Cover installation, usage and user-facing configuration, not agent contribution procedures.
+- **AGENTS.md is for agents:** answer “How do I contribute to this project?” Put durable repository rules and contribution guidance here.
 - **Nested AGENTS.md files provide nested guidance:** put package-specific instructions in that package's file.
 - **Skills hold task-specific procedures:** keep reusable workflows in the relevant skill.
 - **Guides hold longer user reference material outside the README:** link to ordinary guides where that helps users.

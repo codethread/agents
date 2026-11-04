@@ -71,15 +71,15 @@ describe("system-prompt harness integration", () => {
 			const cwd = makeTempDir();
 			process.env.PI_CODING_AGENT_DIR = makeTempDir();
 			let identity = "jade-rich-guan";
-			const scentExtension = (pi: ExtensionAPI) => {
+			const identityExtension = (pi: ExtensionAPI) => {
 				pi.on("before_agent_start", (event) => {
-					event.systemPromptOptions.sections.scent = `Your Hive identity is ${identity}.`;
+					event.systemPromptOptions.sections.botlake = `Your Botlake identity is ${identity}.`;
 				});
 			};
 			const extensions =
 				order === "before"
-					? [scentExtension, systemPromptExtension]
-					: [systemPromptExtension, scentExtension];
+					? [identityExtension, systemPromptExtension]
+					: [systemPromptExtension, identityExtension];
 			t = await createTestSession({
 				cwd,
 				systemPrompt: CUSTOM_SYSTEM_PROMPT,
@@ -93,8 +93,10 @@ describe("system-prompt harness integration", () => {
 			const prompts = getMessagesWithPrefix(t, "SYSTEM_PROMPT:");
 			expect(prompts).toHaveLength(2);
 			for (const [index, name] of ["jade-rich-guan", "fresh-session-identity"].entries()) {
-				expect(prompts[index]).toContain(`<scent>\nYour Hive identity is ${name}.\n</scent>`);
-				expect(prompts[index].match(/Your Hive identity is/g)).toHaveLength(1);
+				expect(prompts[index]).toContain(
+					`<botlake>\nYour Botlake identity is ${name}.\n</botlake>`,
+				);
+				expect(prompts[index].match(/Your Botlake identity is/g)).toHaveLength(1);
 				expect(prompts[index]).toContain('<system-reminder type="harness">');
 			}
 			expect(prompts[1]).not.toContain("jade-rich-guan");

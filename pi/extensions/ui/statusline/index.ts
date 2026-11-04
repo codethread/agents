@@ -53,7 +53,7 @@ function formatProviderMarker(usingSubscription: boolean): string | undefined {
 }
 
 const WIDE_LAYOUT_MIN_WIDTH = 100;
-const IDENTITY_STATUS_KEYS = ["millstrand-identity", "scent-identity"];
+const IDENTITY_STATUS_KEYS = ["millstrand-identity"];
 
 function renderBalancedRow(items: string[], width: number, ellipsis: string): string {
 	if (!Number.isFinite(width)) return items.join("   ");

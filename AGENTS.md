@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Work tracking
+
+Use this repository's Botlake lake for work tracking and managed agents. Start with `bl help`, then `bl prime work` or `bl prime agent` for the operation you need. Preserve `BL_ACTOR` and any explicit workspace selection. Record a concise outcome before closing work. Task changes do not authorize Git commits or pushes.
+
 - Install deps: `pnpm install`
 - Format: automatic via `pnpm check` after all work completed
 - Lint: `pnpm lint` (eslint)
@@ -18,7 +22,7 @@
 
 ## writing prompts / skills
 
-Keep skill intent and design rationale in `docs/skills/<skill-name>.md`, one file per skill. Before changing a skill, read its intent document and preserve that intent; update the document when intent deliberately changes. Create the document when adding a skill or when changing a skill that has none. Keep maintainer metadata out of `SKILL.md`; operational guidance belongs in the skill itself.
+Keep maintainer metadata out of `SKILL.md`; operational guidance belongs in the skill itself.
 
 Always write prompts and skills as literal messages the agent will receive. The agent cannot tell whether text came from a user typing, a slash prompt, or a script.
 
