@@ -27,12 +27,6 @@ still works, but cannot delegate when this setting is false.
 Use `pi --debug-subagents` to print the effective setting and selected child invocation without calling a model,
 or `/debug-agents` to inspect it alongside the catalog.
 
-### Native child identity
-
-A Pi subagent resolves its own Millstrand identity from its actual native session ID and its own project's workspace. The Harnesses package builds its environment, stripping inherited run, identity, workspace, and bootstrap ownership.
-
-The parent identity arrives over Pi's shared event bus (extensions have isolated module caches). Before spawning, this extension checks that it belongs to the current session. It passes the name only as `MILLSTRAND_PI_PARENT_IDENTITY` attribution for the child's `strand agent native-startup` call. Children never inherit parent ownership or workspace routing; grandchildren receive their immediate parent's identity.
-
 ---
 
 ## Agent discovery

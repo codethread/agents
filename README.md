@@ -130,9 +130,3 @@ Pi host modules are wildcard peer dependencies, not runtime dependencies of the 
 Running Pi from this checkout loads the package through `.pi/settings.json`. The project-local `.pi/extensions/pi-internals/` helper reports Pi runtime, source, settings, and extension paths when debugging the repository itself.
 
 Changing prompt-layer context or switching models/providers can reduce provider prompt-cache reuse. Keep dynamic injected context bounded and stable when cache reuse matters.
-
-## Millstrand identity dependency
-
-Native identity registration lives in [`millhouse.spool/spools/harnesses`](https://github.com/codethread/millhouse.spool/tree/main/spools/harnesses), consumed as a commit-pinned `@millhouse/harnesses` dependency. The prompt extension renders the canonical identity instruction and publishes its name through Pi's status API. Subagents retain parent attribution but resolve their own identities and workspaces.
-
-There is no managed-guidance protocol in this package. Identity needs a running Weaver supporting `strand agent native-startup`; installing the JavaScript dependency does not update it. Identity is optional: unavailable or invalid Millstrand workspaces never block Pi or emit startup errors. Use `/debug-millstrand-identity` to inspect lookup diagnostics. See [identity lifecycle and debug commands](pi/extensions/system-prompt/README.md#identity-lifecycle).

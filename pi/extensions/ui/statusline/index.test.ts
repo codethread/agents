@@ -59,10 +59,7 @@ describe("statusline extension", () => {
 		handlers.get("session_start")!({ reason: "startup" }, ctx);
 		const requestRender = vi.fn();
 		const unsubscribe = vi.fn();
-		const statuses = new Map([
-			["millstrand-identity", "amber-kind-lynx"],
-			["worker", `\x1b[32m${"忙".repeat(100)}\x1b[0m`],
-		]);
+		const statuses = new Map([["worker", `\x1b[32m${"忙".repeat(100)}\x1b[0m`]]);
 		const footerData = {
 			getGitBranch: () => "main",
 			getExtensionStatuses: () => statuses,
@@ -78,12 +75,11 @@ describe("statusline extension", () => {
 			expect(lines.every((line: string) => visibleWidth(line) <= width)).toBe(true);
 			if (width >= 80) {
 				expect(lines.join("\n")).toContain("/repo (main)");
-				expect(lines.join("\n")).toContain("amber-kind-lynx");
 				expect(lines.join("\n")).toContain("gpt-test");
 				expect(lines.join("\n")).toContain("2.5k/10k $0.000");
 				expect(lines.join("\n")).toContain("work (abc)");
 			}
-			expect(lines).toHaveLength((width >= 100 ? 3 : 5) + Number(debug));
+			expect(lines).toHaveLength((width >= 100 ? 3 : 4) + Number(debug));
 			if (debug && width >= 80) {
 				expect(lines.at(-1)).toBe(
 					`statusline ${width >= 100 ? "wide" : "thin"} width=${width} rows=${lines.length - 1}`,
@@ -154,14 +150,10 @@ describe("renderStatuslineItems", () => {
 		expect(isLongCacheRetentionEnabled({})).toBe(false);
 	});
 
-	it("renders responsive rows with identity, provider markers and extension statuses", () => {
+	it("renders responsive rows with provider markers and extension statuses", () => {
 		const footerData = {
 			getGitBranch: () => "main",
-			getExtensionStatuses: () =>
-				new Map([
-					["worker", "busy\nnow"],
-					["millstrand-identity", "merry-swift-moose"],
-				]),
+			getExtensionStatuses: () => new Map([["worker", "busy\nnow"]]),
 			getAvailableProviderCount: () => 2,
 		};
 		const ctx = {
@@ -187,21 +179,15 @@ describe("renderStatuslineItems", () => {
 		delete process.env.PI_CACHE_RETENTION;
 		try {
 			const thinItems = renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 });
-			expect(thinItems.slice(0, 3)).toEqual([
-				"/repo (main)",
-				"merry-swift-moose",
-				"gpt-test • high (openai-codex sub)",
-			]);
-			expect(thinItems[3]).toContain("2.5k/10k $0.000");
-			expect(thinItems[3]).toContain("work (abc)");
-			expect(thinItems[3]).toHaveLength(80);
-			expect(thinItems[4]).toBe("busy now");
-			expect(theme.fg).toHaveBeenCalledWith("accent", "merry-swift-moose");
+			expect(thinItems.slice(0, 2)).toEqual(["/repo (main)", "gpt-test • high (openai-codex sub)"]);
+			expect(thinItems[2]).toContain("2.5k/10k $0.000");
+			expect(thinItems[2]).toContain("work (abc)");
+			expect(thinItems[2]).toHaveLength(80);
+			expect(thinItems[3]).toBe("busy now");
 
 			const wideItems = renderStatuslineItems({ ctx, pi, footerData, theme, width: 120 });
 			expect(wideItems).toHaveLength(3);
 			expect(wideItems[0]).toContain("/repo (main)");
-			expect(wideItems[0]).toContain("merry-swift-moose");
 			expect(wideItems[0]).toContain("gpt-test • high (openai-codex sub)");
 			expect(wideItems[0]).toHaveLength(120);
 			expect(wideItems[1]).toContain("2.5k/10k $0.000");
@@ -209,7 +195,7 @@ describe("renderStatuslineItems", () => {
 			expect(wideItems[1]).toHaveLength(120);
 
 			process.env.PI_CACHE_RETENTION = "long";
-			expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[2]).toBe(
+			expect(renderStatuslineItems({ ctx, pi, footerData, theme, width: 80 })[1]).toBe(
 				"gpt-test • high (openai-codex sub L)",
 			);
 		} finally {

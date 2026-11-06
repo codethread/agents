@@ -39,9 +39,9 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 
 ## System prompt
 
-| Extension                                    | Summary                                                                                                 |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| [`system-prompt`](./system-prompt/README.md) | Owns the system prompt, renders rules and canonical Millstrand identity, and publishes identity status. |
+| Extension                                    | Summary                                                                       |
+| -------------------------------------------- | ----------------------------------------------------------------------------- |
+| [`system-prompt`](./system-prompt/README.md) | Owns the system prompt and renders rules, tools, skills, and project context. |
 
 ## Messaging
 

@@ -15,7 +15,6 @@ export type PromptContextFile = NonNullable<BuildSystemPromptOptions["contextFil
 
 export type PromptInput = {
 	persona: string;
-	millstrandIdentityInstruction?: string;
 	cwd: string;
 	currentDate: string;
 	selectedTools: string[];
@@ -199,13 +198,6 @@ export function buildSystemPromptSections(
 
 	const sections = {
 		preamble: input.persona,
-		millstrand_identity: renderSection(
-			"Millstrand identity",
-			"",
-			input.millstrandIdentityInstruction
-				? wrapReminder("millstrand-identity", input.millstrandIdentityInstruction)
-				: null,
-		),
 		tools: renderSection("Operating harness", "", harness),
 		rules: renderSection(
 			"Operating rules",

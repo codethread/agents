@@ -4,27 +4,24 @@
 
 Renders a responsive footer at the bottom of the TUI, independently of any avatar or emote widget. The footer is installed at startup and on session changes, and refreshes when the git branch changes. Non-interactive modes do not install it.
 
-At widths of 100 columns or more, core details use two balanced rows when the path, available identities, and model fit together:
+At widths of 100 columns or more, core details use two balanced rows when the path and model fit together:
 
 ```text
-~/project (main)    millstrand-name    model • high (provider sub L)
-14k/128k [14:32] $0.000                              session-id
+~/project (main)                                    model • high (provider sub L)
+14k/128k [14:32] $0.000                                              session-id
 ```
 
-Otherwise, core details stack into three rows without an identity or four with one. The optional identity gets its own row between the path and model; the session stays bottom-right whenever it fits beside the stats:
+Otherwise, core details stack into three rows; the session stays bottom-right whenever it fits beside the stats:
 
 ```text
 ~/project (main)
-millstrand-name
 model • high (provider sub L)
 14k/128k [14:32] $0.000                         session-id
 ```
 
-The stats row shows current/max context tokens, the latest cache-hit timestamp when available, and cumulative session cost. Context usage is warning-colored above 70% and error-colored above 90%. Other extension statuses appear on separate rows; all rows are truncated to the terminal width.
+The stats row shows current/max context tokens, the latest cache-hit timestamp when available, and cumulative session cost. Context usage is warning-colored above 70% and error-colored above 90%. Extension statuses appear on separate rows; all rows are truncated to the terminal width.
 
 Inside the provider parentheses, `sub` indicates subscription authentication and `L` indicates `PI_CACHE_RETENTION=long`.
-
-The prompt extension supplies optional Millstrand identity through Pi's `millstrand-identity` status key. It appears in the accent color between path and model. The statusline excludes this key from the other extension status rows.
 
 ## Implementation
 

@@ -106,22 +106,6 @@ describe("prompt-builder renderers", () => {
 });
 
 describe("buildSystemPrompt", () => {
-	it("keeps the renderer persona separate from one Millstrand identity block", () => {
-		const prompt = buildSystemPrompt({
-			...baseInput,
-			persona: "You are a custom renderer persona.",
-			millstrandIdentityInstruction:
-				"Your Millstrand identity is warm-silver-lemur. Use warm-silver-lemur for identity-bearing operations.",
-		});
-
-		expect(prompt.startsWith("You are a custom renderer persona.")).toBe(true);
-		expect(prompt.match(/<system-reminder type="millstrand-identity">/g)).toHaveLength(1);
-		expect(prompt).toContain("Your Millstrand identity is warm-silver-lemur.");
-		expect(prompt).toContain("Extra owner-provided instruction.");
-		expect(prompt).toContain("<available_skills>");
-		expect(prompt).toContain("`custom_tool`: Do custom project work");
-	});
-
 	it("renders the complete owned prompt", () => {
 		expect(buildSystemPrompt(baseInput)).toMatchInlineSnapshot(`
 			"You are an expert coding assistant operating inside pi, a coding agent harness.

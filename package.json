@@ -89,7 +89,6 @@
 		"*": "prettier --write --ignore-unknown"
 	},
 	"dependencies": {
-		"@millhouse/harnesses": "https://github.com/codethread/millhouse.spool.git#8c4cb5629f1c259e61eed38061b9cb94140863ae&path:/spools/harnesses",
 		"@mozilla/readability": "^0.6.0",
 		"@types/turndown": "^5.0.6",
 		"linkedom": "^0.18.12",

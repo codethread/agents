@@ -36,11 +36,6 @@ import {
 } from "./session.js";
 import { getPiInvocation, runSingleAgent } from "./runtime.js";
 import { showDebugMessage } from "../../components/debug-message/index.js";
-import {
-	MILLSTRAND_IDENTITY_CONTEXT_EVENT,
-	parseMillstrandIdentityContext,
-	type ActiveMillstrandIdentity,
-} from "@millhouse/harnesses/pi/millstrand-identity/context";
 import { describeMcpServer } from "./mcp.js";
 import { disposeMcpRegistrations, setupAgentMcpServers } from "./mcp-runtime.js";
 import {
@@ -203,27 +198,8 @@ export default function (pi: ExtensionAPI) {
 		}
 	};
 	let selectedAgentName: string | undefined;
-	let millstrandIdentityContext: ActiveMillstrandIdentity | null = null;
 	let agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
 	let activeMcpRegistrations: string[] = [];
-
-	pi.events.on(MILLSTRAND_IDENTITY_CONTEXT_EVENT, (value) => {
-		millstrandIdentityContext = parseMillstrandIdentityContext(value);
-	});
-
-	const currentMillstrandIdentity = (
-		ctx: Pick<ExtensionContext, "sessionManager">,
-	): ActiveMillstrandIdentity | null => {
-		if (
-			millstrandIdentityContext &&
-			millstrandIdentityContext.nativeSessionId !== ctx.sessionManager.getSessionId()
-		) {
-			throw new Error(
-				`Millstrand identity context belongs to native session ${millstrandIdentityContext.nativeSessionId}, not ${ctx.sessionManager.getSessionId()}.`,
-			);
-		}
-		return millstrandIdentityContext;
-	};
 
 	const failAgentSelection = (
 		message: string,
@@ -363,7 +339,6 @@ export default function (pi: ExtensionAPI) {
 			ctx.shutdown();
 			return;
 		}
-		currentMillstrandIdentity(ctx);
 		agentFlagCliOverrides = parseAgentFlagCliOverrides(process.argv.slice(2));
 		const debugMcpFlag = pi.getFlag(DEBUG_MCP_FLAG);
 		const debugMcpAgent = typeof debugMcpFlag === "string" ? debugMcpFlag.trim() : undefined;
@@ -516,7 +491,6 @@ export default function (pi: ExtensionAPI) {
 		parameters: SubagentParams,
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
-			const millstrandIdentity = currentMillstrandIdentity(ctx);
 			if (!delegationEnabled()) {
 				throw new Error('Subagent delegation is disabled by the "subagents" setting.');
 			}
@@ -718,7 +692,6 @@ export default function (pi: ExtensionAPI) {
 									resolveModelInfo,
 									parentSessionInfo,
 									ctx.modelRegistry,
-									millstrandIdentity,
 								),
 					),
 				);
@@ -858,7 +831,6 @@ export default function (pi: ExtensionAPI) {
 				resolveModelInfo,
 				parentSessionInfo,
 				ctx.modelRegistry,
-				millstrandIdentity,
 			);
 			const results = [result];
 			toolCompletedAt = Date.now();

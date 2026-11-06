@@ -4,10 +4,6 @@ import * as path from "node:path";
 import type { Message } from "@earendil-works/pi-ai";
 import { isContextOverflow } from "@earendil-works/pi-ai";
 import {
-	buildMillstrandChildEnvironment,
-	type ActiveMillstrandIdentity,
-} from "@millhouse/harnesses/pi/millstrand-identity/context";
-import {
 	getAgentRuntimeSettings,
 	getFirstValidAgentModelCandidate,
 	getValidAgentModelCandidates,
@@ -230,7 +226,6 @@ export async function runSingleAgent(
 	resolveModelInfo?: ResolveModelInfo,
 	parentSessionInfo?: ParentSessionInfo,
 	modelRegistry?: ModelRegistryLike,
-	millstrandIdentity: ActiveMillstrandIdentity | null = null,
 ): Promise<SingleResult> {
 	const agent = agents.find((candidate) => candidate.name === request.agent);
 	if (!agent) return createUnknownAgentResult(request.agent, request.task, agents);
@@ -387,7 +382,7 @@ export async function runSingleAgent(
 					cwd: runCwd,
 					shell: false,
 					stdio: ["ignore", "pipe", "pipe"],
-					env: buildMillstrandChildEnvironment(process.env, millstrandIdentity),
+					env: { ...process.env, PI_SUBAGENT: "1" },
 				});
 				let buffer = "";
 				let settled = false;

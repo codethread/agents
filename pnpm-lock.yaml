@@ -12,9 +12,6 @@ patchedDependencies:
 importers:
   .:
     dependencies:
-      "@millhouse/harnesses":
-        specifier: https://github.com/codethread/millhouse.spool.git#8c4cb5629f1c259e61eed38061b9cb94140863ae&path:/spools/harnesses
-        version: https://codeload.github.com/codethread/millhouse.spool/tar.gz/8c4cb5629f1c259e61eed38061b9cb94140863ae#path:/spools/harnesses(@earendil-works/pi-coding-agent@1.5.0(@aws-sdk/credential-provider-node@3.972.82)(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(@smithy/signature-v4@5.7.3)(ws@8.21.3)(zod@4.3.6))
       "@mozilla/readability":
         specifier: ^0.6.0
         version: 0.6.0
@@ -734,16 +731,6 @@ packages:
       {
         integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==,
       }
-
-  "@millhouse/harnesses@https://codeload.github.com/codethread/millhouse.spool/tar.gz/8c4cb5629f1c259e61eed38061b9cb94140863ae#path:/spools/harnesses":
-    resolution:
-      {
-        path: /spools/harnesses,
-        tarball: https://codeload.github.com/codethread/millhouse.spool/tar.gz/8c4cb5629f1c259e61eed38061b9cb94140863ae,
-      }
-    version: 0.1.0
-    peerDependencies:
-      "@earendil-works/pi-coding-agent": "*"
 
   "@mixmark-io/domino@2.2.0":
     resolution:
@@ -4163,10 +4150,6 @@ snapshots:
   "@isaacs/nonrecursive-glob-match@1.0.3": {}
 
   "@jridgewell/sourcemap-codec@1.5.5": {}
-
-  "@millhouse/harnesses@https://codeload.github.com/codethread/millhouse.spool/tar.gz/8c4cb5629f1c259e61eed38061b9cb94140863ae#path:/spools/harnesses(@earendil-works/pi-coding-agent@1.5.0(@aws-sdk/credential-provider-node@3.972.82)(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(@smithy/signature-v4@5.7.3)(ws@8.21.3)(zod@4.3.6))":
-    dependencies:
-      "@earendil-works/pi-coding-agent": 1.5.0(@aws-sdk/credential-provider-node@3.972.82)(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(@smithy/signature-v4@5.7.3)(ws@8.21.3)(zod@4.3.6)
 
   "@mixmark-io/domino@2.2.0": {}
 

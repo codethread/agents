@@ -1,12 +1,3 @@
-import {
-	DEBUG_MILLSTRAND_IDENTITY_FLAG,
-	getNativeIdentityInputs,
-	nativeIdentityModel,
-	resolveNativeIdentity,
-	type NativeIdentityState,
-	MILLSTRAND_IDENTITY_CONTEXT_EVENT,
-	formatNativeIdentityState,
-} from "@millhouse/harnesses/pi/millstrand-identity";
 import type {
 	BeforeAgentStartEvent,
 	BuildSystemPromptOptions,
@@ -108,53 +99,6 @@ function groupToolGuidelines(
 }
 
 export default function systemPromptExtension(pi: ExtensionAPI) {
-	let nativeIdentityState: NativeIdentityState = { status: "pending" };
-	let managedSessionId: string | undefined;
-	pi.registerFlag(DEBUG_MILLSTRAND_IDENTITY_FLAG, {
-		description: "Print optional Millstrand identity state and diagnostics, then exit",
-		type: "boolean",
-		default: false,
-	});
-
-	async function loadIdentity(ctx: ExtensionContext) {
-		const nativeSessionId = ctx.sessionManager.getSessionId();
-		const previous = nativeIdentityState.status === "bound" ? nativeIdentityState : null;
-		nativeIdentityState = { status: "pending" };
-		pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, null);
-		try {
-			const resolved = await resolveNativeIdentity(pi.exec, {
-				cwd: ctx.cwd,
-				nativeSessionId,
-				parentSessionFile: ctx.sessionManager.getHeader?.()?.parentSession,
-				model: nativeIdentityModel(ctx),
-				thinkingLevel: ctx.thinkingLevel,
-				signal: ctx.signal,
-				inputs: () => {
-					const inputs = getNativeIdentityInputs(pi);
-					if (inputs.runId && !managedSessionId) managedSessionId = nativeSessionId;
-					if (managedSessionId && managedSessionId !== nativeSessionId) inputs.runId = undefined;
-					if (previous && previous.nativeSessionId !== nativeSessionId) {
-						inputs.parentIdentity = previous.identity;
-					}
-					return inputs;
-				},
-			});
-			nativeIdentityState = resolved
-				? { status: "bound", ...resolved }
-				: { status: "suppressed", reason: "outside a Millstrand project", nativeSessionId };
-		} catch (error) {
-			// Identity is optional. Retain diagnostics for /debug-millstrand-identity,
-			// but leave the prompt, UI and child attribution unbound and Pi usable.
-			nativeIdentityState = {
-				status: "error",
-				nativeSessionId,
-				error: error instanceof Error ? error.message : String(error),
-			};
-		}
-		if (nativeIdentityState.status === "bound") {
-			pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, nativeIdentityState);
-		}
-	}
 	let printPromptOnNextTurn = false;
 	let dynamicPrompt: string | null = null;
 	let lastMaterializedPrompt: string | null = null;
@@ -208,35 +152,10 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	pi.registerCommand("debug-millstrand-identity", {
-		description: "Show native Pi Millstrand identity state",
-		handler: async (_args, ctx) => {
-			const report = formatNativeIdentityState(nativeIdentityState, ctx.cwd);
-			if (!ctx.hasUI) {
-				process.stdout.write(`${report}\n`);
-				return;
-			}
-			await showDebugMessage(ctx, {
-				headingText: "Millstrand Identity",
-				subheadingText: "native Pi session binding",
-				markdownBody: `\`\`\`json\n${report}\n\`\`\``,
-				sendMarkdownToAgent: async (markdownBody) => {
-					await pi.sendUserMessage(markdownBody);
-				},
-			});
-		},
-	});
-
-	pi.on("session_shutdown", (_event, ctx) => {
-		pi.events.emit(MILLSTRAND_IDENTITY_CONTEXT_EVENT, null);
-		if (ctx.hasUI) ctx.ui.setStatus("millstrand-identity", undefined);
-	});
-
 	pi.on("session_start", async (_event, ctx) => {
 		printPromptOnNextTurn = false;
 		dynamicPrompt = null;
 		lastMaterializedPrompt = null;
-		if (ctx.hasUI) ctx.ui.setStatus("millstrand-identity", undefined);
 
 		const wantsToolsDebug = pi.getFlag(DEBUG_TOOLS_FLAG) === true;
 		if (wantsToolsDebug) {
@@ -270,27 +189,15 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			templateOverrides = parsedOverrides.overrides;
 		}
 
-		const [, renderedPrompt] = await Promise.all([
-			loadIdentity(ctx),
-			renderDynamicPrompt(
-				{
-					cwd: ctx.cwd,
-					hasUI: ctx.hasUI,
-					model: ctx.model,
-					tools: pi.getActiveTools(),
-				},
-				templateOverrides,
-			),
-		]);
-		dynamicPrompt = renderedPrompt;
-		if (pi.getFlag(DEBUG_MILLSTRAND_IDENTITY_FLAG) === true) {
-			process.stdout.write(`${formatNativeIdentityState(nativeIdentityState, ctx.cwd)}\n`);
-			process.exit(0);
-		}
-		const identity = nativeIdentityState;
-		if (ctx.hasUI && identity.status === "bound") {
-			ctx.ui.setStatus("millstrand-identity", identity.identity);
-		}
+		dynamicPrompt = await renderDynamicPrompt(
+			{
+				cwd: ctx.cwd,
+				hasUI: ctx.hasUI,
+				model: ctx.model,
+				tools: pi.getActiveTools(),
+			},
+			templateOverrides,
+		);
 		if (!wantsPromptDebug) return;
 		printPromptOnNextTurn = true;
 		notify(ctx, "Debug prompt mode: send a message to materialize the prompt.", "info");
@@ -306,10 +213,8 @@ export default function systemPromptExtension(pi: ExtensionAPI) {
 			notify(ctx, `[project-rules] ${warning}`, "warning");
 		}
 
-		const identity = nativeIdentityState;
 		const { preamble, ...sections } = buildSystemPromptSections({
 			persona: options.customPrompt?.trim() || DEFAULT_PERSONA,
-			millstrandIdentityInstruction: identity.status === "bound" ? identity.instruction : undefined,
 			cwd: options.cwd,
 			currentDate: new Date().toISOString().slice(0, 10),
 			selectedTools: options.selectedTools,

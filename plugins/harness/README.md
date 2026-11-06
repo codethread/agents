@@ -33,17 +33,11 @@ below is owned by this plugin independently of harness release versions.
 The Codex 0.165.0-alpha.1.2 reference covers the observed `final_answer` phase and
 realtime voice transcript records, including avoiding duplicated promoted speech.
 
-## Codex startup identity
-
-The Millstrand identity hook lives in the [Harnesses spool](https://github.com/codethread/millhouse.spool/tree/main/spools/harnesses)'s focused `millstrand-identity` plugin. Install that Codex marketplace separately when
-native session identity is required. This plugin retains only observational
-dialogue capture.
-
 ## Dialogue capture hooks
 
 Claude Code's on-disk session transcripts are officially internal and can change on any release. These hooks capture the parts we care about through the supported hook interface at the moment they happen, into a JSONL log whose schema **we** own. Downstream tooling (devflow Q&A extraction, jq scripts) should consume this log, not the raw transcripts.
 
-Pi sessions get the same treatment from this repo's `pi/extensions/dialogue-capture` extension, which writes the same schema to the sibling `pi-dialogue/` directory (Pi-specific mapping and divergences in that extension's README). Codex sessions get the same forward-only treatment from `capture.sh`, which writes to the sibling `codex-dialogue/` directory. Millstrand identity hooks are provided separately by Harnesses and do not write capture records here.
+Pi sessions get the same treatment from this repo's `pi/extensions/dialogue-capture` extension, which writes the same schema to the sibling `pi-dialogue/` directory (Pi-specific mapping and divergences in that extension's README). Codex sessions get the same forward-only treatment from `capture.sh`, which writes to the sibling `codex-dialogue/` directory.
 
 The schema tables and queries below are the shared reference for all harness dialogue logs.
 
