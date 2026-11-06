@@ -104,7 +104,7 @@ codex plugin marketplace add /absolute/path/to/agents
 
 The marketplace exposes these plugin packages:
 
-- `plugins/coding/` — git workflows, robustness, testing, and code cleanup;
+- `plugins/coding/` — git workflows, worktree cleanup, robustness, testing, and code cleanup;
 - `plugins/devflow/` — RFC, spec, plan, task, and iterative development workflows;
 - `plugins/harness/` — session introspection, dialogue capture, tmux, benchmarks, and rich responses;
 - `plugins/writing/` — agent-context audits, agent-facing CLI design, Mermaid, and reusable skill authoring guidance.
@@ -130,10 +130,6 @@ Pi host modules are wildcard peer dependencies, not runtime dependencies of the 
 Running Pi from this checkout loads the package through `.pi/settings.json`. The project-local `.pi/extensions/pi-internals/` helper reports Pi runtime, source, settings, and extension paths when debugging the repository itself.
 
 Changing prompt-layer context or switching models/providers can reduce provider prompt-cache reuse. Keep dynamic injected context bounded and stable when cache reuse matters.
-
-## Repository lake: Botlake
-
-The lake uses Botlake's shared `ct-config` for agents, flags, references, priming, Work, and Work–Agents. See [lake setup](.botlake/README.md) for prerequisites and startup. Existing Beads records are not imported; the lake starts with an empty work queue.
 
 ## Millstrand identity dependency
 

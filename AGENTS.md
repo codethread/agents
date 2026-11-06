@@ -1,9 +1,5 @@
 # AGENTS.md
 
-## Work tracking
-
-Use this repository's Botlake lake for work tracking and managed agents. Start with `bl help`, then `bl prime work` or `bl prime agent` for the operation you need. Preserve `BL_ACTOR` and any explicit workspace selection. Record a concise outcome before closing work. Task changes do not authorize Git commits or pushes.
-
 - Install deps: `pnpm install`
 - Format: automatic via `pnpm check` after all work completed
 - Lint: `pnpm lint` (eslint)
@@ -11,35 +7,8 @@ Use this repository's Botlake lake for work tracking and managed agents. Start w
 - Typecheck: `pnpm typecheck` (tsc)
 - Verify all checks: `pnpm check` when work complete, runs `lint` -> `typecheck` -> `build` -> `test` -> `format` (via prettier).
 - When building extensions:
-  - always add `--debug-*` flags to allow you to verify results, see ./pi/extensions/system-prompt/index.ts as an example
-  - extensions exposing `/debug-*` commands should use `./pi/extensions/components/debug-message/index.ts` for hidden debug output so the UI stays consistent (`Ctrl+G` open in editor, `Ctrl+Enter` send to agent)
-  - when an extension adds new CLI flags, add them to `scripts/pi.nu` under the extension flags comment with an `[EXT]` prefix in the comment string
-  - For local Pi testing, run `pi` from this repo root, e.g;
-    - `pi --model deepseek/deepseek-flash:low --print ping`: run with a small model and get back a result
-    - `pi --no-extensions -e .` disable all extensions but load just the extensions in this repo for isolated testing
-  - Always verify extension changes/additions in a fresh `pi` process through the `interactive_shell` tool; do not trust current-session tool bindings after `/reload` for validation.
+- For local Pi testing, run `pi` from this repo root, e.g;
+- `pi --model deepseek/deepseek-flash:low --print ping`: run with a small model and get back a result
+- `pi --no-extensions -e .` disable all extensions but load just the extensions in this repo for isolated testing
+- Always verify extension changes/additions in a fresh `pi` process through the `interactive_shell` tool; do not trust current-session tool bindings after `/reload` for validation.
 - Always keep the README.md files up-to-date for changes
-
-## writing prompts / skills
-
-Keep maintainer metadata out of `SKILL.md`; operational guidance belongs in the skill itself.
-
-Always write prompts and skills as literal messages the agent will receive. The agent cannot tell whether text came from a user typing, a slash prompt, or a script.
-
-Keep prompts self-contained, or reference only things the receiving agent definitely has access to.
-
-Good:
-
-- "Load `plugins/coding/skills/robustness/SKILL.md` before handling edge cases."
-- "Use the `review` subagent for a focused code review."
-- "Use the `read` tool to inspect the selected files."
-- "Complete the selected task slice included below."
-
-Bad:
-
-- "The loop already selected this using `plugins/devflow/scripts/devflow/mod.nu`."
-- "Continue from the previous `/afk` prompt."
-- "Follow the workflow from the skill that generated this prompt."
-- "Use state from the script/session that invoked you."
-
-If orchestration code performs work before sending a prompt, describe the result, not the orchestrator: say "selected task" rather than "task selected by scripts/foo.nu".
