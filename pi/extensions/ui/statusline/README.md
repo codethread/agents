@@ -21,6 +21,8 @@ model • high (provider sub L)
 
 The stats row shows current/max context tokens, the latest cache-hit timestamp when available, and cumulative session cost. Context usage is warning-colored above 70% and error-colored above 90%. Extension statuses appear on separate rows; all rows are truncated to the terminal width.
 
+The bottom-right label shows the Botlake agent identity from `BL_ACTOR` when available, otherwise the session ID. A session name, when set, is preserved with the identity or ID in parentheses. No Botlake CLI lookup is required.
+
 Inside the provider parentheses, `sub` indicates subscription authentication and `L` indicates `PI_CACHE_RETENTION=long`.
 
 ## Implementation

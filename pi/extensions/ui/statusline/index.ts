@@ -90,6 +90,7 @@ export function renderStatuslineItems({
 	const sessionLabel = formatSessionLabel(
 		ctx.sessionManager.getSessionName(),
 		ctx.sessionManager.getSessionId(),
+		process.env.BL_ACTOR,
 	);
 
 	let totalCost = 0;
@@ -166,8 +167,11 @@ export function renderStatuslineItems({
 export function formatSessionLabel(
 	sessionName: string | null | undefined,
 	sessionId: string | null | undefined,
+	botlakeIdentity?: string,
 ): string | null {
 	const name = sessionName ? sanitizeStatusText(sessionName) : "";
+	const actor = botlakeIdentity ? sanitizeStatusText(botlakeIdentity) : "";
+	if (actor) return name ? `${name} (${actor})` : actor;
 	const id = sessionId ? sanitizeStatusText(sessionId) : "";
 	if (name && id) return `${name} (${id})`;
 	if (name) return name;

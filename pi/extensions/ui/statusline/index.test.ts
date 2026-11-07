@@ -1,5 +1,5 @@
 import { visibleWidth } from "@earendil-works/pi-tui";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import statuslineExtension, {
 	type StatuslineItemRenderDeps,
 	formatSessionLabel,
@@ -8,6 +8,14 @@ import statuslineExtension, {
 } from "./index.js";
 
 const ORIGINAL_CACHE_RETENTION = process.env.PI_CACHE_RETENTION;
+
+beforeEach(() => {
+	vi.stubEnv("BL_ACTOR", undefined);
+});
+
+afterEach(() => {
+	vi.unstubAllEnvs();
+});
 
 function renderDeps(): StatuslineItemRenderDeps {
 	return {
@@ -117,6 +125,16 @@ describe("statusline extension", () => {
 });
 
 describe("formatSessionLabel", () => {
+	it.each([
+		["review-flow", "jade-rich-guan", "review-flow (jade-rich-guan)"],
+		[undefined, "jade-rich-guan", "jade-rich-guan"],
+		["review\nflow", " jade\trich\nguan ", "review flow (jade rich guan)"],
+		["review-flow", "", "review-flow (session-123)"],
+		["review-flow", " \n\t ", "review-flow (session-123)"],
+	])("formats name=%s with Botlake identity=%s", (name, actor, expected) => {
+		expect(formatSessionLabel(name, "session-123", actor)).toBe(expected);
+	});
+
 	it("shows the session id next to the name", () => {
 		expect(formatSessionLabel("review-flow", "session-123")).toBe("review-flow (session-123)");
 	});
@@ -142,6 +160,19 @@ describe("renderStatuslineItems", () => {
 		} else {
 			process.env.PI_CACHE_RETENTION = ORIGINAL_CACHE_RETENTION;
 		}
+	});
+
+	it("uses the current Botlake identity instead of the session id", () => {
+		const deps = { ...renderDeps(), width: 120 };
+		vi.stubEnv("BL_ACTOR", "jade-rich-guan");
+		expect(renderStatuslineItems(deps).at(-1)).toContain("work (jade-rich-guan)");
+		expect(renderStatuslineItems(deps).at(-1)).not.toContain("abc");
+
+		vi.stubEnv("BL_ACTOR", "fresh-session-identity");
+		expect(renderStatuslineItems(deps).at(-1)).toContain("work (fresh-session-identity)");
+
+		vi.stubEnv("BL_ACTOR", undefined);
+		expect(renderStatuslineItems(deps).at(-1)).toContain("work (abc)");
 	});
 
 	it("detects long cache retention from the environment", () => {
