@@ -126,9 +126,9 @@ describe("statusline extension", () => {
 
 describe("formatSessionLabel", () => {
 	it.each([
-		["review-flow", "jade-rich-guan", "review-flow (jade-rich-guan)"],
-		[undefined, "jade-rich-guan", "jade-rich-guan"],
-		["review\nflow", " jade\trich\nguan ", "review flow (jade rich guan)"],
+		["review-flow", "jade-rich-guan", "review-flow (bl: jade-rich-guan)"],
+		[undefined, "jade-rich-guan", "bl: jade-rich-guan"],
+		["review\nflow", " jade\trich\nguan ", "review flow (bl: jade rich guan)"],
 		["review-flow", "", "review-flow (session-123)"],
 		["review-flow", " \n\t ", "review-flow (session-123)"],
 	])("formats name=%s with Botlake identity=%s", (name, actor, expected) => {
@@ -165,11 +165,11 @@ describe("renderStatuslineItems", () => {
 	it("uses the current Botlake identity instead of the session id", () => {
 		const deps = { ...renderDeps(), width: 120 };
 		vi.stubEnv("BL_ACTOR", "jade-rich-guan");
-		expect(renderStatuslineItems(deps).at(-1)).toContain("work (jade-rich-guan)");
+		expect(renderStatuslineItems(deps).at(-1)).toContain("work (bl: jade-rich-guan)");
 		expect(renderStatuslineItems(deps).at(-1)).not.toContain("abc");
 
 		vi.stubEnv("BL_ACTOR", "fresh-session-identity");
-		expect(renderStatuslineItems(deps).at(-1)).toContain("work (fresh-session-identity)");
+		expect(renderStatuslineItems(deps).at(-1)).toContain("work (bl: fresh-session-identity)");
 
 		vi.stubEnv("BL_ACTOR", undefined);
 		expect(renderStatuslineItems(deps).at(-1)).toContain("work (abc)");

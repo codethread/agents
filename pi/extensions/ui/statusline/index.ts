@@ -171,7 +171,7 @@ export function formatSessionLabel(
 ): string | null {
 	const name = sessionName ? sanitizeStatusText(sessionName) : "";
 	const actor = botlakeIdentity ? sanitizeStatusText(botlakeIdentity) : "";
-	if (actor) return name ? `${name} (${actor})` : actor;
+	if (actor) return name ? `${name} (bl: ${actor})` : `bl: ${actor}`;
 	const id = sessionId ? sanitizeStatusText(sessionId) : "";
 	if (name && id) return `${name} (${id})`;
 	if (name) return name;
