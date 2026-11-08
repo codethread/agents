@@ -140,7 +140,6 @@ describe("findPiBolt", () => {
 describe("getPiInvocation", () => {
 	it.each([
 		{ execPath: "/usr/bin/node", currentScript: "/pi/cli.js" },
-		{ execPath: "/usr/bin/node", currentScript: "pies", piesDaemon: true },
 		{ execPath: "/usr/bin/pi", currentScript: "/$bunfs/root/pi" },
 	])("prefers pi-bolt over the current runtime ($currentScript)", (runtime) => {
 		const args = ["--mode", "json", "-p", "--agent", "scout", "Task: map things"];
@@ -180,19 +179,6 @@ describe("getPiInvocation", () => {
 			command: runtime.expectedCommand,
 			args: [...runtime.expectedPrefix, ...args],
 		});
-	});
-
-	it("uses the pi shim when running inside the pies daemon", () => {
-		const args = ["--mode", "json", "-p", "Task: map things"];
-
-		expect(
-			getPiInvocation(args, {
-				execPath: "/usr/bin/node",
-				currentScript: "pies",
-				scriptExists: () => true,
-				piesDaemon: true,
-			}),
-		).toEqual({ command: "pi", args });
 	});
 
 	it("does not forward Bun's virtual entrypoint as a prompt", () => {

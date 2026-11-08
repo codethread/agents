@@ -1,5 +1,4 @@
 node_modules
-pies/dist
 .git
 .worktrees
 .botlake/vendor

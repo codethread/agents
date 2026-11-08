@@ -1,6 +1,5 @@
 .DS_Store
 node_modules/
-pies/dist/
 .pi/bench-matrix.json
 .botlake/world.db*
 .botlake/bun.lock

@@ -9,7 +9,7 @@ Provides the `interactive_shell` tool for TUIs, REPLs, and terminal work that ne
 - **Default (`persist: false`):** each extension runtime gets its own private tmux server. Shells survive between replies but are not on the user's server. Do not expect the user or other agents to see them.
 - **`persist: true`:** uses the user's shared `default` tmux server explicitly, regardless of the server hosting Pi. These shells remain after Pi exits; the caller must clean them up.
 
-Private servers are created lazily, without loading tmux configuration. Shell startup configuration still follows the `shell` option below. Concurrent agents, including runtimes within one Pies process, have separate servers and can reuse session names.
+Private servers are created lazily, without loading tmux configuration. Shell startup configuration still follows the `shell` option below. Concurrent agents have separate servers and can reuse session names.
 
 On `session_shutdown` (exit, session switch, or reload), the extension stops its entire private server and removes its socket and temporary directory. A detached supervisor watches the agent's IPC connection and performs the same cleanup after an abrupt process exit, including `SIGTERM` and `SIGKILL`. Cleanup does not depend on an in-process exit hook or polling a PID. Private commands cannot restart a server during teardown. Interrupting a response without exiting Pi leaves its shells running.
 

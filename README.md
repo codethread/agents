@@ -1,6 +1,6 @@
 # agents
 
-An installable toolkit for Pi, Codex, and Claude Code. It ships Pi extensions and agents, reusable Codex/Claude plugins, themes, and `pies`: a memory-efficient daemon for concurrent headless Pi sessions.
+An installable toolkit for Pi, Codex, and Claude Code. It ships Pi extensions and agents, reusable Codex/Claude plugins, and themes.
 
 ## What is included
 
@@ -10,7 +10,6 @@ An installable toolkit for Pi, Codex, and Claude Code. It ships Pi extensions an
 | `agents/`        | Agent definitions discovered by the subagent extension                                 |
 | `pi/themes/`     | Rose Pine themes for Pi                                                                |
 | `plugins/`       | Coding, devflow, harness, repo-opinions, and writing plugins for Codex and Claude Code |
-| `pies/`          | Persistent Pi SDK daemon, thin CLI, and `pi` compatibility shim                        |
 | `.pi/`           | Project-local configuration used only while developing this repository                 |
 
 ## Install the Pi package
@@ -29,8 +28,6 @@ Or install from GitHub:
 ```bash
 pi install git:github.com/codethread/agents
 ```
-
-The root package contains Pi resources only; it does not install Pies or its CLI bins. Pies is the separate `@codethread/pies` workspace package under `pies/`.
 
 Pi reads the package resources declared in `package.json#pi`. Local package roots also contribute their direct `agents/` directory to the subagent catalog. A consumer project can override those definitions from its nearest `.pi/agents/` directory or add catalogs with repeatable `--agents-dir <path>` flags.
 
@@ -58,20 +55,6 @@ selection by setting this in `~/.pi/agent/settings.json` or `.pi/settings.json`:
 The light theme comes first. Pi switches palettes when the terminal reports an
 appearance change; the shared `color-theme` sentinel is no longer used. This
 checkout selects the pair in its project settings, without changing global settings.
-
-## Run concurrent headless agents with Pies
-
-Pies keeps the Pi SDK and extension graph in one persistent Node process while each invocation receives an isolated runtime, environment, session, tools, and output stream.
-
-```bash
-pnpm link:pi
-
-pi --model openai/gpt-6-luna --print "Summarise this repository"
-pi --agent worker --print "Run the checks and fix failures"
-pies daemon status
-```
-
-After linking, `pi --print` routes through Pies and ordinary interactive `pi` still hands the TTY to the real executable. See [the Pies consumer guide](pies/README.md) for installation, routing, configuration, logs, concurrency behavior, benchmarks, and limitations.
 
 ## Bundled agents
 
@@ -123,9 +106,9 @@ pnpm install
 pnpm check
 ```
 
-Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`, and `pnpm format`. The complete check also builds the standalone Pies distribution before testing. Vitest includes unit, snapshot, and Pi runtime integration tests backed by a patched `@gaodes/pi-test-harness`. The patch updates harness 1.0.3 for `pi-ai/compat`, `session.modelRuntime` authentication, and `agent.streamFunction` playbook injection. Integration tests and the Pies workspace resolve Pi SDK 1.5.0. Keep root development and Pies runtime SDK pins aligned when upgrading Pi. Remove the patch when the upstream harness supports these APIs.
+Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm format`. Vitest includes unit, snapshot, and Pi runtime integration tests backed by a patched `@gaodes/pi-test-harness`. The patch updates harness 1.0.3 for `pi-ai/compat`, `session.modelRuntime` authentication, and `agent.streamFunction` playbook injection. Integration tests resolve Pi SDK 1.5.0. Remove the patch when the upstream harness supports these APIs.
 
-Pi host modules are wildcard peer dependencies, not runtime dependencies of the extension package. Pinned development copies support local typechecking and tests; Pi supplies the running extensions' SDK modules through its loader. The independent `@codethread/pies` package owns its pinned runtime SDK dependencies and CLI bins; root wrappers launch its source entrypoints without changing the working directory.
+Pi host modules are wildcard peer dependencies, not runtime dependencies of the extension package. Pinned development copies support local typechecking and tests; Pi supplies the running extensions' SDK modules through its loader.
 
 Running Pi from this checkout loads the package through `.pi/settings.json`. The project-local `.pi/extensions/pi-internals/` helper reports Pi runtime, source, settings, and extension paths when debugging the repository itself.
 

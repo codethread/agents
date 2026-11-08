@@ -21,7 +21,7 @@ it("connects an agent-local stdio server and calls it through native codemode", 
 		session = await createTestSession({
 			cwd: directory,
 			extensionFactories: [
-				// Match CLI/Pies ordering: agent registrations run before native MCP startup.
+				// Match CLI ordering: agent registrations run before native MCP startup.
 				(pi: ExtensionAPI) => {
 					api = pi;
 					pi.on("session_start", () => {

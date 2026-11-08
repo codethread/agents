@@ -6,7 +6,7 @@ export interface PrivateServer {
 	dispose(): Promise<void>;
 }
 
-/** One lease per extension runtime, including concurrent runtimes in Pies. */
+/** One lease per extension runtime. */
 export class PrivateTmuxServer implements PrivateServer {
 	private child?: ChildProcess;
 	private ready?: Promise<string>;

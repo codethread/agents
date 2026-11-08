@@ -50,19 +50,16 @@ export function getPiInvocation(
 		execPath: string;
 		currentScript?: string;
 		scriptExists(path: string): boolean;
-		piesDaemon?: boolean;
 		piBoltPath?: string;
 	} = {
 		execPath: process.execPath,
 		currentScript: process.argv[1],
 		scriptExists: fs.existsSync,
-		piesDaemon: process.env.PIES_DAEMON === "1",
 		piBoltPath: findPiBolt(),
 	},
 ): { command: string; args: string[] } {
-	const { currentScript, execPath, piesDaemon, scriptExists, piBoltPath } = runtime;
+	const { currentScript, execPath, scriptExists, piBoltPath } = runtime;
 	if (piBoltPath) return { command: piBoltPath, args };
-	if (piesDaemon) return { command: "pi", args };
 	// Bun standalone executables expose their embedded entrypoint as argv[1]. It may
 	// pass existsSync(), but forwarding it makes Pi treat /$bunfs/root/pi as a prompt.
 	if (currentScript?.startsWith("/$bunfs/")) return { command: execPath, args };
