@@ -119,7 +119,6 @@ export function renderStatuslineItems({
 	const modelDisplay = formatModelDisplay({
 		provider: ctx.model?.provider,
 		providerMarker,
-		providerPosition: "after",
 		model: ctx.model?.id,
 		thinkingLevel: pi.getThinkingLevel(),
 		reasoning: ctx.model?.reasoning,

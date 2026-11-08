@@ -124,22 +124,6 @@ Compare top-level `task` to the user's current request:
 
 If ambiguous, ask the user.
 
-## Subagent Policy
-
-When constructing the benchmark prompt for each spawned process, decide delegation policy from task intent:
-
-- **Direct skill tasks** (e.g. "rewrite this code", "add tests", "refactor this module"): append:
-  - `Do all the work yourself directly. Do NOT delegate to subagents.`
-- **Orchestration tasks** (e.g. "implement this feature across 5 modules", "coordinate a migration"): allow subagents freely.
-- **Nuanced cases**: `scout` is generally acceptable even in direct-skill benchmarks. Consider:
-  - `Do NOT delegate implementation work to subagents. You may use the scout agent for codebase exploration if needed.`
-
-This policy belongs to the orchestrating agent at prompt-construction time. The matrix defines permutations; the orchestrator interprets task intent.
-
-Apply this policy only to **Pi** entries. For **Claude** and **Codex**, do not add extra session-inspection instructions or Pi-specific harness guidance — just give them the benchmark task and evaluate the resulting code/output.
-
-If the user explicitly specifies subagent policy, that overrides this heuristic.
-
 ## New Run
 
 ### 1. Generate run ID
@@ -451,7 +435,7 @@ CLAUDE_SESSION_ID="$(cat "$SESSION_DIR/$slug.claude-session-id")"
 CLAUDE_SESSION="$(fd "$CLAUDE_SESSION_ID.jsonl" "$HOME/.claude/projects" | head -1)"
 ```
 
-Use Claude's JSONL for operational metrics only. Do not use hidden reasoning/transcript content to judge solution quality. The snippets below cover the standard bench metrics; for anything deeper (schema caveats, multi-row assistant messages, `toolUseResult` shapes, sidechains) load the `claude-session-introspection` skill instead of improvising jq. For cost, defer to ccusage (`bunx ccusage session --json`, fallback `npx -y ccusage`) rather than the `--output-format json` stdout when comparing across runs.
+Use Claude's JSONL for operational metrics only. Do not use hidden reasoning/transcript content to judge solution quality. The snippets below cover the standard bench metrics; for anything deeper (schema caveats, multi-row assistant messages, `toolUseResult` shapes) load the `claude-session-introspection` skill instead of improvising jq. For cost, defer to ccusage (`bunx ccusage session --json`, fallback `npx -y ccusage`) rather than the `--output-format json` stdout when comparing across runs.
 
 ```bash
 # Metadata

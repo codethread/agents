@@ -59,7 +59,7 @@ Skip an RFC when:
 
 Create RFCs in `devflow/rfcs/` with creation date plus a short kebab-case slug:
 
-- `2026-06-22-subagent-cost-budget.md`
+- `2026-06-22-api-cost-budget.md`
 - `2026-06-22-devflow-workspace.md`
 
 Good filenames describe the idea or decision. The RFC's `Document ID` is separate from the filename and uses the next sequential stable ID, such as `RFC-Dwr-001` for v1 or `RFC-Dwr-001@2` for v2, so points inside the document can be globally grepable as `RFC-Dwr-001.O1`, `RFC-Dwr-001.REC1`, or `RFC-Dwr-001@2.O1`.

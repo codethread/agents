@@ -55,20 +55,18 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/codex-dialogue/<session_id>.jsonl
 
 ### Schema (v1)
 
-Every record shares an envelope. `agent_id` is the subagent discriminator: `null` on the main thread, set when the event fired inside a subagent. `agent_type` is the current agent's name — set for subagents **and** for top-level `claude --agent <name>` sessions — so don't use it to detect subagent traffic.
+Every record shares an envelope.
 
-| Field            | Value                                                                                                                                                                       |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v`              | Schema version, `1`. Changes are additive only                                                                                                                              |
-| `event`          | `session_start` \| `prompt` \| `reply` \| `file` \| `session_end`                                                                                                           |
-| `ts`             | Capture time, ISO 8601 UTC                                                                                                                                                  |
-| `session_id`     | Claude Code session id (also the filename)                                                                                                                                  |
-| `prompt_id`      | UUID of the prompt being (or last) processed — `session_end` carries the final prompt's id; null before any prompt (or Claude < v2.1.196)                                   |
-| `cwd`            | Working directory when the event fired                                                                                                                                      |
-| `agent_id`       | Subagent id, or `null` outside subagents                                                                                                                                    |
-| `agent_type`     | Agent name (e.g. `Explore`), also set on top-level `--agent` runs                                                                                                           |
-| `model`          | Active model id when known, otherwise `null`. Claude reads the latest main-thread assistant `message.model` from the transcript for `reply` records; Pi uses `provider/id`. |
-| `thinking_level` | Active thinking/effort level when known, otherwise `null`. Claude maps hook `effort.level` / `$CLAUDE_EFFORT`; Pi maps `pi.getThinkingLevel()`.                             |
+| Field            | Value                                                                                                                                                           |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v`              | Schema version, `1`                                                                                                                                             |
+| `event`          | `session_start` \| `prompt` \| `reply` \| `file` \| `session_end`                                                                                               |
+| `ts`             | Capture time, ISO 8601 UTC                                                                                                                                      |
+| `session_id`     | Claude Code session id (also the filename)                                                                                                                      |
+| `prompt_id`      | UUID of the prompt being (or last) processed — `session_end` carries the final prompt's id; null before any prompt (or Claude < v2.1.196)                       |
+| `cwd`            | Working directory when the event fired                                                                                                                          |
+| `model`          | Active model id when known, otherwise `null`. Claude reads the latest assistant `message.model` from the transcript for `reply` records; Pi uses `provider/id`. |
+| `thinking_level` | Active thinking/effort level when known, otherwise `null`. Claude maps hook `effort.level` / `$CLAUDE_EFFORT`; Pi maps `pi.getThinkingLevel()`.                 |
 
 Per-event fields:
 
@@ -96,19 +94,19 @@ DLG="$DLG_DIR/<session-id>.jsonl"
 # From inside a session, the agent's own log is:
 DLG="$DLG_DIR/$CLAUDE_CODE_SESSION_ID.jsonl"
 
-# Q&A transcript (main-thread dialogue). Stop-blocking hooks (e.g. /goal) make
-# Stop fire more than once per prompt, so keep only the last reply per prompt_id.
-jq -sr 'map(select(.agent_id==null)) |
+# Q&A transcript. Stop-blocking hooks (e.g. /goal) make Stop fire more than
+# once per prompt, so keep only the last reply per prompt_id.
+jq -sr '
   (map(select(.event=="reply")) | group_by(.prompt_id) | map(.[-1])) as $replies |
   (map(select(.event=="prompt")) + $replies) | sort_by(.ts) |
   .[] | "## \(.event) (\(.ts))\n\(.text)\n"' "$DLG"
 
-# Files read anywhere (main agent + subagents)
+# Files read
 jq -r 'select(.event=="file" and .tool=="Read") | .file_path' "$DLG" | sort -u
 
-# Files modified, tagged by who touched them (agent_id null = main thread)
+# Files modified
 jq -r 'select(.event=="file" and .tool!="Read") |
-  "\(.tool)\t\(if .agent_id then .agent_type else "main" end)\t\(.file_path)"' "$DLG" | sort -u
+  "\(.tool)\t\(.file_path)"' "$DLG" | sort -u
 
 # Most recent session log for a project directory
 rg -l --fixed-strings "\"cwd\":\"$PWD\"" "$DLG_DIR"/*.jsonl | xargs ls -t 2>/dev/null | head -1
@@ -120,10 +118,9 @@ rg -l --fixed-strings "\"cwd\":\"$PWD\"" "$DLG_DIR"/*.jsonl | xargs ls -t 2>/dev
 - `reply` records come from the `Stop` hook, which does not fire on user interrupts — an interrupted turn has a `prompt` with no matching `reply`.
 - A Stop-blocking hook (e.g. a `/goal` condition) makes `Stop` fire once per attempted stop, so one `prompt` can have several `reply` records; only the last per `prompt_id` is the turn's final answer. Dedupe as in the Q&A query above.
 - `prompt` text is the raw submission: slash commands appear as typed (e.g. `/goal ...`), not expanded.
-- Claude does not expose the active model on per-turn hook payloads. The capture hook reads the latest main-thread assistant `message.model` from the transcript for `reply` records; prompt/file/session-end records use `null` rather than guessing from a previous turn. Claude thinking is `effort.level`; it is captured only when the hook payload or `$CLAUDE_EFFORT` provides it.
+- Claude does not expose the active model on per-turn hook payloads. The capture hook reads the latest assistant `message.model` from the transcript for `reply` records; prompt/file/session-end records use `null` rather than guessing from a previous turn. Claude thinking is `effort.level`; it is captured only when the hook payload or `$CLAUDE_EFFORT` provides it.
 - Codex capture is forward-only and does not parse `~/.codex/sessions`. Unsupported fields stay `null`; `reply` records are emitted only if the `Stop` hook payload contains final assistant text. There is no Codex `SessionEnd` hook in the current manual, so Codex logs `session_start` but not `session_end`.
 - Codex raw hook payload debugging: launch a fresh Codex process with `CODEX_DIALOGUE_CAPTURE_DEBUG=1`; raw payloads append to `${XDG_STATE_HOME:-$HOME/.local/state}/codex-dialogue/debug/raw.jsonl`.
-- Subagent replies are not captured (only their `file` events); the dialogue is user ↔ main agent by design.
 - The capture script never blocks a session: on any failure (missing `jq`, unwritable state dir) it exits 0 and drops the record.
 - Cost/token accounting is out of scope; use `ccusage` (see the `claude-session-introspection` skill).
 

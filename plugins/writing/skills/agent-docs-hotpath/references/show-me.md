@@ -1,10 +1,10 @@
 # "Show me"
 
-Map the context sources that **will** and **might** load for the stated session or task: instruction files, skill metadata and bodies, CLI responses, and hook or extension output. Distinguish automatically injected content, required loads once a condition applies, and optional loads. Separate skill metadata from skill bodies, and a parent agent's context from delegated agents' contexts. Say whether the map describes configured or instructed behavior, or an observed session trace; identify unverified sources.
+Map the context sources that **will** and **might** load for the stated session or task: instruction files, skill metadata and bodies, CLI responses, and hook or extension output. Distinguish automatically injected content, required loads once a condition applies, and optional loads. Separate skill metadata from skill bodies. Say whether the map describes configured or instructed behavior, or an observed session trace; identify unverified sources.
 
 Structure the report as several small trees or graphs, not one giant diagram:
 
-- Group by reading trigger: startup, exploration or editing, task-specific documents and skills, then specialist delegation. Split busy groups further when needed.
+- Group by reading trigger: startup, exploration or editing, task-specific documents and skills. Split busy groups further when needed.
 - Use short node labels and terse trigger labels on connections. Put exact file paths or provider/command names and supporting detail directly beneath each tree, rather than crowding the nodes.
 - Keep every section visible in one reading sequence; normal scrolling is fine. Avoid tabs, accordions and deeply nested expandable lists that hide branches.
 - Reuse references to shared files across trees rather than implying each occurrence is another mandatory read.

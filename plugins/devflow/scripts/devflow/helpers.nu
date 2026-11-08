@@ -8,7 +8,6 @@
 #   task_index: string,         # Feature task index path
 #   feature_plan: string,       # Feature plan path
 #   study: string,              # Additional context passed to AFK prompt
-#   agent: string,              # Pi agent name when using Pi
 #   effective_model: string,    # Resolved model for Pi or Claude
 #   session_id: string,         # Owner session id for final review, or empty
 #   claude: bool,               # Whether to use Claude CLI instead of Pi
@@ -18,11 +17,10 @@
 export def run-context [
   feature: string
   study: string
-  agent: string
   model: string
   session_id: string
   claude: bool
-]: nothing -> record<active_feature_dir: string, feature_name: string, proposal_file: string, task_index: string, feature_plan: string, study: string, agent: string, effective_model: string, session_id: string, claude: bool, cli: string> {
+]: nothing -> record<active_feature_dir: string, feature_name: string, proposal_file: string, task_index: string, feature_plan: string, study: string, effective_model: string, session_id: string, claude: bool, cli: string> {
   let effective_model = if $model == "" {
     if $claude { "sonnet" } else { "openai-codex/gpt-5.5:low" }
   } else {
@@ -54,7 +52,6 @@ export def run-context [
     task_index: $task_index
     feature_plan: $feature_plan
     study: $study
-    agent: $agent
     effective_model: $effective_model
     session_id: $session_id
     claude: $claude
@@ -70,7 +67,6 @@ export def run-task-cycle [
     task_index: string,
     feature_plan: string,
     study: string,
-    agent: string,
     effective_model: string,
     session_id: string,
     claude: bool,
@@ -92,7 +88,7 @@ export def run-task-cycle [
   let res = if $ctx.claude {
     $prompt | claude --print --dangerously-skip-permissions --model $ctx.effective_model --name $session_name --session-id $task_session_id | complete
   } else {
-    pi --agent $ctx.agent --model $ctx.effective_model --name $session_name --session-id $task_session_id -p $prompt | complete
+    pi --model $ctx.effective_model --name $session_name --session-id $task_session_id -p $prompt | complete
   }
 
   if $res.exit_code != 0 {
@@ -186,7 +182,6 @@ export def maybe-run-owner-review [
     task_index: string,
     feature_plan: string,
     study: string,
-    agent: string,
     effective_model: string,
     session_id: string,
     claude: bool,

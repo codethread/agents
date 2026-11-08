@@ -27,7 +27,7 @@ Inside the provider parentheses, `sub` indicates subscription authentication and
 
 ## Implementation
 
-`index.ts` owns the responsive renderer and footer lifecycle. `usage-format.ts` contains formatting helpers also used by subagent output.
+`index.ts` owns the responsive renderer and footer lifecycle. `usage-format.ts` contains status formatting helpers.
 
 ## Debug
 

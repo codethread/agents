@@ -6,7 +6,6 @@
 > - [~] claimed by agent (wip)
 > - [x] done
 
-- [ ] we might need to disable subagents for tasks, easy enough with a `--disable-subagents bob,bill,babra` list which hides them from the tool info
 - [ ] add better eslint rules
 - [ ] add better typescript strictness
 - [ ] bench codex vs pi

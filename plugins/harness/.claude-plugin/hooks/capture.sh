@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Capture stable dialogue and file-touch events from Claude Code hook payloads
 # into ${XDG_STATE_HOME:-~/.local/state}/claude-dialogue/<session_id>.jsonl.
-# Schema v1 is documented in plugins/harness/README.md; consumers rely on it,
-# so change it additively only.
+# Schema v1 is documented in plugins/harness/README.md.
 #
 # Must never block the session (always exit 0) and must never write to stdout:
 # on UserPromptSubmit, stdout is injected into the model's context.
@@ -28,7 +27,7 @@ if [[ "$hook_event_name" == "Stop" && -n "$transcript_path" ]]; then
 		if [ -f "$transcript_path" ]; then
 			transcript_model=$(
 				tail -200 "$transcript_path" 2>/dev/null |
-					jq -sr '[.[] | select(.type == "assistant" and .isSidechain != true and .message.model) | .message.model] | last // empty' 2>/dev/null || true
+					jq -sr '[.[] | select(.type == "assistant" and .message.model) | .message.model] | last // empty' 2>/dev/null || true
 			)
 			[ -n "$transcript_model" ] && break
 		fi
@@ -48,15 +47,13 @@ record=$(printf '%s' "$payload" | jq -c --arg model "$model" --arg thinking_leve
     session_id: (.session_id // "unknown"),
     prompt_id: (.prompt_id // null),
     cwd: (.cwd // null),
-    agent_id: (.agent_id // null),
-    agent_type: (.agent_type // null),
     model: nullable($model),
     thinking_level: nullable($thinking_level)
   };
   if .hook_event_name == "UserPromptSubmit" then
     envelope + {event: "prompt", text: .prompt}
   elif .hook_event_name == "Stop" then
-    if (.agent_id // null) != null or (.last_assistant_message // "") == "" then empty
+    if (.last_assistant_message // "") == "" then empty
     else envelope + {event: "reply", text: .last_assistant_message} end
   elif .hook_event_name == "PostToolUse" then
     envelope + {event: "file", tool: .tool_name,

@@ -81,13 +81,13 @@ Encoding rules:
 
 Create the files below. Do not ask for approval unless the source context is too ambiguous to produce a safe MVP task queue.
 
-### 8. Request review
+### 8. Review the queue
 
 Before finalizing a new or substantially changed task queue:
 
-1. Ask a dedicated review agent to inspect the full sequence for ordering issues, dependency deadlocks, and missed prerequisite work.
-2. Ask review agents to inspect individual task files for whether each task is standalone and clear without relying on prior conversation context beyond referenced repository documentation.
-3. Ask for a holistic review of cohesion between the task queue, referenced RFCs/specs/proposal/plan, and stated MVP goal, calling out any misalignment.
+1. Inspect the full sequence for ordering issues, dependency deadlocks, and missed prerequisite work.
+2. Inspect individual task files to confirm each task is standalone and clear without relying on prior conversation context beyond referenced repository documentation.
+3. Review cohesion between the task queue, referenced RFCs/specs/proposal/plan, and stated MVP goal, calling out any misalignment.
 
 ## Output files
 

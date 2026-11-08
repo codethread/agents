@@ -17,14 +17,13 @@ The schema is owned by this repo and shared with the Claude log (`claude-dialogu
 | `file`        | `tool_result`        | Successful `read`/`edit`/`write`, normalized to `Read`/`Edit`/`Write`    |
 | `session_end` | `session_shutdown`   | `reason`: `quit`, `reload`, `new`, `resume`, `fork`                      |
 
-Envelope fields match the Claude schema, including `model` (`provider/id`) and `thinking_level` from Pi's active model/thinking settings. `agent_type` is the `--agent <name>` the process runs as. Pi subagents are separate processes with their own sessions, so subagent records land in the subagent's own log file with `agent_id` set to that session id (`agent_id` null still means "main thread", as in the Claude log); parent↔child linking goes through the subagent session manifests.
+Envelope fields match the Claude schema, including `model` (`provider/id`) and `thinking_level` from Pi's active model/thinking settings.
 
 ## Divergences from the Claude capture
 
 - `prompt` text is captured after skill/template expansion (Pi has no pre-expansion prompt event that fires in all modes); Claude logs the raw submission.
 - Runs started by custom extension messages produce no `prompt` record. Their replies and file touches have `prompt_id: null`, rather than inheriting the preceding user prompt's ID.
 - Extension `/commands` never reach the agent, so they produce no `prompt` record.
-- Subagent file touches live in the subagent's own log file, not the parent's.
 
 ## Debugging
 

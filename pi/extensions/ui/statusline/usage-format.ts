@@ -2,18 +2,9 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 export default function (_pi: ExtensionAPI) {}
 
-export interface ContextUsageDisplayOptions {
-	contextTokens: number | null | undefined;
-	contextWindow?: number;
-	contextPercent?: number | null;
-	autoCompactEnabled?: boolean;
-	compactionCount?: number;
-}
-
 export interface ModelDisplayOptions {
 	provider?: string;
 	providerMarker?: string;
-	providerPosition?: "before" | "after";
 	model?: string;
 	thinkingLevel?: string;
 	reasoning?: boolean;
@@ -28,30 +19,8 @@ export function formatTokens(count: number): string {
 	return `${Math.round(count / 1000000)}M`;
 }
 
-export function formatCost(cost: number, usingSubscription = false, digits = 3): string {
-	return `$${cost.toFixed(digits)}${usingSubscription ? " (sub)" : ""}`;
-}
-
-export function formatContextDisplay(options: ContextUsageDisplayOptions): string {
-	const autoSuffix = options.autoCompactEnabled ? " (auto)" : "";
-	const compactionSuffix =
-		Number.isInteger(options.compactionCount) && (options.compactionCount ?? 0) > 0
-			? ` (${options.compactionCount})`
-			: "";
-	const contextWindow = options.contextWindow ?? 0;
-	const contextTokens = options.contextTokens ?? null;
-	const contextPercent = options.contextPercent ?? null;
-
-	if (contextWindow > 0) {
-		if (contextTokens !== null && contextPercent !== null) {
-			return `ctx${compactionSuffix} ${formatTokens(contextTokens)} ${contextPercent.toFixed(1)}%/${formatTokens(contextWindow)}${autoSuffix}`;
-		}
-		return `ctx${compactionSuffix} ? ?/${formatTokens(contextWindow)}${autoSuffix}`;
-	}
-
-	if (contextTokens !== null)
-		return `ctx${compactionSuffix} ${formatTokens(contextTokens)}${autoSuffix}`;
-	return `ctx${compactionSuffix} n/a`;
+export function formatCost(cost: number): string {
+	return `$${cost.toFixed(3)}`;
 }
 
 export function formatModelDisplay(options: ModelDisplayOptions): string {
@@ -67,8 +36,7 @@ export function formatModelDisplay(options: ModelDisplayOptions): string {
 	if (options.includeProvider && options.provider) {
 		const marker = options.providerMarker ? ` ${options.providerMarker}` : "";
 		const provider = `(${options.provider}${marker})`;
-		result =
-			options.providerPosition === "after" ? `${result} ${provider}` : `${provider} ${result}`;
+		result = `${result} ${provider}`;
 	}
 
 	return result;

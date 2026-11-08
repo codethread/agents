@@ -71,13 +71,6 @@ function bullet(lines: string[], indent = ""): string {
 	return lines.map((line) => `${indent}- ${line}`).join("\n");
 }
 
-function orderTools(toolNames: string[]): string[] {
-	return [
-		...toolNames.filter((toolName) => toolName !== "subagent"),
-		...toolNames.filter((toolName) => toolName === "subagent"),
-	];
-}
-
 function toolSpecificGuidelines(toolGuidelines: Record<string, string[]> = {}): Set<string> {
 	return new Set(
 		Object.values(toolGuidelines)
@@ -92,7 +85,7 @@ export function renderTools({
 	toolGuidelines,
 }: Pick<PromptInput, "selectedTools" | "toolSnippets" | "toolGuidelines">): string {
 	if (selectedTools.length === 0) return "(none)";
-	return orderTools(selectedTools)
+	return selectedTools
 		.map((toolName) =>
 			[
 				`- \`${toolName}\`${toolSnippets[toolName] ? `: ${toolSnippets[toolName]}` : ""}`,

@@ -47,7 +47,7 @@ The plan links to accepted RFCs, the proposal, and spec deltas. It never restate
 
 Plans earn their keep when a change is too large or risky to jump straight from proposal/spec to tasks:
 
-- Humans or review agents can critique the approach before task details harden.
+- Reviewers can critique the approach before task details harden.
 - Specs stay free of implementation mechanics.
 - Task files avoid carrying architecture that should be reviewed once, centrally.
 - The AFK loop has one feature-local place for task context and developer notes.

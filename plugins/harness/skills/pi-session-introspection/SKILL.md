@@ -3,8 +3,8 @@ name: pi-session-introspection
 description: >
   Practical Pi session forensics quickstart. Use when the user wants to inspect
   Pi .jsonl session files, locate recent sessions, extract conversation text,
-  audit tool usage, check costs, or debug this repo's subagent-session manifests.
-  Defers to official Pi docs for authoritative session schema and lifecycle.
+  audit tool usage, or check costs. Defers to official Pi docs for authoritative
+  session schema and lifecycle.
 ---
 
 # Pi Session Introspection
@@ -67,17 +67,15 @@ schema and jq cookbook live in the harness plugin README (`../../README.md`);
 the Pi-specific event mapping and divergences are in
 `pi/extensions/dialogue-capture/README.md`. Prefer that log for user↔assistant
 Q&A extraction; use the selected reference for raw session parsing for everything else (tool audits,
-costs, branches, manifests).
+costs, branches).
 
 ## Variables
 
-| Variable               | Value                                                               | Notes                                  |
-| ---------------------- | ------------------------------------------------------------------- | -------------------------------------- |
-| `SESSION_DIR`          | `~/.pi/agent/sessions/`                                             | Parent agent sessions                  |
-| `SUBAGENT_SESSION_DIR` | `~/.pi/agent/subagent-sessions/`                                    | This repo's subagent extension storage |
-| `CWD_ENCODING`         | Strip leading `/`, replace `/` with `-`, wrap with `--`             | Used in directory names                |
-| `SESSION_GLOB`         | `SESSION_DIR/--<CWD_ENCODING>--/*.jsonl`                            | Sessions for a cwd                     |
-| `SUBAGENT_MANIFEST`    | `SUBAGENT_SESSION_DIR/--<CWD_ENCODING>--/<parent-id>/manifest.json` | Subagent run index per parent          |
+| Variable       | Value                                                   | Notes                   |
+| -------------- | ------------------------------------------------------- | ----------------------- |
+| `SESSION_DIR`  | `~/.pi/agent/sessions/`                                 | Session storage         |
+| `CWD_ENCODING` | Strip leading `/`, replace `/` with `-`, wrap with `--` | Used in directory names |
+| `SESSION_GLOB` | `SESSION_DIR/--<CWD_ENCODING>--/*.jsonl`                | Sessions for a cwd      |
 
 ## Finding sessions
 
@@ -99,15 +97,10 @@ for f in "$S"/*.jsonl; do
 done
 ```
 
-## Schema sources and subagent lookup
+## Schema sources
 
 Use the installed Pi package’s `docs/session-format.md`, `docs/sessions.md`,
 `docs/message-types.md`, `docs/compaction.md`, and `dist/core/session-manager.d.ts`
 when verifying a new release. In the agents checkout these are under
 `node_modules/@earendil-works/pi-coding-agent/`; do not assume a separate
 `~/.pi/pi-source` checkout matches the installed release.
-
-Subagent files live under
-`~/.pi/agent/subagent-sessions/--<cwd-encoding>--/<parent-session-id>/`, alongside
-`manifest.json` and, for swarms, `swarm-manifest.json`. Use the selected reference
-for their fields and queries.

@@ -3,8 +3,7 @@ import { join } from "node:path";
 
 /**
  * Dialogue-capture schema v1, shared with the Claude harness plugin
- * (plugins/harness/README.md is the schema reference). Changes must be
- * additive only: downstream jq/devflow tooling relies on these shapes.
+ * (plugins/harness/README.md is the schema reference).
  */
 export const SCHEMA_VERSION = 1;
 
@@ -17,8 +16,6 @@ export type DialogueRecord = {
 	session_id: string;
 	prompt_id: string | null;
 	cwd: string | null;
-	agent_id: string | null;
-	agent_type: string | null;
 	model: string | null;
 	thinking_level: string | null;
 	text?: string;
@@ -41,22 +38,6 @@ export const FILE_TOOLS: Record<string, string> = {
 export function dialogueStateDir(env: NodeJS.ProcessEnv = process.env): string {
 	const base = env.XDG_STATE_HOME?.trim() || join(homedir(), ".local", "state");
 	return join(base, "pi-dialogue");
-}
-
-/** Extract the `--agent <name>` / `--agent=<name>` value from a pi argv. */
-export function agentTypeFromArgv(argv: readonly string[]): string | null {
-	for (let i = 0; i < argv.length; i++) {
-		const arg = argv[i];
-		if (arg === "--agent") {
-			const value = argv[i + 1]?.trim();
-			return value && !value.startsWith("-") ? value : null;
-		}
-		if (arg.startsWith("--agent=")) {
-			const value = arg.slice("--agent=".length).trim();
-			return value ? value : null;
-		}
-	}
-	return null;
 }
 
 export function modelSlug(model: ModelLike | null | undefined): string | null {

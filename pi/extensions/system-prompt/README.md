@@ -31,7 +31,6 @@ The owned prompt also includes a stable `<system-reminder type="project-rules">`
 Templates receive:
 
 - `provider`, `model`, `cwd`, `hasUI`
-- `isMainAgent` / `isSubagent`, derived from `PI_SUBAGENT=1`
 - `tools` — Pi's active tool names at session startup
 - all environment variables
 

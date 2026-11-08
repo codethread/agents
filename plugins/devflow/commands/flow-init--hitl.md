@@ -43,16 +43,7 @@ Pick **exactly one** slice from the task index YAML using these rules:
 9. When the slice is fully complete, update the task index YAML:
    - change `status: in_progress` to `status: complete`
 10. Commit with detailed status including the task number and title as the commit header.
-11. Review the work with the right scope:
-    1. Use `review` for fast spot checks while iterating on a narrow concern or risky change.
-    2. Use `deep-review` once near the end of the slice, after validation passes and the commit exists.
-    3. Pass `deep-review` the commit/diff, task file, task index entry, feature proposal, relevant specs, touched paths, validation results, known risks, and any upfront exploration notes so each review agent starts from shared context instead of rediscovering it.
-    4. Handle the important review comments.
-       - NOTE: reviewers may over-specify correctness.
-       - use your judgment to move toward working software, and capture edge cases needing later robustness checks in the slice notes rather than expanding scope.
-    5. Repeat spot `review` only when needed for focused follow-up checks; do not rerun `deep-review` unless the shape of the solution materially changed.
-    6. Amend the previous commit so one commit matches the single task.
-12. Stop. Do not begin another slice.
+11. Stop. Do not begin another slice.
 
 ## Boundaries
 
@@ -69,7 +60,7 @@ When blocked:
 
 1. Change the slice status to `blocked`. Do **not** revert to `pending`. Do **not** mark `complete`.
 2. Append a concise blocker note to the feature plan file under `Developer Notes` so the user can adjudicate.
-3. Commit the in-progress work and the note. Header references the task number/title with a ` (BLOCKED)` suffix. Skip the review subagent.
+3. Commit the in-progress work and the note. Header references the task number/title with a ` (BLOCKED)` suffix.
 
 Block when any of these hold:
 

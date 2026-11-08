@@ -14,7 +14,6 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { showDebugMessage } from "../components/debug-message/index.js";
 import {
-	agentTypeFromArgv,
 	buildRecord,
 	dialogueStateDir,
 	type DialogueEvent,
@@ -48,8 +47,6 @@ function readRecords(logPath: string): DialogueRecord[] {
 }
 
 export default function dialogueCaptureExtension(pi: ExtensionAPI) {
-	const agentType = agentTypeFromArgv(process.argv);
-	const isSubagent = process.env.PI_SUBAGENT === "1";
 	let promptId: string | null = null;
 
 	function envelope(ctx: Pick<ExtensionContext, "sessionManager" | "cwd" | "model">): Envelope {
@@ -60,10 +57,6 @@ export default function dialogueCaptureExtension(pi: ExtensionAPI) {
 			session_id: sessionId,
 			prompt_id: promptId,
 			cwd: ctx.cwd ?? null,
-			// Mirrors the Claude schema: agent_id null on the main thread. A pi
-			// subagent is its own process/session, so its session id is the id.
-			agent_id: isSubagent ? sessionId : null,
-			agent_type: agentType,
 			model: modelSlug(ctx.model),
 			thinking_level: normalizeThinkingLevel(pi.getThinkingLevel()),
 		};

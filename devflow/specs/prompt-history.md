@@ -68,7 +68,7 @@ Prompt history provides shell-like recall for previously submitted Pi user promp
   - **Rationale:** User prompts are often Markdown-heavy, with code fences, quotes, XML-ish tags, backticks, and multiline content. Lossless storage of prompt text is more important than malformed-file tolerance for the first implementation.
 
 - **SPEC-002.D12 Decision:** Record only interactive sessions (`ctx.hasUI`).
-  - **Rationale:** Headless runs (`--print`, subagent sessions) are machine-driven, have no editor surface to recall into, and would otherwise flood the shared history file. Interactive-only recording keeps the history aligned with its recall UI.
+  - **Rationale:** Headless runs (`--print`) are machine-driven, have no editor surface to recall into, and would otherwise flood the shared history file. Interactive-only recording keeps the history aligned with its recall UI.
 
 - **SPEC-002.D13 Decision:** Force a TUI render after programmatic editor updates.
   - **Rationale:** `ctx.ui.setEditorText()` updates editor state without requesting a render. Recall resolves git context and reads history asynchronously (always on the first press), so the render triggered by the keypress can complete before the text is applied and the editor appears unchanged until the next render-triggering event. Clearing an unset footer status requests a render without changing visible state.

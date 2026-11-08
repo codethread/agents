@@ -192,10 +192,6 @@ export async function renderTemplates(
 		.join("\n\n");
 }
 
-export function isSubagentRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
-	return env.PI_SUBAGENT?.trim() === "1";
-}
-
 export function parseDebugPromptOverrides(argv: string[]): {
 	overrides: TemplateVars | null;
 	error: string | null;
@@ -251,14 +247,11 @@ export function getTemplateVars(
 	ctx: TemplateContext,
 	overrides?: TemplateVars | null,
 ): TemplateVars {
-	const isSubagent = isSubagentRuntime();
 	return {
 		provider: ctx.model?.provider,
 		model: ctx.model?.id,
 		cwd: ctx.cwd,
 		hasUI: ctx.hasUI,
-		isMainAgent: !isSubagent,
-		isSubagent,
 		...process.env,
 		tools: ctx.tools ?? [],
 		...overrides,

@@ -18,7 +18,6 @@ import {
 } from "./templates.js";
 
 const tempDirs: string[] = [];
-const originalPiSubagent = process.env.PI_SUBAGENT;
 
 async function makeTempDir(): Promise<string> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "system-prompt-templates-test-"));
@@ -27,8 +26,6 @@ async function makeTempDir(): Promise<string> {
 }
 
 afterEach(async () => {
-	if (originalPiSubagent === undefined) delete process.env.PI_SUBAGENT;
-	else process.env.PI_SUBAGENT = originalPiSubagent;
 	await Promise.all(tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
 
@@ -70,34 +67,6 @@ describe("parseDebugPromptOverrides", () => {
 });
 
 describe("getTemplateVars", () => {
-	it("marks the top-level runtime as the main agent by default", () => {
-		delete process.env.PI_SUBAGENT;
-		const vars = getTemplateVars({
-			cwd: "/repo",
-			hasUI: true,
-			tools: ["read"],
-		});
-
-		expect(vars).toMatchObject({
-			isMainAgent: true,
-			isSubagent: false,
-		});
-	});
-
-	it("marks delegated runtimes as subagents", () => {
-		process.env.PI_SUBAGENT = "1";
-		const vars = getTemplateVars({
-			cwd: "/repo",
-			hasUI: false,
-			tools: ["read"],
-		});
-
-		expect(vars).toMatchObject({
-			isMainAgent: false,
-			isSubagent: true,
-		});
-	});
-
 	it("lets overrides replace machine-derived vars", () => {
 		const vars = getTemplateVars(
 			{
@@ -112,7 +81,6 @@ describe("getTemplateVars", () => {
 			{
 				model: "claude-sonnet",
 				HOME: "/tmp/fake-home",
-				isMainAgent: false,
 			},
 		);
 
@@ -121,7 +89,6 @@ describe("getTemplateVars", () => {
 			model: "claude-sonnet",
 			cwd: "/repo",
 			hasUI: true,
-			isMainAgent: false,
 			tools: ["read", "write"],
 			HOME: "/tmp/fake-home",
 		});

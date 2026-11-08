@@ -23,7 +23,7 @@ Document how this package contributes model-facing prompt context: Pi core disco
 
 - **SPEC-006.B5:** Redefining Pi core prompt-building behavior beyond the extension contract this package relies on.
 - **SPEC-006.B6:** Specifying every line of generated prompt text.
-- **SPEC-006.B7:** Documenting subagent execution or project-structure snapshot mechanics in detail; those live in their extension READMEs/tests.
+- **SPEC-006.B7:** Documenting project-structure snapshot mechanics in detail; those live in the extension README/tests.
 
 ## SPEC-006.P5 2. Design Decisions
 
@@ -73,7 +73,7 @@ You are an expert coding assistant operating inside pi, a coding agent harness.
 
 If Pi supplies `systemPromptOptions.customPrompt`, the builder uses that text as the identity section instead.
 
-Tool rendering uses `systemPromptOptions.selectedTools` and `systemPromptOptions.toolSnippets`, including custom extension tools when Pi exposes snippets for them. Guidelines are rendered under the matching tool when possible; package-owned global response guidelines remain in a short general-guidelines list. The `subagent` tool is rendered last so its nested available-agent inventory stays adjacent to the tool that uses it.
+Tool rendering uses `systemPromptOptions.selectedTools` and `systemPromptOptions.toolSnippets`, including custom extension tools when Pi exposes snippets for them. Guidelines are rendered under the matching tool when possible; package-owned global response guidelines remain in a short general-guidelines list.
 
 ### SPEC-006.P9 3.3 Dynamic Template Phase
 
@@ -87,7 +87,6 @@ Template variables include:
 - **SPEC-006.B13:** provider/model/cwd/UI state
 - **SPEC-006.B14:** active tools at session startup
 - **SPEC-006.B15:** environment variables
-- **SPEC-006.B27:** `isMainAgent` / `isSubagent`, derived from `PI_SUBAGENT=1`
 - **SPEC-006.B16:** optional JSON overrides for a `--debug-prompt` materialization turn
 
 Rendered non-empty output is passed into the owned prompt builder as:
@@ -109,12 +108,6 @@ Template output is trimmed aggressively so conditional whitespace does not bloat
 `pi/extensions/messaging/project-structure/` sends the bounded repository tree as a displayed custom message with `customType="project-structure"`. Its content remains model-visible and XML-wrapped, but it is not appended to the system prompt. The TUI renderer shows only `Project tree sent to agent`.
 
 This is intentionally outside `system-prompt`: the project tree is volatile navigation context, not a stable operating instruction.
-
-### SPEC-006.P11 3.5 Subagent Prompt Contribution
-
-The `subagent` extension contributes the visible agent/swarm catalog during `before_agent_start`. Because `system-prompt` loads first, `subagent` inserts that catalog into the owned operating harness under the final `subagent` tool entry. A selected direct-agent prompt from `--agent <name>` still appends as `<system-reminder type="selected-agent-prompt">` for recency.
-
-Tool metadata registered through `promptSnippet` / `promptGuidelines` is surfaced through Pi's `systemPromptOptions` and rendered by the owned builder.
 
 ## SPEC-006.P12 4. Invariants
 

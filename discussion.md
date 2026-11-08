@@ -480,7 +480,7 @@ One new thing the evidence forced, and it tightens both your lint-precision cave
 
 I checked how archived features link RFCs. Two very different shapes:
 
-- **`batch-task-refs` (RFC-001)** — clean: a same-named archived feature, `PLAN-001.TC1` says "RFC-001 is accepted and council-approved." Single implementer. Should have been archived into `archive/26-06-24__batch-task-refs/rfcs/`. Clear orphan.
+- **`batch-task-refs` (RFC-001)** — clean: a same-named archived feature, `PLAN-001.TC1` says "RFC-001 is accepted and approved." Single implementer. Should have been archived into `archive/26-06-24__batch-task-refs/rfcs/`. Clear orphan.
 - **`task-query-dsl`** — messy: linked by **three** archived features (`stripped-task-api`, `daemon-query-registry`, `daemon-runtime`), **no** namesake implementer. Still sitting `Accepted` in active `rfcs/`.
 
 The second case is why your "avoid semantic inference" instinct is right — but it's deeper than name-matching being imprecise. devflow has **no way to express which feature _owns/implements_ an RFC versus merely _builds on_ it**: both use `**Related RFCs:**` / `**RFC:**`. So `task-query-dsl` is genuinely undecidable mechanically — it could be (a) implemented-and-orphaned, or (b) a _standing cross-cutting decision_ that legitimately stays in `rfcs/` because future features keep referencing it. Those want opposite actions (archive vs keep), and nothing in the schema distinguishes them.

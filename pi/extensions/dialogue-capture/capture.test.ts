@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-	agentTypeFromArgv,
 	buildRecord,
 	dialogueStateDir,
 	formatReport,
@@ -19,21 +18,6 @@ describe("dialogueStateDir", () => {
 	it("falls back to ~/.local/state when unset or blank", () => {
 		expect(dialogueStateDir({})).toMatch(/\.local\/state\/pi-dialogue$/);
 		expect(dialogueStateDir({ XDG_STATE_HOME: "  " })).toMatch(/\.local\/state\/pi-dialogue$/);
-	});
-});
-
-describe("agentTypeFromArgv", () => {
-	it("reads --agent with a separate value", () => {
-		expect(agentTypeFromArgv(["pi", "--agent", "main", "-p"])).toBe("main");
-	});
-
-	it("reads --agent=name", () => {
-		expect(agentTypeFromArgv(["pi", "--agent=scout"])).toBe("scout");
-	});
-
-	it("returns null when absent or the value is another flag", () => {
-		expect(agentTypeFromArgv(["pi", "-p", "hello"])).toBeNull();
-		expect(agentTypeFromArgv(["pi", "--agent", "--print"])).toBeNull();
 	});
 });
 
@@ -99,8 +83,6 @@ describe("buildRecord", () => {
 			session_id: "s1",
 			prompt_id: "p1",
 			cwd: "/repo",
-			agent_id: null,
-			agent_type: "main",
 			model: "openai/gpt-5.5",
 			thinking_level: "low",
 		} as const;
@@ -120,8 +102,6 @@ describe("formatReport", () => {
 		session_id: "s1",
 		prompt_id: "p1",
 		cwd: "/repo",
-		agent_id: null,
-		agent_type: null,
 		model: "openai/gpt-5.5",
 		thinking_level: "low",
 	} as const;

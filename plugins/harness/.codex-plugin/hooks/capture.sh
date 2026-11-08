@@ -55,8 +55,6 @@ record=$(printf '%s' "$payload" | jq -c '
     session_id: session_id,
     prompt_id: prompt_id,
     cwd: (.cwd // null),
-    agent_id: (.agent_id // .agentId // null),
-    agent_type: (.agent_type // .agentType // null),
     model: nullable(.model // ""),
     thinking_level: nullable(.thinking_level // .thinkingLevel // .effort.level // "")
   };
@@ -65,7 +63,7 @@ record=$(printf '%s' "$payload" | jq -c '
   elif event_name == "UserPromptSubmit" then
     envelope + {event: "prompt", text: text_prompt}
   elif event_name == "Stop" then
-    if (.agent_id // .agentId // null) != null or (reply_text // "") == "" then empty
+    if (reply_text // "") == "" then empty
     else envelope + {event: "reply", text: reply_text} end
   elif event_name == "PostToolUse" then
     envelope + {event: "file", tool: tool_name, file_path: file_path, command: command_text}
