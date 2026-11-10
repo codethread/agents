@@ -1,6 +1,6 @@
 # Repository lake
 
-This lake installs public Botlake runtime packages from npm. Install Bun and the matching `botlake` and `bl` CLIs; see [Botlake workspace setup](https://github.com/codethread/botlake/blob/main/docs/usage.md#packages-and-extension-selection). The shared private `ct-config` package is installed from its Bun-packed tarball; its public peers resolve through this lake's own `node_modules`. Prepare that archive through the Botlake checkout’s install task before installing the lake.
+This lake installs public Botlake runtime packages from npm. Install Bun and the matching `botlake` and `bl` CLIs; see [Botlake workspace setup](https://github.com/codethread/botlake/blob/main/docs/usage.md#packages-and-extension-selection). The shared `@botlake/extension-ct-config` preset is an ordinary npm dependency; its public peers resolve through this lake’s own `node_modules`.
 
 ```sh
 bun install --cwd .botlake --frozen-lockfile
