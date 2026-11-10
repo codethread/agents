@@ -12,6 +12,7 @@
 	"files": [
 		"pi/extensions",
 		"pi/themes",
+		"skillbox",
 		"plugins",
 		"pnpm-lock.yaml"
 	],
@@ -36,15 +37,12 @@
 			"./pi/extensions/messaging",
 			"./pi/extensions/cli"
 		],
-		"prompts": [
-			"./plugins/coding/commands",
-			"./plugins/harness/commands"
-		],
 		"skills": [
-			"./plugins/writing/skills",
-			"./plugins/repo-opinions/skills",
-			"./plugins/coding/skills",
-			"./plugins/harness/skills"
+			"./skillbox/dev",
+			"./skillbox/coding",
+			"./skillbox/writing",
+			"./skillbox/harness",
+			"./skillbox/devflow"
 		],
 		"themes": [
 			"./pi/themes"

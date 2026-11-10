@@ -1,37 +1,12 @@
 # Harness Plugin
 
-Session and harness affordances for Claude Code, Pi, and Codex: session introspection skills, benchmark orchestration, rich HTML responses, tmux workflows, and dialogue capture.
+Claude Code and Codex dialogue-capture hooks, plus Claude window-title hooks. Skill content and former slash commands are distributed separately through Skillbox; the plugin contains only hooks.
 
 ## Contents
 
-- `commands/bench.md` — benchmark a task across models, prompts, or both
-- `skills/claude-session-introspection/` — Claude Code `.jsonl` session forensics
-- `skills/codex-session-introspection/` — Codex dialogue/session forensics
-- `skills/pi-session-introspection/` — Pi session forensics
-- `skills/rich-response/` — render rich HTML responses and live browser questionnaires with Markdown answers, local/LAN/Tailscale links and a stable bookmark
-- `skills/tmux/` — durable terminal sessions for long-lived commands
-- `hooks/` — Claude Code dialogue-capture and window-title hooks (below)
+- `.claude-plugin/hooks/` — Claude Code dialogue-capture and window-title hooks (below)
 - `.codex-plugin/hooks/` — Codex dialogue-capture hooks (below)
 - `hooks-reference.md` — vendored copy of the official Claude Code hooks reference
-
-## Versioned session introspection
-
-Each introspection skill starts with `codex --version`, `claude --version`, or
-`pi --version`, then routes schema details and queries through a terse version
-table. Session metadata takes precedence when it identifies the writer version;
-otherwise assume the latest reference applies. Pi’s header format version is
-separate from its release version.
-
-For an unlisted version, verify the covered schema against actual records and
-matching source/types/docs. Add a no-change row pointing directly to an existing
-reference when compatible. When it differs, create a comprehensive version
-reference containing both retained and changed details, update the table, and
-commit the skill/reference changes in this agents repository. Keep directory
-lookup and debugging guidance in the main skills. The shared dialogue schema
-below is owned by this plugin independently of harness release versions.
-
-The Codex 0.165.0-alpha.1.2 reference covers the observed `final_answer` phase and
-realtime voice transcript records, including avoiding duplicated promoted speech.
 
 ## Dialogue capture hooks
 
@@ -41,7 +16,7 @@ Pi sessions get the same treatment from this repo's `pi/extensions/dialogue-capt
 
 The schema tables and queries below are the shared reference for all harness dialogue logs.
 
-`hooks/capture.sh` listens to four events and appends one JSON object per line to:
+`.claude-plugin/hooks/capture.sh` listens to four events and appends one JSON object per line to:
 
 ```text
 ${XDG_STATE_HOME:-$HOME/.local/state}/claude-dialogue/<session_id>.jsonl
@@ -114,7 +89,7 @@ rg -l --fixed-strings "\"cwd\":\"$PWD\"" "$DLG_DIR"/*.jsonl | xargs ls -t 2>/dev
 
 ### Caveats
 
-- **Forward-only**: sessions run before the plugin (or with it disabled) have no log; fall back to the `claude-session-introspection` skill for those.
+- **Forward-only**: sessions run before the plugin (or with it disabled) have no log; use the harness's native session transcript for those.
 - `reply` records come from the `Stop` hook, which does not fire on user interrupts — an interrupted turn has a `prompt` with no matching `reply`.
 - A Stop-blocking hook (e.g. a `/goal` condition) makes `Stop` fire once per attempted stop, so one `prompt` can have several `reply` records; only the last per `prompt_id` is the turn's final answer. Dedupe as in the Q&A query above.
 - `prompt` text is the raw submission: slash commands appear as typed (e.g. `/goal ...`), not expanded.
@@ -122,22 +97,22 @@ rg -l --fixed-strings "\"cwd\":\"$PWD\"" "$DLG_DIR"/*.jsonl | xargs ls -t 2>/dev
 - Codex capture is forward-only and does not parse `~/.codex/sessions`. Unsupported fields stay `null`; `reply` records are emitted only if the `Stop` hook payload contains final assistant text. There is no Codex `SessionEnd` hook in the current manual, so Codex logs `session_start` but not `session_end`.
 - Codex raw hook payload debugging: launch a fresh Codex process with `CODEX_DIALOGUE_CAPTURE_DEBUG=1`; raw payloads append to `${XDG_STATE_HOME:-$HOME/.local/state}/codex-dialogue/debug/raw.jsonl`.
 - The capture script never blocks a session: on any failure (missing `jq`, unwritable state dir) it exits 0 and drops the record.
-- Cost/token accounting is out of scope; use `ccusage` (see the `claude-session-introspection` skill).
+- Cost/token accounting is out of scope; use `ccusage`.
 
 ## Window-title hook
 
 Mirrors Pi's `pi/extensions/ui/tmux-window-title` for Claude Code: after the first user prompt in a session, name the tmux window (or terminal title bar) after the task.
 
-`hooks/window-title.sh` runs on `UserPromptSubmit`. On the first prompt it claims a per-session sentinel at:
+`.claude-plugin/hooks/window-title.sh` runs on `UserPromptSubmit`. On the first prompt it claims a per-session sentinel at:
 
 ```text
 ${XDG_STATE_HOME:-$HOME/.local/state}/claude-window-title/<session_id>.done
 ```
 
-so later prompts (and resume/reload) no-op. It captures the current tmux window id up front — so switching windows before the async worker returns can't retarget the rename — then detaches `hooks/window-title-apply.sh`, which asks a small child `claude` (`claude-sonnet-5-5-20251001`) for a terse 1–4 word label, kebab-cases it, and applies it via `tmux rename-window` (or an OSC title escape to `/dev/tty` when not in tmux). If the child model is unavailable it falls back to the first few words of the prompt.
+so later prompts (and resume/reload) no-op. It captures the current tmux window id up front — so switching windows before the async worker returns can't retarget the rename — then detaches `.claude-plugin/hooks/window-title-apply.sh`, which asks a small child `claude` (`claude-sonnet-5-5-20251001`) for a terse 1–4 word label, kebab-cases it, and applies it via `tmux rename-window` (or an OSC title escape to `/dev/tty` when not in tmux). If the child model is unavailable it falls back to the first few words of the prompt.
 
 The sentinel is claimed synchronously and the model call is detached, so prompt submission is never delayed. The worker sets `HARNESS_WINDOW_TITLE_CHILD=1` on the child; `window-title.sh` and `capture.sh` both short-circuit on that flag, so the throwaway child session neither recurses nor pollutes the dialogue log.
 
-`kebab_case` / `apply_title` are shared by both scripts via `hooks/window-title-lib.sh`.
+`kebab_case` / `apply_title` are shared by both scripts via `.claude-plugin/hooks/window-title-lib.sh`.
 
 **Debug:** launch Claude with `HARNESS_WINDOW_TITLE_DEBUG=1` to append derivation details to `…/claude-window-title/debug.log`.

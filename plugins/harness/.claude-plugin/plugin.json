@@ -1,6 +1,6 @@
 {
 	"name": "harness",
-	"description": "Session introspection skills and Claude dialogue-capture hooks.",
+	"description": "Dialogue-capture and window-title hooks for Claude Code.",
 	"hooks": {
 		"UserPromptSubmit": [
 			{

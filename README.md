@@ -1,15 +1,16 @@
 # agents
 
-An installable toolkit for Pi, Codex, and Claude Code. It ships Pi extensions, reusable Codex/Claude plugins, and themes.
+An installable toolkit for Pi, Codex, and Claude Code. It ships Skillbox bundles, Pi extensions and themes, and a hooks-only harness plugin.
 
 ## What is included
 
-| Path             | Consumer feature                                                                       |
-| ---------------- | -------------------------------------------------------------------------------------- |
-| `pi/extensions/` | Pi tools, messaging, prompt, CLI, and UI extensions                                    |
-| `pi/themes/`     | Rose Pine themes for Pi                                                                |
-| `plugins/`       | Coding, devflow, harness, repo-opinions, and writing plugins for Codex and Claude Code |
-| `.pi/`           | Project-local configuration used only while developing this repository                 |
+| Path               | Consumer feature                                                           |
+| ------------------ | -------------------------------------------------------------------------- |
+| `pi/extensions/`   | Pi tools, messaging, prompt, CLI, and UI extensions                        |
+| `pi/themes/`       | Rose Pine themes for Pi                                                    |
+| `skillbox/`        | Repository-local skill bundles, including user-invoked workflow commands   |
+| `plugins/harness/` | Claude Code and Codex dialogue-capture hooks and Claude window-title hooks |
+| `.pi/`             | Project-local configuration used only while developing this repository     |
 
 ## Install the Pi package
 
@@ -28,7 +29,7 @@ Or install from GitHub:
 pi install git:github.com/codethread/agents
 ```
 
-Pi reads the package resources declared in `package.json#pi`.
+Pi reads the package resources declared in `package.json#pi`, including the source bundles under `skillbox/`. Do not also install those same bundles into a Pi workspace unless you disable the package's skills there to avoid duplicate discovery.
 
 The package includes:
 
@@ -53,27 +54,47 @@ The light theme comes first. Pi switches palettes when the terminal reports an
 appearance change; the shared `color-theme` sentinel is no longer used. This
 checkout selects the pair in its project settings, without changing global settings.
 
-## Install the Codex plugins
+## Install project skills with Skillbox
 
-Add this checkout as a local Codex marketplace:
+Run from a consuming project:
+
+```bash
+bunx @codethread/skillbox add codethread/agents dev coding writing harness
+# Optional planning and AFK workflows; install coding alongside devflow.
+bunx @codethread/skillbox add codethread/agents devflow
+```
+
+For an unpublished local checkout, use its repository root instead:
+
+```bash
+bunx @codethread/skillbox add /absolute/path/to/agents dev coding writing harness devflow
+```
+
+| Bundle    | Contents                                                                                |
+| --------- | --------------------------------------------------------------------------------------- |
+| `dev`     | TypeScript and repository documentation conventions                                     |
+| `coding`  | Git workflows, robustness, worktree cleanup, and code cleanup                           |
+| `writing` | Agent-context audits, agent-facing CLI design, Mermaid, and agent instruction authoring |
+| `harness` | Session introspection, benchmarks, rich responses, and tmux workflows                   |
+| `devflow` | Planning lifecycle, user-invoked stages, and AFK automation                             |
+
+Skillbox copies skills and their supporting files into `.agents/skills/` and links `.claude/skills` to it. Commit `skillbox/config.json` and `skillbox/lock.json` in the consuming project; restore with `bunx @codethread/skillbox sync`. It rejects existing unmanaged skill directories rather than overwriting them. Keep source changes in this repository's bundles, not in generated client copies.
+
+Former slash commands are user-invoked skills: Claude Code uses `/<name>`, Pi uses `/skill:<name>`, and Codex uses `$<name>`. In Pi, trust/approve the consuming project to enable project-local skill discovery. Repeated hyphens in the old `flow-*` names are now single hyphens (for example, `flow-init-afk`). The duplicate cleanup/router commands are named `declutter-session` and `devflow-start`; the original general-purpose entrypoints remain available. See [Devflow](docs/devflow.md) for planning and AFK usage.
+
+## Harness hooks
+
+Skillbox distributes skill files, not hooks. The existing `harness` plugin remains for Claude Code and Codex; all skills-only plugins have been removed from the marketplaces. Retire the old coding, devflow, writing, and repo-opinions plugin installations in your harness when adopting the bundles. Update the harness plugin to its hooks-only version rather than removing it if you still want dialogue capture or window titles.
+
+For Codex, add this checkout as a local marketplace and enable its `harness` plugin through Codex's plugin interface:
 
 ```bash
 codex plugin marketplace add /absolute/path/to/agents
 ```
 
-The marketplace exposes these plugin packages:
-
-- `plugins/coding/` — git workflows, worktree cleanup, robustness, testing, and code cleanup;
-- `plugins/devflow/` — RFC, spec, plan, task, and iterative development workflows;
-- `plugins/harness/` — session introspection, dialogue capture, tmux, benchmarks, and rich responses;
-- `plugins/writing/` — agent-context audits, agent-facing CLI design, Mermaid, and reusable skill authoring guidance.
-- `plugins/repo-opinions/` — opinionated repository documentation conventions.
-
-Codex does not directly run Pi extensions. Those capabilities need Codex-native skills, hooks, MCP servers, or apps.
+The Claude marketplace likewise exposes only `harness`. See the [hook reference](plugins/harness/README.md) for behavior and log schema. Codex does not directly run Pi extensions.
 
 ## Development
-
-Skill intent and design rationale live in [`docs/skills/`](docs/skills/), one document per skill. Read the matching document before changing a skill and maintain it alongside intentional changes in behavior.
 
 Use Node 24 and pnpm. The complete check formats only after lint, typechecking, and tests succeed:
 

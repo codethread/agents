@@ -34,12 +34,12 @@ const baseInput: PromptInput = {
 		{
 			name: "writing-tests",
 			description: "Use when adding or changing tests.",
-			filePath: "/repo/plugins/coding/skills/writing-tests/SKILL.md",
+			filePath: "/repo/.agents/skills/writing-tests/SKILL.md",
 		},
 		{
 			name: "hidden",
 			description: "Not model visible.",
-			filePath: "/repo/plugins/hidden/SKILL.md",
+			filePath: "/repo/.agents/skills/hidden/SKILL.md",
 			disableModelInvocation: true,
 		},
 	],
@@ -98,7 +98,7 @@ describe("prompt-builder renderers", () => {
 			  <skill>
 			    <name>writing-tests</name>
 			    <description>Use when adding or changing tests.</description>
-			    <location>/repo/plugins/coding/skills/writing-tests/SKILL.md</location>
+			    <location>/repo/.agents/skills/writing-tests/SKILL.md</location>
 			  </skill>
 			</available_skills>"
 		`);
@@ -162,7 +162,7 @@ describe("buildSystemPrompt", () => {
 			  <skill>
 			    <name>writing-tests</name>
 			    <description>Use when adding or changing tests.</description>
-			    <location>/repo/plugins/coding/skills/writing-tests/SKILL.md</location>
+			    <location>/repo/.agents/skills/writing-tests/SKILL.md</location>
 			  </skill>
 			</available_skills>
 
