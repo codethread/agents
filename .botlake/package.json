@@ -12,29 +12,21 @@
 			"./.botlake/src/agents.ts",
 			"./.botlake/src/priming.ts",
 			"./.botlake/src/work.ts",
-			"./.botlake/src/work-agents.ts"
-		]
+			"./.botlake/src/work-agents.ts",
+			"@botlake/extension-ui"
+		],
+		"minimumCore": "0.2.0"
 	},
 	"dependencies": {
-		"@botlake/core": "file:../../botlake/packages/core",
-		"@botlake/native-session": "file:../../botlake/packages/native-session",
-		"@botlake/extension-batteries": "file:../../botlake/extensions/batteries",
-		"@botlake/extension-identity": "file:../../botlake/extensions/identity",
-		"@botlake/extension-flags": "file:../../botlake/extensions/flags",
-		"@botlake/extension-references": "file:../../botlake/extensions/references",
-		"@botlake/extension-agents": "file:../../botlake/extensions/agents",
-		"@botlake/extension-work": "file:../../botlake/extensions/work",
-		"@botlake/extension-work-agents": "file:../../botlake/extensions/work-agents",
-		"ct-config": "file:../../botlake/extensions/ct-config"
-	},
-	"overrides": {
-		"@botlake/core": "file:../../botlake/packages/core",
-		"@botlake/native-session": "file:../../botlake/packages/native-session",
-		"@botlake/extension-identity": "file:../../botlake/extensions/identity",
-		"@botlake/extension-flags": "file:../../botlake/extensions/flags",
-		"@botlake/extension-references": "file:../../botlake/extensions/references",
-		"@botlake/extension-agents": "file:../../botlake/extensions/agents",
-		"@botlake/extension-work": "file:../../botlake/extensions/work",
-		"@botlake/extension-work-agents": "file:../../botlake/extensions/work-agents"
+		"@botlake/core": "latest",
+		"@botlake/native-session": "latest",
+		"@botlake/extension-batteries": "latest",
+		"@botlake/extension-identity": "latest",
+		"@botlake/extension-flags": "latest",
+		"@botlake/extension-references": "latest",
+		"@botlake/extension-agents": "latest",
+		"@botlake/extension-work": "latest",
+		"@botlake/extension-work-agents": "latest",
+		"@botlake/extension-ui": "latest"
 	}
 }

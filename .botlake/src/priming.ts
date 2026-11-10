@@ -1,1 +1,1 @@
-export { priming as default } from "ct-config";
+export { priming as default } from "./ct-config/index.ts";
