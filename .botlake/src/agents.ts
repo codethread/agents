@@ -1,1 +1,1 @@
-export { agents as default } from "./ct-config/index.ts";
+export { agents as default } from "ct-config";

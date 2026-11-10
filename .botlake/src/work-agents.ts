@@ -1,1 +1,1 @@
-export { workAgents as default } from "./ct-config/index.ts";
+export { workAgents as default } from "ct-config";

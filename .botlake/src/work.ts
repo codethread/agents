@@ -1,1 +1,1 @@
-export { work as default } from "./ct-config/index.ts";
+export { work as default } from "ct-config";

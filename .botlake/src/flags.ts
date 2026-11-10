@@ -1,1 +1,1 @@
-export { flags as default } from "./ct-config/index.ts";
+export { flags as default } from "ct-config";
