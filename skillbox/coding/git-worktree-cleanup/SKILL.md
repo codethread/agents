@@ -1,5 +1,5 @@
 ---
-name: worktree-cleanup
+name: git-worktree-cleanup
 description: Audit and remove merged or superseded Git worktrees.
 ---
 

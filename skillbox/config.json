@@ -1,0 +1,8 @@
+{
+	"sources": [
+		{
+			"source": ".",
+			"bundles": ["coding", "dev", "harness", "projects", "writing"]
+		}
+	]
+}

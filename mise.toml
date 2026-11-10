@@ -1,4 +1,5 @@
 [tasks.default]
 run = '''
 pnpm install --frozen-lockfile
+pnpm exec skillbox sync
 '''

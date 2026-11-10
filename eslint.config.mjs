@@ -5,7 +5,13 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
 	{
-		ignores: [".git/**", ".worktrees/**", ".claude/skills/**", "**/node_modules/**"],
+		ignores: [
+			".git/**",
+			".worktrees/**",
+			".agents/skills/**",
+			".claude/skills/**",
+			"**/node_modules/**",
+		],
 	},
 	js.configs.recommended,
 	...tseslint.configs.recommended,

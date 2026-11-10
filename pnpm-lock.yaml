@@ -37,6 +37,9 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      "@codethread/skillbox":
+        specifier: ^0.1.1
+        version: 0.1.1
       "@earendil-works/pi-agent-core":
         specifier: 1.5.0
         version: 1.5.0(@aws-sdk/credential-provider-node@3.972.82)(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(@smithy/signature-v4@5.7.3)(undici@8.12.3)(ws@8.21.3)(zod@4.3.6)
@@ -251,6 +254,14 @@ packages:
         integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==,
       }
     engines: { node: ">=6.9.0" }
+
+  "@codethread/skillbox@0.1.1":
+    resolution:
+      {
+        integrity: sha512-maC8nOscGEQThELzeFG0nEpWA98iPVRWVVWF53V8pyXrAMmR3UXhUETpYrfyzmVZBjETmDu5MIb28LPJR3qArA==,
+      }
+    engines: { node: ">=22.20.0" }
+    hasBin: true
 
   "@earendil-works/pi-agent-core@1.5.0":
     resolution:
@@ -3704,6 +3715,8 @@ snapshots:
   "@aws/lambda-invoke-store@0.3.0": {}
 
   "@babel/runtime@7.29.2": {}
+
+  "@codethread/skillbox@0.1.1": {}
 
   "@earendil-works/pi-agent-core@1.5.0(@aws-sdk/credential-provider-node@3.972.82)(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(@smithy/signature-v4@5.7.3)(undici@8.12.3)(ws@8.21.3)(zod@4.3.6)":
     dependencies:

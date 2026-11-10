@@ -70,17 +70,18 @@ For an unpublished local checkout, use its repository root instead:
 bunx @codethread/skillbox add /absolute/path/to/agents dev coding writing harness devflow
 ```
 
-| Bundle    | Contents                                                                                |
-| --------- | --------------------------------------------------------------------------------------- |
-| `dev`     | TypeScript and repository documentation conventions                                     |
-| `coding`  | Git workflows, robustness, worktree cleanup, and code cleanup                           |
-| `writing` | Agent-context audits, agent-facing CLI design, Mermaid, and agent instruction authoring |
-| `harness` | Session introspection, benchmarks, rich responses, and tmux workflows                   |
-| `devflow` | Planning lifecycle, user-invoked stages, and AFK automation                             |
+| Bundle     | Contents                                                                                  |
+| ---------- | ----------------------------------------------------------------------------------------- |
+| `dev`      | TypeScript and repository documentation conventions                                       |
+| `coding`   | Git workflows, robustness, worktree cleanup, and code cleanup                             |
+| `writing`  | Agent-context audits, agent-facing CLI design, Mermaid, and agent instruction authoring   |
+| `harness`  | Browser automation, session introspection, benchmarks, rich responses, and tmux workflows |
+| `projects` | GitHub project guidance                                                                   |
+| `devflow`  | Planning lifecycle, user-invoked stages, and AFK automation                               |
 
 Skillbox copies skills and their supporting files into `.agents/skills/` and links `.claude/skills` to it. Commit `skillbox/config.json` and `skillbox/lock.json` in the consuming project; restore with `bunx @codethread/skillbox sync`. It rejects existing unmanaged skill directories rather than overwriting them. Keep source changes in this repository's bundles, not in generated client copies.
 
-Former slash commands are user-invoked skills: Claude Code uses `/<name>`, Pi uses `/skill:<name>`, and Codex uses `$<name>`. In Pi, trust/approve the consuming project to enable project-local skill discovery. Repeated hyphens in the old `flow-*` names are now single hyphens (for example, `flow-init-afk`). The duplicate cleanup/router commands are named `declutter-session` and `devflow-start`; the original general-purpose entrypoints remain available. See [Devflow](docs/devflow.md) for planning and AFK usage.
+Former slash commands are user-invoked skills: Claude Code uses `/<name>`, Pi uses `/skill:<name>`, and Codex uses `$<name>`. In Pi, trust/approve the consuming project to enable project-local skill discovery. Related commands use domain-first names so they group together in skill pickers: `session-introspection-{claude,codex,pi}` and `git-{commit,worktree-cleanup}`. Repeated hyphens in the old `flow-*` names are now single hyphens (for example, `flow-init-afk`). Use `declutter` for session cleanup, including harvesting durable outcomes before removing completed plan/task artifacts. The workflow router is named `devflow-start`. See [Devflow](docs/devflow.md) for planning and AFK usage.
 
 ## Harness hooks
 
@@ -95,6 +96,8 @@ codex plugin marketplace add /absolute/path/to/agents
 The Claude marketplace likewise exposes only `harness`. See the [hook reference](plugins/harness/README.md) for behavior and log schema. Codex does not directly run Pi extensions.
 
 ## Development
+
+This checkout's `skillbox/config.json` selects its own local bundles (`source: "."`): `coding`, `dev`, `harness`, `projects`, and `writing`, excluding `devflow`. The matching `skillbox/lock.json` records the 19 selected skills, including `agent-browser`, migrated into the `harness` bundle from the former `npx skills` installation. Restore them with `pnpm exec skillbox sync`; edit the source bundles rather than installed copies. Generated `.agents/skills/` copies and the `.claude/skills` symlink are ignored by Git; quality checks exclude the installed copies. The symlink points to `.agents/skills/`. The old root `skills-lock.json` is no longer used.
 
 Use Node 24 and pnpm. The complete check formats only after lint, typechecking, and tests succeed:
 

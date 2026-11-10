@@ -361,7 +361,7 @@ Update `lastRun` and prompt paths to the new run directory.
 
 Inspect the source code in each worktree to measure quality against the user's original request.
 
-For **Pi** entries, use the `pi-session-introspection` skill to analyze `~/.pi/agent/bench-sessions/<run-id>/` session files.
+For **Pi** entries, use the `session-introspection-pi` skill to analyze `~/.pi/agent/bench-sessions/<run-id>/` session files.
 
 For **Claude** and **Codex** entries, do **not** inspect internal transcripts, agent logs, or hidden reasoning to judge solution quality. Treat them as black-box runs: evaluate only the produced diff, stdout/stderr, exit code, and verification results. For Claude, it is acceptable to inspect persisted JSONL for operational metrics only (session id, duration, turns, tool counts/errors, token usage, cost when present); filter out thinking/transcript content from qualitative evaluation.
 
@@ -436,7 +436,7 @@ CLAUDE_SESSION_ID="$(cat "$SESSION_DIR/$slug.claude-session-id")"
 CLAUDE_SESSION="$(fd "$CLAUDE_SESSION_ID.jsonl" "$HOME/.claude/projects" | head -1)"
 ```
 
-Use Claude's JSONL for operational metrics only. Do not use hidden reasoning/transcript content to judge solution quality. The snippets below cover the standard bench metrics; for anything deeper (schema caveats, multi-row assistant messages, `toolUseResult` shapes) load the `claude-session-introspection` skill instead of improvising jq. For cost, defer to ccusage (`bunx ccusage session --json`, fallback `npx -y ccusage`) rather than the `--output-format json` stdout when comparing across runs.
+Use Claude's JSONL for operational metrics only. Do not use hidden reasoning/transcript content to judge solution quality. The snippets below cover the standard bench metrics; for anything deeper (schema caveats, multi-row assistant messages, `toolUseResult` shapes) load the `session-introspection-claude` skill instead of improvising jq. For cost, defer to ccusage (`bunx ccusage session --json`, fallback `npx -y ccusage`) rather than the `--output-format json` stdout when comparing across runs.
 
 ```bash
 # Metadata

@@ -3,3 +3,5 @@ node_modules/
 .pi/bench-matrix.json
 .botlake/world.db*
 .botlake/vendor/
+.agents/skills/
+.claude/skills

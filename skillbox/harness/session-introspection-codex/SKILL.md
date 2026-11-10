@@ -1,5 +1,5 @@
 ---
-name: codex-session-introspection
+name: session-introspection-codex
 description: >
   Practical Codex session forensics quickstart. Use when the user wants to
   inspect Codex dialogue logs captured by this repo's harness Codex hooks,
@@ -46,7 +46,7 @@ an empty result as missing activity.
   do not claim compatibility from a version number alone. Update the table and
   latest-reference marker when applicable. Preserve references for older sessions.
 - Make these updates in the source skills under
-  `~/dev/projects/agents/skillbox/harness/codex-session-introspection/`,
+  `~/dev/projects/agents/skillbox/harness/session-introspection-codex/`,
   not a generated skill installation. Follow that repository’s instructions, validate
   the changes, and **commit the updated skill, reference, and related docs in the
   agents repository** as part of the introspection work.

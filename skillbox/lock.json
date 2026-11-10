@@ -1,0 +1,119 @@
+{
+	"version": 1,
+	"skills": {
+		"agent-browser": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "dd491d53824ad9286ec950aee667098446332429a6d41fe28b4ba11f1959264c",
+			"installMode": "copy"
+		},
+		"agent-clis": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "2a479b16c1716f780a37cd228c0a1ac8ce04180be3c45d006d8673847f4e5a3d",
+			"installMode": "copy"
+		},
+		"agent-docs-hotpath": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "d3b1fb4b11b810d915a0e2740081bd9f6b6078960d2b2b0407ef8883a8647909",
+			"installMode": "copy"
+		},
+		"bench": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "f91947f890768cf4b80e1bb72082c8d8db0bc438630a25254d562a585272b569",
+			"installMode": "copy"
+		},
+		"declutter": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "a2f10372267712c3e807afb94cf7079c22c1fcb0e502e35842a7ee98dc13b1b4",
+			"installMode": "copy"
+		},
+		"docs-styleguide": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "e2db75d6394726c3d99a734ecb14455f9d354ba183e549b48f46bfc864945f70",
+			"installMode": "copy"
+		},
+		"git-commit": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "1672f34e333aef02a631ac52edb1967967f80d3eff61e63f462cd5a3b81d380f",
+			"installMode": "copy"
+		},
+		"git-worktree-cleanup": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "95a041caebcc478bcc4b8eea4f8bef85bdb054c4fd5ec1bd7c86f69aa7eaf757",
+			"installMode": "copy"
+		},
+		"github": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "7f7dcca695f668fb8b422e39277068a1a01d11a5b0f80c266c1a7390d33a595c",
+			"installMode": "copy"
+		},
+		"mermaid": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "ee8d17fa5cd9f5b4f64ff358be486d84b65beb57647716c9059df8fe6073e195",
+			"installMode": "copy"
+		},
+		"purge": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "7d89e2771e866dd7e863df41338e1e39be39e35e05704d23d26f140cd31925af",
+			"installMode": "copy"
+		},
+		"rich-response": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "1c74403966d4cc3d96dd97d05b5ccf2b8de3bfe9c5504c002103d7b07418ffe6",
+			"installMode": "copy"
+		},
+		"robustness": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "0fa8f1a6c27bf1eb696ba0668b185672a40781c2cc6b7778df7e748da4ada694",
+			"installMode": "copy"
+		},
+		"session-introspection-claude": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "64122e8a23b14074d46c28968889028f35f89802a51f75009323620cb5f82f4b",
+			"installMode": "copy"
+		},
+		"session-introspection-codex": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "35ff8d6754857a9802a8bb0a432962e33d9d4d771bd69c41070921668c3ed124",
+			"installMode": "copy"
+		},
+		"session-introspection-pi": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "0e31cedb809c73f64d9038ec1706766389a5a1eb4d9540eed99bbe8351578512",
+			"installMode": "copy"
+		},
+		"tmux": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "cd206f1d9637ef6901c4386ab576eac4d02d47db91450f2e367d69d809d6cb3d",
+			"installMode": "copy"
+		},
+		"typescript": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "d5f46473717b19ac03e4da4da5d65fce74d4b4af6bff5475134cca32809f165d",
+			"installMode": "copy"
+		},
+		"writing-for-agents": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "387990a9c20828858e213441f5fdf56f2d74ff078510260db296951e275f3452",
+			"installMode": "copy"
+		}
+	}
+}

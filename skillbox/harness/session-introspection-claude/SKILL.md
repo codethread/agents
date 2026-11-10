@@ -1,5 +1,5 @@
 ---
-name: claude-session-introspection
+name: session-introspection-claude
 description: >
   Practical Claude Code session forensics quickstart. Use when the user wants to
   inspect Claude Code .jsonl session transcripts, locate a session from a message
@@ -49,7 +49,7 @@ an empty result as missing activity.
   do not claim compatibility from a version number alone. Update the table and
   latest-reference marker when applicable. Preserve references for older sessions.
 - Make these updates in the source skills under
-  `~/dev/projects/agents/skillbox/harness/claude-session-introspection/`,
+  `~/dev/projects/agents/skillbox/harness/session-introspection-claude/`,
   not a generated skill installation. Follow that repository’s instructions, validate
   the changes, and **commit the updated skill, reference, and related docs in the
   agents repository** as part of the introspection work.
