@@ -37,13 +37,6 @@
 			"./pi/extensions/messaging",
 			"./pi/extensions/cli"
 		],
-		"skills": [
-			"./skillbox/dev",
-			"./skillbox/coding",
-			"./skillbox/writing",
-			"./skillbox/harness",
-			"./skillbox/devflow"
-		],
 		"themes": [
 			"./pi/themes"
 		]
