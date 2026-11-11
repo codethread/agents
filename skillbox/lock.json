@@ -25,6 +25,12 @@
 			"computedHash": "f91947f890768cf4b80e1bb72082c8d8db0bc438630a25254d562a585272b569",
 			"installMode": "copy"
 		},
+		"codebase-design": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "b9b9081b45c2623311f0bd8681f69e927f2f9b69ad0397ad1531ee72b1c2b30c",
+			"installMode": "copy"
+		},
 		"declutter": {
 			"source": "./skillbox",
 			"sourceType": "local",
@@ -53,6 +59,12 @@
 			"source": "./skillbox",
 			"sourceType": "local",
 			"computedHash": "7f7dcca695f668fb8b422e39277068a1a01d11a5b0f80c266c1a7390d33a595c",
+			"installMode": "copy"
+		},
+		"io-dependency-seams": {
+			"source": "./skillbox",
+			"sourceType": "local",
+			"computedHash": "e3e27aa7f1502b6243898cda6fa6d323e41d89c69245c60f48aa53c172355a9e",
 			"installMode": "copy"
 		},
 		"mermaid": {
