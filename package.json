@@ -49,7 +49,7 @@
 		"@sinclair/typebox": "*"
 	},
 	"devDependencies": {
-		"@codethread/skillbox": "^0.1.1",
+		"@codethread/skillbox": "^0.2.1",
 		"@earendil-works/pi-agent-core": "1.5.0",
 		"@earendil-works/pi-ai": "1.5.0",
 		"@earendil-works/pi-coding-agent": "1.5.0",
