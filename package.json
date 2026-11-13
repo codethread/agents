@@ -14,16 +14,23 @@
 		"pi/themes",
 		"skillbox",
 		"plugins",
+		"CHANGELOG.md",
+		"changelog.json",
 		"pnpm-lock.yaml"
 	],
 	"packageManager": "pnpm@10.33.0",
 	"scripts": {
-		"format": "prettier --write .",
-		"lint": "eslint .",
-		"lint:fix": "eslint . --fix",
-		"typecheck": "tsc --noEmit",
+		"format": "prettier --write . .botlake/README.md .botlake/lake.ts .botlake/src",
+		"lint": "eslint . .botlake",
+		"lint:fix": "eslint . .botlake --fix",
+		"typecheck:extensions": "tsc --noEmit -p tsconfig.pi.json",
+		"typecheck:lake": "tsc --noEmit -p tsconfig.json",
+		"typecheck": "pnpm typecheck:extensions && pnpm typecheck:lake",
 		"test": "vitest run",
-		"check": "pnpm lint && pnpm typecheck && pnpm test && pnpm format",
+		"changelog": "bun run scripts/changelog.ts",
+		"changelog:generate": "bun run scripts/generate-changelog.ts --write",
+		"changelog:check": "bun run scripts/generate-changelog.ts --check",
+		"check": "pnpm lint && pnpm typecheck && pnpm test && pnpm format && pnpm changelog:check",
 		"verify": "pnpm check",
 		"prepare": "husky"
 	},
@@ -49,6 +56,7 @@
 		"@sinclair/typebox": "*"
 	},
 	"devDependencies": {
+		"@codethread/cli-changelog": "github:codethread/cli-changelog#c457e0a28686ce6349ce0956b1375635d53148d8",
 		"@codethread/skillbox": "^0.2.1",
 		"@earendil-works/pi-agent-core": "1.5.0",
 		"@earendil-works/pi-ai": "1.5.0",
@@ -56,6 +64,7 @@
 		"@earendil-works/pi-tui": "1.5.0",
 		"@eslint/js": "^9.39.5",
 		"@gaodes/pi-test-harness": "^1.0.3",
+		"@types/bun": "1.4.4",
 		"@types/ms": "^2.1.0",
 		"@types/node": "^24.19.2",
 		"@types/nunjucks": "^3.2.6",
@@ -82,7 +91,7 @@
 		"zod": "^4.6.7"
 	},
 	"volta": {
-		"node": "24.15.0",
-		"pnpm": "11.5.2"
+		"node": "24.21.0",
+		"pnpm": "10.33.0"
 	}
 }

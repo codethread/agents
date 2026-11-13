@@ -1,5 +1,21 @@
-[tasks.default]
+[tools]
+node = "24.21.0"
+pnpm = "10.33.0"
+bun = "1.4.2"
+
+# Repository bootstrap must not install unrelated global tools.
+[settings]
+enable_tools = ["bun", "node", "pnpm"]
+
+[tasks.bootstrap]
+alias = "default"
+description = "Install project and lake dependencies, hooks, and generated skills"
 run = '''
 pnpm install --frozen-lockfile
+bun install --cwd .botlake --frozen-lockfile
 pnpm exec skillbox sync
 '''
+
+[tasks.lake-start]
+description = "Start this lake in an already running Botlake supervisor"
+run = 'botlake lake start --workspace "{{ config_root }}"'

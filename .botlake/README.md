@@ -2,12 +2,15 @@
 
 This lake installs public Botlake runtime packages from npm. Install Bun and the matching `botlake` and `bl` CLIs; see [Botlake workspace setup](https://github.com/codethread/botlake/blob/main/docs/usage.md#packages-and-extension-selection). The shared `@botlake/extension-ct-config` preset is an ordinary npm dependency; its public peers resolve through this lake’s own `node_modules`.
 
+From the repository root, `mise run` installs the root pnpm dependencies and this lake's separate Bun dependencies. For a lake-only reinstall, run `bun install --cwd .botlake --frozen-lockfile`.
+
+The bootstrap does not start Botlake processes. With a supervisor already running, activate this lake explicitly when needed, then inspect its loaded extensions and commands:
+
 ```sh
-bun install --cwd .botlake --frozen-lockfile
-# If no supervisor is running, run `botlake start` in another terminal.
-botlake lake start
-bl help
-bl work list --view all --state all
+botlake lake start --workspace "$(pwd)"
+botlake lake info --workspace "$(pwd)"
+bl --workspace "$(pwd)" help
+bl --workspace "$(pwd)" work list --view all --state all
 ```
 
 The manifest selects Batteries, Identity, UI, and the local flags, references, agents, priming, Work, and Work–Agents descriptors. The shared reference binding serves both Work and Agents; Work–Agents checks managed assignment liveness every 60 seconds. Selecting UI registers its commands but does not start a dashboard server. Configuration alone does not launch agents.

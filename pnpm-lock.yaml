@@ -37,6 +37,9 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
+      "@codethread/cli-changelog":
+        specifier: github:codethread/cli-changelog#c457e0a28686ce6349ce0956b1375635d53148d8
+        version: https://codeload.github.com/codethread/cli-changelog/tar.gz/c457e0a28686ce6349ce0956b1375635d53148d8(zod@4.6.7)
       "@codethread/skillbox":
         specifier: ^0.2.1
         version: 0.2.1
@@ -58,6 +61,9 @@ importers:
       "@gaodes/pi-test-harness":
         specifier: ^1.0.3
         version: 1.0.3(patch_hash=df64e06f5b36beb228e0b6fe8cfa126b3b31ea79805cac2220a94a19651842ee)(@earendil-works/pi-agent-core@1.5.0(@aws-sdk/credential-provider-node@3.972.96)(@modelcontextprotocol/sdk@1.29.0(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.22.2)(zod@4.6.7))(@earendil-works/pi-ai@1.5.0(@aws-sdk/credential-provider-node@3.972.96)(@modelcontextprotocol/sdk@1.29.0(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.22.2)(zod@4.6.7))(@earendil-works/pi-coding-agent@1.5.0(@aws-sdk/credential-provider-node@3.972.96)(@modelcontextprotocol/sdk@1.29.0(zod@4.6.7))(@smithy/signature-v4@5.7.5)(ws@8.22.2)(zod@4.6.7))
+      "@types/bun":
+        specifier: 1.4.4
+        version: 1.4.4
       "@types/ms":
         specifier: ^2.1.0
         version: 2.1.0
@@ -254,6 +260,16 @@ packages:
         integrity: sha512-v+oN26xP4YIlQsbQ/CbTH1WG5m/l/DjKKZNy/Kp3f/AFvbgt7Em/D0FeMM3O2hX0YzeN2M16W8lOpyhIkfCBcQ==,
       }
     engines: { node: ">=6.9.0" }
+
+  "@codethread/cli-changelog@https://codeload.github.com/codethread/cli-changelog/tar.gz/c457e0a28686ce6349ce0956b1375635d53148d8":
+    resolution:
+      {
+        tarball: https://codeload.github.com/codethread/cli-changelog/tar.gz/c457e0a28686ce6349ce0956b1375635d53148d8,
+      }
+    version: 0.1.1
+    hasBin: true
+    peerDependencies:
+      zod: ^4.6.5
 
   "@codethread/skillbox@0.2.1":
     resolution:
@@ -1037,6 +1053,12 @@ packages:
         integrity: sha512-W3c4gRigFS0T/Ma4qIYF3GDAc5AQdHb1yL5znJT1Zv1YaD9Kitx656wBjvr19qbiosmZT8lWDM5BEMynUqX65A==,
       }
 
+  "@types/bun@1.4.4":
+    resolution:
+      {
+        integrity: sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ==,
+      }
+
   "@types/chai@5.2.3":
     resolution:
       {
@@ -1384,6 +1406,12 @@ packages:
     resolution:
       {
         integrity: sha512-zRpUiDwd/xk6ADqPMATG8vc9VPrkck7T07OIx0gnjmJAnHnTVXNQG3vfvWNuiZIkwu9KrKdA1iJKfsfTVxE6NA==,
+      }
+
+  bun-types@1.4.4:
+    resolution:
+      {
+        integrity: sha512-yjrJh5oGX7mMPKGd19YXyIjmEuj4G4zNC30bs7PM9Az7NQ3ndF3j6hbeRdvJTRQEhJ/FYQwW0a2moweEi2hMxQ==,
       }
 
   bytes@3.1.2:
@@ -3592,6 +3620,10 @@ snapshots:
 
   "@babel/runtime@7.29.13": {}
 
+  "@codethread/cli-changelog@https://codeload.github.com/codethread/cli-changelog/tar.gz/c457e0a28686ce6349ce0956b1375635d53148d8(zod@4.6.7)":
+    dependencies:
+      zod: 4.6.7
+
   "@codethread/skillbox@0.2.1": {}
 
   "@earendil-works/pi-agent-core@1.5.0(@aws-sdk/credential-provider-node@3.972.96)(@modelcontextprotocol/sdk@1.29.0(zod@4.6.7))(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.22.2)(zod@4.6.7)":
@@ -4033,6 +4065,10 @@ snapshots:
       tslib: 2.9.1
     optional: true
 
+  "@types/bun@1.4.4":
+    dependencies:
+      bun-types: 1.4.4
+
   "@types/chai@5.2.3":
     dependencies:
       "@types/deep-eql": 4.0.2
@@ -4273,6 +4309,11 @@ snapshots:
       balanced-match: 4.0.4
 
   buffer-equal-constant-time@1.0.1: {}
+
+  bun-types@1.4.4:
+    dependencies:
+      "@types/node": 24.19.2
+      undici-types: 7.24.6
 
   bytes@3.1.2:
     optional: true
