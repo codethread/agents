@@ -7,11 +7,11 @@ import agents from "./src/agents.ts";
 import priming from "./src/priming.ts";
 import work from "./src/work.ts";
 import workAgents from "./src/work-agents.ts";
-import uiExtension from "@botlake/extension-ui";
+import { ui } from "@botlake/extension-ct-config";
 
 export const lake = createLake({
 	name: "agents",
-	minimumCore: "0.2.0",
+	minimumCore: "0.3.2",
 	extensions: [
 		batteriesExtension,
 		identityExtension,
@@ -21,6 +21,6 @@ export const lake = createLake({
 		priming,
 		work,
 		workAgents,
-		uiExtension,
+		ui,
 	],
 });
