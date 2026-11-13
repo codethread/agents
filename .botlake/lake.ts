@@ -11,7 +11,7 @@ import { ui } from "@botlake/extension-ct-config";
 
 export const lake = createLake({
 	name: "agents",
-	minimumCore: "0.3.2",
+	minimumCore: "0.3.3",
 	extensions: [
 		batteriesExtension,
 		identityExtension,
