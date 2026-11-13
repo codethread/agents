@@ -19,7 +19,7 @@ Use Pi 1.5.0 or newer, matching the SDK version used for development and testing
 From a local checkout:
 
 ```bash
-pnpm install
+bun install
 pi install /absolute/path/to/agents
 ```
 
@@ -97,13 +97,15 @@ The Claude marketplace likewise exposes only `harness`. See the [hook reference]
 
 ## Development
 
-This checkout's `skillbox/config.json` selects its own local bundles (`source: "."`): `coding`, `dev`, `harness`, `projects`, and `writing`, excluding `devflow`. The matching `skillbox/lock.json` records the 19 selected skills, including `agent-browser`, migrated into the `harness` bundle from the former `npx skills` installation. Restore them with `pnpm exec skillbox sync`; edit the source bundles rather than installed copies. Generated `.agents/skills/` copies and the `.claude/skills` symlink are ignored by Git; quality checks exclude the installed copies. The symlink points to `.agents/skills/`. The old root `skills-lock.json` is no longer used.
+This checkout's `skillbox/config.json` selects its own local bundles (`source: "."`): `coding`, `dev`, `harness`, `projects`, and `writing`, excluding `devflow`. The matching `skillbox/lock.json` records the selected skills, including `agent-browser`, migrated into the `harness` bundle from the former `npx skills` installation. Restore them with `bun run --no-install skillbox sync`; edit the source bundles rather than installed copies. Generated `.agents/skills/` copies and the `.claude/skills` symlink are ignored by Git; quality checks exclude the installed copies. The symlink points to `.agents/skills/`. The old root `skills-lock.json` is no longer used.
 
-Install mise, trust this repository's configuration with `mise trust`, then run `mise run` from the repository root. The pinned Node, pnpm, and Bun versions prepare the root dependencies, the separate `.botlake` Bun install, generated Skillbox copies, and local Git hooks. Bootstrap does not start the lake or a server. Start the lake explicitly with `mise run lake-start` when needed and verify it with `botlake lake info --workspace "$(pwd)"`.
+Install mise, trust this repository's configuration with `mise trust`, then run `mise run` from the repository root. The pinned Bun and Node versions prepare all workspace dependencies with one root install and `bun.lock`, generated Skillbox copies, and local Git hooks. Node remains the runtime for Pi tooling and Vitest. Bootstrap does not start the lake or a server. Start the lake explicitly with `mise run lake-start` when needed and verify it with `botlake lake info --workspace "$(pwd)"`.
 
-Run the complete check with `pnpm check`; it lints and typechecks the lake sources as well as the Pi extensions, runs tests, formats, then verifies changelog sync. Individual commands are `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm format`. Use `pnpm changelog` to query the recorded root-package history, `pnpm changelog:generate` to regenerate `CHANGELOG.md`, and `pnpm changelog:check` to verify it. The root package history starts at version 0.1.0; no earlier release notes are recorded.
+Run the complete check with `bun run check`; it lints and typechecks the lake sources as well as the Pi extensions, runs tests, formats, then verifies changelog sync. Individual commands are `bun run lint`, `bun run typecheck`, `bun run test`, and `bun run format`. Use `bun run changelog` to query the recorded root-package history, `bun run changelog:generate` to regenerate `CHANGELOG.md`, and `bun run changelog:check` to verify it. The root package history starts at version 0.1.0; no earlier release notes are recorded.
 
-Vitest includes unit, snapshot, and Pi runtime integration tests backed by a patched `@gaodes/pi-test-harness`. The patch updates harness 1.0.3 for `pi-ai/compat`, `session.modelRuntime` authentication, and `agent.streamFunction` playbook injection. Integration tests resolve Pi SDK 1.5.0. Remove the patch when the upstream harness supports these APIs.
+The root Pi package and private `agents-workspace` package in `.botlake/` share the root ESLint and Prettier configuration and `tsconfig.base.json`. Pi keeps its Node-specific TypeScript settings; Botlake keeps `exactOptionalPropertyTypes` enabled. Root checks cover both packages and project scripts. Target only the lake with `bun run --filter agents-workspace lint`, `bun run --filter agents-workspace typecheck`, or `bun run --filter agents-workspace format`; dependencies are still installed from the repository root.
+
+`bun run test` uses Vitest, not Bun's test runner. Vitest includes unit, snapshot, and Pi runtime integration tests backed by a patched `@gaodes/pi-test-harness`. The patch updates harness 1.0.3 for `pi-ai/compat`, `session.modelRuntime` authentication, and `agent.streamFunction` playbook injection. Integration tests resolve Pi SDK 1.5.0. Remove the patch when the upstream harness supports these APIs.
 
 Pi host modules are wildcard peer dependencies, not runtime dependencies of the extension package. Pinned development copies support local typechecking and tests; Pi supplies the running extensions' SDK modules through its loader.
 

@@ -1,19 +1,17 @@
 [tools]
 node = "24.21.0"
-pnpm = "10.33.0"
 bun = "1.4.2"
 
 # Repository bootstrap must not install unrelated global tools.
 [settings]
-enable_tools = ["bun", "node", "pnpm"]
+enable_tools = ["bun", "node"]
 
 [tasks.bootstrap]
 alias = "default"
-description = "Install project and lake dependencies, hooks, and generated skills"
+description = "Install workspace dependencies, hooks, and generated skills"
 run = '''
-pnpm install --frozen-lockfile
-bun install --cwd .botlake --frozen-lockfile
-pnpm exec skillbox sync
+bun install --frozen-lockfile
+bun run --no-install skillbox sync
 '''
 
 [tasks.lake-start]

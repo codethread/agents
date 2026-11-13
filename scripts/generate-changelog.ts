@@ -37,7 +37,7 @@ async function main(): Promise<void> {
 	const generated = await markdown(historyDocument);
 	if (values.check) {
 		if ((await Bun.file(changelogUrl).text()) !== generated) {
-			throw new Error("CHANGELOG.md is stale; run pnpm changelog:generate.");
+			throw new Error("CHANGELOG.md is stale; run bun run changelog:generate.");
 		}
 		return;
 	}

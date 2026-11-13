@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 set -e
 
-pnpm lint-staged
-pnpm typecheck
-pnpm exec vitest run --changed
+bun run --no-install lint-staged
+bun run typecheck
+bun run --no-install vitest run --changed

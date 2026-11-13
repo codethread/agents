@@ -1,6 +1,6 @@
 node_modules
 .git
-pnpm-lock.yaml
+bun.lock
 .worktrees
 .botlake/vendor
 .agents/skills

@@ -16,5 +16,11 @@
 		"@botlake/extension-work": "0.4.0",
 		"@botlake/extension-work-agents": "0.4.0",
 		"@botlake/native-session": "0.4.0"
+	},
+	"scripts": {
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
+		"typecheck": "tsc --noEmit -p tsconfig.json",
+		"format": "prettier --write ."
 	}
 }

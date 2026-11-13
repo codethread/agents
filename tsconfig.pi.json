@@ -1,5 +1,5 @@
 {
-	"extends": "./tsconfig.json",
+	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
 		"target": "ES2022",
 		"lib": ["ES2022"],
@@ -10,5 +10,5 @@
 		"types": ["node"]
 	},
 	"include": ["pi/extensions/**/*.ts", ".pi/extensions/**/*.ts"],
-	"exclude": ["node_modules", ".botlake/node_modules"]
+	"exclude": ["**/node_modules"]
 }

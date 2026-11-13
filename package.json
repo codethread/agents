@@ -16,22 +16,23 @@
 		"plugins",
 		"CHANGELOG.md",
 		"changelog.json",
-		"pnpm-lock.yaml"
+		"bun.lock"
 	],
-	"packageManager": "pnpm@10.33.0",
+	"packageManager": "bun@1.4.2",
 	"scripts": {
-		"format": "prettier --write . .botlake/README.md .botlake/lake.ts .botlake/src",
+		"format": "prettier --write . .botlake",
 		"lint": "eslint . .botlake",
 		"lint:fix": "eslint . .botlake --fix",
 		"typecheck:extensions": "tsc --noEmit -p tsconfig.pi.json",
-		"typecheck:lake": "tsc --noEmit -p tsconfig.json",
-		"typecheck": "pnpm typecheck:extensions && pnpm typecheck:lake",
+		"typecheck:scripts": "tsc --noEmit -p tsconfig.json",
+		"typecheck:lake": "bun run --filter agents-workspace typecheck",
+		"typecheck": "bun run typecheck:extensions && bun run typecheck:scripts && bun run typecheck:lake",
 		"test": "vitest run",
 		"changelog": "bun run scripts/changelog.ts",
 		"changelog:generate": "bun run scripts/generate-changelog.ts --write",
 		"changelog:check": "bun run scripts/generate-changelog.ts --check",
-		"check": "pnpm lint && pnpm typecheck && pnpm test && pnpm format && pnpm changelog:check",
-		"verify": "pnpm check",
+		"check": "bun run lint && bun run typecheck && bun run test && bun run format && bun run changelog:check",
+		"verify": "bun run check",
 		"prepare": "husky"
 	},
 	"pi": {
@@ -90,8 +91,10 @@
 		"turndown": "^7.2.5",
 		"zod": "^4.6.7"
 	},
-	"volta": {
-		"node": "24.21.0",
-		"pnpm": "10.33.0"
-	}
+	"patchedDependencies": {
+		"@gaodes/pi-test-harness@1.0.3": "patches/@gaodes__pi-test-harness@1.0.3.patch"
+	},
+	"workspaces": [
+		".botlake"
+	]
 }
