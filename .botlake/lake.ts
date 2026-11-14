@@ -7,7 +7,7 @@ import agents from "./src/agents.ts";
 import priming from "./src/priming.ts";
 import work from "./src/work.ts";
 import workAgents from "./src/work-agents.ts";
-import { ui } from "@botlake/extension-ct-config";
+import { mail, mailAgents, mailIdentity, ui } from "@botlake/extension-ct-config";
 
 export const lake = createLake({
 	name: "agents",
@@ -18,6 +18,9 @@ export const lake = createLake({
 		references,
 		agents,
 		priming,
+		mail,
+		mailIdentity,
+		mailAgents,
 		work,
 		workAgents,
 		ui,
