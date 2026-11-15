@@ -59,7 +59,7 @@ checkout selects the pair in its project settings, without changing global setti
 Run from a consuming project:
 
 ```bash
-bunx @codethread/skillbox add codethread/agents dev coding writing harness
+bunx @codethread/skillbox add codethread/agents dev coding projects writing harness
 # Optional planning and AFK workflows; install coding alongside devflow.
 bunx @codethread/skillbox add codethread/agents devflow
 ```
@@ -67,16 +67,16 @@ bunx @codethread/skillbox add codethread/agents devflow
 For an unpublished local checkout, use its repository root instead:
 
 ```bash
-bunx @codethread/skillbox add /absolute/path/to/agents dev coding writing harness devflow
+bunx @codethread/skillbox add /absolute/path/to/agents dev coding projects writing harness devflow
 ```
 
 | Bundle     | Contents                                                                                  |
 | ---------- | ----------------------------------------------------------------------------------------- |
-| `dev`      | TypeScript and repository documentation conventions                                       |
+| `dev`      | TypeScript                                                                                |
 | `coding`   | Git workflows, robustness, worktree cleanup, and code cleanup                             |
 | `writing`  | Agent-context audits, agent-facing CLI design, Mermaid, and agent instruction authoring   |
 | `harness`  | Browser automation, session introspection, benchmarks, rich responses, and tmux workflows |
-| `projects` | GitHub project guidance                                                                   |
+| `projects` | GitHub project guidance and repository documentation conventions                          |
 | `devflow`  | Planning lifecycle, user-invoked stages, and AFK automation                               |
 
 Skillbox copies skills and their supporting files into `.agents/skills/` and links `.claude/skills` to it. Commit `skillbox/config.json` and `skillbox/lock.json` in the consuming project; restore with `bunx @codethread/skillbox sync`. It rejects existing unmanaged skill directories rather than overwriting them. Keep source changes in this repository's bundles, not in generated client copies.
