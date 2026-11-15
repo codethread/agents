@@ -40,7 +40,7 @@
 		"docs-styleguide": {
 			"source": "./skillbox",
 			"sourceType": "local",
-			"computedHash": "e2db75d6394726c3d99a734ecb14455f9d354ba183e549b48f46bfc864945f70",
+			"computedHash": "60b6f924b7aed924c00009ca57ec6be4146010dcd10e415343703874d2f956ec",
 			"installMode": "copy"
 		},
 		"git-commit": {
