@@ -175,7 +175,7 @@
 					"path": "skillbox/harness/tmux"
 				}
 			],
-			"sourceHash": "14cdfbb7431feb6ce39213faa3df92a3360caf27a7f2f801593a78455f9584f7"
+			"sourceHash": "62bf13bb6146505cef084c2b471c410fccef09153aa2fef551c9b0039e4113dc"
 		},
 		"projects": {
 			"members": [
@@ -289,7 +289,7 @@
 		"agent-browser": {
 			"bundle": "harness",
 			"directory": "agent-browser",
-			"hash": "ecaba1f213fc575d969a5d9f9fb793253a328bfc4dea45efb9eaaa3889cde79f"
+			"hash": "873854b39d27416c764821407ce239c2dc6427176bd4897a18255cd2dcc7452a"
 		},
 		"bench": {
 			"bundle": "harness",
