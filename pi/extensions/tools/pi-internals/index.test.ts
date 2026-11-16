@@ -20,10 +20,11 @@ const mocks = vi.hoisted(() => {
 		extensions: [
 			{
 				name: "pi-internals",
-				path: "/repo/.pi/extensions/pi-internals/index.ts",
+				path: "/repo/pi/extensions/tools/pi-internals/index.ts",
 				scope: "project",
-				origin: "top-level",
-				baseDir: "/repo/.pi/extensions/pi-internals",
+				origin: "package",
+				source: "/repo",
+				baseDir: "/repo",
 			},
 		],
 	};
@@ -139,7 +140,7 @@ describe("pi-internals tool extension", () => {
 			"Pi source: /pi-source
 			Project config: /repo/.pi
 			Extensions: 1 enabled
-			Extension roots: /repo/.pi/extensions/pi-internals"
+			Extension roots: /repo"
 		`);
 	});
 

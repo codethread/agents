@@ -111,6 +111,6 @@ The root Pi package and private `agents-workspace` package in `.botlake/` share 
 
 Pi host modules are wildcard peer dependencies, not runtime dependencies of the extension package. Pinned development copies support local typechecking and tests; Pi supplies the running extensions' SDK modules through its loader.
 
-Running Pi from this checkout loads the package through `.pi/settings.json`. The project-local `.pi/extensions/pi-internals/` helper reports Pi runtime, source, settings, and extension paths when debugging the repository itself.
+Running Pi from this checkout loads the package through `.pi/settings.json`. The bundled [`pi-internals`](pi/extensions/tools/pi-internals/README.md) tool reports Pi runtime, source, settings, and enabled extension paths on demand.
 
 Changing prompt-layer context or switching models/providers can reduce provider prompt-cache reuse. Keep dynamic injected context bounded and stable when cache reuse matters.

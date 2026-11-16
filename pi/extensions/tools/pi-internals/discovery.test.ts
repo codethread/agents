@@ -1,6 +1,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { discoverPiExtensions, getExtensionNameFromPath } from "./discovery.js";
 import {
@@ -80,6 +81,25 @@ describe("getExtensionNameFromPath", () => {
 });
 
 describe("discoverPiExtensions", () => {
+	it("discovers pi-internals through the shipped package manifest", async () => {
+		const cwd = makeTempDir();
+		const agentDir = makeTempDir();
+		const packageDir = path.resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
+		writeJson(path.join(cwd, ".pi", "settings.json"), { packages: [packageDir] });
+
+		const discovery = await discoverPiExtensions(cwd, agentDir);
+		const internals = discovery.extensions.filter((extension) => extension.name === "pi-internals");
+
+		expect(internals).toEqual([
+			expect.objectContaining({
+				path: path.join(packageDir, "pi/extensions/tools/pi-internals/index.ts"),
+				scope: "project",
+				origin: "package",
+				baseDir: packageDir,
+			}),
+		]);
+	});
+
 	it("discovers enabled project, user, and package extension entrypoints in precedence order", async () => {
 		const root = makeTempDir();
 		const cwd = path.join(root, "workspace");

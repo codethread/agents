@@ -9,6 +9,6 @@
 		"erasableSyntaxOnly": true,
 		"types": ["node"]
 	},
-	"include": ["pi/extensions/**/*.ts", ".pi/extensions/**/*.ts"],
+	"include": ["pi/extensions/**/*.ts"],
 	"exclude": ["**/node_modules"]
 }

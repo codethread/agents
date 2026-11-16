@@ -2,8 +2,6 @@
 
 Small index for the extensions shipped in this package. See each extension folder for full docs.
 
-Project-local extensions for this checkout live under `../.pi/extensions/` and are not shipped by this package.
-
 > [!NOTE]
 > **Note on Cache Invalidation:** Changing prompt-layer context mid-session, or changing the model/provider, can drop provider prompt-cache reuse. Treat dynamic context injection as a cost/latency tradeoff; keep injected context bounded and stable when possible.
 
@@ -20,6 +18,7 @@ Project-local extensions for this checkout live under `../.pi/extensions/` and a
 | [`interactive-shell`](./tools/interactive-shell/README.md) | Control agent-private tmux shells with exit cleanup; `persist: true` shares the user's `default` server and survives exit.       |
 | [`builtins`](./tools/builtins/README.md)                   | Register compact built-in `read` and `bash` tools.                                                                               |
 | [`harness-metadata`](./tools/harness-metadata/README.md)   | Expose live harness metadata via `harness_metadata`, including the current session id, model, thinking level, and context usage. |
+| [`pi-internals`](./tools/pi-internals/README.md)           | Report Pi runtime, documentation, settings, and enabled extension paths on demand.                                               |
 | [`web-access`](./tools/web-access/README.md)               | Simple Exa-backed `web_search` plus HTTP(S) `fetch_content`.                                                                     |
 
 ## UI
