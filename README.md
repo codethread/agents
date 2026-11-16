@@ -60,16 +60,16 @@ checkout selects the pair in its project settings, without changing global setti
 Run from a consuming project:
 
 ```bash
-bunx @codethread/skillbox@0.3.0 add skillbox codethread/agents agents \
+bunx @codethread/skillbox@0.4.0 add skillbox codethread/agents agents \
   --bundle dev --bundle coding --bundle projects --bundle writing --bundle harness
 # Optional planning and AFK workflows; install coding alongside devflow.
-bunx @codethread/skillbox@0.3.0 add skillbox codethread/agents agents --bundle devflow
+bunx @codethread/skillbox@0.4.0 add skillbox codethread/agents agents --bundle devflow
 ```
 
 For an unpublished local checkout, use its repository root instead:
 
 ```bash
-bunx @codethread/skillbox@0.3.0 add skillbox /absolute/path/to/agents agents \
+bunx @codethread/skillbox@0.4.0 add skillbox /absolute/path/to/agents agents \
   --bundle dev --bundle coding --bundle projects --bundle writing --bundle harness --bundle devflow
 ```
 
