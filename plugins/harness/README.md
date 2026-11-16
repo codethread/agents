@@ -10,7 +10,7 @@ Claude Code and Codex dialogue-capture hooks, plus Claude window-title hooks. Sk
 
 ## Dialogue capture hooks
 
-Claude Code's on-disk session transcripts are officially internal and can change on any release. These hooks capture the parts we care about through the supported hook interface at the moment they happen, into a JSONL log whose schema **we** own. Downstream tooling (devflow Q&A extraction, jq scripts) should consume this log, not the raw transcripts.
+Claude Code's on-disk session transcripts are officially internal and can change on any release. These hooks capture the parts we care about through the supported hook interface at the moment they happen, into a JSONL log whose schema **we** own. Downstream tooling (Q&A extraction, jq scripts) should consume this log, not the raw transcripts.
 
 Pi sessions get the same treatment from this repo's `pi/extensions/dialogue-capture` extension, which writes the same schema to the sibling `pi-dialogue/` directory (Pi-specific mapping and divergences in that extension's README). Codex sessions get the same forward-only treatment from `capture.sh`, which writes to the sibling `codex-dialogue/` directory.
 

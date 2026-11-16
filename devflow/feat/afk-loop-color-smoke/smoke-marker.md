@@ -1,1 +1,0 @@
-AFK loop smoke ran.

@@ -261,7 +261,6 @@ Broader behavior to preserve:
 - **SPEC-001.B61:** `pi/extensions/messaging/project-rules/index.ts` — path-scoped autoload messaging extension.
 - **SPEC-001.B62:** `pi/extensions/messaging/project-rules/README.md` — rule behavior and examples.
 - **SPEC-001.B63:** `pi/extensions/README.md` — extension index entry.
-- **SPEC-001.B64:** `devflow/README.md` — devflow spec index entry.
 
 ## SPEC-001.P23 9. Open Questions
 

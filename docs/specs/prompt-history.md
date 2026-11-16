@@ -203,13 +203,11 @@ Example direction:
 
 ## SPEC-002.P18 7. Code Locations
 
-| File                               | Change                                   |
-| ---------------------------------- | ---------------------------------------- |
-| `pi/extensions/ui/prompt-history/` | New prompt-history extension.            |
-| `pi/extensions/README.md`          | Add extension index entry.               |
-| `scripts/pi.nu`                    | Add `--debug-prompt-history` flag.       |
-| `devflow/specs/prompt-history.md`  | Implemented spec for the feature.        |
-| `devflow/README.md`                | Register this spec in the devflow index. |
+| File                               | Change                             |
+| ---------------------------------- | ---------------------------------- |
+| `pi/extensions/ui/prompt-history/` | New prompt-history extension.      |
+| `pi/extensions/README.md`          | Add extension index entry.         |
+| `scripts/pi.nu`                    | Add `--debug-prompt-history` flag. |
 
 ## SPEC-002.P19 8. Open Questions
 

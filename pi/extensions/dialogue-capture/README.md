@@ -6,7 +6,7 @@ Pi counterpart of the Claude harness plugin's dialogue-capture hooks. Appends st
 ${XDG_STATE_HOME:-$HOME/.local/state}/pi-dialogue/<session-id>.jsonl
 ```
 
-The schema is owned by this repo and shared with the Claude log (`claude-dialogue/` sibling directory); `plugins/harness/README.md` is the schema reference and jq cookbook. Downstream tooling (devflow Q&A extraction) should consume these logs, not raw session files.
+The schema is owned by this repo and shared with the Claude log (`claude-dialogue/` sibling directory); `plugins/harness/README.md` is the schema reference and jq cookbook. Downstream Q&A extraction tooling should consume these logs, not raw session files.
 
 ## Event mapping
 
