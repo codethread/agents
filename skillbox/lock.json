@@ -84,7 +84,7 @@
 					"path": "skillbox/coding/robustness"
 				}
 			],
-			"sourceHash": "deccdb2dc34e144cf754af2aea87c9537bb4e2b4ea04dba74fb690587986d15c"
+			"sourceHash": "85364e02d1b09562dda0f87bac4356894eef4026b5bbc84e58d9b885a274d234"
 		},
 		"dev": {
 			"members": [
@@ -134,7 +134,7 @@
 					"path": "skillbox/discussion/rich-response"
 				}
 			],
-			"sourceHash": "af1ea58c899e3f10e5e948fe1ef0767a899114d3099389d285a235dc483549e7"
+			"sourceHash": "6e08c8242b93700d63c1399a937c4353596486f73ff46c6f8928de6e051f051d"
 		},
 		"harness": {
 			"members": [
@@ -175,7 +175,7 @@
 					"path": "skillbox/harness/tmux"
 				}
 			],
-			"sourceHash": "dfd07a5ffbd2234a0e4d3fa29ac47783818755e69f664b2d18987375bdd07a25"
+			"sourceHash": "14cdfbb7431feb6ce39213faa3df92a3360caf27a7f2f801593a78455f9584f7"
 		},
 		"projects": {
 			"members": [
@@ -222,7 +222,7 @@
 					"revision": "5863806dd4e15c63174bee4e7515a4256792ecfa"
 				}
 			],
-			"sourceHash": "9ba0f79745232b78120eed150a06058a79bde3e2c5d0751888205e40a3068525"
+			"sourceHash": "76accf76e503fff2aeb34a8d09be4d1ab9f6958a83b71983914e10e0799f14fc"
 		}
 	},
 	"installed": {
@@ -254,7 +254,7 @@
 		"robustness": {
 			"bundle": "coding",
 			"directory": "robustness",
-			"hash": "59a95f28363a92c82e58ee465926b905f317aa79db22d30e73436ffe0bb556ba"
+			"hash": "bdb7c2bdeceaf569f3c63117af5af4509ab13acf16d5bc1f47dadd4788ff4975"
 		},
 		"typescript": {
 			"bundle": "dev",
@@ -284,7 +284,7 @@
 		"rich-response": {
 			"bundle": "discussion",
 			"directory": "rich-response",
-			"hash": "f8cb6ad986795c7739399a298390968c63a51b7e30a6a5ab5cf51032577b8e5c"
+			"hash": "c9b8eb189a8d63a2ab9f42ba3e122d185270a3a46e732d55623cb79cc18157c1"
 		},
 		"agent-browser": {
 			"bundle": "harness",
@@ -299,22 +299,22 @@
 		"session-introspection-claude": {
 			"bundle": "harness",
 			"directory": "session-introspection-claude",
-			"hash": "f2f6435a7c416af1f50ee0db7bcb3b12e435da46845226c014470f3953c5fc68"
+			"hash": "6347675321563102266851c1a15bf30da2215acfceacc7238a274dc513ca0fbe"
 		},
 		"session-introspection-codex": {
 			"bundle": "harness",
 			"directory": "session-introspection-codex",
-			"hash": "a429b68531544791d7c577b3cc9dd38de7be0dca713ead6cd2aa763677419820"
+			"hash": "1e8dd4bb70fa2770fa621c8f24b0c4323a6f74abf00bb35a52d6fb81dd80ec3b"
 		},
 		"session-introspection-pi": {
 			"bundle": "harness",
 			"directory": "session-introspection-pi",
-			"hash": "8fd237daaface288c5680da62a1e064ade00bb0542eff86c9098f4ee2d1d14f5"
+			"hash": "705687c4179edb4f96842ae0151c7eb40d4f2f97686e11f96529672a96851406"
 		},
 		"tmux": {
 			"bundle": "harness",
 			"directory": "tmux",
-			"hash": "2f181952442eff61b75a0b01221a994728dd0041a1adb083e2cad28c052cd129"
+			"hash": "47820c5a0e57cc5541fcbd40c4c13047de0de726aa86c3ff5eef6ffc380d8621"
 		},
 		"docs-styleguide": {
 			"bundle": "projects",
@@ -339,7 +339,7 @@
 		"mermaid": {
 			"bundle": "writing",
 			"directory": "mermaid",
-			"hash": "4b376b81e908b5a55f0598acfd097589760ab02852cf740a1475e4692f258491"
+			"hash": "64c511a4b2935ddc4d4f560eea15a5d0badd985d7c99e6d2090b304716704020"
 		},
 		"writing-for-agents": {
 			"bundle": "writing",

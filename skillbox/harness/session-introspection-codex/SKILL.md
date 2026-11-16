@@ -1,11 +1,6 @@
 ---
 name: session-introspection-codex
-description: >
-  Practical Codex session forensics quickstart. Use when the user wants to
-  inspect Codex dialogue logs captured by this repo's harness Codex hooks,
-  locate the current or recent Codex conversation, extract user/assistant
-  dialogue, audit file/tool activity, or fall back to raw Codex rollout JSONL
-  sessions when the stable dialogue log is missing.
+description: "Practical Codex session forensics quickstart. Use when the user wants to inspect Codex dialogue logs captured by this repo's harness Codex hooks, locate the current or recent Codex conversation, extract user/assistant dialogue, audit file/tool activity, or fall back to raw Codex rollout JSONL sessions when the stable dialogue log is missing."
 ---
 
 # Codex Session Introspection

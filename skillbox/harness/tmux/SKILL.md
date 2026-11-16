@@ -1,11 +1,6 @@
 ---
 name: tmux
-description: >
-  Minimal tmux workflow for running long-lived commands in named sessions: create a
-  session, send commands, inspect recent output, stop a process, kill a session, and
-  keep names consistent for search and cleanup. Use when an agent needs a durable
-  terminal session for servers, watchers, REPLs, or commands that may need later
-  inspection.
+description: "Minimal tmux workflow for running long-lived commands in named sessions: create a session, send commands, inspect recent output, stop a process, kill a session, and keep names consistent for search and cleanup. Use when an agent needs a durable terminal session for servers, watchers, REPLs, or commands that may need later inspection."
 ---
 
 # tmux

@@ -1,13 +1,6 @@
 ---
 name: session-introspection-claude
-description: >
-  Practical Claude Code session forensics quickstart. Use when the user wants to
-  inspect Claude Code .jsonl session transcripts, locate a session from a message
-  they saw in the UI, extract user/assistant messages, audit tool calls (reads,
-  edits, writes, bash), pull a tool result for a given request, or check session
-  cost/usage (deferred to ccusage). Covers the on-disk session schema, the
-  ~/.claude (or CLAUDE_CONFIG_DIR) layout, and the harness plugin's stable
-  dialogue log for clean user/assistant Q&A extraction.
+description: "Practical Claude Code session forensics quickstart. Use when the user wants to inspect Claude Code .jsonl session transcripts, locate a session from a message they saw in the UI, extract user/assistant messages, audit tool calls (reads, edits, writes, bash), pull a tool result for a given request, or check session cost/usage (deferred to ccusage). Covers the on-disk session schema, the ~/.claude (or CLAUDE_CONFIG_DIR) layout, and the harness plugin's stable dialogue log for clean user/assistant Q&A extraction."
 ---
 
 # Claude Code Session Introspection

@@ -1,10 +1,6 @@
 ---
 name: mermaid
-description: >
-  Pitfalls to avoid when writing Mermaid diagrams. Use whenever generating a
-  `mermaid` code block, a `<pre class="mermaid">` block, or troubleshooting a
-  Mermaid render error. Assumes you already know Mermaid syntax — this skill only
-  covers the gotchas that silently break renders.
+description: 'Pitfalls to avoid when writing Mermaid diagrams. Use whenever generating a `mermaid` code block, a `<pre class="mermaid">` block, or troubleshooting a Mermaid render error. Assumes you already know Mermaid syntax — this skill only covers the gotchas that silently break renders.'
 ---
 
 # mermaid

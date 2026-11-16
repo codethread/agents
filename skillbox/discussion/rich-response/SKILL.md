@@ -1,9 +1,6 @@
 ---
 name: rich-response
-description: >
-  Render responses as HTML and open them in the browser when requested, when they
-  exceed roughly 50 lines, or when diagrams, tables or comparisons improve readability.
-  Use live questionnaires only when the user explicitly requests a questionnaire or alignment check.
+description: "Render responses as HTML and open them in the browser when requested, when they exceed roughly 50 lines, or when diagrams, tables or comparisons improve readability. Use live questionnaires only when the user explicitly requests a questionnaire or alignment check."
 ---
 
 # rich-response

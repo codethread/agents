@@ -1,10 +1,6 @@
 ---
 name: robustness
-description: |
-  Guidance on how to write robust-enough software without defensive noise.
-  TRIGGER when: handling review comments about edge cases, failure modes,
-  fallback behavior, graceful degradation, retries, validation, or error handling.
-  SKIP when: making a purely happy-path change with no new failure behavior.
+description: "Guidance on how to write robust-enough software without defensive noise. TRIGGER when: handling review comments about edge cases, failure modes, fallback behavior, graceful degradation, retries, validation, or error handling. SKIP when: making a purely happy-path change with no new failure behavior."
 ---
 
 # Writing robust enough code

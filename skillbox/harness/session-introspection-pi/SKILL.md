@@ -1,10 +1,6 @@
 ---
 name: session-introspection-pi
-description: >
-  Practical Pi session forensics quickstart. Use when the user wants to inspect
-  Pi .jsonl session files, locate recent sessions, extract conversation text,
-  audit tool usage, or check costs. Defers to official Pi docs for authoritative
-  session schema and lifecycle.
+description: "Practical Pi session forensics quickstart. Use when the user wants to inspect Pi .jsonl session files, locate recent sessions, extract conversation text, audit tool usage, or check costs. Defers to official Pi docs for authoritative session schema and lifecycle."
 ---
 
 # Pi Session Introspection
