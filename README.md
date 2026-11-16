@@ -37,7 +37,8 @@ The package includes:
 - project structure and dialogue-capture context;
 - built-in tool replacements;
 - prompt history, status, and other optional UI extensions;
-- provider and project-rule helpers.
+- provider and project-rule helpers;
+- session-only MCP servers from JSON or files with `--mcp-config <json|file>`.
 
 ## Rosé Pine themes
 
