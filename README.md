@@ -59,15 +59,17 @@ checkout selects the pair in its project settings, without changing global setti
 Run from a consuming project:
 
 ```bash
-bunx @codethread/skillbox add codethread/agents dev coding projects writing harness
+bunx @codethread/skillbox@0.3.0 add skillbox codethread/agents agents \
+  --bundle dev --bundle coding --bundle projects --bundle writing --bundle harness
 # Optional planning and AFK workflows; install coding alongside devflow.
-bunx @codethread/skillbox add codethread/agents devflow
+bunx @codethread/skillbox@0.3.0 add skillbox codethread/agents agents --bundle devflow
 ```
 
 For an unpublished local checkout, use its repository root instead:
 
 ```bash
-bunx @codethread/skillbox add /absolute/path/to/agents dev coding projects writing harness devflow
+bunx @codethread/skillbox@0.3.0 add skillbox /absolute/path/to/agents agents \
+  --bundle dev --bundle coding --bundle projects --bundle writing --bundle harness --bundle devflow
 ```
 
 | Bundle     | Contents                                                                                  |
@@ -79,7 +81,7 @@ bunx @codethread/skillbox add /absolute/path/to/agents dev coding projects writi
 | `projects` | GitHub project guidance and repository documentation conventions                          |
 | `devflow`  | Planning lifecycle, user-invoked stages, and AFK automation                               |
 
-Skillbox copies skills and their supporting files into `.agents/skills/` and links `.claude/skills` to it. Commit `skillbox/config.json` and `skillbox/lock.json` in the consuming project; restore with `bunx @codethread/skillbox sync`. It rejects existing unmanaged skill directories rather than overwriting them. Keep source changes in this repository's bundles, not in generated client copies.
+The destination id `agents` combines the selected upstream bundles and is added to the consuming project's `install` list. Skillbox copies skills and their supporting files into `.agents/skills/` and links `.claude/skills` to it. Commit `skillbox/config.json` and `skillbox/lock.json` in the consuming project; restore with `bunx @codethread/skillbox@0.3.0 sync`. Git sources remain pinned until an explicit reviewed update. It rejects existing unmanaged skill directories rather than overwriting them. Keep source changes in this repository's bundles, not in generated client copies.
 
 Former slash commands are user-invoked skills: Claude Code uses `/<name>`, Pi uses `/skill:<name>`, and Codex uses `$<name>`. In Pi, trust/approve the consuming project to enable project-local skill discovery. Related commands use domain-first names so they group together in skill pickers: `session-introspection-{claude,codex,pi}` and `git-{commit,worktree-cleanup}`. Repeated hyphens in the old `flow-*` names are now single hyphens (for example, `flow-init-afk`). Use `declutter` for session cleanup, including harvesting durable outcomes before removing completed plan/task artifacts. The workflow router is named `devflow-start`. See [Devflow](docs/devflow.md) for planning and AFK usage.
 
@@ -97,7 +99,7 @@ The Claude marketplace likewise exposes only `harness`. See the [hook reference]
 
 ## Development
 
-This checkout's `skillbox/config.json` selects its own local bundles (`source: "."`): `coding`, `dev`, `harness`, `projects`, and `writing`, excluding `devflow`. The matching `skillbox/lock.json` records the selected skills, including `agent-browser`, migrated into the `harness` bundle from the former `npx skills` installation. Restore them with `bun run --no-install skillbox sync`; edit the source bundles rather than installed copies. Generated `.agents/skills/` copies and the `.claude/skills` symlink are ignored by Git; quality checks exclude the installed copies. The symlink points to `.agents/skills/`. The old root `skills-lock.json` is no longer used.
+This checkout pins Skillbox `0.3.0`. Its `skillbox/config.json` installs the native bundles `coding`, `dev`, `harness`, `projects`, and `writing` directly, with no imported sources. `devflow` remains publishable but is not installed here. The version 2 `skillbox/lock.json` records bundle provenance and managed installations. Restore them with `bun run --no-install skillbox sync`; edit the source bundles rather than installed copies. Generated `.agents/skills/` copies and the `.claude/skills` symlink are ignored by Git; quality checks exclude the installed copies. The symlink points to `.agents/skills/`. Any separate root `skills-lock.json` belongs to other tooling and is not managed by Skillbox.
 
 Install mise, trust this repository's configuration with `mise trust`, then run `mise run` from the repository root. The pinned Bun and Node versions prepare all workspace dependencies with one root install and `bun.lock`, generated Skillbox copies, and local Git hooks. Node remains the runtime for Pi tooling and Vitest. Bootstrap does not start the lake or a server. Start the lake explicitly with `mise run lake-start` when needed and verify it with `botlake lake info --workspace "$(pwd)"`.
 

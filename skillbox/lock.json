@@ -1,131 +1,377 @@
 {
-	"version": 1,
-	"skills": {
-		"agent-browser": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "dd491d53824ad9286ec950aee667098446332429a6d41fe28b4ba11f1959264c",
-			"installMode": "copy"
+	"version": 2,
+	"sources": {},
+	"bundles": {
+		"coding": {
+			"members": [
+				{
+					"name": "codebase-design",
+					"directory": "codebase-design",
+					"source": ".",
+					"path": "skillbox/coding/codebase-design"
+				},
+				{
+					"name": "declutter",
+					"directory": "declutter",
+					"source": ".",
+					"path": "skillbox/coding/declutter"
+				},
+				{
+					"name": "git-commit",
+					"directory": "git-commit",
+					"source": ".",
+					"path": "skillbox/coding/git-commit"
+				},
+				{
+					"name": "git-worktree-cleanup",
+					"directory": "git-worktree-cleanup",
+					"source": ".",
+					"path": "skillbox/coding/git-worktree-cleanup"
+				},
+				{
+					"name": "io-dependency-seams",
+					"directory": "io-dependency-seams",
+					"source": ".",
+					"path": "skillbox/coding/io-dependency-seams"
+				},
+				{
+					"name": "purge",
+					"directory": "purge",
+					"source": ".",
+					"path": "skillbox/coding/purge"
+				},
+				{
+					"name": "robustness",
+					"directory": "robustness",
+					"source": ".",
+					"path": "skillbox/coding/robustness"
+				}
+			],
+			"sourceHash": "91ca5df78cf2c92955e6047f20507ceaf6db51d945f50772fe0c45e90f92d73b"
 		},
-		"agent-clis": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "2a479b16c1716f780a37cd228c0a1ac8ce04180be3c45d006d8673847f4e5a3d",
-			"installMode": "copy"
+		"dev": {
+			"members": [
+				{
+					"name": "typescript",
+					"directory": "typescript",
+					"source": ".",
+					"path": "skillbox/dev/typescript"
+				}
+			],
+			"sourceHash": "527566d7799f853941a380c0aead2f03554e798f0f0ca265d16e4a448db4aade"
 		},
-		"agent-docs-hotpath": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "d3b1fb4b11b810d915a0e2740081bd9f6b6078960d2b2b0407ef8883a8647909",
-			"installMode": "copy"
+		"devflow": {
+			"members": [
+				{
+					"name": "devflow",
+					"directory": "devflow",
+					"source": ".",
+					"path": "skillbox/devflow/devflow"
+				},
+				{
+					"name": "devflow-afk",
+					"directory": "devflow-afk",
+					"source": ".",
+					"path": "skillbox/devflow/devflow-afk"
+				},
+				{
+					"name": "devflow-finish",
+					"directory": "devflow-finish",
+					"source": ".",
+					"path": "skillbox/devflow/devflow-finish"
+				},
+				{
+					"name": "devflow-plan",
+					"directory": "devflow-plan",
+					"source": ".",
+					"path": "skillbox/devflow/devflow-plan"
+				},
+				{
+					"name": "devflow-proposal",
+					"directory": "devflow-proposal",
+					"source": ".",
+					"path": "skillbox/devflow/devflow-proposal"
+				},
+				{
+					"name": "devflow-rfc",
+					"directory": "devflow-rfc",
+					"source": ".",
+					"path": "skillbox/devflow/devflow-rfc"
+				},
+				{
+					"name": "devflow-spec",
+					"directory": "devflow-spec",
+					"source": ".",
+					"path": "skillbox/devflow/devflow-spec"
+				},
+				{
+					"name": "devflow-start",
+					"directory": "devflow-start",
+					"source": ".",
+					"path": "skillbox/devflow/devflow-start"
+				},
+				{
+					"name": "devflow-tasks",
+					"directory": "devflow-tasks",
+					"source": ".",
+					"path": "skillbox/devflow/devflow-tasks"
+				},
+				{
+					"name": "flow-build-finalise",
+					"directory": "flow-build-finalise",
+					"source": ".",
+					"path": "skillbox/devflow/flow-build-finalise"
+				},
+				{
+					"name": "flow-build-refine",
+					"directory": "flow-build-refine",
+					"source": ".",
+					"path": "skillbox/devflow/flow-build-refine"
+				},
+				{
+					"name": "flow-build-smoke",
+					"directory": "flow-build-smoke",
+					"source": ".",
+					"path": "skillbox/devflow/flow-build-smoke"
+				},
+				{
+					"name": "flow-init-afk",
+					"directory": "flow-init-afk",
+					"source": ".",
+					"path": "skillbox/devflow/flow-init-afk"
+				},
+				{
+					"name": "flow-init-hitl",
+					"directory": "flow-init-hitl",
+					"source": ".",
+					"path": "skillbox/devflow/flow-init-hitl"
+				},
+				{
+					"name": "flow-review-owner",
+					"directory": "flow-review-owner",
+					"source": ".",
+					"path": "skillbox/devflow/flow-review-owner"
+				},
+				{
+					"name": "grill-me",
+					"directory": "grill-me",
+					"source": ".",
+					"path": "skillbox/devflow/grill-me"
+				},
+				{
+					"name": "migrate",
+					"directory": "migrate",
+					"source": ".",
+					"path": "skillbox/devflow/migrate"
+				},
+				{
+					"name": "shrug",
+					"directory": "shrug",
+					"source": ".",
+					"path": "skillbox/devflow/shrug"
+				}
+			],
+			"sourceHash": "434d789b00f77785cdd912e5fdc452d795474ab0ab7bbc49641ebdebfedd065a"
 		},
-		"bench": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "f91947f890768cf4b80e1bb72082c8d8db0bc438630a25254d562a585272b569",
-			"installMode": "copy"
+		"harness": {
+			"members": [
+				{
+					"name": "agent-browser",
+					"directory": "agent-browser",
+					"source": ".",
+					"path": "skillbox/harness/agent-browser"
+				},
+				{
+					"name": "bench",
+					"directory": "bench",
+					"source": ".",
+					"path": "skillbox/harness/bench"
+				},
+				{
+					"name": "rich-response",
+					"directory": "rich-response",
+					"source": ".",
+					"path": "skillbox/harness/rich-response"
+				},
+				{
+					"name": "session-introspection-claude",
+					"directory": "session-introspection-claude",
+					"source": ".",
+					"path": "skillbox/harness/session-introspection-claude"
+				},
+				{
+					"name": "session-introspection-codex",
+					"directory": "session-introspection-codex",
+					"source": ".",
+					"path": "skillbox/harness/session-introspection-codex"
+				},
+				{
+					"name": "session-introspection-pi",
+					"directory": "session-introspection-pi",
+					"source": ".",
+					"path": "skillbox/harness/session-introspection-pi"
+				},
+				{
+					"name": "tmux",
+					"directory": "tmux",
+					"source": ".",
+					"path": "skillbox/harness/tmux"
+				}
+			],
+			"sourceHash": "6e24247512ea3e46e12bd8e46278a841f3c7982698db40fbe99a95ae429eb2ce"
 		},
+		"projects": {
+			"members": [
+				{
+					"name": "docs-styleguide",
+					"directory": "docs-styleguide",
+					"source": ".",
+					"path": "skillbox/projects/docs-styleguide"
+				},
+				{
+					"name": "github",
+					"directory": "github",
+					"source": ".",
+					"path": "skillbox/projects/github"
+				}
+			],
+			"sourceHash": "dda11568486ec9eaa3c9f214bc344467a940d78741535e7de13f79e884cc4414"
+		},
+		"writing": {
+			"members": [
+				{
+					"name": "agent-clis",
+					"directory": "agent-clis",
+					"source": ".",
+					"path": "skillbox/writing/agent-clis"
+				},
+				{
+					"name": "agent-docs-hotpath",
+					"directory": "agent-docs-hotpath",
+					"source": ".",
+					"path": "skillbox/writing/agent-docs-hotpath"
+				},
+				{
+					"name": "mermaid",
+					"directory": "mermaid",
+					"source": ".",
+					"path": "skillbox/writing/mermaid"
+				},
+				{
+					"name": "writing-for-agents",
+					"directory": "writing-for-agents",
+					"source": ".",
+					"path": "skillbox/writing/writing-for-agents"
+				}
+			],
+			"sourceHash": "a80353cc3668dd25e01cad0f683f21a7d3d4ba3492117e4f695ab102138e6a73"
+		}
+	},
+	"installed": {
 		"codebase-design": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "b9b9081b45c2623311f0bd8681f69e927f2f9b69ad0397ad1531ee72b1c2b30c",
-			"installMode": "copy"
+			"bundle": "coding",
+			"directory": "codebase-design",
+			"hash": "4a68d7615182a47db2d4bfebe0631857f3ccc645115aa75533c3555b9bd6443b"
 		},
 		"declutter": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "a2f10372267712c3e807afb94cf7079c22c1fcb0e502e35842a7ee98dc13b1b4",
-			"installMode": "copy"
-		},
-		"docs-styleguide": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "60b6f924b7aed924c00009ca57ec6be4146010dcd10e415343703874d2f956ec",
-			"installMode": "copy"
+			"bundle": "coding",
+			"directory": "declutter",
+			"hash": "0cf3e5595ec948e918301112030b8d55d708a60e93701056f6e222063b156307"
 		},
 		"git-commit": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "1672f34e333aef02a631ac52edb1967967f80d3eff61e63f462cd5a3b81d380f",
-			"installMode": "copy"
+			"bundle": "coding",
+			"directory": "git-commit",
+			"hash": "5e5f17ce4d19b0291af5e8effc48543a320304f32250a0572265572c61325ef6"
 		},
 		"git-worktree-cleanup": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "95a041caebcc478bcc4b8eea4f8bef85bdb054c4fd5ec1bd7c86f69aa7eaf757",
-			"installMode": "copy"
-		},
-		"github": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "7f7dcca695f668fb8b422e39277068a1a01d11a5b0f80c266c1a7390d33a595c",
-			"installMode": "copy"
+			"bundle": "coding",
+			"directory": "git-worktree-cleanup",
+			"hash": "14602d18a8d38f40b4476ee9b2f600c2bc5fcb3a2e0e27eeefdf4df98d9e4b01"
 		},
 		"io-dependency-seams": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "e3e27aa7f1502b6243898cda6fa6d323e41d89c69245c60f48aa53c172355a9e",
-			"installMode": "copy"
-		},
-		"mermaid": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "ee8d17fa5cd9f5b4f64ff358be486d84b65beb57647716c9059df8fe6073e195",
-			"installMode": "copy"
+			"bundle": "coding",
+			"directory": "io-dependency-seams",
+			"hash": "4562c220cca49e92259ecbe29f3d063e5b62bd6bff94f35669a85f97e852fdff"
 		},
 		"purge": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "7d89e2771e866dd7e863df41338e1e39be39e35e05704d23d26f140cd31925af",
-			"installMode": "copy"
-		},
-		"rich-response": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "1c74403966d4cc3d96dd97d05b5ccf2b8de3bfe9c5504c002103d7b07418ffe6",
-			"installMode": "copy"
+			"bundle": "coding",
+			"directory": "purge",
+			"hash": "037e7003c56b8fa7defee75e7ea0f40777ce1321706e3c2e402a1c135d881244"
 		},
 		"robustness": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "0fa8f1a6c27bf1eb696ba0668b185672a40781c2cc6b7778df7e748da4ada694",
-			"installMode": "copy"
-		},
-		"session-introspection-claude": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "64122e8a23b14074d46c28968889028f35f89802a51f75009323620cb5f82f4b",
-			"installMode": "copy"
-		},
-		"session-introspection-codex": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "35ff8d6754857a9802a8bb0a432962e33d9d4d771bd69c41070921668c3ed124",
-			"installMode": "copy"
-		},
-		"session-introspection-pi": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "0e31cedb809c73f64d9038ec1706766389a5a1eb4d9540eed99bbe8351578512",
-			"installMode": "copy"
-		},
-		"tmux": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "cd206f1d9637ef6901c4386ab576eac4d02d47db91450f2e367d69d809d6cb3d",
-			"installMode": "copy"
+			"bundle": "coding",
+			"directory": "robustness",
+			"hash": "59a95f28363a92c82e58ee465926b905f317aa79db22d30e73436ffe0bb556ba"
 		},
 		"typescript": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "d5f46473717b19ac03e4da4da5d65fce74d4b4af6bff5475134cca32809f165d",
-			"installMode": "copy"
+			"bundle": "dev",
+			"directory": "typescript",
+			"hash": "2b4a949bc7f4dec8d0a8f41bc9503497d14c443d854e9b0952b584ceb6b9514d"
+		},
+		"agent-browser": {
+			"bundle": "harness",
+			"directory": "agent-browser",
+			"hash": "ecaba1f213fc575d969a5d9f9fb793253a328bfc4dea45efb9eaaa3889cde79f"
+		},
+		"bench": {
+			"bundle": "harness",
+			"directory": "bench",
+			"hash": "68ffe49d65d85e7f06cc9bd18afdddd8fae5f190e2c30926a43f6793a12f71ed"
+		},
+		"rich-response": {
+			"bundle": "harness",
+			"directory": "rich-response",
+			"hash": "0c84e045a585dbd264f6877c9f2f3ef5b336c5763ca8b1f583d79f0b4d206b1f"
+		},
+		"session-introspection-claude": {
+			"bundle": "harness",
+			"directory": "session-introspection-claude",
+			"hash": "f2f6435a7c416af1f50ee0db7bcb3b12e435da46845226c014470f3953c5fc68"
+		},
+		"session-introspection-codex": {
+			"bundle": "harness",
+			"directory": "session-introspection-codex",
+			"hash": "a429b68531544791d7c577b3cc9dd38de7be0dca713ead6cd2aa763677419820"
+		},
+		"session-introspection-pi": {
+			"bundle": "harness",
+			"directory": "session-introspection-pi",
+			"hash": "8fd237daaface288c5680da62a1e064ade00bb0542eff86c9098f4ee2d1d14f5"
+		},
+		"tmux": {
+			"bundle": "harness",
+			"directory": "tmux",
+			"hash": "2f181952442eff61b75a0b01221a994728dd0041a1adb083e2cad28c052cd129"
+		},
+		"docs-styleguide": {
+			"bundle": "projects",
+			"directory": "docs-styleguide",
+			"hash": "44a7cd39f60dc44be465927f4ca8d4e00b178452750339f6f7b108164cd3bc4e"
+		},
+		"github": {
+			"bundle": "projects",
+			"directory": "github",
+			"hash": "c8d5b6537bc7b446a6a020f6c22c72ba3ae7ea4f133f0375f6199b4032694307"
+		},
+		"agent-clis": {
+			"bundle": "writing",
+			"directory": "agent-clis",
+			"hash": "c97ad8f38e22d6070007ea754fcd93650fbf507b640a31d0671a39f3e50d519f"
+		},
+		"agent-docs-hotpath": {
+			"bundle": "writing",
+			"directory": "agent-docs-hotpath",
+			"hash": "317322466736d29a70bd89c8b78165d854b1a50211c97e4e93d3a90bb65c068e"
+		},
+		"mermaid": {
+			"bundle": "writing",
+			"directory": "mermaid",
+			"hash": "4b376b81e908b5a55f0598acfd097589760ab02852cf740a1475e4692f258491"
 		},
 		"writing-for-agents": {
-			"source": "./skillbox",
-			"sourceType": "local",
-			"computedHash": "387990a9c20828858e213441f5fdf56f2d74ff078510260db296951e275f3452",
-			"installMode": "copy"
+			"bundle": "writing",
+			"directory": "writing-for-agents",
+			"hash": "83cd51c5bf18c0a137033ed00cdebaf5ebfcbad9f79f837731e7381efb1860b4"
 		}
 	}
 }

@@ -58,7 +58,7 @@
 	},
 	"devDependencies": {
 		"@codethread/cli-changelog": "github:codethread/cli-changelog#c457e0a28686ce6349ce0956b1375635d53148d8",
-		"@codethread/skillbox": "^0.2.1",
+		"@codethread/skillbox": "0.3.0",
 		"@earendil-works/pi-agent-core": "1.5.0",
 		"@earendil-works/pi-ai": "1.5.0",
 		"@earendil-works/pi-coding-agent": "1.5.0",
