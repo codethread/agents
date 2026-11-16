@@ -1,4 +1,26 @@
 {
-	"sources": [],
-	"install": ["coding", "dev", "harness", "projects", "writing"]
+	"sources": [
+		{
+			"type": "skills",
+			"id": "discussion",
+			"source": "mattpocock/skills",
+			"path": "skills/engineering",
+			"pick": ["codebase-design", "domain-modeling"]
+		},
+		{
+			"type": "skills",
+			"id": "discussion",
+			"source": "mattpocock/skills",
+			"path": "skills/productivity",
+			"pick": ["grill-me", "grilling"]
+		},
+		{
+			"type": "skills",
+			"id": "writing",
+			"source": "mattpocock/skills",
+			"path": "skills/productivity",
+			"pick": ["writing-for-agents"]
+		}
+	],
+	"install": ["coding", "discussion", "dev", "harness", "projects", "writing"]
 }
