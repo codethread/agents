@@ -218,7 +218,7 @@
 					"path": "skillbox/harness/tmux"
 				}
 			],
-			"sourceHash": "6e24247512ea3e46e12bd8e46278a841f3c7982698db40fbe99a95ae429eb2ce"
+			"sourceHash": "0076f5fee0b49cfb6d2b267f24004ad5df2b9a6914f7c5e6e989b9b36f384249"
 		},
 		"projects": {
 			"members": [
@@ -321,7 +321,7 @@
 		"rich-response": {
 			"bundle": "harness",
 			"directory": "rich-response",
-			"hash": "0c84e045a585dbd264f6877c9f2f3ef5b336c5763ca8b1f583d79f0b4d206b1f"
+			"hash": "f8cb6ad986795c7739399a298390968c63a51b7e30a6a5ab5cf51032577b8e5c"
 		},
 		"session-introspection-claude": {
 			"bundle": "harness",
