@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
 # Async worker for window-title.sh: derive a terse kebab-case label for the
-# session's first user message and apply it to the captured tmux window (or the
-# terminal title bar when not in tmux). Detached, so a slow model never delays
+# session's first user message and apply it to the captured tmux window or Rex
+# tab (or the terminal title bar otherwise). Detached, so a slow model never delays
 # the user's prompt. Errors are swallowed; a title is best-effort.
 #
-# Args: $1 = tmux window id (empty when not in tmux), $2 = first user message.
+# Args: $1 = target from current_target (tmux:<id>, rex:<block>, or empty),
+#       $2 = first user message.
 set -u
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=window-title-lib.sh
 . "$here/window-title-lib.sh"
 
-window_id="${1:-}"
+target="${1:-}"
 prompt="${2:-}"
 [ -n "$prompt" ] || exit 0
 
@@ -43,6 +44,6 @@ fi
 title=$(kebab_case "$raw" 4 0)
 [ -n "$title" ] || title="claude"
 
-debug "window_id=${window_id:-none} raw=$(printf '%q' "$raw") title=$title"
-apply_title "$window_id" "$title"
+debug "target=${target:-none} raw=$(printf '%q' "$raw") title=$title"
+apply_title "$target" "$title"
 exit 0

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Set the tmux window title (and terminal title) from the first user message,
+# Set the tmux window, Rex tab, or terminal title from the first user message,
 # mirroring pi/extensions/ui/tmux-window-title for Claude Code.
 #
 # On the first prompt only, the title is derived asynchronously by
 # window-title-apply.sh; a per-session sentinel keeps later prompts and
-# resume/reload quiet. The tmux window is captured now so a later window switch
-# can't retarget the rename.
+# resume/reload quiet. The tmux window (or Rex pane) is captured now so a later
+# window switch can't retarget the rename.
 #
 # Must never block a normal prompt (exit 0) and must never write to stdout:
 # on UserPromptSubmit, stdout is injected into the model's context.
@@ -30,16 +30,11 @@ prompt=$(printf '%s' "$payload" | jq -r '.prompt // empty' 2>/dev/null) || exit 
 
 sentinel="$state_dir/$session_id.done"
 
-current_window_id() {
-	[ -n "${TMUX:-}" ] || return 0
-	tmux display-message -p -F '#{window_id}' ${TMUX_PANE:+-t "$TMUX_PANE"} 2>/dev/null || true
-}
-
-# First prompt only: claim the sentinel, capture the window, derive asynchronously.
+# First prompt only: claim the sentinel, capture the target, derive asynchronously.
 if ! (set -o noclobber; : > "$sentinel") 2>/dev/null; then
 	exit 0
 fi
 
-HARNESS_WINDOW_TITLE_CHILD=1 nohup bash "$here/window-title-apply.sh" "$(current_window_id)" "$prompt" >/dev/null 2>&1 &
+HARNESS_WINDOW_TITLE_CHILD=1 nohup bash "$here/window-title-apply.sh" "$(current_target)" "$prompt" >/dev/null 2>&1 &
 disown 2>/dev/null || true
 exit 0

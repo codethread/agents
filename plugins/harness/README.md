@@ -101,7 +101,7 @@ rg -l --fixed-strings "\"cwd\":\"$PWD\"" "$DLG_DIR"/*.jsonl | xargs ls -t 2>/dev
 
 ## Window-title hook
 
-Mirrors Pi's `pi/extensions/ui/tmux-window-title` for Claude Code: after the first user prompt in a session, name the tmux window (or terminal title bar) after the task.
+Mirrors Pi's `pi/extensions/ui/tmux-window-title` for Claude Code: after the first user prompt in a session, name the tmux window, Rex tab, or terminal title bar after the task.
 
 `.claude-plugin/hooks/window-title.sh` runs on `UserPromptSubmit`. On the first prompt it claims a per-session sentinel at:
 
@@ -109,10 +109,16 @@ Mirrors Pi's `pi/extensions/ui/tmux-window-title` for Claude Code: after the fir
 ${XDG_STATE_HOME:-$HOME/.local/state}/claude-window-title/<session_id>.done
 ```
 
-so later prompts (and resume/reload) no-op. It captures the current tmux window id up front — so switching windows before the async worker returns can't retarget the rename — then detaches `.claude-plugin/hooks/window-title-apply.sh`, which asks a small child `claude` (`claude-sonnet-5-5-20251001`) for a terse 1–4 word label, kebab-cases it, and applies it via `tmux rename-window` (or an OSC title escape to `/dev/tty` when not in tmux). If the child model is unavailable it falls back to the first few words of the prompt.
+so later prompts (and resume/reload) no-op. It captures the target up front — so switching windows before the async worker returns can't retarget the rename — then detaches `.claude-plugin/hooks/window-title-apply.sh`, which asks a small child `claude` (`--model haiku`) for a terse 1–4 word label, kebab-cases it, and applies it to the target. If the child model is unavailable it falls back to the first few words of the prompt.
+
+| Terminal                                    | Target captured      | Applied with                                                                             |
+| ------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------- |
+| tmux (`$TMUX` set; wins when nested in Rex) | the pane's window id | `tmux rename-window`                                                                     |
+| Rex (`$REX_BLOCK` set)                      | the pane's block id  | `rex window rename` on the tab (Rex window) holding that block; the session is untouched |
+| anything else                               | —                    | OSC 2 title escape to `/dev/tty`                                                         |
 
 The sentinel is claimed synchronously and the model call is detached, so prompt submission is never delayed. The worker sets `HARNESS_WINDOW_TITLE_CHILD=1` on the child; `window-title.sh` and `capture.sh` both short-circuit on that flag, so the throwaway child session neither recurses nor pollutes the dialogue log.
 
-`kebab_case` / `apply_title` are shared by both scripts via `.claude-plugin/hooks/window-title-lib.sh`.
+`kebab_case` / `current_target` / `apply_title` are shared by both scripts via `.claude-plugin/hooks/window-title-lib.sh`.
 
 **Debug:** launch Claude with `HARNESS_WINDOW_TITLE_DEBUG=1` to append derivation details to `…/claude-window-title/debug.log`.
