@@ -20,6 +20,7 @@ console.log(JSON.stringify({
   count: lake.extensions.length,
   names: [...extensions.keys()],
   mailAgentRequires: extensions.get("mail-agents")?.requires,
+  agentRequires: agents.requires,
 }));`,
 				],
 				{ cwd: import.meta.dirname, encoding: "utf8" },
@@ -31,6 +32,7 @@ console.log(JSON.stringify({
 			count: number;
 			names: string[];
 			mailAgentRequires: string[];
+			agentRequires: string[];
 		};
 
 		expect(result.exactAgents).toBe(true);
@@ -40,5 +42,6 @@ console.log(JSON.stringify({
 		expect(result.names.filter((name) => name === "ui")).toHaveLength(1);
 		expect(result.names).toEqual(expect.arrayContaining(["mail", "mail-identity", "mail-agents"]));
 		expect(result.mailAgentRequires).toEqual(["mail", "agents"]);
+		expect(result.agentRequires).not.toContain("mail");
 	});
 });
