@@ -5,6 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { Message, Model } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { z } from "zod";
 import {
 	buildWindowTitlePrompt,
 	buildWindowTitleSystemPrompt,
@@ -16,6 +17,15 @@ import {
 } from "./window-title.js";
 
 type TitleState = "idle" | "running" | "done" | "skipped";
+
+type TitleTarget =
+	| { kind: "terminal" }
+	| { kind: "tmux"; windowId: string }
+	| { kind: "rex"; sessionId: string; windowId: string };
+
+const rexBlockInspectionSchema = z.object({
+	block: z.object({ window_id: z.string().min(1) }),
+});
 
 type PersistedTitleEntry = {
 	data?: {
@@ -188,42 +198,60 @@ async function runTitleAgent(
 	}
 }
 
-async function captureTmuxWindowId(
-	pi: ExtensionAPI,
-	_ctx: ExtensionContext,
-): Promise<string | undefined> {
-	if (!process.env.TMUX?.trim()) return undefined;
+async function captureTitleTarget(pi: ExtensionAPI, env: NodeJS.ProcessEnv): Promise<TitleTarget> {
+	// A nested tmux session owns its windows; do not rename its containing Rex tab.
+	if (env.TMUX?.trim()) {
+		const args = ["display-message", "-p", "-F", "#{window_id}"];
+		const paneId = env.TMUX_PANE?.trim();
+		if (paneId) args.push("-t", paneId);
 
-	const args = ["display-message", "-p", "-F", "#{window_id}"];
-	const paneId = process.env.TMUX_PANE?.trim();
-	if (paneId) args.push("-t", paneId);
-
-	const result = await pi.exec("tmux", args, { timeout: 5000 });
-	if (result.code !== 0) {
-		const message =
-			result.stderr.trim() || result.stdout.trim() || `tmux exited with code ${result.code}`;
-		throw new Error(message);
+		const result = await pi.exec("tmux", args, { timeout: 5000 });
+		if (result.code !== 0) {
+			throw new Error(
+				result.stderr.trim() || result.stdout.trim() || `tmux exited with code ${result.code}`,
+			);
+		}
+		const windowId = parseTmuxWindowId(result.stdout);
+		if (!windowId) throw new Error("tmux returned an invalid window id");
+		return { kind: "tmux", windowId };
 	}
 
-	return parseTmuxWindowId(result.stdout);
+	const sessionId = env.REX_SESSION?.trim();
+	const blockId = env.REX_BLOCK?.trim();
+	if (!sessionId && !blockId) return { kind: "terminal" };
+	if (!sessionId || !blockId) throw new Error("Rex requires both REX_SESSION and REX_BLOCK");
+
+	const result = await pi.exec("rex", ["block", "inspect", "-s", sessionId, blockId, "--json"], {
+		timeout: 5000,
+	});
+	if (result.code !== 0) {
+		throw new Error(
+			result.stderr.trim() || result.stdout.trim() || `rex exited with code ${result.code}`,
+		);
+	}
+	const { block } = rexBlockInspectionSchema.parse(JSON.parse(result.stdout));
+	return { kind: "rex", sessionId, windowId: block.window_id };
 }
 
 async function applyWindowTitle(
 	pi: ExtensionAPI,
 	ctx: ExtensionContext,
 	title: string,
-	tmuxWindowId?: string,
+	target: TitleTarget,
 ): Promise<void> {
 	ctx.ui.setTitle(title);
-	if (!tmuxWindowId) return;
+	if (target.kind === "terminal") return;
 
-	const result = await pi.exec("tmux", ["rename-window", "-t", tmuxWindowId, title], {
-		timeout: 5000,
-	});
+	const command = target.kind === "tmux" ? "tmux" : "rex";
+	const args =
+		target.kind === "tmux"
+			? ["rename-window", "-t", target.windowId, title]
+			: ["window", "rename", "-s", target.sessionId, target.windowId, title];
+	const result = await pi.exec(command, args, { timeout: 5000 });
 	if (result.code !== 0) {
-		const message =
-			result.stderr.trim() || result.stdout.trim() || `tmux exited with code ${result.code}`;
-		throw new Error(message);
+		throw new Error(
+			result.stderr.trim() || result.stdout.trim() || `${command} exited with code ${result.code}`,
+		);
 	}
 }
 
@@ -244,7 +272,7 @@ export default function tmuxWindowTitleExtension(pi: ExtensionAPI) {
 	let state: TitleState = "idle";
 	let activeTitle: string | null = null;
 	let activeChild: ChildProcess | null = null;
-	let tmuxWindowId: string | null = null;
+	let titleTarget: TitleTarget = { kind: "terminal" };
 	let settled = false;
 	let titleUpdate = Promise.resolve();
 
@@ -254,11 +282,11 @@ export default function tmuxWindowTitleExtension(pi: ExtensionAPI) {
 	}
 
 	function refreshTitle(ctx: ExtensionContext): Promise<void> {
-		// Serialize tmux writes so a slow title generation cannot overwrite a newer status.
+		// Serialize title writes so a slow title generation cannot overwrite a newer status.
 		titleUpdate = titleUpdate
 			.then(async () => {
 				const title = `${settled ? "● " : ""}${activeTitle ?? "pi"}`;
-				await applyWindowTitle(pi, ctx, title, tmuxWindowId ?? undefined);
+				await applyWindowTitle(pi, ctx, title, titleTarget);
 				await debugLog(ctx, `applied ${JSON.stringify(title)} settled=${settled}`);
 			})
 			.catch((error) => {
@@ -328,10 +356,10 @@ export default function tmuxWindowTitleExtension(pi: ExtensionAPI) {
 		);
 	}
 
-	function maybeQueueTitleGeneration(ctx: ExtensionContext) {
+	function maybeQueueTitleGeneration(ctx: ExtensionContext, entries: readonly unknown[]) {
 		if (state !== "idle" || activeTitle) return;
 
-		const firstUserMessage = extractFirstUserMessage(ctx.sessionManager.getBranch());
+		const firstUserMessage = extractFirstUserMessage(entries);
 		if (!firstUserMessage) return;
 
 		state = "running";
@@ -343,7 +371,7 @@ export default function tmuxWindowTitleExtension(pi: ExtensionAPI) {
 	}
 
 	pi.registerFlag("debug-tmux-title", {
-		description: "Print tmux window-title generation and settled-marker updates",
+		description: "Print terminal tab-title generation and settled-marker updates",
 		type: "boolean",
 		default: false,
 	});
@@ -352,28 +380,18 @@ export default function tmuxWindowTitleExtension(pi: ExtensionAPI) {
 		state = "idle";
 		settled = false;
 		activeChild = null;
-		tmuxWindowId = null;
+		titleTarget = { kind: "terminal" };
 		activeTitle = getPersistedTitle(ctx) ?? null;
 
 		try {
-			tmuxWindowId = (await captureTmuxWindowId(pi, ctx)) ?? null;
-			if (process.env.TMUX?.trim() && !tmuxWindowId) {
-				notify(
-					ctx,
-					"tmux-window-title: could not capture tmux window id; will not rename tmux window",
-					"warning",
-				);
-			}
-			if (tmuxWindowId) {
-				await debugLog(ctx, `captured tmux window ${tmuxWindowId}`);
-			}
+			titleTarget = await captureTitleTarget(pi, process.env);
+			await debugLog(ctx, `captured title target ${JSON.stringify(titleTarget)}`);
 		} catch (error) {
 			notify(
 				ctx,
-				`tmux-window-title: failed to capture tmux window id: ${getErrorMessage(error)}`,
+				`tmux-window-title: failed to capture title target: ${getErrorMessage(error)}`,
 				"warning",
 			);
-			await debugLog(ctx, `tmux window capture failed: ${getErrorMessage(error)}`);
 		}
 
 		if (activeTitle) {
@@ -383,12 +401,16 @@ export default function tmuxWindowTitleExtension(pi: ExtensionAPI) {
 			return;
 		}
 
-		maybeQueueTitleGeneration(ctx);
+		maybeQueueTitleGeneration(ctx, ctx.sessionManager.getBranch());
 	});
 
 	pi.on("message_end", async (event, ctx) => {
 		if (event.message.role !== "user") return;
-		maybeQueueTitleGeneration(ctx);
+		// Pi emits message_end before persisting the message into the session branch.
+		maybeQueueTitleGeneration(ctx, [
+			...ctx.sessionManager.getBranch(),
+			{ type: "message", message: event.message },
+		]);
 	});
 
 	pi.on("agent_start", async (_event, ctx) => {

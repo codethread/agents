@@ -205,7 +205,7 @@ export function pickWindowTitleModel<T extends ModelLike>(
 
 export function buildWindowTitleSystemPrompt(): string {
 	return [
-		"You create ultra-short tmux window titles for Pi coding-agent sessions.",
+		"You create ultra-short terminal tab titles for Pi coding-agent sessions.",
 		"Read the user's request and reply with a terse 1 to 4 word label for the task.",
 		"Return only the label text.",
 		"Do not add explanations, quotes, markdown, numbering, prefixes, or suffixes.",
@@ -216,7 +216,7 @@ export function buildWindowTitleSystemPrompt(): string {
 
 export function buildWindowTitlePrompt(firstUserMessage: string): string {
 	return [
-		"Create a very short tmux window title for this request.",
+		"Create a very short terminal tab title for this request.",
 		"Keep it to 1 to 4 words.",
 		"Output only the title text.",
 		"",
