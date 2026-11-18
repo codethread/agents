@@ -36,6 +36,7 @@ The package includes:
 - a package-owned, tool-aware system prompt with global/project `agent.njk` rules;
 - project structure and dialogue-capture context;
 - built-in tool replacements;
+- explicitly authorized [self-termination](pi/extensions/tools/self-terminate/README.md), with graceful Pi shutdown and optional Rex tab cleanup;
 - prompt history, status, and other optional UI extensions;
 - provider and project-rule helpers;
 - session-only MCP servers from JSON or files with `--mcp-config <json|file>`.
