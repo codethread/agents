@@ -19,6 +19,7 @@ Small index for the extensions shipped in this package. See each extension folde
 | [`builtins`](./tools/builtins/README.md)                   | Register compact built-in `read` and `bash` tools.                                                                               |
 | [`harness-metadata`](./tools/harness-metadata/README.md)   | Expose live harness metadata via `harness_metadata`, including the current session id, model, thinking level, and context usage. |
 | [`pi-internals`](./tools/pi-internals/README.md)           | Report Pi runtime, documentation, settings, and enabled extension paths on demand.                                               |
+| [`self-terminate`](./tools/self-terminate/README.md)       | Gracefully exit Pi with direct user authorization and close its verified, unshared Rex tab after process exit.                   |
 | [`web-access`](./tools/web-access/README.md)               | Simple Exa-backed `web_search` plus HTTP(S) `fetch_content`.                                                                     |
 
 ## UI
