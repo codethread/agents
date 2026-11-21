@@ -1,350 +1,369 @@
 {
-	"version": 2,
-	"sources": {
-		"[\"skills\",\"discussion\",\"mattpocock/skills\",\"skills/engineering\"]": {
-			"contribution": {
-				"type": "skills",
-				"id": "discussion",
-				"source": "mattpocock/skills",
-				"path": "skills/engineering",
-				"pick": ["codebase-design", "domain-modeling"]
-			},
-			"pin": {
-				"type": "git",
-				"revision": "5863806dd4e15c63174bee4e7515a4256792ecfa",
-				"tree": "dc6b596b851e6a987f86aeb934672d28cb767e5f"
-			}
-		},
-		"[\"skills\",\"discussion\",\"mattpocock/skills\",\"skills/productivity\"]": {
-			"contribution": {
-				"type": "skills",
-				"id": "discussion",
-				"source": "mattpocock/skills",
-				"path": "skills/productivity",
-				"pick": ["grill-me", "grilling"]
-			},
-			"pin": {
-				"type": "git",
-				"revision": "5863806dd4e15c63174bee4e7515a4256792ecfa",
-				"tree": "dc6b596b851e6a987f86aeb934672d28cb767e5f"
-			}
-		},
-		"[\"skills\",\"writing\",\"mattpocock/skills\",\"skills/productivity\"]": {
-			"contribution": {
-				"type": "skills",
-				"id": "writing",
-				"source": "mattpocock/skills",
-				"path": "skills/productivity",
-				"pick": ["writing-for-agents"]
-			},
-			"pin": {
-				"type": "git",
-				"revision": "5863806dd4e15c63174bee4e7515a4256792ecfa",
-				"tree": "dc6b596b851e6a987f86aeb934672d28cb767e5f"
-			}
-		}
-	},
-	"bundles": {
-		"coding": {
-			"members": [
-				{
-					"name": "declutter",
-					"directory": "declutter",
-					"source": ".",
-					"path": "skillbox/coding/declutter"
-				},
-				{
-					"name": "git-commit",
-					"directory": "git-commit",
-					"source": ".",
-					"path": "skillbox/coding/git-commit"
-				},
-				{
-					"name": "git-worktree-cleanup",
-					"directory": "git-worktree-cleanup",
-					"source": ".",
-					"path": "skillbox/coding/git-worktree-cleanup"
-				},
-				{
-					"name": "io-dependency-seams",
-					"directory": "io-dependency-seams",
-					"source": ".",
-					"path": "skillbox/coding/io-dependency-seams"
-				},
-				{
-					"name": "purge",
-					"directory": "purge",
-					"source": ".",
-					"path": "skillbox/coding/purge"
-				},
-				{
-					"name": "robustness",
-					"directory": "robustness",
-					"source": ".",
-					"path": "skillbox/coding/robustness"
-				}
-			],
-			"sourceHash": "85364e02d1b09562dda0f87bac4356894eef4026b5bbc84e58d9b885a274d234"
-		},
-		"dev": {
-			"members": [
-				{
-					"name": "typescript",
-					"directory": "typescript",
-					"source": ".",
-					"path": "skillbox/dev/typescript"
-				}
-			],
-			"sourceHash": "527566d7799f853941a380c0aead2f03554e798f0f0ca265d16e4a448db4aade"
-		},
-		"discussion": {
-			"members": [
-				{
-					"name": "codebase-design",
-					"directory": "codebase-design",
-					"source": "mattpocock/skills",
-					"path": "skills/engineering/codebase-design",
-					"revision": "5863806dd4e15c63174bee4e7515a4256792ecfa"
-				},
-				{
-					"name": "domain-modeling",
-					"directory": "domain-modeling",
-					"source": "mattpocock/skills",
-					"path": "skills/engineering/domain-modeling",
-					"revision": "5863806dd4e15c63174bee4e7515a4256792ecfa"
-				},
-				{
-					"name": "grill-me",
-					"directory": "grill-me",
-					"source": "mattpocock/skills",
-					"path": "skills/productivity/grill-me",
-					"revision": "5863806dd4e15c63174bee4e7515a4256792ecfa"
-				},
-				{
-					"name": "grilling",
-					"directory": "grilling",
-					"source": "mattpocock/skills",
-					"path": "skills/productivity/grilling",
-					"revision": "5863806dd4e15c63174bee4e7515a4256792ecfa"
-				},
-				{
-					"name": "rich-response",
-					"directory": "rich-response",
-					"source": ".",
-					"path": "skillbox/discussion/rich-response"
-				}
-			],
-			"sourceHash": "6e08c8242b93700d63c1399a937c4353596486f73ff46c6f8928de6e051f051d"
-		},
-		"harness": {
-			"members": [
-				{
-					"name": "agent-browser",
-					"directory": "agent-browser",
-					"source": ".",
-					"path": "skillbox/harness/agent-browser"
-				},
-				{
-					"name": "bench",
-					"directory": "bench",
-					"source": ".",
-					"path": "skillbox/harness/bench"
-				},
-				{
-					"name": "session-introspection-claude",
-					"directory": "session-introspection-claude",
-					"source": ".",
-					"path": "skillbox/harness/session-introspection-claude"
-				},
-				{
-					"name": "session-introspection-codex",
-					"directory": "session-introspection-codex",
-					"source": ".",
-					"path": "skillbox/harness/session-introspection-codex"
-				},
-				{
-					"name": "session-introspection-pi",
-					"directory": "session-introspection-pi",
-					"source": ".",
-					"path": "skillbox/harness/session-introspection-pi"
-				},
-				{
-					"name": "tmux",
-					"directory": "tmux",
-					"source": ".",
-					"path": "skillbox/harness/tmux"
-				}
-			],
-			"sourceHash": "62bf13bb6146505cef084c2b471c410fccef09153aa2fef551c9b0039e4113dc"
-		},
-		"projects": {
-			"members": [
-				{
-					"name": "docs-styleguide",
-					"directory": "docs-styleguide",
-					"source": ".",
-					"path": "skillbox/projects/docs-styleguide"
-				},
-				{
-					"name": "github",
-					"directory": "github",
-					"source": ".",
-					"path": "skillbox/projects/github"
-				}
-			],
-			"sourceHash": "dda11568486ec9eaa3c9f214bc344467a940d78741535e7de13f79e884cc4414"
-		},
-		"writing": {
-			"members": [
-				{
-					"name": "agent-clis",
-					"directory": "agent-clis",
-					"source": ".",
-					"path": "skillbox/writing/agent-clis"
-				},
-				{
-					"name": "agent-docs-hotpath",
-					"directory": "agent-docs-hotpath",
-					"source": ".",
-					"path": "skillbox/writing/agent-docs-hotpath"
-				},
-				{
-					"name": "mermaid",
-					"directory": "mermaid",
-					"source": ".",
-					"path": "skillbox/writing/mermaid"
-				},
-				{
-					"name": "writing-for-agents",
-					"directory": "writing-for-agents",
-					"source": "mattpocock/skills",
-					"path": "skills/productivity/writing-for-agents",
-					"revision": "5863806dd4e15c63174bee4e7515a4256792ecfa"
-				}
-			],
-			"sourceHash": "76accf76e503fff2aeb34a8d09be4d1ab9f6958a83b71983914e10e0799f14fc"
-		}
-	},
-	"installed": {
-		"declutter": {
-			"bundle": "coding",
-			"directory": "declutter",
-			"hash": "0cf3e5595ec948e918301112030b8d55d708a60e93701056f6e222063b156307"
-		},
-		"git-commit": {
-			"bundle": "coding",
-			"directory": "git-commit",
-			"hash": "5e5f17ce4d19b0291af5e8effc48543a320304f32250a0572265572c61325ef6"
-		},
-		"git-worktree-cleanup": {
-			"bundle": "coding",
-			"directory": "git-worktree-cleanup",
-			"hash": "14602d18a8d38f40b4476ee9b2f600c2bc5fcb3a2e0e27eeefdf4df98d9e4b01"
-		},
-		"io-dependency-seams": {
-			"bundle": "coding",
-			"directory": "io-dependency-seams",
-			"hash": "4562c220cca49e92259ecbe29f3d063e5b62bd6bff94f35669a85f97e852fdff"
-		},
-		"purge": {
-			"bundle": "coding",
-			"directory": "purge",
-			"hash": "e2a572166f7efdff2af0e0f2f0075e6ce8518904e0fe96026dee2b41eb0f263b"
-		},
-		"robustness": {
-			"bundle": "coding",
-			"directory": "robustness",
-			"hash": "bdb7c2bdeceaf569f3c63117af5af4509ab13acf16d5bc1f47dadd4788ff4975"
-		},
-		"typescript": {
-			"bundle": "dev",
-			"directory": "typescript",
-			"hash": "2b4a949bc7f4dec8d0a8f41bc9503497d14c443d854e9b0952b584ceb6b9514d"
-		},
-		"codebase-design": {
-			"bundle": "discussion",
-			"directory": "codebase-design",
-			"hash": "af699701cb9d00697cc36d3fe089562f0630c4dc07b2b365dac53465c7c4ba30"
-		},
-		"domain-modeling": {
-			"bundle": "discussion",
-			"directory": "domain-modeling",
-			"hash": "635faa1488ffeb144429c8a1fe3cb367feb2486acbf0a1abf9bb76b3cc2c3d1f"
-		},
-		"grill-me": {
-			"bundle": "discussion",
-			"directory": "grill-me",
-			"hash": "01f97938b25fbbdb7ec2ca25e7d07d85da9d3fc847489974213de24f8fc81b10"
-		},
-		"grilling": {
-			"bundle": "discussion",
-			"directory": "grilling",
-			"hash": "a7df6ee1dd1f3c9b0f8e19064c3ae79581327977c574e68cfcd1053750676b67"
-		},
-		"rich-response": {
-			"bundle": "discussion",
-			"directory": "rich-response",
-			"hash": "c9b8eb189a8d63a2ab9f42ba3e122d185270a3a46e732d55623cb79cc18157c1"
-		},
-		"agent-browser": {
-			"bundle": "harness",
-			"directory": "agent-browser",
-			"hash": "873854b39d27416c764821407ce239c2dc6427176bd4897a18255cd2dcc7452a"
-		},
-		"bench": {
-			"bundle": "harness",
-			"directory": "bench",
-			"hash": "5f6bcafea7c5a4a00fc22c91683e5299aeea7f16217cb40cb937a175c23da8db"
-		},
-		"session-introspection-claude": {
-			"bundle": "harness",
-			"directory": "session-introspection-claude",
-			"hash": "6347675321563102266851c1a15bf30da2215acfceacc7238a274dc513ca0fbe"
-		},
-		"session-introspection-codex": {
-			"bundle": "harness",
-			"directory": "session-introspection-codex",
-			"hash": "1e8dd4bb70fa2770fa621c8f24b0c4323a6f74abf00bb35a52d6fb81dd80ec3b"
-		},
-		"session-introspection-pi": {
-			"bundle": "harness",
-			"directory": "session-introspection-pi",
-			"hash": "705687c4179edb4f96842ae0151c7eb40d4f2f97686e11f96529672a96851406"
-		},
-		"tmux": {
-			"bundle": "harness",
-			"directory": "tmux",
-			"hash": "47820c5a0e57cc5541fcbd40c4c13047de0de726aa86c3ff5eef6ffc380d8621"
-		},
-		"docs-styleguide": {
-			"bundle": "projects",
-			"directory": "docs-styleguide",
-			"hash": "44a7cd39f60dc44be465927f4ca8d4e00b178452750339f6f7b108164cd3bc4e"
-		},
-		"github": {
-			"bundle": "projects",
-			"directory": "github",
-			"hash": "c8d5b6537bc7b446a6a020f6c22c72ba3ae7ea4f133f0375f6199b4032694307"
-		},
-		"agent-clis": {
-			"bundle": "writing",
-			"directory": "agent-clis",
-			"hash": "c97ad8f38e22d6070007ea754fcd93650fbf507b640a31d0671a39f3e50d519f"
-		},
-		"agent-docs-hotpath": {
-			"bundle": "writing",
-			"directory": "agent-docs-hotpath",
-			"hash": "317322466736d29a70bd89c8b78165d854b1a50211c97e4e93d3a90bb65c068e"
-		},
-		"mermaid": {
-			"bundle": "writing",
-			"directory": "mermaid",
-			"hash": "64c511a4b2935ddc4d4f560eea15a5d0badd985d7c99e6d2090b304716704020"
-		},
-		"writing-for-agents": {
-			"bundle": "writing",
-			"directory": "writing-for-agents",
-			"hash": "e093cda599628c1dc2db48623ca18d80678e3a854613ca8109184025f04c0aeb"
-		}
-	}
+  "version": 2,
+  "sources": {
+    "[\"skills\",\"discussion\",\"mattpocock/skills\",\"skills/engineering\"]": {
+      "contribution": {
+        "type": "skills",
+        "id": "discussion",
+        "source": "mattpocock/skills",
+        "path": "skills/engineering",
+        "pick": [
+          "codebase-design",
+          "domain-modeling"
+        ]
+      },
+      "pin": {
+        "type": "git",
+        "revision": "5863806dd4e15c63174bee4e7515a4256792ecfa",
+        "tree": "dc6b596b851e6a987f86aeb934672d28cb767e5f"
+      }
+    },
+    "[\"skills\",\"discussion\",\"mattpocock/skills\",\"skills/productivity\"]": {
+      "contribution": {
+        "type": "skills",
+        "id": "discussion",
+        "source": "mattpocock/skills",
+        "path": "skills/productivity",
+        "pick": [
+          "grill-me",
+          "grilling"
+        ]
+      },
+      "pin": {
+        "type": "git",
+        "revision": "5863806dd4e15c63174bee4e7515a4256792ecfa",
+        "tree": "dc6b596b851e6a987f86aeb934672d28cb767e5f"
+      }
+    },
+    "[\"skills\",\"writing\",\"mattpocock/skills\",\"skills/productivity\"]": {
+      "contribution": {
+        "type": "skills",
+        "id": "writing",
+        "source": "mattpocock/skills",
+        "path": "skills/productivity",
+        "pick": [
+          "writing-for-agents"
+        ]
+      },
+      "pin": {
+        "type": "git",
+        "revision": "5863806dd4e15c63174bee4e7515a4256792ecfa",
+        "tree": "dc6b596b851e6a987f86aeb934672d28cb767e5f"
+      }
+    }
+  },
+  "bundles": {
+    "coding": {
+      "members": [
+        {
+          "name": "declutter",
+          "directory": "declutter",
+          "source": ".",
+          "path": "skillbox/coding/declutter"
+        },
+        {
+          "name": "git-commit",
+          "directory": "git-commit",
+          "source": ".",
+          "path": "skillbox/coding/git-commit"
+        },
+        {
+          "name": "git-worktree-cleanup",
+          "directory": "git-worktree-cleanup",
+          "source": ".",
+          "path": "skillbox/coding/git-worktree-cleanup"
+        },
+        {
+          "name": "io-dependency-seams",
+          "directory": "io-dependency-seams",
+          "source": ".",
+          "path": "skillbox/coding/io-dependency-seams"
+        },
+        {
+          "name": "purge",
+          "directory": "purge",
+          "source": ".",
+          "path": "skillbox/coding/purge"
+        },
+        {
+          "name": "robustness",
+          "directory": "robustness",
+          "source": ".",
+          "path": "skillbox/coding/robustness"
+        }
+      ],
+      "sourceHash": "85364e02d1b09562dda0f87bac4356894eef4026b5bbc84e58d9b885a274d234"
+    },
+    "dev": {
+      "members": [
+        {
+          "name": "typescript",
+          "directory": "typescript",
+          "source": ".",
+          "path": "skillbox/dev/typescript"
+        }
+      ],
+      "sourceHash": "527566d7799f853941a380c0aead2f03554e798f0f0ca265d16e4a448db4aade"
+    },
+    "discussion": {
+      "members": [
+        {
+          "name": "codebase-design",
+          "directory": "codebase-design",
+          "source": "mattpocock/skills",
+          "path": "skills/engineering/codebase-design",
+          "revision": "5863806dd4e15c63174bee4e7515a4256792ecfa"
+        },
+        {
+          "name": "domain-modeling",
+          "directory": "domain-modeling",
+          "source": "mattpocock/skills",
+          "path": "skills/engineering/domain-modeling",
+          "revision": "5863806dd4e15c63174bee4e7515a4256792ecfa"
+        },
+        {
+          "name": "grill-me",
+          "directory": "grill-me",
+          "source": "mattpocock/skills",
+          "path": "skills/productivity/grill-me",
+          "revision": "5863806dd4e15c63174bee4e7515a4256792ecfa"
+        },
+        {
+          "name": "grilling",
+          "directory": "grilling",
+          "source": "mattpocock/skills",
+          "path": "skills/productivity/grilling",
+          "revision": "5863806dd4e15c63174bee4e7515a4256792ecfa"
+        },
+        {
+          "name": "rich-response",
+          "directory": "rich-response",
+          "source": ".",
+          "path": "skillbox/discussion/rich-response"
+        }
+      ],
+      "sourceHash": "6e08c8242b93700d63c1399a937c4353596486f73ff46c6f8928de6e051f051d"
+    },
+    "harness": {
+      "members": [
+        {
+          "name": "agent-browser",
+          "directory": "agent-browser",
+          "source": ".",
+          "path": "skillbox/harness/agent-browser"
+        },
+        {
+          "name": "bench",
+          "directory": "bench",
+          "source": ".",
+          "path": "skillbox/harness/bench"
+        },
+        {
+          "name": "session-introspection-claude",
+          "directory": "session-introspection-claude",
+          "source": ".",
+          "path": "skillbox/harness/session-introspection-claude"
+        },
+        {
+          "name": "session-introspection-codex",
+          "directory": "session-introspection-codex",
+          "source": ".",
+          "path": "skillbox/harness/session-introspection-codex"
+        },
+        {
+          "name": "session-introspection-pi",
+          "directory": "session-introspection-pi",
+          "source": ".",
+          "path": "skillbox/harness/session-introspection-pi"
+        },
+        {
+          "name": "tmux",
+          "directory": "tmux",
+          "source": ".",
+          "path": "skillbox/harness/tmux"
+        }
+      ],
+      "sourceHash": "62bf13bb6146505cef084c2b471c410fccef09153aa2fef551c9b0039e4113dc"
+    },
+    "libs": {
+      "members": [
+        {
+          "name": "effect-v4",
+          "directory": "lib-effect-v4",
+          "source": ".",
+          "path": "skillbox/libs/lib-effect-v4"
+        }
+      ],
+      "sourceHash": "083d50e7fd8b6588d117a0663eeb9822febd889d58fac3133e2a772ec84637ad"
+    },
+    "projects": {
+      "members": [
+        {
+          "name": "docs-styleguide",
+          "directory": "docs-styleguide",
+          "source": ".",
+          "path": "skillbox/projects/docs-styleguide"
+        },
+        {
+          "name": "github",
+          "directory": "github",
+          "source": ".",
+          "path": "skillbox/projects/github"
+        }
+      ],
+      "sourceHash": "dda11568486ec9eaa3c9f214bc344467a940d78741535e7de13f79e884cc4414"
+    },
+    "writing": {
+      "members": [
+        {
+          "name": "agent-clis",
+          "directory": "agent-clis",
+          "source": ".",
+          "path": "skillbox/writing/agent-clis"
+        },
+        {
+          "name": "agent-docs-hotpath",
+          "directory": "agent-docs-hotpath",
+          "source": ".",
+          "path": "skillbox/writing/agent-docs-hotpath"
+        },
+        {
+          "name": "mermaid",
+          "directory": "mermaid",
+          "source": ".",
+          "path": "skillbox/writing/mermaid"
+        },
+        {
+          "name": "writing-for-agents",
+          "directory": "writing-for-agents",
+          "source": "mattpocock/skills",
+          "path": "skills/productivity/writing-for-agents",
+          "revision": "5863806dd4e15c63174bee4e7515a4256792ecfa"
+        }
+      ],
+      "sourceHash": "76accf76e503fff2aeb34a8d09be4d1ab9f6958a83b71983914e10e0799f14fc"
+    }
+  },
+  "installed": {
+    "declutter": {
+      "bundle": "coding",
+      "directory": "declutter",
+      "hash": "0cf3e5595ec948e918301112030b8d55d708a60e93701056f6e222063b156307"
+    },
+    "git-commit": {
+      "bundle": "coding",
+      "directory": "git-commit",
+      "hash": "5e5f17ce4d19b0291af5e8effc48543a320304f32250a0572265572c61325ef6"
+    },
+    "git-worktree-cleanup": {
+      "bundle": "coding",
+      "directory": "git-worktree-cleanup",
+      "hash": "14602d18a8d38f40b4476ee9b2f600c2bc5fcb3a2e0e27eeefdf4df98d9e4b01"
+    },
+    "io-dependency-seams": {
+      "bundle": "coding",
+      "directory": "io-dependency-seams",
+      "hash": "4562c220cca49e92259ecbe29f3d063e5b62bd6bff94f35669a85f97e852fdff"
+    },
+    "purge": {
+      "bundle": "coding",
+      "directory": "purge",
+      "hash": "e2a572166f7efdff2af0e0f2f0075e6ce8518904e0fe96026dee2b41eb0f263b"
+    },
+    "robustness": {
+      "bundle": "coding",
+      "directory": "robustness",
+      "hash": "bdb7c2bdeceaf569f3c63117af5af4509ab13acf16d5bc1f47dadd4788ff4975"
+    },
+    "typescript": {
+      "bundle": "dev",
+      "directory": "typescript",
+      "hash": "2b4a949bc7f4dec8d0a8f41bc9503497d14c443d854e9b0952b584ceb6b9514d"
+    },
+    "codebase-design": {
+      "bundle": "discussion",
+      "directory": "codebase-design",
+      "hash": "af699701cb9d00697cc36d3fe089562f0630c4dc07b2b365dac53465c7c4ba30"
+    },
+    "domain-modeling": {
+      "bundle": "discussion",
+      "directory": "domain-modeling",
+      "hash": "635faa1488ffeb144429c8a1fe3cb367feb2486acbf0a1abf9bb76b3cc2c3d1f"
+    },
+    "grill-me": {
+      "bundle": "discussion",
+      "directory": "grill-me",
+      "hash": "01f97938b25fbbdb7ec2ca25e7d07d85da9d3fc847489974213de24f8fc81b10"
+    },
+    "grilling": {
+      "bundle": "discussion",
+      "directory": "grilling",
+      "hash": "a7df6ee1dd1f3c9b0f8e19064c3ae79581327977c574e68cfcd1053750676b67"
+    },
+    "rich-response": {
+      "bundle": "discussion",
+      "directory": "rich-response",
+      "hash": "c9b8eb189a8d63a2ab9f42ba3e122d185270a3a46e732d55623cb79cc18157c1"
+    },
+    "agent-browser": {
+      "bundle": "harness",
+      "directory": "agent-browser",
+      "hash": "873854b39d27416c764821407ce239c2dc6427176bd4897a18255cd2dcc7452a"
+    },
+    "bench": {
+      "bundle": "harness",
+      "directory": "bench",
+      "hash": "5f6bcafea7c5a4a00fc22c91683e5299aeea7f16217cb40cb937a175c23da8db"
+    },
+    "session-introspection-claude": {
+      "bundle": "harness",
+      "directory": "session-introspection-claude",
+      "hash": "6347675321563102266851c1a15bf30da2215acfceacc7238a274dc513ca0fbe"
+    },
+    "session-introspection-codex": {
+      "bundle": "harness",
+      "directory": "session-introspection-codex",
+      "hash": "1e8dd4bb70fa2770fa621c8f24b0c4323a6f74abf00bb35a52d6fb81dd80ec3b"
+    },
+    "session-introspection-pi": {
+      "bundle": "harness",
+      "directory": "session-introspection-pi",
+      "hash": "705687c4179edb4f96842ae0151c7eb40d4f2f97686e11f96529672a96851406"
+    },
+    "tmux": {
+      "bundle": "harness",
+      "directory": "tmux",
+      "hash": "47820c5a0e57cc5541fcbd40c4c13047de0de726aa86c3ff5eef6ffc380d8621"
+    },
+    "docs-styleguide": {
+      "bundle": "projects",
+      "directory": "docs-styleguide",
+      "hash": "44a7cd39f60dc44be465927f4ca8d4e00b178452750339f6f7b108164cd3bc4e"
+    },
+    "github": {
+      "bundle": "projects",
+      "directory": "github",
+      "hash": "c8d5b6537bc7b446a6a020f6c22c72ba3ae7ea4f133f0375f6199b4032694307"
+    },
+    "agent-clis": {
+      "bundle": "writing",
+      "directory": "agent-clis",
+      "hash": "c97ad8f38e22d6070007ea754fcd93650fbf507b640a31d0671a39f3e50d519f"
+    },
+    "agent-docs-hotpath": {
+      "bundle": "writing",
+      "directory": "agent-docs-hotpath",
+      "hash": "317322466736d29a70bd89c8b78165d854b1a50211c97e4e93d3a90bb65c068e"
+    },
+    "mermaid": {
+      "bundle": "writing",
+      "directory": "mermaid",
+      "hash": "64c511a4b2935ddc4d4f560eea15a5d0badd985d7c99e6d2090b304716704020"
+    },
+    "writing-for-agents": {
+      "bundle": "writing",
+      "directory": "writing-for-agents",
+      "hash": "e093cda599628c1dc2db48623ca18d80678e3a854613ca8109184025f04c0aeb"
+    }
+  }
 }

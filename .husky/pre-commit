@@ -2,5 +2,24 @@
 set -e
 
 bun run --no-install lint-staged
+
+if ! git diff --cached --quiet -- skillbox/; then
+  # Sync reads working-tree files, so require the shared inputs to match the index.
+  if [ -f skillbox/.local/config.json ]; then
+    echo 'Temporarily move skillbox/.local/config.json aside to sync the shared lockfile.' >&2
+    exit 1
+  fi
+  if ! git diff --quiet -- skillbox/ || [ -n "$(git ls-files --others --exclude-standard -- skillbox/)" ]; then
+    echo 'Stage or set aside the remaining changes under skillbox/ before committing.' >&2
+    exit 1
+  fi
+
+  bun run --no-install skillbox sync
+  if ! git diff --quiet -- skillbox/lock.json || ! git cat-file -e :skillbox/lock.json; then
+    echo 'Skillbox regenerated skillbox/lock.json. Review and stage it, then retry the commit.' >&2
+    exit 1
+  fi
+fi
+
 bun run typecheck
 bun run --no-install vitest run --changed

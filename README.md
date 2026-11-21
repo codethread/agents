@@ -103,6 +103,8 @@ The Claude marketplace likewise exposes only `harness`. See the [hook reference]
 
 This checkout pins Skillbox `0.4.0`. Its `skillbox/config.json` installs `coding`, `dev`, `discussion`, `harness`, `projects`, and `writing`, combining native bundles with pinned upstream contributions. The version 2 `skillbox/lock.json` records bundle provenance and managed installations. Restore them with `bun run --no-install skillbox sync`; edit the source bundles rather than installed copies. Generated `.agents/skills/` copies and the `.claude/skills` symlink are ignored by Git; quality checks exclude the installed copies. The symlink points to `.agents/skills/`. Any separate root `skills-lock.json` belongs to other tooling and is not managed by Skillbox.
 
+Skillbox owns the tracked `skillbox/lock.json`; Prettier ignores it. For commits touching `skillbox/`, pre-commit syncs the shared lockfile after formatting. Stage or set aside any other edits under `skillbox/` and temporarily move `skillbox/.local/config.json` aside if you use a personal config. If sync changes the lockfile, review and stage it before retrying the commit.
+
 Keep skill frontmatter descriptions as single-line quoted YAML strings for Claude compatibility.
 
 Install mise, trust this repository's configuration with `mise trust`, then run `mise run` from the repository root. The pinned Bun and Node versions prepare all workspace dependencies with one root install and `bun.lock`, generated Skillbox copies, and local Git hooks. Node remains the runtime for Pi tooling and Vitest. Bootstrap does not start the lake or a server. Start the lake explicitly with `mise run lake-start` when needed and verify it with `botlake lake info --workspace "$(pwd)"`.
