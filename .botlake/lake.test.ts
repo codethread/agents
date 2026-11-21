@@ -8,15 +8,15 @@ describe("repository lake", () => {
 				"bun",
 				[
 					"-e",
-					`import {agents as configuredAgents, work as configuredWork, ui} from "@botlake/extension-ct-config";
+					`import * as configured from "@botlake/extension-ct-config";
 import {lake} from "./lake.ts";
 import agents from "./src/agents.ts";
 import work from "./src/work.ts";
 const extensions = new Map(lake.extensions.map((extension) => [extension.name, extension]));
 console.log(JSON.stringify({
-  exactAgents: agents === configuredAgents && extensions.get("agents") === agents,
-  exactWork: work === configuredWork && extensions.get("work") === work,
-  exactUi: extensions.get("ui") === ui,
+  exactAgents: agents === configured.agents && extensions.get("agents") === agents,
+  exactWork: work === configured.work && extensions.get("work") === work,
+  exactBindings: ["agents", "flags", "references", "priming", "work", "workAgents", "mail", "mailIdentity", "mailAgents", "ui"].every((key) => extensions.get(configured[key].name) === configured[key]),
   count: lake.extensions.length,
   names: [...extensions.keys()],
   mailAgentRequires: extensions.get("mail-agents")?.requires,
@@ -28,7 +28,7 @@ console.log(JSON.stringify({
 		) as {
 			exactAgents: boolean;
 			exactWork: boolean;
-			exactUi: boolean;
+			exactBindings: boolean;
 			count: number;
 			names: string[];
 			mailAgentRequires: string[];
@@ -37,7 +37,7 @@ console.log(JSON.stringify({
 
 		expect(result.exactAgents).toBe(true);
 		expect(result.exactWork).toBe(true);
-		expect(result.exactUi).toBe(true);
+		expect(result.exactBindings).toBe(true);
 		expect(result.count).toBe(result.names.length);
 		expect(result.names.filter((name) => name === "ui")).toHaveLength(1);
 		expect(result.names).toEqual(expect.arrayContaining(["mail", "mail-identity", "mail-agents"]));

@@ -1,6 +1,6 @@
 # Repository lake
 
-This lake installs public Botlake runtime packages from npm. Install Bun and the matching `botlake` and `bl` CLIs; see [Botlake workspace setup](https://github.com/codethread/botlake/blob/main/docs/usage.md#packages-and-extension-selection). The shared `@botlake/extension-ct-config` preset is pinned to `0.6.0`, with Core and its required runtime companions pinned to `0.6.0`. Its public peers resolve through Bun’s isolated workspace links, and its independent UI `0.1.3` dependency is installed transitively rather than declared directly.
+This lake installs public Botlake runtime packages from npm. Install Bun and the matching `botlake` and `bl` CLIs; see [Botlake workspace setup](https://github.com/codethread/botlake/blob/main/docs/usage.md#packages-and-extension-selection). The shared `@botlake/extension-ct-config` preset is pinned to `0.7.0`, with Core and its required runtime companions pinned to `0.7.0`. Its public peers resolve through Bun’s isolated workspace links, and its independent UI `0.1.3` dependency is installed transitively rather than declared directly.
 
 From the repository root, `mise run` installs all dependencies with one Bun workspace install and the root `bun.lock`. To reinstall dependencies without the rest of bootstrap, run `bun install --frozen-lockfile` at the repository root. This private `agents-workspace` package owns the lake dependencies; development tools and configuration are shared with the root package.
 
@@ -18,5 +18,15 @@ The manifest selects Batteries, Identity, the shared preset's UI and Mail descri
 In-session mail notifications require Botlake's global Mail plugin in each harness. The preset launches bare `piw`, `co --dangerously-bypass-hook-trust`, and `cl`; it does not inject Pi extensions or Codex mail hooks. Keep the global plugin enabled before starting or resuming managed agents. Installing lake dependencies alone does not install the harness plugins; verify fresh direct and managed sessions after changing their configuration.
 
 After changing the manifest or local configuration, reinstall dependencies. Restart with `botlake lake restart` only after active managed agents in this lake have finished; a managed agent must hand off that restart to an independent coordinator. Then run `botlake lake info`: every public extension `source`, `packageJson`, and `readme` path must resolve below this checkout's root `node_modules` store, never a Botlake source checkout. Root `bun run check` covers the lake alongside the Pi package. For lake-only checks, use `bun run --filter agents-workspace lint` and `bun run --filter agents-workspace typecheck`; the latter extends the shared TypeScript defaults with `exactOptionalPropertyTypes` enabled.
+
+Work and Agent reads return summaries by default. Request stored details explicitly:
+
+```sh
+bl work show TASK --show-description --show-notes --show-criteria --show-context --show-history
+bl agent show RUN --show-result --show-error --show-prompt --show-settings --show-launch
+bl agent activity peek RUN --show-events --show-stream
+```
+
+For paginated Work details, follow the top-level `nextOffset` until null, not only `members.nextOffset`: prerequisites and references may have more pages after members are exhausted. An omitted summary field does not mean its stored value is empty. Agent settlement is not success; inspect the result and error when available.
 
 Linked Git worktrees use the main checkout's lake. The local `.botlake/world.db*` files and dependency installations are ignored; the root Bun lockfile is committed. No legacy Beads work is imported, and no tracker Git branch is required.
