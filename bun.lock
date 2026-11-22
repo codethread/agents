@@ -15,7 +15,7 @@
       },
       "devDependencies": {
         "@codethread/cli-changelog": "github:codethread/cli-changelog#c457e0a28686ce6349ce0956b1375635d53148d8",
-        "@codethread/skillbox": "0.4.0",
+        "@codethread/skillbox": "0.5.0",
         "@earendil-works/pi-agent-core": "1.5.0",
         "@earendil-works/pi-ai": "1.5.0",
         "@earendil-works/pi-coding-agent": "1.5.0",
@@ -139,7 +139,7 @@
 
     "@codethread/cli-changelog": ["@codethread/cli-changelog@github:codethread/cli-changelog#c457e0a", { "peerDependencies": { "zod": "^4.6.5" }, "bin": { "cli-changelog": "./src/cli.ts" } }, "codethread-cli-changelog-c457e0a", "sha512-TXlF66ztscwtNV7nUhax63y1AEnpVA1f8utblvs8+Fsd0URV9JrSXTZmSas3flpXHBTnx4N86feaRYS1t8aLnQ=="],
 
-    "@codethread/skillbox": ["@codethread/skillbox@0.4.0", "", { "bin": { "skillbox": "bin/skillbox.mjs" } }, "sha512-hKh1uZDLSa0+UcSrVIv3KFBlP78oFr5hGZVX35YlSDepzrzJwZwA6MgfCEHnGYcacQ+I8muEubNGPfi/O0ORqw=="],
+    "@codethread/skillbox": ["@codethread/skillbox@0.5.0", "", { "bin": { "skillbox": "bin/skillbox.mjs" } }, "sha512-t7kEtO4qeUkEdQ++KJLI9l8/tyhEcVJOvvq2vR6bKEV0+1OxQPrJJpepQsGvJlyDoqTlHp8pAs1kTlMAbjPjPA=="],
 
     "@earendil-works/pi-agent-core": ["@earendil-works/pi-agent-core@1.5.0", "", { "dependencies": { "@earendil-works/pi-ai": "1.5.0", "@earendil-works/pi-schema": "1.5.0" } }, "sha512-FOj+jXj48DbzMycR/ghNa2KcsqWmvOln24e0FnQOVgnd8vn5H79g335WdHaZUVdRo+zCeogb40/qPPlCWFuvmA=="],
 

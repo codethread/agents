@@ -61,14 +61,14 @@ checkout selects the pair in its project settings, without changing global setti
 Run from a consuming project:
 
 ```bash
-bunx @codethread/skillbox@0.4.0 add skillbox codethread/agents agents \
+bunx @codethread/skillbox@0.5.0 add skillbox codethread/agents agents \
   --bundle dev --bundle coding --bundle discussion --bundle projects --bundle writing --bundle harness
 ```
 
 For an unpublished local checkout, use its repository root instead:
 
 ```bash
-bunx @codethread/skillbox@0.4.0 add skillbox /absolute/path/to/agents agents \
+bunx @codethread/skillbox@0.5.0 add skillbox /absolute/path/to/agents agents \
   --bundle dev --bundle coding --bundle discussion --bundle projects --bundle writing --bundle harness
 ```
 
@@ -83,7 +83,7 @@ bunx @codethread/skillbox@0.4.0 add skillbox /absolute/path/to/agents agents \
 
 The `discussion` bundle imports design and interview guidance from [mattpocock/skills](https://github.com/mattpocock/skills); `writing` imports agent instruction authoring from the same source. Skillbox records exact upstream revisions in this repository's lockfile.
 
-The destination id `agents` combines the selected upstream bundles and is added to the consuming project's `install` list. Skillbox copies skills and their supporting files into `.agents/skills/` and links `.claude/skills` to it. Commit `skillbox/config.json` and `skillbox/lock.json` in the consuming project; restore with `bunx @codethread/skillbox@0.4.0 sync`. Git sources remain pinned until an explicit reviewed update. It rejects existing unmanaged skill directories rather than overwriting them. Keep source changes in this repository's bundles, not in generated client copies.
+The destination id `agents` combines the selected upstream bundles and is added to the consuming project's `install` list. Skillbox copies skills and their supporting files into `.agents/skills/` and links `.claude/skills` to it. Commit `skillbox/config.json` and `skillbox/lock.json` in the consuming project; restore with `bunx @codethread/skillbox@0.5.0 sync`. Git sources remain pinned until an explicit reviewed update. It rejects existing unmanaged skill directories rather than overwriting them. Keep source changes in this repository's bundles, not in generated client copies.
 
 Former slash commands are user-invoked skills: Claude Code uses `/<name>`, Pi uses `/skill:<name>`, and Codex uses `$<name>`. In Pi, trust/approve the consuming project to enable project-local skill discovery. Related commands use domain-first names so they group together in skill pickers: `session-introspection-{claude,codex,pi}` and `git-{commit,worktree-cleanup}`. Use `declutter` for session cleanup, including harvesting durable outcomes before removing completed plan/task artifacts.
 
@@ -101,7 +101,7 @@ The Claude marketplace likewise exposes only `harness`. See the [hook reference]
 
 ## Development
 
-This checkout pins Skillbox `0.4.0`. Its `skillbox/config.json` installs `coding`, `dev`, `discussion`, `harness`, `projects`, and `writing`, combining native bundles with pinned upstream contributions. The version 2 `skillbox/lock.json` records bundle provenance and managed installations. Restore them with `bun run --no-install skillbox sync`; edit the source bundles rather than installed copies. Generated `.agents/skills/` copies and the `.claude/skills` symlink are ignored by Git; quality checks exclude the installed copies. The symlink points to `.agents/skills/`. Any separate root `skills-lock.json` belongs to other tooling and is not managed by Skillbox.
+This checkout pins Skillbox `0.5.0`. Its `skillbox/config.json` installs `coding`, `dev`, `discussion`, `harness`, `projects`, and `writing`, combining native bundles with pinned upstream contributions. The version 2 `skillbox/lock.json` records bundle provenance and managed installations. Restore them with `bun run --no-install skillbox sync`; edit the source bundles rather than installed copies. Generated `.agents/skills/` copies and the `.claude/skills` symlink are ignored by Git; quality checks exclude the installed copies. The symlink points to `.agents/skills/`. Any separate root `skills-lock.json` belongs to other tooling and is not managed by Skillbox.
 
 Skillbox owns the tracked `skillbox/lock.json`; Prettier ignores it. For commits touching `skillbox/`, pre-commit syncs the shared lockfile after formatting. Stage or set aside any other edits under `skillbox/` and temporarily move `skillbox/.local/config.json` aside if you use a personal config. If sync changes the lockfile, review and stage it before retrying the commit.
 
